@@ -12,7 +12,12 @@ import { validateCodeStrings } from './Validation.js';
 // Import the spreadsheet utilities
 import { handleInsertWorksheetsFromBase64 } from './SpreadsheetUtils.js';
 // Import code collection functions
-import { populateCodeCollection, exportCodeCollectionToText } from './CodeCollection.js';
+import { populateCodeCollection, exportCodeCollectionToText, runCodes, isActiveCellGreen, testTextFunction as testTextFunctionFromCollection, processAssumptionTabs } from './CodeCollection.js';
+// Add the codeStrings variable with the specified content
+const codeStrings = `<TAB; label1="Revenue and Direct Costs">
+<VOLLI-EV; labelRow=""; row1 = "|# of units sold:|||||||||||"; row2 = "LI1|# of students|||||100|100|100|100|100|100| *LI1|# of teachers|||||100|100|100|100|100|100| *LI1|# of sites|||||100|100|100|100|100|100|"; row3 = "V1|Total # of units sold|||||F|F|F|F|F|F|";>
+<BR>
+<UNITREV-VR; driver1="AS1"; row1 = "AS2|Grant Revenue/Student/Month|||||10|10|10|10|10|10|"; row2 = "R1|Total Grant Revenue|IS: revenue||||F|F|F|F|F|F|">`;
 // Mock fs module for browser environment
 const fs = {
     writeFileSync: (path, content) => {
@@ -764,6 +769,25 @@ async function validationCorrection(clientprompt, initialResponse, validationRes
 }
 
 // Add this function at the top level
+function showMessage(message) {
+    const messageDiv = document.createElement('div');
+    messageDiv.style.color = 'green';
+    messageDiv.style.padding = '10px';
+    messageDiv.style.margin = '10px';
+    messageDiv.style.border = '1px solid green';
+    messageDiv.style.borderRadius = '4px';
+    messageDiv.textContent = message;
+    
+    const appBody = document.getElementById('app-body');
+    appBody.insertBefore(messageDiv, appBody.firstChild);
+    
+    // Remove the message after 5 seconds
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 5000);
+}
+
+// Add this function at the top level
 function showError(message) {
     const errorDiv = document.createElement('div');
     errorDiv.style.color = 'red';
@@ -1024,120 +1048,118 @@ async function insertSheetsFromBase64() {
     }
 }
 
-// Update the Office.onReady callback to remove the JSON-based button handler
-Office.onReady(() => {
-    console.log("Office.onReady called");
-    document.getElementById("sideload-msg").style.display = "none";
-    document.getElementById("app-body").style.display = "flex";
-    
-    // Initialize API keys before doing anything else
-    initializeAPIKeys().then(success => {
-        if (success) {
-            console.log("API keys initialized successfully");
-        } else {
-            console.error("Failed to initialize API keys");
-            showError("Failed to initialize API keys. Some features may not work correctly.");
-        }
-
-        // Add click handler for send button
-        const sendButton = document.getElementById("send");
-        if (sendButton) {
-            sendButton.onclick = () => {
-                console.log("Send button clicked");
-                handleSend();
-            };
-            console.log("Send button click handler attached");
-        } else {
-            console.error("Send button not found in DOM");
-        }
-
-        // Add click handler for insert sheets from base64 button
-        const insertSheetsButton = document.getElementById("insert-sheets-base64");
-        if (insertSheetsButton) {
-            insertSheetsButton.onclick = () => {
-                console.log("Insert sheets from base64 button clicked");
-                insertSheetsFromBase64();
-            };
-            console.log("Insert sheets from base64 button click handler attached");
-        } else {
-            console.error("Insert sheets from base64 button not found in DOM");
-        }
-
-        // Add click handler for write to Excel button
-        const writeToExcelButton = document.getElementById("write-to-excel");
-        if (writeToExcelButton) {
-            writeToExcelButton.onclick = () => {
-                console.log("Write to Excel button clicked");
-                writeToExcel();
-            };
-            console.log("Write to Excel button click handler attached");
-        } else {
-            console.error("Write to Excel button not found in DOM");
-        }
-
-        // Add click handler for reset button
-        const resetButton = document.getElementById("reset-chat");
-        if (resetButton) {
-            resetButton.onclick = () => {
-                console.log("Reset button clicked");
-                resetChat();
-            };
-            console.log("Reset button click handler attached");
-        } else {
-            console.error("Reset button not found in DOM");
-        }
-
-        // Add click handler for test code collection button
-        const testCodeCollectionButton = document.getElementById("test-code-collection");
-        if (testCodeCollectionButton) {
-            testCodeCollectionButton.onclick = () => {
-                console.log("Test Code Collection button clicked");
-                testCodeCollection();
-            };
-            console.log("Test Code Collection button click handler attached");
-        } else {
-            console.error("Test Code Collection button not found in DOM");
-        }
-    });
-});
-
-// Add the test function for code collection
-async function testCodeCollection() {
+// Function to insert sheets and then run code collection - REVERTED
+async function insertSheetsAndRunCodes() {
     try {
-        // Sample input text from ActiveModelCode.txt
-        const sampleInput = `<MODEL; beginningmonth="Jan 2025"; timeseries="Monthly">
-<TAB; label1="Working Capital">
-<BR>
-<SUB-EV; row1 = "AS1|# of Grapefruits Sold|||||100|500|500|500|500|500|";>
-<UNITREV-VR; driver1="AS1"; row1 = "|Revenue|||||||||||"; row2 = "LRA1|Grapefruits|||||F|F|F|F|F|F|";>
-<UNITEXP-VR; driver1="AS1"; row1 = "|Expenses|||||||||||"; row2 = "LX1|COGS|||||10|10|10|10|10|10|">
-<TAB; label1="Tab 2">
-<BR>
-<SUB-EV; row1 = "AS1|# of Grapefruits Sold|||||100|500|500|500|500|500|";>
-<UNITREV-VR; driver1="AS1"; row1 = "|Revenue|||||||||||"; row2 = "LRA1|Grapefruits|||||F|F|F|F|F|F|";>
-<UNITEXP-VR; driver1="AS1"; row1 = "|Expenses|||||||||||"; row2 = "LX1|COGS|||||10|10|10|10|10|10|"> 
+        // Use the original busy state handling
+        setButtonLoading(true);
+        console.log("Starting sheet insertion and code processing...");
 
-`;
+        // --- 1. Fetch and Insert Base Sheets ---
+        console.log("Fetching base Excel file...");
+        const response = await fetch('https://localhost:3002/assets/Worksheets_4.3.25 v1.xlsx');
+        if (!response.ok) {
+            throw new Error(`Failed to load Excel file: ${response.status} ${response.statusText}`);
+        }
+        
+        console.log("Converting file to base64...");
+        const arrayBuffer = await response.arrayBuffer();
+        const uint8Array = new Uint8Array(arrayBuffer);
+        let binaryString = '';
+        const chunkSize = 8192; // Process in 8KB chunks
+        for (let i = 0; i < uint8Array.length; i += chunkSize) {
+            const chunk = uint8Array.slice(i, Math.min(i + chunkSize, uint8Array.length));
+            binaryString += String.fromCharCode.apply(null, chunk);
+        }
+        const base64String = btoa(binaryString);
+        console.log("Base64 conversion complete. Inserting sheets...");
 
-        // Process the input text
-        const codeCollection = populateCodeCollection(sampleInput);
+        // Call the function to insert worksheets WITH the base64 string
+        await handleInsertWorksheetsFromBase64(base64String); 
+        console.log("Base sheets inserted successfully.");
         
-        // Generate the text representation
-        const resultText = exportCodeCollectionToText(codeCollection);
+        // --- 2. Populate code collection ---
+        console.log("Populating code collection...");
+        const collection = populateCodeCollection(codeStrings);
+        console.log(`Code collection populated with ${collection.length} code(s)`);
         
-        // Display the results
-        let resultHtml = '<div class="test-results">';
-        resultHtml += '<h3>Code Collection Test Results</h3>';
-        resultHtml += '<pre>' + resultText + '</pre>';
-        resultHtml += '</div>';
+        // --- 3. Run the codes ---
+        console.log("Running codes...");
+        const runResult = await runCodes(collection);
+        console.log("Codes executed:", runResult);
         
-        // Append the results to the chat log
-        appendMessage(resultHtml, false);
-        
+        // --- 4. Process assumption tabs ---
+        if (runResult && runResult.assumptionTabs && runResult.assumptionTabs.length > 0) {
+            console.log("Processing assumption tabs:", runResult.assumptionTabs);
+            await processAssumptionTabs(runResult.assumptionTabs);
+            console.log("Assumption tabs processed successfully");
+        } else {
+            console.warn("No assumption tabs to process");
+        }
+
+        // Show success message
+        showMessage("Model built successfully!");
+
     } catch (error) {
-        console.error("Error testing code collection:", error);
-        showError("Error testing code collection: " + error.message);
+        console.error("An error occurred during the build process:", error);
+        showError(`Operation failed: ${error.message || error.toString()}`); 
+    } finally {
+        setButtonLoading(false); 
     }
 }
 
+// Ensure Office.onReady sets up the button click handler for the REVERTED function
+Office.onReady((info) => {
+  if (info.host === Office.HostType.Excel) {
+    // ***** ADAPT THIS ID TO YOUR ACTUAL BUTTON *****
+    const button = document.getElementById("insert-and-run"); 
+    if (button) {
+        // Assign the REVERTED async function as the handler
+        button.onclick = insertSheetsAndRunCodes; 
+    } else {
+        // Update the error message to reflect the ID we were looking for
+        console.error("Could not find button with id='insert-and-run'");
+    }
+
+    // Keep the setup for your other buttons (send-button, reset-button, etc.)
+    // Assign event listeners to the buttons
+    const sendButton = document.getElementById('send');
+    if (sendButton) sendButton.onclick = handleSend;
+
+    const writeButton = document.getElementById('write-to-excel');
+    if (writeButton) writeButton.onclick = writeToExcel;
+    
+    const resetButton = document.getElementById('reset-chat');
+    if (resetButton) resetButton.onclick = resetChat;
+    
+    // Test Buttons (Add similar checks if they are essential)
+    const testGreenCellButton = document.getElementById('test-green-cell');
+    if (testGreenCellButton) testGreenCellButton.onclick = isActiveCellGreen;
+
+    const testTextFunctionButton = document.getElementById('test-text-function');
+    if (testTextFunctionButton) testTextFunctionButton.onclick = testTextFunctionFromCollection;
+
+
+    // Initialize API keys, load history etc.
+    initializeAPIKeys().then(keysLoaded => {
+      if (!keysLoaded) {
+        showError("Failed to load API keys. Please check configuration.");
+      }
+      // Load conversation history after keys are potentially loaded
+      conversationHistory = loadConversationHistory();
+    }).catch(error => {
+        console.error("Error during API key initialization:", error);
+        showError("Error initializing API keys: " + error.message);
+    });
+    
+    // Hide sideload message and show app body
+    document.getElementById("sideload-msg").style.display = "none";
+    document.getElementById("app-body").style.display = "block";
+  }
+});
+
+// --- Export function (if needed elsewhere, otherwise can be removed) ---
+// Keep the existing exportCurrentCodes function if present
+
+// ... rest of the existing taskpane.js code ...
 

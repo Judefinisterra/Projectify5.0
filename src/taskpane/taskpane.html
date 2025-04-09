@@ -42,17 +42,20 @@
                 <button id="send" class="ms-Button ms-Button--primary">
                     <span class="ms-Button-label">Send</span>
                 </button>
-                <button id="insert-sheets-base64" class="ms-Button">
-                    <span class="ms-Button-label">Insert Sheets from Base64</span>
-                </button>
                 <button id="write-to-excel" class="ms-Button">
                     <span class="ms-Button-label">Write to Excel</span>
                 </button>
                 <button id="reset-chat" class="ms-Button">
                     <span class="ms-Button-label">Reset Chat</span>
                 </button>
-                <button id="test-code-collection" class="ms-Button">
-                    <span class="ms-Button-label">Test Code Collection</span>
+                <button id="insert-and-run" class="ms-Button ms-Button--primary">
+                    <span class="ms-Button-label">Insert Sheets & Run Codes</span>
+                </button>
+                <button id="test-green-cell" class="ms-Button">
+                    <span class="ms-Button-label">Test Green Cell</span>
+                </button>
+                <button id="test-text-function" class="ms-Button ms-Button--primary">
+                    <span class="ms-Button-label">Test Text Function</span>
                 </button>
             </div>
             <div id="loading-animation" class="loading-animation" style="display: none;">
@@ -60,6 +63,10 @@
                 <div class="loading-text">Processing...</div>
             </div>
         </div>
+        <!-- Add divs for status and error messages -->
+        <div id="status-message" class="status-message"></div> 
+        <div id="error-display-area" class="error-display-area" style="display: none;"></div>
+        
         <div id="response-area" class="response-area"></div>
     </main>
 </body>
