@@ -1,0 +1,3 @@
+# pack-refs with: peeled fully-peeled sorted 
+ef22ee5488b694bc49e8dd4a71b8872619d5d5dc refs/heads/main
+f9314e1681075781263da93dbe3cbcbfab500b5e refs/heads/new_backup_branch

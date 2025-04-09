@@ -1,0 +1,19 @@
+# API Key configuration files
+config.js
+
+# Ignore .env file
+.env
+
+# Excel temporary files
+~$*.xls*
+*.xls#
+*.xls~
+*.xlsx#
+*.xlsx~ 
+
+# Package files
+package.json
+package-lock.json
+
+# Output files
+output.json 
