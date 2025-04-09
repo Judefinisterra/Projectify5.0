@@ -17,7 +17,7 @@ import { populateCodeCollection, exportCodeCollectionToText, runCodes, isActiveC
 const codeStrings = `<TAB; label1="Revenue and Direct Costs">
 <VOLLI-EV; labelRow=""; row1 = "|# of units sold:|||||||||||"; row2 = "LI1|# of students|||||100|100|100|100|100|100| *LI1|# of teachers|||||100|100|400|100|100|100| *LI1|# of sites|||||100|100|100|200|340|100|"; row3 = "V1|Total # of units sold|||||F|F|F|F|F|F|";>
 <BR>
-<UNITREV-VR; driver1="AS1"; row1 = "AS2|Grant Revenue/Student/Month|||||10|10|10|10|10|10|"; row2 = "R1|Total Grant Revenue|IS: revenue||||F|F|F|F|F|F|">`;
+<UNITREV-VR; driver1="LI1"; row1 = "AS2|Grant Revenue/Student/Month|||||10|10|10|10|10|10|"; row2 = "R1|Total Grant Revenue|IS: revenue||||F|F|F|F|F|F|">`;
 
 // Mock fs module for browser environment
 const fs = {
@@ -1159,8 +1159,7 @@ Office.onReady((info) => {
     const testGreenCellButton = document.getElementById('test-green-cell');
     if (testGreenCellButton) testGreenCellButton.onclick = isActiveCellGreen;
 
-    const testTextFunctionButton = document.getElementById('test-text-function');
-    if (testTextFunctionButton) testTextFunctionButton.onclick = testTextFunctionFromCollection;
+
 
 
     // Initialize API keys, load history etc.

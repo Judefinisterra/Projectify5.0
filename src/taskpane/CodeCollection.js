@@ -663,6 +663,14 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                     console.log(`Set financialsdriver at I${targetRow}: ${code.params.financialsdriver}`);
                 }
 
+                // Driver
+                const driverParam = code.params[`driver${k}`];
+                if (driverParam) {
+                    const driverCell = currentWorksheet.getRange(`F${targetRow}`);
+                    driverCell.values = [[driverParam]];
+                     console.log(`Set driver${k} at F${targetRow}: ${driverParam}`);
+                }
+
                 // Label
                 const labelParam = code.params[`label${k}`];
                 if (labelParam) {
@@ -772,21 +780,6 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
     }
 }
 
-/**
- * A simple test function.
- */
-export async function testTextFunction() {
-    // Put your code to test here
-
-    console.log("hello world");
-
-    await Excel.run(async (context) => {
-        const sheet = context.workbook.worksheets.getActiveWorksheet();
-        sheet.getRange("A1:B20").getLastRow().select();
-        await context.sync();
-    });
-
-}
 
 /**
  * Finds the last used row in a specific column of a worksheet.
@@ -825,25 +818,100 @@ async function getLastUsedRow(worksheet, columnLetter) {
 }
 
 /**
- * Placeholder for Adjust_Drivers VBA logic.
- * Finds driver codes in col F, looks up in col A, writes target address string in col AE.
+ * Adjusts driver references in column AE based on lookups in column A.
+ * Replicates the core logic of VBA Adjust_Drivers.
  * @param {Excel.Worksheet} worksheet - The assumption worksheet (within an Excel.run context).
- * @param {number} lastRow - The last row to process.
+ * @param {number} lastRow - The last row to process (inclusive).
  */
 async function adjustDriversJS(worksheet, lastRow) {
-    console.log(`Running adjustDriversJS for sheet: ${worksheet.name} up to row ${lastRow}`);
-    // This function MUST be called within an Excel.run context that includes the worksheet object.
-    // TODO: Implement Adjust_Drivers logic
-    // 1. Load range F9:F<lastRow> and A9:A<lastRow>
-    // 2. Create map of Col A values to row numbers
-    // 3. Iterate F column values
-    // 4. If value exists, find corresponding row in map
-    // 5. Prepare target address string (e.g., "AE" + foundRow)
-    // 6. Write strings to AE9:AE<lastRow>
-    worksheet.load('name'); // Keep worksheet reference valid if needed later in the SAME context
-    await worksheet.context.sync(); // Sync actions within the caller's context
-    console.warn(`adjustDriversJS on ${worksheet.name} not implemented yet.`);
+    const START_ROW = 9;
+    const DRIVER_CODE_COL = "F"; // Column containing the driver code to look up
+    const LOOKUP_COL = "A";      // Column to search for the driver code
+    const TARGET_COL = "AE";     // Column where the result address string is written
 
+    console.log(`Running adjustDriversJS for sheet: ${worksheet.name} from row ${START_ROW} to ${lastRow}`);
+
+    // Ensure lastRow is valid before proceeding
+    if (lastRow < START_ROW) {
+        console.warn(`adjustDriversJS: lastRow (${lastRow}) is less than START_ROW (${START_ROW}). Skipping.`);
+        return;
+    }
+
+    try {
+        // Define the ranges to load
+        const driverCodeRangeAddress = `${DRIVER_CODE_COL}${START_ROW}:${DRIVER_CODE_COL}${lastRow}`;
+        const lookupRangeAddress = `${LOOKUP_COL}${START_ROW}:${LOOKUP_COL}${lastRow}`;
+        const driverCodeRange = worksheet.getRange(driverCodeRangeAddress);
+        const lookupRange = worksheet.getRange(lookupRangeAddress);
+
+        // Load values from both columns
+        driverCodeRange.load("values");
+        lookupRange.load("values");
+        await worksheet.context.sync(); // Sync to get the values
+
+        const driverCodeValues = driverCodeRange.values;
+        const lookupValues = lookupRange.values;
+
+        // Create a map for efficient lookup: { lookupValue: rowIndex }
+        // Note: rowIndex here is the 1-based Excel row number
+        const lookupMap = new Map();
+        for (let i = 0; i < lookupValues.length; i++) {
+            const value = lookupValues[i][0];
+            // Only add non-empty values to the map. Handle potential duplicates?
+            // VBA's .Find typically finds the first match. Map naturally stores the last encountered.
+            if (value !== null && value !== "") {
+                 // The row number in Excel is START_ROW + index
+                lookupMap.set(value, START_ROW + i);
+            }
+        }
+        console.log(`Built lookup map from ${LOOKUP_COL}${START_ROW}:${LOOKUP_COL}${lastRow} with ${lookupMap.size} entries.`);
+
+        // Prepare the output values for the target column AE
+        // Initialize with nulls or empty strings to clear previous values potentially
+        const outputValues = []; // Array of arrays for Excel range: [[value1], [value2], ...]
+        let foundCount = 0;
+        let notFoundCount = 0;
+
+        for (let i = 0; i < driverCodeValues.length; i++) {
+            const driverCode = driverCodeValues[i][0];
+            const currentRow = START_ROW + i; // Current Excel row being processed
+
+            if (driverCode !== null && driverCode !== "") {
+                if (lookupMap.has(driverCode)) {
+                    const foundRow = lookupMap.get(driverCode);
+                    const targetAddress = `${TARGET_COL}${foundRow}`;
+                    outputValues.push([targetAddress]); // Store as [[value]] for range write
+                    foundCount++;
+                    // console.log(`Row ${currentRow} (${DRIVER_CODE_COL}): Found '${driverCode}' in ${LOOKUP_COL} at row ${foundRow}. Setting ${TARGET_COL}${currentRow} = '${targetAddress}'`);
+                } else {
+                    // Value in F not found in A
+                    console.warn(`adjustDriversJS: Driver code '${driverCode}' from cell ${DRIVER_CODE_COL}${currentRow} not found in range ${lookupRangeAddress}.`);
+                    outputValues.push([null]); // Or [""] or keep existing? VBA doesn't explicitly clear. Using null.
+                    notFoundCount++;
+                }
+            } else {
+                // Empty cell in F, write null to corresponding AE cell
+                outputValues.push([null]);
+            }
+        }
+
+        // Write the results back to column AE
+        if (outputValues.length > 0) {
+            const targetRangeAddress = `${TARGET_COL}${START_ROW}:${TARGET_COL}${lastRow}`;
+            const targetRange = worksheet.getRange(targetRangeAddress);
+            console.log(`Writing ${foundCount} results (${notFoundCount} not found) to ${targetRangeAddress}`);
+            targetRange.values = outputValues;
+            // Sync will happen in the caller's context
+        } else {
+             console.log(`adjustDriversJS: No values to write to ${TARGET_COL}.`);
+        }
+
+    } catch (error) {
+        console.error(`Error in adjustDriversJS for sheet ${worksheet.name}:`, error);
+        // Decide if error should be re-thrown to stop the whole process
+        // throw error;
+    }
+    // No context.sync() here - it should be handled by the calling function (processAssumptionTabs)
 }
 
 /**
