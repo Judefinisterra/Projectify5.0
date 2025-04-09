@@ -915,27 +915,203 @@ async function adjustDriversJS(worksheet, lastRow) {
 }
 
 /**
- * Placeholder for Replace_Indirects VBA logic.
- * Replaces INDIRECT functions in column AE with their evaluated values.
+ * Replaces INDIRECT functions in a specified column range with their evaluated values.
+ * Mimics the VBA Replace_Indirects logic using batched range value lookups.
  * @param {Excel.Worksheet} worksheet - The assumption worksheet (within an Excel.run context).
  * @param {number} lastRow - The last row to process.
  */
 async function replaceIndirectsJS(worksheet, lastRow) {
-    console.log(`Running replaceIndirectsJS for sheet: ${worksheet.name} up to row ${lastRow}`);
-    // This function MUST be called within an Excel.run context.
-    // TODO: Implement Replace_Indirects logic (Complex)
-    // 1. Load formulas from AE9:AE<lastRow>
-    // 2. Use regex to find INDIRECT(...)
-    // 3. For each match:
-    //    a. Extract argument string
-    //    b. Get range for argument string: worksheet.getRange(argString)
-    //    c. Load value of the argument range (may need sync within loop or batch requests)
-    //    d. Replace INDIRECT(...) in formula string with the value (handle "DELETE")
-    // 4. Write modified formulas back to AE9:AE<lastRow>
-    worksheet.load('name');
-    await worksheet.context.sync();
-     console.warn(`replaceIndirectsJS on ${worksheet.name} not implemented yet.`);
+    const START_ROW = 9;
+    const TARGET_COL = "AE";
 
+    console.log(`Running replaceIndirectsJS for sheet: ${worksheet.name} from row ${START_ROW} to ${lastRow}`);
+
+    if (lastRow < START_ROW) {
+        console.warn(`replaceIndirectsJS: lastRow (${lastRow}) is less than START_ROW (${START_ROW}). Skipping.`);
+        return;
+    }
+
+    const targetRangeAddress = `${TARGET_COL}${START_ROW}:${TARGET_COL}${lastRow}`;
+    const targetRange = worksheet.getRange(targetRangeAddress);
+
+    try {
+        // 1. Load formulas from the target range
+        targetRange.load("formulas");
+        await worksheet.context.sync();
+
+        const originalFormulas = targetRange.formulas; // 2D array [[f1], [f2], ...]
+        const referencesToLookup = new Map(); // Map<string, { range: Excel.Range | null, value: any }>
+        const formulaData = []; // Array<{ originalFormula: string, index: number }>
+
+        // 2. First Pass: Identify all unique INDIRECT arguments
+        console.log("Replace_Indirects: Pass 1 - Identifying INDIRECT arguments");
+        for (let i = 0; i < originalFormulas.length; i++) {
+            let formula = originalFormulas[i][0];
+            formulaData.push({ originalFormula: formula, index: i }); // Store original formula and index
+
+            if (typeof formula === 'string') {
+                // Use a loop to find all INDIRECT occurrences in a single formula
+                let searchStartIndex = 0;
+                while (true) {
+                    const upperFormula = formula.toUpperCase();
+                    const indirectStartIndex = upperFormula.indexOf("INDIRECT(", searchStartIndex);
+
+                    // Stop if no more INDIRECT found or if it might be part of INDEX
+                    if (indirectStartIndex === -1 || upperFormula.includes("INDEX(")) {
+                        break;
+                    }
+
+                    // Find the matching closing parenthesis (simple approach)
+                    const parenStartIndex = indirectStartIndex + "INDIRECT(".length;
+                    const parenEndIndex = formula.indexOf(")", parenStartIndex);
+
+                    if (parenEndIndex === -1) {
+                        console.warn(`Row ${START_ROW + i}: Malformed INDIRECT found in formula: ${formula}`);
+                        break; // Cannot process this INDIRECT
+                    }
+
+                    const argString = formula.substring(parenStartIndex, parenEndIndex).trim();
+
+                    // Validate argString looks like a cell/range reference (basic check)
+                    // This helps avoid trying to load ranges like "Sheet1!A:A" which might fail or be slow
+                    if (argString && /^[A-Za-z0-9_!$:'". ]+$/.test(argString) && !referencesToLookup.has(argString)) {
+                         console.log(`  Found reference to lookup: ${argString}`);
+                         referencesToLookup.set(argString, { range: null, value: undefined }); // Placeholder
+                    }
+
+                    // Continue searching after this INDIRECT
+                    searchStartIndex = parenEndIndex + 1;
+                }
+            }
+        }
+
+        // 3. Batch Load Values for identified references
+        console.log(`Replace_Indirects: Loading values for ${referencesToLookup.size} unique references.`);
+        if (referencesToLookup.size > 0) {
+            for (const [refString, data] of referencesToLookup.entries()) {
+                try {
+                    // Attempt to get the range and load its value
+                    data.range = worksheet.getRange(refString);
+                    // Load values. Consider loading formulas too if INDIRECT might point to a formula cell.
+                    // Loading numberFormat might help distinguish between 0 and empty.
+                    data.range.load(["values", "text"]); // Load text to handle "DELETE" easily
+                } catch (rangeError) {
+                    console.warn(`Replace_Indirects: Error getting range for reference "${refString}". It might be invalid or on another sheet.`, rangeError.debugInfo || rangeError.message);
+                     // Keep data.range as null, will be handled later
+                    referencesToLookup.set(refString, { range: null, value: '#REF!' }); // Mark as error
+                }
+            }
+            await worksheet.context.sync(); // Sync all loaded values
+
+            // Populate the values in the map
+            for (const [refString, data] of referencesToLookup.entries()) {
+                 if (data.range) { // If range was successfully retrieved
+                     try {
+                         // Use .text to directly compare with "DELETE"
+                         // Use .values for the actual numeric/boolean value if not "DELETE"
+                        const cellText = data.range.text[0][0];
+                        if (cellText === "DELETE") {
+                            data.value = "0"; // Replace "DELETE" with "0" string as per VBA
+                        } else {
+                             // Use the actual value (could be string, number, boolean)
+                             // Prefer values[0][0] as it respects data types better than text
+                             data.value = data.range.values[0][0];
+                        }
+                     } catch (valueError) {
+                         console.warn(`Replace_Indirects: Error reading value for reference "${refString}" after sync.`, valueError.debugInfo || valueError.message);
+                         data.value = '#VALUE!'; // Or another suitable error indicator
+                     }
+                 }
+                 // If data.range was null or value fetch failed, data.value remains '#REF!' or '#VALUE!'
+            }
+             console.log("Replace_Indirects: Finished loading reference values.");
+        }
+
+
+        // 4. Second Pass: Replace INDIRECT with looked-up values
+        console.log("Replace_Indirects: Pass 2 - Replacing INDIRECT calls.");
+        const newFormulas = []; // Array of arrays: [[newF1], [newF2], ...]
+        for (const item of formulaData) {
+            let currentFormula = item.originalFormula;
+
+            if (typeof currentFormula === 'string') {
+                let loopCount = 0; // Safety break
+                const MAX_LOOPS = 20; // Prevent infinite loops for complex/circular cases
+
+                while (loopCount < MAX_LOOPS) {
+                    const upperFormula = currentFormula.toUpperCase();
+                    const indirectStartIndex = upperFormula.indexOf("INDIRECT(");
+
+                    if (indirectStartIndex === -1 || upperFormula.includes("INDEX(")) {
+                        break; // No more INDIRECTs (or INDEX present)
+                    }
+
+                    const parenStartIndex = indirectStartIndex + "INDIRECT(".length;
+                    const parenEndIndex = currentFormula.indexOf(")", parenStartIndex);
+
+                    if (parenEndIndex === -1) {
+                         // Already warned in pass 1, just break here
+                        break;
+                    }
+
+                    const indString = currentFormula.substring(indirectStartIndex, parenEndIndex + 1); // The full INDIRECT(...)
+                    const argString = currentFormula.substring(parenStartIndex, parenEndIndex).trim();
+
+                    let directRef = '#REF!'; // Default if lookup fails
+                     if (referencesToLookup.has(argString)) {
+                         directRef = referencesToLookup.get(argString).value;
+                     } else {
+                         // Argument wasn't identified/loaded (maybe invalid?)
+                         console.warn(`Row ${START_ROW + item.index}: INDIRECT argument "${argString}" not found in lookup map during replacement.`);
+                     }
+
+                    // Handle potential null/undefined values from lookup - treat as 0? VBA doesn't explicitly handle this.
+                    // Let's treat null/undefined as 0 for replacement to avoid inserting 'null' or 'undefined' into formulas.
+                     // Empty string "" should probably remain "" unless it was "DELETE".
+                     if (directRef === null || typeof directRef === 'undefined') {
+                         directRef = 0; // Replace null/undefined with numeric 0
+                     } else if (directRef === "") {
+                          // Keep empty string as empty string unless it was originally "DELETE"
+                          // The map handles "DELETE" -> "0" already
+                     } else if (typeof directRef === 'string') {
+                         // If the resolved value is a string, potentially needs quoting if replacing in a formula context?
+                         // VBA seems to just concatenate the value directly. Let's follow that.
+                         // Example: =SUM(INDIRECT("A1")) where A1 contains "B2" becomes =SUM(B2)
+                         // Example: =CONCATENATE("Result: ",INDIRECT("A1")) where A1 contains "Success" becomes =CONCATENATE("Result: ","Success") - requires quotes?
+                         // VBA appears to handle this implicitly. JS replace won't add quotes.
+                         // Let's test behavior, may need adjustment if it breaks formulas expecting strings.
+                         // For now, direct replacement. Consider adding quotes if `directRef` is text AND the context requires it.
+                     } else if (typeof directRef === 'boolean') {
+                         directRef = directRef ? 'TRUE' : 'FALSE'; // Convert boolean to formula text
+                     }
+                     // Numeric values are fine as is.
+
+                    // Perform the replacement. Use replace directly on the found indString.
+                    currentFormula = currentFormula.replace(indString, String(directRef));
+                    loopCount++;
+
+                } // End while loop for single formula processing
+
+                if (loopCount === MAX_LOOPS) {
+                    console.warn(`Row ${START_ROW + item.index}: Max replacement loops reached for formula. Result might be incomplete: ${currentFormula}`);
+                }
+            }
+            // Add the processed formula (or original if not string/no INDIRECT) to the result array
+            newFormulas.push([currentFormula]);
+
+        } // End for loop processing all formulas
+
+        // 5. Write the modified formulas back to the range
+        console.log(`Replace_Indirects: Writing ${newFormulas.length} updated formulas back to ${targetRangeAddress}`);
+        targetRange.formulas = newFormulas;
+
+        // Sync is handled by the caller (processAssumptionTabs)
+
+    } catch (error) {
+        console.error(`Error in replaceIndirectsJS for sheet ${worksheet.name} range ${targetRangeAddress}:`, error.debugInfo || error);
+        // Re-throw the error to allow the calling function to handle it
+        throw error;
+    }
 }
 
 /**
