@@ -15,9 +15,10 @@ import { handleInsertWorksheetsFromBase64 } from './SpreadsheetUtils.js';
 import { populateCodeCollection, exportCodeCollectionToText, runCodes, isActiveCellGreen, testTextFunction as testTextFunctionFromCollection, processAssumptionTabs } from './CodeCollection.js';
 // Add the codeStrings variable with the specified content
 const codeStrings = `<TAB; label1="Revenue and Direct Costs">
-<VOLLI-EV; labelRow=""; row1 = "|# of units sold:|||||||||||"; row2 = "LI1|# of students|||||100|100|100|100|100|100| *LI1|# of teachers|||||100|100|100|100|100|100| *LI1|# of sites|||||100|100|100|100|100|100|"; row3 = "V1|Total # of units sold|||||F|F|F|F|F|F|";>
+<VOLLI-EV; labelRow=""; row1 = "|# of units sold:|||||||||||"; row2 = "LI1|# of students|||||100|100|100|100|100|100| *LI1|# of teachers|||||100|100|400|100|100|100| *LI1|# of sites|||||100|100|100|200|340|100|"; row3 = "V1|Total # of units sold|||||F|F|F|F|F|F|";>
 <BR>
 <UNITREV-VR; driver1="AS1"; row1 = "AS2|Grant Revenue/Student/Month|||||10|10|10|10|10|10|"; row2 = "R1|Total Grant Revenue|IS: revenue||||F|F|F|F|F|F|">`;
+
 // Mock fs module for browser environment
 const fs = {
     writeFileSync: (path, content) => {
@@ -1057,26 +1058,48 @@ async function insertSheetsAndRunCodes() {
 
         // --- 1. Fetch and Insert Base Sheets ---
         console.log("Fetching base Excel file...");
-        const response = await fetch('https://localhost:3002/assets/Worksheets_4.3.25 v1.xlsx');
-        if (!response.ok) {
-            throw new Error(`Failed to load Excel file: ${response.status} ${response.statusText}`);
+        const worksheetsResponse = await fetch('https://localhost:3002/assets/Worksheets_4.3.25 v1.xlsx');
+        if (!worksheetsResponse.ok) {
+            throw new Error(`Failed to load Worksheets Excel file: ${worksheetsResponse.status} ${worksheetsResponse.statusText}`);
         }
         
         console.log("Converting file to base64...");
-        const arrayBuffer = await response.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-        let binaryString = '';
+        const worksheetsArrayBuffer = await worksheetsResponse.arrayBuffer();
+        const worksheetsUint8Array = new Uint8Array(worksheetsArrayBuffer);
+        let worksheetsBinaryString = '';
         const chunkSize = 8192; // Process in 8KB chunks
-        for (let i = 0; i < uint8Array.length; i += chunkSize) {
-            const chunk = uint8Array.slice(i, Math.min(i + chunkSize, uint8Array.length));
-            binaryString += String.fromCharCode.apply(null, chunk);
+        for (let i = 0; i < worksheetsUint8Array.length; i += chunkSize) {
+            const chunk = worksheetsUint8Array.slice(i, Math.min(i + chunkSize, worksheetsUint8Array.length));
+            worksheetsBinaryString += String.fromCharCode.apply(null, chunk);
         }
-        const base64String = btoa(binaryString);
+        const worksheetsBase64String = btoa(worksheetsBinaryString);
         console.log("Base64 conversion complete. Inserting sheets...");
 
         // Call the function to insert worksheets WITH the base64 string
-        await handleInsertWorksheetsFromBase64(base64String); 
+        await handleInsertWorksheetsFromBase64(worksheetsBase64String); 
         console.log("Base sheets inserted successfully.");
+        
+        // --- 1b. Fetch and Insert Codes Sheets ---
+        console.log("Fetching codes Excel file...");
+        const codesResponse = await fetch('https://localhost:3002/assets/codes.xlsx');
+        if (!codesResponse.ok) {
+            throw new Error(`Failed to load Codes Excel file: ${codesResponse.status} ${codesResponse.statusText}`);
+        }
+        
+        console.log("Converting codes file to base64...");
+        const codesArrayBuffer = await codesResponse.arrayBuffer();
+        const codesUint8Array = new Uint8Array(codesArrayBuffer);
+        let codesBinaryString = '';
+        for (let i = 0; i < codesUint8Array.length; i += chunkSize) {
+            const chunk = codesUint8Array.slice(i, Math.min(i + chunkSize, codesUint8Array.length));
+            codesBinaryString += String.fromCharCode.apply(null, chunk);
+        }
+        const codesBase64String = btoa(codesBinaryString);
+        console.log("Codes Base64 conversion complete. Inserting codes sheets...");
+
+        // Call the function to insert codes worksheets 
+        await handleInsertWorksheetsFromBase64(codesBase64String); 
+        console.log("Codes sheets inserted successfully.");
         
         // --- 2. Populate code collection ---
         console.log("Populating code collection...");
