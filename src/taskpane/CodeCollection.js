@@ -1124,34 +1124,238 @@ async function replaceIndirectsJS(worksheet, lastRow) {
 async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
     console.log(`Running populateFinancialsJS for sheet: ${worksheet.name} (lastRow: ${lastRow}) -> ${financialsSheet.name}`);
     // This function MUST be called within an Excel.run context.
-    const CALCS_FIRST_ROW = 9; // Assuming same as VBA calcsfirstrow
-    const FINANCIALS_CODE_COLUMN = "I";
-    const FINANCIALS_TARGET_COLUMN_B = "B";
-    const FINANCIALS_TARGET_COLUMN_D = "D";
-    const FINANCIALS_TARGET_COLUMN_J = "J";
-     // Add other constants as needed (K, month start/end, actual start/end, annual end)
 
-    // TODO: Implement Populate_Financials logic
-    // 1. Define constants (column letters, row numbers)
-    // 2. Load codes from C<CALCS_FIRST_ROW>:C<lastRow> (assumption sheet)
-    // 3. Load codes from FINANCIALS_CODE_COLUMN (Financials sheet, use getUsedRange().getIntersection)
-    // 4. Create map of Financials codes to row numbers
-    // 5. Iterate assumption sheet codes (row `i`)
-    // 6. If code found in Financials map (pasterow):
-    //    a. Store insertion task { targetRow: pasterow, assumptionRow: i, code: code }
-    // 7. Sort tasks by targetRow DESCENDING (crucial for correct insertion indices)
-    // 8. Perform insertions in order (requires careful context.sync management)
-    // 9. Iterate original tasks (adjusting pasterow for insertions)
-    //    a. Populate B, D (links)
-    //    b. Populate J, K (SUMIF - adapt INDIRECT?)
-    //    c. Populate actual/month columns (SUMIFS, links)
-    //    d. Set formats
-    //    e. Perform autofills (might need separate syncs)
-    worksheet.load('name'); // Keep references valid if needed later in the SAME context
-    financialsSheet.load('name');
-    await worksheet.context.sync();
-     console.warn(`populateFinancialsJS for ${worksheet.name} -> ${financialsSheet.name} not implemented yet.`);
+    const CALCS_FIRST_ROW = 9; // Same as START_ROW elsewhere
+    const ASSUMPTION_CODE_COL = "C"; // Column with code to lookup on assumption sheet
+    const ASSUMPTION_LINK_COL_B = "B";
+    const ASSUMPTION_LINK_COL_D = "D";
+    // Column on assumption sheet to link for monthly data
+    const ASSUMPTION_MONTHS_START_COL = "AE";
 
+    const FINANCIALS_CODE_COLUMN = "I"; // Column to search for code on Financials sheet
+    const FINANCIALS_TARGET_COL_B = "B";
+    const FINANCIALS_TARGET_COL_D = "D";
+    const FINANCIALS_ANNUALS_START_COL = "J"; // Annuals start here
+    const FINANCIALS_MONTHS_START_COL = "AE"; // Months start here
+
+    // --- Updated Column Definitions ---
+    const ANNUALS_END_COL = "P";       // Annuals end here
+    const MONTHS_END_COL = "CX";       // Months end here
+    // --- End Updated Column Definitions ---
+
+    // Formatting constants
+    // const PURPLE_COLOR = "#800080"; // RGB(128, 0, 128) - Removed as Actuals section is removed
+    const GREEN_COLOR = "#008000";  // RGB(0, 128, 0)
+    const CURRENCY_FORMAT = '_(* $#,##0_);_(* $(#,##0);_(* "$" -_);_(@_)';
+
+    // Ensure lastRow is valid
+    if (lastRow < CALCS_FIRST_ROW) {
+        console.warn(`populateFinancialsJS: lastRow (${lastRow}) is less than CALCS_FIRST_ROW (${CALCS_FIRST_ROW}). Skipping.`);
+        return;
+    }
+
+    try {
+        // 1. Load data from Assumption Sheet
+        console.log(`populateFinancialsJS: Loading assumption data up to row ${lastRow}`);
+        const assumptionCodeRange = worksheet.getRange(`${ASSUMPTION_CODE_COL}${CALCS_FIRST_ROW}:${ASSUMPTION_CODE_COL}${lastRow}`);
+        // No need to load B, D, AE addresses/values here anymore if only used for linking
+
+        assumptionCodeRange.load("values");
+
+        // 2. Load data from Financials Sheet (Find last row in code column I)
+        const financialsSearchCol = financialsSheet.getRange(`${FINANCIALS_CODE_COLUMN}:${FINANCIALS_CODE_COLUMN}`);
+        const financialsUsedRange = financialsSearchCol.getUsedRange(true);
+        financialsUsedRange.load("rowCount");
+        // It's okay to sync assumption and initial financials loads together
+        // await worksheet.context.sync(); // Removed intermediate sync
+
+        let financialsLastRow = 0;
+        // Sync financials rowCount load before calculating financialsLastRow
+        await worksheet.context.sync();
+        if (financialsUsedRange.rowCount > 0) {
+           try {
+              const lastCell = financialsUsedRange.getLastCell();
+              lastCell.load("rowIndex");
+               await worksheet.context.sync();
+              financialsLastRow = lastCell.rowIndex + 1;
+           } catch(e) {
+               console.warn(`Could not get last cell directly for Financials col ${FINANCIALS_CODE_COLUMN}. Error: ${e.message}. Attempting fallback range loading.`);
+               try {
+                   const fallbackRange = financialsSheet.getRange(`${FINANCIALS_CODE_COLUMN}1:${FINANCIALS_CODE_COLUMN}10000`);
+                   fallbackRange.load("values");
+                   await worksheet.context.sync();
+                   for (let i = fallbackRange.values.length - 1; i >= 0; i--) {
+                       if (fallbackRange.values[i][0] !== null && fallbackRange.values[i][0] !== "") {
+                           financialsLastRow = i + 1;
+                           break;
+                       }
+                   }
+                   if (financialsLastRow === 0) console.warn(`Fallback range load for Financials col ${FINANCIALS_CODE_COLUMN} also yielded no data.`);
+               } catch (fallbackError) {
+                    console.error(`Error during fallback range loading for Financials col ${FINANCIALS_CODE_COLUMN}:`, fallbackError);
+                    financialsLastRow = 0;
+               }
+           }
+        }
+        console.log(`Financials last relevant row in column ${FINANCIALS_CODE_COLUMN}: ${financialsLastRow}`);
+
+        // 3. Create Map of Financials Codes (Col I) -> Row Number
+        const financialsCodeMap = new Map();
+        if (financialsLastRow > 0) {
+            const financialsCodeRange = financialsSheet.getRange(`${FINANCIALS_CODE_COLUMN}1:${FINANCIALS_CODE_COLUMN}${financialsLastRow}`);
+            financialsCodeRange.load("values");
+            await worksheet.context.sync(); // Sync map data load
+            for (let i = 0; i < financialsCodeRange.values.length; i++) {
+                const code = financialsCodeRange.values[i][0];
+                if (code !== null && code !== "") {
+                    financialsCodeMap.set(code, i + 1);
+                }
+            }
+            console.log(`Built Financials code map with ${financialsCodeMap.size} entries.`);
+        } else {
+            console.warn(`Financials sheet column ${FINANCIALS_CODE_COLUMN} appears empty or last row not found. No codes loaded.`);
+        }
+
+        // 4. Identify rows to insert and prepare task data
+        const tasks = [];
+        console.log("populateFinancialsJS: Syncing assumption codes load...");
+        await worksheet.context.sync(); // Sync needed for assumptionCodeRange.values
+
+        const assumptionCodes = assumptionCodeRange.values;
+        console.log(`populateFinancialsJS: Processing ${assumptionCodes?.length ?? 0} assumption rows.`);
+
+        // --- REMOVED Debug logging for row 17 values/addresses ---
+
+        for (let i = 0; i < (assumptionCodes?.length ?? 0); i++) {
+            const code = assumptionCodes[i][0];
+            const assumptionRow = CALCS_FIRST_ROW + i; // This is the correct Excel row number
+
+            if (code !== null && code !== "") {
+                if (financialsCodeMap.has(code)) {
+                    const targetRow = financialsCodeMap.get(code);
+
+                    // --- Manually construct the address strings ---
+                    const cellAddressB = `${ASSUMPTION_LINK_COL_B}${assumptionRow}`;
+                    const cellAddressD = `${ASSUMPTION_LINK_COL_D}${assumptionRow}`;
+                    const cellAddressMonths = `${ASSUMPTION_MONTHS_START_COL}${assumptionRow}`;
+
+                    // Construct the full formula links directly
+                    const formulaLinkB = `='${worksheet.name}'!${cellAddressB}`;
+                    const formulaLinkD = `='${worksheet.name}'!${cellAddressD}`;
+                    const formulaLinkMonths = `='${worksheet.name}'!${cellAddressMonths}`;
+
+                    // --- REMOVED getSimpleAddress helper function and related checks ---
+                    console.log(`  Task Prep: Row ${assumptionRow}, Code ${code}`); // Simplified log
+
+                    tasks.push({
+                        targetRow: targetRow,
+                        assumptionRow: assumptionRow,
+                        code: code,
+                        addressB: formulaLinkB,     // Use the constructed formula link
+                        addressD: formulaLinkD,     // Use the constructed formula link
+                        addressMonths: formulaLinkMonths // Use the constructed formula link
+                    });
+                }
+            }
+        }
+
+        if (tasks.length === 0) {
+            console.log("No matching codes found. Nothing to insert or populate.");
+            return;
+        }
+
+        // 5. Sort tasks by targetRow DESCENDING
+        tasks.sort((a, b) => b.targetRow - a.targetRow);
+        console.log(`Sorted ${tasks.length} tasks for insertion.`);
+
+        // 6. Perform Insertions (bottom-up)
+        console.log("Performing row insertions...");
+        for (const task of tasks) {
+            financialsSheet.getRange(`${task.targetRow}:${task.targetRow}`).insert(Excel.InsertShiftDirection.down);
+            await worksheet.context.sync();
+        }
+        console.log("Finished row insertions.");
+
+        // 7. Populate and Format inserted rows
+        console.log("Populating inserted rows...");
+        for (const task of tasks) {
+            const populateRow = task.targetRow;
+
+            const cellB = financialsSheet.getRange(`${FINANCIALS_TARGET_COL_B}${populateRow}`);
+            const cellD = financialsSheet.getRange(`${FINANCIALS_TARGET_COL_D}${populateRow}`);
+            const cellAnnualsStart = financialsSheet.getRange(`${FINANCIALS_ANNUALS_START_COL}${populateRow}`);
+            const cellMonthsStart = financialsSheet.getRange(`${FINANCIALS_MONTHS_START_COL}${populateRow}`);
+
+            // --- Populate Column B ---
+            cellB.formulas = [[task.addressB]]; // Set formula directly
+            cellB.format.font.bold = false;
+            cellB.format.font.italic = false;
+            cellB.format.indentLevel = 2;
+
+            // --- Populate Column D ---
+            cellD.formulas = [[task.addressD]]; // Set formula directly
+            cellD.format.font.bold = false;
+            cellD.format.font.italic = false;
+            cellD.format.indentLevel = 2;
+
+            // --- Populate Annuals Start Column (J) with SUMIF ---
+            const codePrefix = String(task.code).substring(0, 2).toUpperCase();
+            let formulaJ = "";
+            if (codePrefix === "IS" || codePrefix === "CF") {
+                 formulaJ = `=SUMIF(R3,R2C[1],R[0])`; // R1C1: Sum current row if header in Row 3 matches K$2 (R2C[1])
+            } else {
+                 formulaJ = `=SUMIF(R4,R2C[1],R[0])`; // R1C1: Sum current row if header in Row 4 matches K$2 (R2C[1])
+            }
+            cellAnnualsStart.formulasR1C1 = [[formulaJ]]; // Use formulasR1C1 for SUMIF
+            cellAnnualsStart.format.font.bold = false;
+            cellAnnualsStart.format.font.italic = false;
+            cellAnnualsStart.format.numberFormat = CURRENCY_FORMAT;
+
+            // --- Populate Months Start Column (AE) with Link ---
+            cellMonthsStart.formulas = [[task.addressMonths]]; // Set formula directly
+            cellMonthsStart.format.font.bold = false;
+            cellMonthsStart.format.font.italic = false;
+            cellMonthsStart.format.font.color = GREEN_COLOR; // Keep green color for month links
+            cellMonthsStart.format.numberFormat = CURRENCY_FORMAT;
+
+            // Removed Actuals column population (was L in previous version)
+        }
+        console.log("Finished setting values/formulas/formats for inserted rows.");
+        await worksheet.context.sync(); // Sync all population and formatting
+
+        // 8. Perform Autofills
+        console.log("Performing autofills...");
+        for (const task of tasks) {
+             const populateRow = task.targetRow;
+
+             try {
+                // Autofill Annuals: J -> P
+                const sourceAnnuals = financialsSheet.getRange(`${FINANCIALS_ANNUALS_START_COL}${populateRow}`);
+                const destAnnuals = financialsSheet.getRange(`${FINANCIALS_ANNUALS_START_COL}${populateRow}:${ANNUALS_END_COL}${populateRow}`);
+                sourceAnnuals.autoFill(destAnnuals, Excel.AutoFillType.fillDefault);
+                // console.log(`  Autofilled ${FINANCIALS_ANNUALS_START_COL}${populateRow} to ${ANNUALS_END_COL}${populateRow}`);
+
+                // Autofill Months: AE -> CX
+                const sourceMonths = financialsSheet.getRange(`${FINANCIALS_MONTHS_START_COL}${populateRow}`);
+                const destMonths = financialsSheet.getRange(`${FINANCIALS_MONTHS_START_COL}${populateRow}:${MONTHS_END_COL}${populateRow}`);
+                sourceMonths.autoFill(destMonths, Excel.AutoFillType.fillDefault);
+                // console.log(`  Autofilled ${FINANCIALS_MONTHS_START_COL}${populateRow} to ${MONTHS_END_COL}${populateRow}`);
+
+                // Removed Actuals autofill
+             } catch(autofillError) {
+                 console.error(`Error during autofill for row ${populateRow} (Code: ${task.code}):`, autofillError.debugInfo || autofillError);
+             }
+        }
+        console.log("Finished setting up autofills.");
+        await worksheet.context.sync(); // Sync all autofill operations
+        console.log("Autofills synced.");
+
+        console.log(`populateFinancialsJS successfully completed for ${worksheet.name} -> ${financialsSheet.name}`);
+
+    } catch (error) {
+        console.error(`Error in populateFinancialsJS for sheet ${worksheet.name} -> ${financialsSheet.name}:`, error.debugInfo || error);
+        throw error;
+    }
 }
 
 /**
