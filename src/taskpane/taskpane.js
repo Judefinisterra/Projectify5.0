@@ -17,7 +17,15 @@ import { populateCodeCollection, exportCodeCollectionToText, runCodes, isActiveC
 const codeStrings = `<TAB; label1="Revenue and Direct Costs">
 <VOLLI-EV; labelRow=""; row1 = "|# of units sold:|||||||||||"; row2 = "LI1|# of students|||||100|100|100|100|100|100| *LI1|# of teachers|||||100|100|400|100|100|100| *LI1|# of sites|||||100|100|100|200|340|100|"; row3 = "V1|Total # of units sold|||||F|F|F|F|F|F|";>
 <BR>
-<UNITREV-VR; driver1="LI1"; row1 = "AS2|Grant Revenue/Student/Month|||||10|10|10|10|10|10|"; row2 = "R1|Total Grant Revenue|IS: revenue||||F|F|F|F|F|F|">`;
+<UNITREV-VR; driver1="LI1"; row1 = "AS2|Grant Revenue/Student/Month|||||10|10|10|10|10|10|"; row2 = "R1|Total Grant Revenue|IS: revenue||||F|F|F|F|F|F|">
+
+<TAB; label1="Working Capital">
+<BR>
+<LABELH1; row1 = "|Current Assets:|||||||||||";>
+<BR>
+<CURRENTASSETDSO-IS; labelRow=""; financialsdriver="Total Revenue"; row1 = "|Accounts Receivable:|||||||||||"; row2 = "|Driver: Total Revenue|||||100000|100000|100000|100000|100000|100000|"; row3 = "AS|# of days sales outstanding|||||30|30|30|30|30|30|"; row4 = "A|Accounts Receivable|BS: current assets||||F|F|F|F|F|F|"; row5 = "||||||||||||"; row6 = "CF|Change in Accounts Receivable|CF: WC||||F|F|F|F|F|F|";>
+
+`;
 
 // Mock fs module for browser environment
 const fs = {
@@ -1052,6 +1060,11 @@ async function insertSheetsFromBase64() {
 // Function to insert sheets and then run code collection - REVERTED
 async function insertSheetsAndRunCodes() {
     try {
+        await Excel.run(async (context) => { // Assuming toggleManualCalculation needs Excel context
+            context.application.calculationMode = Excel.CalculationMode.manual;
+            await context.sync();
+        });
+
         // Use the original busy state handling
         setButtonLoading(true);
         console.log("Starting sheet insertion and code processing...");
@@ -1079,27 +1092,27 @@ async function insertSheetsAndRunCodes() {
         await handleInsertWorksheetsFromBase64(worksheetsBase64String); 
         console.log("Base sheets inserted successfully.");
         
-        // --- 1b. Fetch and Insert Codes Sheets ---
-        console.log("Fetching codes Excel file...");
-        const codesResponse = await fetch('https://localhost:3002/assets/codes.xlsx');
-        if (!codesResponse.ok) {
-            throw new Error(`Failed to load Codes Excel file: ${codesResponse.status} ${codesResponse.statusText}`);
-        }
+        // // --- 1b. Fetch and Insert Codes Sheets ---
+        // console.log("Fetching codes Excel file...");
+        // const codesResponse = await fetch('https://localhost:3002/assets/codes.xlsx');
+        // if (!codesResponse.ok) {
+        //     throw new Error(`Failed to load Codes Excel file: ${codesResponse.status} ${codesResponse.statusText}`);
+        // }
         
-        console.log("Converting codes file to base64...");
-        const codesArrayBuffer = await codesResponse.arrayBuffer();
-        const codesUint8Array = new Uint8Array(codesArrayBuffer);
-        let codesBinaryString = '';
-        for (let i = 0; i < codesUint8Array.length; i += chunkSize) {
-            const chunk = codesUint8Array.slice(i, Math.min(i + chunkSize, codesUint8Array.length));
-            codesBinaryString += String.fromCharCode.apply(null, chunk);
-        }
-        const codesBase64String = btoa(codesBinaryString);
-        console.log("Codes Base64 conversion complete. Inserting codes sheets...");
+        // console.log("Converting codes file to base64...");
+        // const codesArrayBuffer = await codesResponse.arrayBuffer();
+        // const codesUint8Array = new Uint8Array(codesArrayBuffer);
+        // let codesBinaryString = '';
+        // for (let i = 0; i < codesUint8Array.length; i += chunkSize) {
+        //     const chunk = codesUint8Array.slice(i, Math.min(i + chunkSize, codesUint8Array.length));
+        //     codesBinaryString += String.fromCharCode.apply(null, chunk);
+        // }
+        // const codesBase64String = btoa(codesBinaryString);
+        // console.log("Codes Base64 conversion complete. Inserting codes sheets...");
 
-        // Call the function to insert codes worksheets 
-        await handleInsertWorksheetsFromBase64(codesBase64String); 
-        console.log("Codes sheets inserted successfully.");
+        // // Call the function to insert codes worksheets 
+        // await handleInsertWorksheetsFromBase64(codesBase64String); 
+        // console.log("Codes sheets inserted successfully.");
         
         // --- 2. Populate code collection ---
         console.log("Populating code collection...");
@@ -1125,9 +1138,13 @@ async function insertSheetsAndRunCodes() {
 
     } catch (error) {
         console.error("An error occurred during the build process:", error);
-        showError(`Operation failed: ${error.message || error.toString()}`); 
+        showError(`Operation failed: ${error.message || error.toString()}`);
     } finally {
-        setButtonLoading(false); 
+        await Excel.run(async (context) => { // Assuming toggleManualCalculation needs Excel context
+            context.application.calculationMode = Excel.CalculationMode.automatic;
+            await context.sync();
+        });
+        setButtonLoading(false);
     }
 }
 

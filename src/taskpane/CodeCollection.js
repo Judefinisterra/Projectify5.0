@@ -121,32 +121,6 @@ export function exportCodeCollectionToText(codeCollection) {
 } 
 
 /**
- * Toggles Excel calculation mode between Manual and Automatic.
- * @param {boolean} manual - If true, sets calculation to Manual; otherwise sets to Automatic.
- * @returns {Promise<void>}
- */
-export async function toggleManualCalculation(manual) {
-    try {
-        await Excel.run(async (context) => {
-            const application = context.workbook.application;
-            
-            // Set calculation mode
-            application.calculationMode = manual 
-                ? Excel.CalculationMode.manual 
-                : Excel.CalculationMode.automatic;
-
-            console.log(`Calculation mode set to: ${application.calculationMode}`);
-            
-            await context.sync();
-        });
-    } catch (error) {
-        console.error(`Error toggling calculation mode: ${error}`);
-        // Decide if this should throw or just log
-        // throw error;
-    }
-}
-
-/**
  * Processes a code collection and performs operations based on code types
  * @param {Array} codeCollection - The code collection to process
  * @returns {Object} - Results of processing the code collection
@@ -154,9 +128,6 @@ export async function toggleManualCalculation(manual) {
 export async function runCodes(codeCollection) {
     try {
         console.log("Running code collection processing");
-        
-        // --- Set calculation to Manual before starting --- 
-        await toggleManualCalculation(true);
         
         if (!codeCollection || !Array.isArray(codeCollection)) {
             throw new Error("Invalid code collection");
@@ -407,11 +378,6 @@ export async function runCodes(codeCollection) {
             }
         }
         
-
-
-        // --- Set calculation back to Automatic after finishing --- 
-        await toggleManualCalculation(false);
-
         // Prepare the final result object, including the names of assumption tabs
         const finalResult = {
             ...result, // Includes processedCodes, errors
@@ -1302,9 +1268,11 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
             const codePrefix = String(task.code).substring(0, 2).toUpperCase();
             let formulaJ = "";
             if (codePrefix === "IS" || codePrefix === "CF") {
-                 formulaJ = `=SUMIF(R3,R2C[1],R[0])`; // R1C1: Sum current row if header in Row 3 matches K$2 (R2C[1])
+                 // Corrected R2C[1] to R2C: Criteria should reference current column's header (J$2)
+                 formulaJ = `=SUMIF(R3,R2C,R[0])`;
             } else {
-                 formulaJ = `=SUMIF(R4,R2C[1],R[0])`; // R1C1: Sum current row if header in Row 4 matches K$2 (R2C[1])
+                 // Corrected R2C[1] to R2C: Criteria should reference current column's header (J$2)
+                 formulaJ = `=SUMIF(R4,R2C,R[0])`;
             }
             cellAnnualsStart.formulasR1C1 = [[formulaJ]]; // Use formulasR1C1 for SUMIF
             cellAnnualsStart.format.font.bold = false;
