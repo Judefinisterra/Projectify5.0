@@ -1233,20 +1233,79 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
         // 5. Sort tasks by targetRow DESCENDING
         tasks.sort((a, b) => b.targetRow - a.targetRow);
         console.log(`Sorted ${tasks.length} tasks for insertion.`);
+        // --- DEBUG: Log the tasks array --- 
+        // console.log("Tasks array (sorted desc by targetRow):", JSON.stringify(tasks)); // REMOVED DEBUG
+        // --- END DEBUG ---
 
         // 6. Perform Insertions (bottom-up)
         console.log("Performing row insertions...");
-        for (const task of tasks) {
+        for (const task of tasks) { // Uses the DESCENDING sorted tasks
             financialsSheet.getRange(`${task.targetRow}:${task.targetRow}`).insert(Excel.InsertShiftDirection.down);
-            await worksheet.context.sync();
+            // *** It's generally more efficient to sync less often, but syncing after each insert
+            // ensures the row model is updated for potential complex dependencies if they existed.
+            // Keep sync here for now unless performance becomes an issue. ***
+            // await worksheet.context.sync(); // Sync after EACH insertion -- REMOVED THIS LINE
         }
+        await worksheet.context.sync(); // Sync AFTER all insertions are queued
         console.log("Finished row insertions.");
 
-        // 7. Populate and Format inserted rows
-        console.log("Populating inserted rows...");
-        for (const task of tasks) {
-            const populateRow = task.targetRow;
+        // Pre-calculate the final adjusted row for each task after all insertions
+        console.log("Calculating final adjusted rows for population/autofill...");
+        // Get unique original target rows, sorted ascending
+        const originalTargetRowsAsc = [...new Set(tasks.map(t => t.targetRow))].sort((a, b) => a - b);
+        const taskAdjustedRows = new Map(); // Map to store { assumptionRow: adjustedRow }
+        let totalShift = 0; // Total shift accumulated from previous rows
 
+        // --- DEBUG: Log originalTargetRowsAsc ---
+        // console.log("Original Target Rows (unique, asc):", originalTargetRowsAsc); // REMOVED DEBUG
+        // --- END DEBUG ---
+
+        originalTargetRowsAsc.forEach(uniqueRow => {
+            // --- DEBUG: Log current uniqueRow ---
+            // console.log(`Processing uniqueRow: ${uniqueRow}`); // REMOVED DEBUG
+            // --- END DEBUG ---
+
+            // Find all tasks that originally targeted this unique row
+            // CORRECTED PROPERTY NAME IN FILTER: task.targetRow instead of task.originalTargetRow
+            const tasksAtThisRow = tasks.filter(task => task.targetRow === uniqueRow);
+
+            // --- DEBUG: Log tasks found for this uniqueRow ---
+            // console.log(`  Tasks found for uniqueRow ${uniqueRow}:`, JSON.stringify(tasksAtThisRow)); // REMOVED DEBUG
+            // --- END DEBUG ---
+
+            // Optional: Sort tasksAtThisRow by assumptionRow for deterministic order, though might not be strictly necessary
+            // tasksAtThisRow.sort((a, b) => a.assumptionRow - b.assumptionRow);
+
+            let currentAdjustedRowForGroup = uniqueRow + totalShift; // Starting adjusted row for this group
+
+            // Assign consecutive adjusted rows to each task in this group
+            tasksAtThisRow.forEach(task => {
+                taskAdjustedRows.set(task.assumptionRow, currentAdjustedRowForGroup); // Use assumptionRow as key
+                console.log(`  Mapping: Code ${task.code}, Assumption Row ${task.assumptionRow}, Original Target ${uniqueRow}, Final Adjusted Row ${currentAdjustedRowForGroup}`);
+                currentAdjustedRowForGroup++; // Increment for the next task inserting at the same original spot
+            });
+
+            // Update the total shift for subsequent unique rows
+            totalShift += tasksAtThisRow.length;
+        });
+
+        // --- DEBUG: Log the contents of the map --- 
+        // console.log("taskAdjustedRows map contents:", taskAdjustedRows); // REMOVED DEBUG
+        // --- END DEBUG ---
+
+        // 7. Populate and Format inserted rows using ADJUSTED row numbers
+        console.log("Populating inserted rows (using adjusted rows)...");
+        for (const task of tasks) { // Iterates descending sorted tasks (order doesn't strictly matter here, but using the same loop)
+            // const originalTargetRow = task.targetRow; // No longer needed for lookup
+            const populateRow = taskAdjustedRows.get(task.assumptionRow); // Get the calculated adjusted row using assumptionRow
+
+            // Check if populateRow was found
+            if (typeof populateRow === 'undefined' || populateRow === null) {
+                console.error(`Could not find adjusted row for task with Assumption Row ${task.assumptionRow}, Code ${task.code}. Skipping population.`);
+                continue; // Skip this task if mapping failed
+            }
+
+            // Use populateRow instead of task.targetRow for getRange calls
             const cellB = financialsSheet.getRange(`${FINANCIALS_TARGET_COL_B}${populateRow}`);
             const cellD = financialsSheet.getRange(`${FINANCIALS_TARGET_COL_D}${populateRow}`);
             const cellAnnualsStart = financialsSheet.getRange(`${FINANCIALS_ANNUALS_START_COL}${populateRow}`);
@@ -1291,27 +1350,37 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
         console.log("Finished setting values/formulas/formats for inserted rows.");
         await worksheet.context.sync(); // Sync all population and formatting
 
-        // 8. Perform Autofills
-        console.log("Performing autofills...");
-        for (const task of tasks) {
-             const populateRow = task.targetRow;
+
+        // 8. Perform Autofills using ADJUSTED row numbers
+        console.log("Performing autofills (using adjusted rows)...");
+        for (const task of tasks) { // Uses the DESCENDING sorted tasks again
+             // const originalTargetRow = task.targetRow; // No longer needed for lookup
+             const populateRow = taskAdjustedRows.get(task.assumptionRow); // Get the calculated adjusted row using assumptionRow
+
+             // Check if populateRow was found
+            if (typeof populateRow === 'undefined' || populateRow === null) {
+                console.error(`Could not find adjusted row for task with Assumption Row ${task.assumptionRow}, Code ${task.code}. Skipping autofill.`);
+                continue; // Skip this task if mapping failed
+            }
 
              try {
+                // Use populateRow for autofill ranges
                 // Autofill Annuals: J -> P
-                const sourceAnnuals = financialsSheet.getRange(`${FINANCIALS_ANNUALS_START_COL}${populateRow}`);
-                const destAnnuals = financialsSheet.getRange(`${FINANCIALS_ANNUALS_START_COL}${populateRow}:${ANNUALS_END_COL}${populateRow}`);
+                const sourceAnnuals = financialsSheet.getRange(`${FINANCIALS_ANNUALS_START_COL}${populateRow}`); // Use adjusted row
+                const destAnnuals = financialsSheet.getRange(`${FINANCIALS_ANNUALS_START_COL}${populateRow}:${ANNUALS_END_COL}${populateRow}`); // Use adjusted row
                 sourceAnnuals.autoFill(destAnnuals, Excel.AutoFillType.fillDefault);
                 // console.log(`  Autofilled ${FINANCIALS_ANNUALS_START_COL}${populateRow} to ${ANNUALS_END_COL}${populateRow}`);
 
                 // Autofill Months: AE -> CX
-                const sourceMonths = financialsSheet.getRange(`${FINANCIALS_MONTHS_START_COL}${populateRow}`);
-                const destMonths = financialsSheet.getRange(`${FINANCIALS_MONTHS_START_COL}${populateRow}:${MONTHS_END_COL}${populateRow}`);
+                const sourceMonths = financialsSheet.getRange(`${FINANCIALS_MONTHS_START_COL}${populateRow}`); // Use adjusted row
+                const destMonths = financialsSheet.getRange(`${FINANCIALS_MONTHS_START_COL}${populateRow}:${MONTHS_END_COL}${populateRow}`); // Use adjusted row
                 sourceMonths.autoFill(destMonths, Excel.AutoFillType.fillDefault);
                 // console.log(`  Autofilled ${FINANCIALS_MONTHS_START_COL}${populateRow} to ${MONTHS_END_COL}${populateRow}`);
 
                 // Removed Actuals autofill
              } catch(autofillError) {
-                 console.error(`Error during autofill for row ${populateRow} (Code: ${task.code}):`, autofillError.debugInfo || autofillError);
+                 // Update error message to use adjusted row
+                 console.error(`Error during autofill for adjusted row ${populateRow} (Code: ${task.code}, Original Target: ${task.targetRow}):`, autofillError.debugInfo || autofillError);
              }
         }
         console.log("Finished setting up autofills.");

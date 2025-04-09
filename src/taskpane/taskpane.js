@@ -24,7 +24,8 @@ const codeStrings = `<TAB; label1="Revenue and Direct Costs">
 <LABELH1; row1 = "|Current Assets:|||||||||||";>
 <BR>
 <CURRENTASSETDSO-IS; labelRow=""; financialsdriver="Total Revenue"; row1 = "|Accounts Receivable:|||||||||||"; row2 = "|Driver: Total Revenue|||||100000|100000|100000|100000|100000|100000|"; row3 = "AS|# of days sales outstanding|||||30|30|30|30|30|30|"; row4 = "A|Accounts Receivable|BS: current assets||||F|F|F|F|F|F|"; row5 = "||||||||||||"; row6 = "CF|Change in Accounts Receivable|CF: WC||||F|F|F|F|F|F|";>
-
+<CURRENTASSETDSO-IS; labelRow=""; financialsdriver="Total Revenue"; row1 = "|Accounts Receivable:|||||||||||"; row2 = "|Driver: Total Revenue|||||100000|100000|100000|100000|100000|100000|"; row3 = "AS|# of days sales outstanding|||||30|30|30|30|30|30|"; row4 = "A|Accounts Receivable|BS: current assets||||F|F|F|F|F|F|"; row5 = "||||||||||||"; row6 = "CF|Change in Accounts Receivable|CF: WC||||F|F|F|F|F|F|";>
+<FAPPEDATELI-ER; labelRow=""; row1 = "AS|Years useful life||||3|||||||"; row2 = "||||||||||||"; row3 = "|Statement of Cash Flows:|||Amount|Date|||||||"; row4 = "LI|Capex 1|||-100000|1/1/2027|F|F|F|F|F|F|"; row5 = "AS|Capital expenditures - Fixed Asset|CF: CFI||||F|F|F|F|F|F|"; row6 = "||||||||||||"; row7 = "AS|Depreciation - Fixed Asset|CF: Non-cash||||F|F|F|F|F|F|"; row8 = "||||||||||||"; row9 = "|Income Statement:|||||||||||"; row10 = "C|Depreciation - Fixed Asset|IS: D&A||||F|F|F|F|F|F|"; row11 = "||||||||||||"; row12 = "|Balance sheet:|||||||||||"; row13 = "|Gross PP&E - Fixed Asset|||||F|F|F|F|F|F|"; row14 = "|Accumulated depreciation - Fixed Asset|||||F|F|F|F|F|F|"; row15 = "A|Net PP&E - Fixed Asset|BS: fixed assets||||F|F|F|F|F|F|";>
 `;
 
 // Mock fs module for browser environment
