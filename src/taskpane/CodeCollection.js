@@ -1648,60 +1648,249 @@ async function setColumnAFontWhite(worksheet, startRow, lastRow) {
     }
 }
 
-// TODO: Implement the actual logic within the JS helper functions (adjustDriversJS, replaceIndirectsJS, etc.).
-// TODO: Implement findRowByValue helper function if Retained Earnings logic is needed.
-// TODO: Update the calling code (e.g., button handler in taskpane.js) to call `processAssumptionTabs` after `runCodes`.
+// --- Helper Functions for Column Conversion ---
 
 /**
- * Collapses all groupings in every worksheet and navigates to cell A1 of the Financials sheet
+ * Converts a 0-based column index into a column letter (e.g., 0 -> A, 1 -> B, 26 -> AA).
+ * @param {number} index - The 0-based column index.
+ * @returns {string} The column letter.
+ */
+function columnIndexToLetter(index) {
+    let letter = '';
+    while (index >= 0) {
+        letter = String.fromCharCode(index % 26 + 'A'.charCodeAt(0)) + letter;
+        index = Math.floor(index / 26) - 1;
+    }
+    return letter;
+}
+
+/**
+ * Converts a column letter into a 0-based column index (e.g., A -> 0, B -> 1, AA -> 26).
+ * @param {string} letter - The column letter (case-insensitive).
+ * @returns {number} The 0-based column index.
+ */
+function columnLetterToIndex(letter) {
+    letter = letter.toUpperCase();
+    let index = 0;
+    for (let i = 0; i < letter.length; i++) {
+        index = index * 26 + (letter.charCodeAt(i) - 'A'.charCodeAt(0) + 1);
+    }
+    return index - 1; // Adjust to 0-based
+}
+
+/**
+ * Hides Columns C-I, Rows 2-8, and specific Actuals columns on specified sheets,
+ * then navigates to cell A1 of the Financials sheet.
+ * @param {string[]} assumptionTabNames - Array of assumption tab names created by runCodes.
  * @returns {Promise<void>}
  */
-export async function collapseGroupingsAndNavigateToFinancials() {
+export async function hideColumnsAndNavigate(assumptionTabNames) { // Renamed and added parameter
+    // Define Actuals columns
+    const ACTUALS_START_COL = "S";
+    const ACTUALS_END_COL = "AD";
+
     try {
-        console.log("Collapsing all groupings and navigating to Financials sheet");
-        
+        const targetSheetNames = [...assumptionTabNames, "Financials"]; // Combine assumption tabs and Financials
+        console.log(`Attempting to hide specific rows/columns on sheets [${targetSheetNames.join(', ')}] and navigate...`);
+
         await Excel.run(async (context) => {
             // Get all worksheets
             const worksheets = context.workbook.worksheets;
-            worksheets.load("items/name"); // Load names initially
+            // Load only names needed for matching
+            worksheets.load("items/name");
             await context.sync();
 
-            // Load the outline property for each worksheet
-            for (const worksheet of worksheets.items) {
-                worksheet.load("outline");
-            }
-            await context.sync(); // Sync after loading outlines
-            
-            // Iterate through each worksheet and attempt to collapse groupings
-            for (const worksheet of worksheets.items) {
-                console.log(`Processing sheet for outline collapse: ${worksheet.name}`);
-                // Activate the worksheet first
-                worksheet.activate();
-                // It might be good practice to sync after activate, but let's test without first
-                // await context.sync(); 
+            console.log(`Found ${worksheets.items.length} worksheets. Targeting ${targetSheetNames.length} specific sheets.`);
+            let hideAttempted = false;
 
-                try {
-                    // Attempt to collapse row and column groupings to level 1
-                    // This might throw an error if no outline exists or other issues occur
-                    worksheet.outline.showLevels(1, 1);
-                    console.log(`  Successfully called showLevels(1, 1) for ${worksheet.name}.`);
-                } catch (outlineError) {
-                    // Log if showing levels failed, likely because outline is undefined
-                    console.warn(`  Could not show outline level 1 for ${worksheet.name}. Error: ${outlineError.message}`);
+            // Calculate actuals end column for assumption tabs
+            const actualsEndIndex = columnLetterToIndex(ACTUALS_END_COL);
+            const actualsEndMinusOneCol = actualsEndIndex > 0 ? columnIndexToLetter(actualsEndIndex - 1) : ACTUALS_START_COL; // Handle edge case
+
+            // --- Queue hiding operations for target sheets ---
+            for (const worksheet of worksheets.items) {
+                const sheetName = worksheet.name;
+                if (targetSheetNames.includes(sheetName)) { // Check if sheet is in our target list
+                    console.log(`Queueing hide operations for: ${sheetName}`);
+                    try {
+                        // Hide Columns C:I
+                        const colsCI = worksheet.getRange("C:I");
+                        colsCI.columnHidden = true;
+
+                        // Hide Rows 2:8
+                        const rows28 = worksheet.getRange("2:8");
+                        rows28.rowHidden = true;
+
+                        // Hide Actuals Columns based on sheet type
+                        if (sheetName === "Financials") {
+                            console.log(`  -> Hiding Actuals range ${ACTUALS_START_COL}:${ACTUALS_END_COL}`);
+                            const actualsRangeFin = worksheet.getRange(`${ACTUALS_START_COL}:${ACTUALS_END_COL}`);
+                            actualsRangeFin.columnHidden = true;
+                        } else if (assumptionTabNames.includes(sheetName)) {
+                             console.log(`  -> Hiding Actuals range ${ACTUALS_START_COL}:${actualsEndMinusOneCol}`);
+                             const actualsRangeAssum = worksheet.getRange(`${ACTUALS_START_COL}:${actualsEndMinusOneCol}`);
+                             actualsRangeAssum.columnHidden = true;
+                        }
+
+                        hideAttempted = true; // Mark that at least one hide was queued
+                    } catch (error) {
+                        // Log unexpected errors during the queuing attempt
+                        console.error(`  Error queuing hide operations for ${sheetName}: ${error.message}`, {
+                            code: error.code,
+                            debugInfo: error.debugInfo ? JSON.stringify(error.debugInfo) : 'N/A'
+                        });
+                    }
                 }
             }
-            
-            // Navigate to Financials sheet and select cell A1
-            const financialsSheet = context.workbook.worksheets.getItem("Financials");
-            financialsSheet.activate();
-            const rangeA1 = financialsSheet.getRange("A1");
-            rangeA1.select();
-            
-            await context.sync();
-            console.log("Successfully collapsed groupings and navigated to Financials!A1");
-        });
+
+            // --- Sync all queued hide operations ---
+            if (hideAttempted) {
+                console.log(`Attempting to sync hide columns/rows operations...`);
+                try {
+                    await context.sync();
+                    console.log("Successfully synced hide columns/rows operations.");
+                } catch (syncError) {
+                    console.error(`Error syncing hide columns/rows operations: ${syncError.message}`, {
+                        code: syncError.code,
+                        debugInfo: syncError.debugInfo ? JSON.stringify(syncError.debugInfo) : 'N/A'
+                    });
+                     // Report failure but continue to navigation attempt
+                }
+            } else {
+                 console.log("No target sheets found or no hide operations were queued.");
+            }
+
+            // --- Activate and Select A1 on each assumption tab (mimic Ctrl+Home) ---
+            console.log("Activating and selecting A1 on assumption tabs...");
+            // Note: This requires syncing inside the loop for the activate/select effect per sheet
+            for (const sheetName of assumptionTabNames) {
+                try {
+                    console.log(`  Activating and selecting A1 for: ${sheetName}`);
+                    const worksheet = context.workbook.worksheets.getItem(sheetName);
+                    worksheet.activate(); // Activate the sheet first
+                    const rangeA1 = worksheet.getRange("A1");
+                    rangeA1.select(); // Then select A1
+                    await context.sync(); // Sync *immediately* to apply activation and selection for this sheet
+                    console.log(`  Synced A1 view reset for ${sheetName}.`);
+                } catch (error) {
+                     console.error(`  Error resetting view for ${sheetName}: ${error.message}`);
+                     // Optionally continue to the next sheet even if one fails
+                }
+            }
+            // No final sync needed for this loop as it happens inside
+
+            // --- Activate and Select J9 on each assumption tab ---
+            console.log("Activating and selecting J9 on assumption tabs...");
+            // Note: This requires syncing inside the loop for the activate/select effect per sheet
+            for (const sheetName of assumptionTabNames) {
+                try {
+                    console.log(`  Activating and selecting J9 for: ${sheetName}`);
+                    const worksheet = context.workbook.worksheets.getItem(sheetName);
+                    worksheet.activate(); // Activate the sheet first
+                    const rangeJ9 = worksheet.getRange("J9"); // Get J9
+                    rangeJ9.select(); // Then select J9
+                    await context.sync(); // Sync *immediately* to apply activation and selection for this sheet
+                    console.log(`  Synced J9 view reset for ${sheetName}.`);
+                } catch (error) {
+                     console.error(`  Error resetting view to J9 for ${sheetName}: ${error.message}`);
+                     // Optionally continue to the next sheet even if one fails
+                }
+            }
+            // No final sync needed for this loop as it happens inside
+
+            // --- Navigate to Financials sheet and select cell J9 ---
+            // (This ensures Financials is the final active sheet)
+            try {
+                console.log("Navigating to Financials sheet and selecting J9...");
+                const financialsSheet = context.workbook.worksheets.getItem("Financials");
+                // This activate/select sequence overrides the previous active sheet.
+                financialsSheet.activate(); 
+                const rangeJ9 = financialsSheet.getRange("J9"); // Get J9
+                rangeJ9.select(); // Select J9
+                await context.sync(); // Sync the final activate/select
+                console.log("Successfully navigated to Financials!J9.");
+            } catch (navError) {
+                console.error(`Error navigating to Financials sheet J9: ${navError.message}`, {
+                    code: navError.code,
+                    debugInfo: navError.debugInfo ? JSON.stringify(navError.debugInfo) : 'N/A'
+                });
+                // Do not throw here, allow the function to finish
+            }
+
+            console.log("Finished hideColumnsAndNavigate function.");
+
+        }); // End Excel.run
     } catch (error) {
-        console.error("Error in collapseGroupingsAndNavigateToFinancials:", error);
+        // Catch errors from the Excel.run call itself
+        console.error("Critical error in hideColumnsAndNavigate:", error);
+        throw error; // Re-throw critical errors
+    }
+}
+
+/**
+ * Hides specific rows and columns on all worksheets except for specified exclusions.
+ * Hides rows 1-8, columns C-I (3-9), and columns S-AC (19-29).
+ * @param {string[]} excludedSheetNames - An array of sheet names to exclude from hiding.
+ * @returns {Promise<void>}
+ */
+export async function hideRowsAndColumnsOnSheets(excludedSheetNames = ["Actuals Data", "Actuals Categorization"]) {
+    try {
+        console.log(`Hiding rows/columns on sheets, excluding: ${excludedSheetNames.join(', ')}`);
+
+        await Excel.run(async (context) => {
+            const worksheets = context.workbook.worksheets;
+            worksheets.load("items/name");
+            await context.sync();
+
+            for (const worksheet of worksheets.items) {
+                const sheetName = worksheet.name;
+                if (excludedSheetNames.includes(sheetName)) {
+                    console.log(`Skipping sheet: ${sheetName} (excluded)`);
+                    continue;
+                }
+
+                console.log(`Processing sheet: ${sheetName}`);
+
+                try {
+                    // Hide Rows 1-8
+                    const rowRange = worksheet.getRange("1:8");
+                    rowRange.rowHidden = true;
+                    console.log(`  Hiding rows 1-8`);
+
+                    // Hide Columns C-I
+                    const colRange1 = worksheet.getRange("C:I");
+                    colRange1.columnHidden = true;
+                    console.log(`  Hiding columns C-I`);
+
+                    // Hide Columns S-AC
+                    const colRange2 = worksheet.getRange("S:AC");
+                    colRange2.columnHidden = true;
+                    console.log(`  Hiding columns S-AC`);
+
+                    // It's often more efficient to batch sync operations,
+                    // but sometimes hiding needs immediate effect or separate syncs.
+                    // Let's sync after hiding for this sheet.
+                    await context.sync();
+                    console.log(`  Finished hiding for ${sheetName}`);
+
+                } catch (hideError) {
+                    console.error(`  Error hiding rows/columns on sheet ${sheetName}: ${hideError.message}`, {
+                        code: hideError.code,
+                        debugInfo: hideError.debugInfo ? JSON.stringify(hideError.debugInfo) : 'N/A'
+                    });
+                    // Continue to the next sheet even if one fails
+                }
+            }
+
+            console.log("Finished processing all sheets for hiding rows/columns.");
+        }); // End Excel.run
+
+    } catch (error) {
+        console.error("Critical error in hideRowsAndColumnsOnSheets:", error);
         throw error;
     }
 }
+
+// TODO: Implement the actual logic within the JS helper functions (adjustDriversJS, replaceIndirectsJS, etc.).
+// TODO: Implement findRowByValue helper function if Retained Earnings logic is needed.
+// TODO: Update the calling code (e.g., button handler in taskpane.js) to call `processAssumptionTabs` after `runCodes`.
