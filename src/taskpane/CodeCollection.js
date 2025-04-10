@@ -181,9 +181,12 @@ export async function runCodes(codeCollection) {
                             }
                             console.log("existingSheet deleted");
                             
-                            // Get the Calcs worksheet
+                            // Get the Calcs worksheet AND the Financials worksheet
                             const sourceCalcsWS = context.workbook.worksheets.getItem("Calcs");
-                            console.log("sourceCalcsWS", sourceCalcsWS);
+                            const financialsSheet = context.workbook.worksheets.getItem("Financials");
+                            financialsSheet.load("position"); // Load Financials sheet position
+                            await context.sync(); // Sync to get Financials position
+                            console.log(`sourceCalcsWS obtained. Financials sheet is at position ${financialsSheet.position}`);
                             
                             // Create a new worksheet by copying the Calcs worksheet
                             const newSheet = sourceCalcsWS.copy();
@@ -193,8 +196,12 @@ export async function runCodes(codeCollection) {
                             newSheet.name = tabName;
                             console.log("newSheet renamed to", tabName);
                             
+                            // <<< NEW: Set position relative to Financials sheet >>>
+                            newSheet.position = financialsSheet.position + 1;
+                            console.log(`Set position of ${tabName} to ${newSheet.position}`);
+                            
                             // Set the first row
-                            const firstRow = 9; // Equivalent to calcsfirstrow in VBA
+                            const firstRow = 10; // <<< CHANGED FROM 9
                             console.log("firstRow", firstRow);
                             
                             // Clear all cells including and below the first row
@@ -790,7 +797,7 @@ async function getLastUsedRow(worksheet, columnLetter) {
  * @param {number} lastRow - The last row to process (inclusive).
  */
 async function adjustDriversJS(worksheet, lastRow) {
-    const START_ROW = 9;
+    const START_ROW = 10; // <<< CHANGED FROM 9
     const DRIVER_CODE_COL = "F"; // Column containing the driver code to look up
     const LOOKUP_COL = "A";      // Column to search for the driver code
     const TARGET_COL = "AE";     // Column where the result address string is written
@@ -887,7 +894,7 @@ async function adjustDriversJS(worksheet, lastRow) {
  * @param {number} lastRow - The last row to process.
  */
 async function replaceIndirectsJS(worksheet, lastRow) {
-    const START_ROW = 9;
+    const START_ROW = 10; // <<< CHANGED FROM 9
     const TARGET_COL = "AE";
 
     console.log(`Running replaceIndirectsJS for sheet: ${worksheet.name} from row ${START_ROW} to ${lastRow}`);
@@ -1091,7 +1098,7 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
     console.log(`Running populateFinancialsJS for sheet: ${worksheet.name} (lastRow: ${lastRow}) -> ${financialsSheet.name}`);
     // This function MUST be called within an Excel.run context.
 
-    const CALCS_FIRST_ROW = 9; // Same as START_ROW elsewhere
+    const CALCS_FIRST_ROW = 10; // <<< CHANGED FROM 9 // Same as START_ROW elsewhere
     const ASSUMPTION_CODE_COL = "C"; // Column with code to lookup on assumption sheet
     const ASSUMPTION_LINK_COL_B = "B";
     const ASSUMPTION_LINK_COL_D = "D";
@@ -1439,7 +1446,7 @@ export async function processAssumptionTabs(assumptionTabNames) {
     const FINANCIALS_SHEET_NAME = "Financials"; // Define constant
     const AUTOFILL_START_COLUMN = "AE";
     const AUTOFILL_END_COLUMN = "CX";
-    const START_ROW = 9; // Standard start row for processing
+    const START_ROW = 10; // <<< CHANGED FROM 9 // Standard start row for processing
 
     try {
         // --- Loop through each assumption tab name ---
@@ -1503,6 +1510,11 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      const fillRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_END_COLUMN}${finalLastRow}`);
                      sourceRange.autoFill(fillRange, Excel.AutoFillType.fillDefault);
 
+                     // 8. Set Row 9 interior color to none
+                     console.log(`Setting row 9 interior color to none for ${worksheetName}`);
+                     const row9Range = currentWorksheet.getRange("9:9");
+                     row9Range.format.fill.clear();
+
                      // Sync all batched operations for this tab
                      await context.sync();
                      console.log(`Finished processing and syncing for tab ${worksheetName}`);
@@ -1525,7 +1537,7 @@ export async function processAssumptionTabs(assumptionTabNames) {
                  await context.sync(); // Ensure sheet is loaded
 
                  // 1. Format Changes In Working Capital
-                 await formatChangesInWorkingCapitalJS(finSheet); // Pass sheet from this context
+                 // await formatChangesInWorkingCapitalJS(finSheet); // <<< COMMENTED OUT
 
                  // 2. Get Last Row for Financials
                  const financialsLastRow = await getLastUsedRow(finSheet, "B"); // Pass sheet from this context

@@ -1142,6 +1142,42 @@ async function insertSheetsAndRunCodes() {
         // Show success message
         showMessage("Model built successfully!");
 
+        // --- 6. Delete Codes and Calcs sheets ---
+        console.log("Deleting Codes and Calcs sheets...");
+        await Excel.run(async (context) => {
+            try {
+                const codesSheet = context.workbook.worksheets.getItem("Codes");
+                codesSheet.delete();
+                console.log("Deleted Codes sheet.");
+            } catch (error) {
+                // Log if sheet doesn't exist, but don't stop the process
+                if (error instanceof OfficeExtension.Error && error.code === Excel.ErrorCodes.itemNotFound) {
+                    console.warn("Codes sheet not found, skipping deletion.");
+                } else {
+                    console.error("Error deleting Codes sheet:", error);
+                    // Decide if other errors should be re-thrown or just logged
+                }
+            }
+
+            try {
+                const calcsSheet = context.workbook.worksheets.getItem("Calcs");
+                calcsSheet.delete();
+                console.log("Deleted Calcs sheet.");
+            } catch (error) {
+                // Log if sheet doesn't exist, but don't stop the process
+                if (error instanceof OfficeExtension.Error && error.code === Excel.ErrorCodes.itemNotFound) {
+                    console.warn("Calcs sheet not found, skipping deletion.");
+                } else {
+                    console.error("Error deleting Calcs sheet:", error);
+                    // Decide if other errors should be re-thrown or just logged
+                }
+            }
+            await context.sync(); // Sync deletions
+        }).catch(error => {
+             // Catch potential errors from the Excel.run call itself
+             console.error("Error during sheet deletion Excel.run block:", error);
+        });
+
     } catch (error) {
         console.error("An error occurred during the build process:", error);
         showError(`Operation failed: ${error.message || error.toString()}`);
