@@ -1396,140 +1396,6 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
 }
 
 /**
- * Links assumption sheet cells (K onwards) to the "Financials" sheet based on codes in col E.
- * Replicates the core logic of VBA Link_Fin_References.
- * @param {Excel.Worksheet} worksheet - The assumption worksheet (within an Excel.run context).
- * @param {number} lastRow - The last row to process.
- * @param {Excel.Worksheet} financialsSheet - The "Financials" worksheet (within the same Excel.run context).
- */
-async function linkFinReferencesJS(worksheet, lastRow, financialsSheet) {
-    console.log(`Running linkFinReferencesJS for sheet: ${worksheet.name} (lastRow: ${lastRow}) -> ${financialsSheet.name}`);
-    // This function MUST be called within an Excel.run context.
-    // Force a recalculation of the workbook to ensure all formulas are updated
-    try {
-        console.log("Forcing workbook recalculation...");
-        const application = worksheet.context.application;
-        application.calculate(Excel.CalculationType.full);
-        await worksheet.context.sync();
-        console.log("Workbook recalculation completed.");
-    } catch (recalcError) {
-        console.error("Error during workbook recalculation:", recalcError.debugInfo || recalcError);
-        // Continue with the function even if recalculation fails
-    }
-
-    const START_ROW = 9;
-    const CHECK_COLUMN = "E";
-    const FINANCIALS_LOOKUP_COLUMN = "B";
-    const TARGET_COLUMN_START = "K";
-    const CLEAR_COLUMN = "Q";
-    const MONTHS_END_COLUMN = "CX"; // As used in populateFinancialsJS
-    const NON_GREEN_COLOR_HEX = "#CCFFCC"; // VBA: RGB(204, 255, 204) - Must match Excel's hex representation
-
-    // Ensure lastRow is valid
-    if (lastRow < START_ROW) {
-        console.warn(`linkFinReferencesJS: lastRow (${lastRow}) is less than START_ROW (${START_ROW}). Skipping.`);
-        return;
-    }
-
-    try {
-        // 1. Load data from Assumption Sheet (Check Column E)
-        const checkRangeAddress = `${CHECK_COLUMN}${START_ROW}:${CHECK_COLUMN}${lastRow}`;
-        const checkRange = worksheet.getRange(checkRangeAddress);
-        checkRange.load(["values", "format/fill/color"]);
-        console.log(`linkFinReferencesJS: Loading assumption data from ${checkRangeAddress}`);
-
-        // 2. Load data from Financials Sheet (Lookup Column B) & Create Map
-        console.log(`linkFinReferencesJS: Loading Financials lookup data from column ${FINANCIALS_LOOKUP_COLUMN}`);
-        const financialsLookupMap = new Map();
-        const finLookupCol = financialsSheet.getRange(`${FINANCIALS_LOOKUP_COLUMN}:${FINANCIALS_LOOKUP_COLUMN}`);
-        const finUsedRange = finLookupCol.getUsedRange(true); // Values only
-        finUsedRange.load(["values", "address"]); // Load address for better error reporting if needed
-        // Sync assumption and financials loads together
-        await worksheet.context.sync();
-        console.log(`linkFinReferencesJS: Synced assumption and financials loads. Financials used range address: ${finUsedRange.address}`);
-
-        if (finUsedRange.values) {
-            for (let i = 0; i < finUsedRange.values.length; i++) {
-                const code = finUsedRange.values[i][0];
-                if (code !== null && code !== "") {
-                    // Address gives e.g., "Financials!B1:B500". We need the starting row of the used range.
-                    // A simpler way is to assume getUsedRange values start from row 1 relative to the range.
-                    // Or, parse the address. Let's try the simple approach first.
-                    // We need the actual row number on the sheet.
-                    // getUsedRange().address often includes the sheet name.
-                    // A more robust way: load the row index of the used range.
-                    finUsedRange.load("rowIndex");
-                    await worksheet.context.sync(); // Need sync for rowIndex
-                    const startRowIndex = finUsedRange.rowIndex; // 0-based index of the first row in the range
-                    const actualRow = startRowIndex + i + 1; // Calculate 1-based Excel row number
-                    financialsLookupMap.set(code, actualRow);
-                }
-            }
-            console.log(`Built Financials lookup map from ${FINANCIALS_LOOKUP_COLUMN} with ${financialsLookupMap.size} entries.`);
-        } else {
-             console.warn(`linkFinReferencesJS: Could not load values from Financials lookup column ${FINANCIALS_LOOKUP_COLUMN}. Map is empty.`);
-        }
-
-        // 3. Iterate Assumption Rows and Apply Links/Autofill
-        console.log("linkFinReferencesJS: Processing assumption rows for linking...");
-        const checkValues = checkRange.values;
-        const checkColors = checkRange.format.fill.color; // This will be a 2D array matching checkRange
-
-        for (let i = 0; i < checkValues.length; i++) {
-            const currentRow = START_ROW + i;
-            const checkValue = checkValues[i][0];
-            // Safely access color, default to null if checkColors or the specific row's color is missing
-            const checkColor = (checkColors && checkColors[i]) ? checkColors[i][0] : null;
-
-            // Condition check (matches VBA logic)
-            // If checkColor is null, it's treated as not equal to NON_GREEN_COLOR_HEX, which is correct.
-            const shouldLink = checkValue !== null &&
-                               checkValue !== "" &&
-                               String(checkValue).toUpperCase() !== "DASS" &&
-                               checkValue !== 0 &&
-                               checkColor !== NON_GREEN_COLOR_HEX;
-
-            if (shouldLink) {
-                const searchCode = String(checkValue); // Ensure it's a string for map lookup
-                if (financialsLookupMap.has(searchCode)) {
-                    const referenceRow = financialsLookupMap.get(searchCode);
-                    const formula = `='${financialsSheet.name}'!${TARGET_COLUMN_START}${referenceRow}`;
-                    const targetCellAddress = `${TARGET_COLUMN_START}${currentRow}`;
-                    const targetCell = worksheet.getRange(targetCellAddress);
-
-                    // Set formula in target column (K)
-                    targetCell.formulas = [[formula]];
-                    // console.log(`  Row ${currentRow}: Linking ${targetCellAddress} to Financials row ${referenceRow} with formula: ${formula}`);
-
-                    // Queue Autofill K -> CX
-                    const fillDestinationAddress = `${TARGET_COLUMN_START}${currentRow}:${MONTHS_END_COLUMN}${currentRow}`;
-                    const fillDestinationRange = worksheet.getRange(fillDestinationAddress);
-                    targetCell.autoFill(fillDestinationRange, Excel.AutoFillType.fillDefault);
-                    // console.log(`  Row ${currentRow}: Queued autofill from ${targetCellAddress} to ${MONTHS_END_COLUMN}${currentRow}`);
-
-                } else {
-                    console.warn(`linkFinReferencesJS: Row ${currentRow} - Code "${searchCode}" found in ${CHECK_COLUMN}${currentRow}, but not found in Financials column ${FINANCIALS_LOOKUP_COLUMN}.`);
-                }
-            }
-        }
-
-        // 4. Clear Column Q
-        console.log(`linkFinReferencesJS: Clearing column ${CLEAR_COLUMN} from row ${START_ROW} to ${lastRow}`);
-        const clearRangeAddress = `${CLEAR_COLUMN}${START_ROW}:${CLEAR_COLUMN}${lastRow}`;
-        const clearRange = worksheet.getRange(clearRangeAddress);
-        clearRange.clear(Excel.ClearApplyTo.contents); // Clear only contents, matching VBA .Clear
-
-        // Note: context.sync() is handled by the calling function (processAssumptionTabs)
-        console.log(`linkFinReferencesJS: Finished processing for ${worksheet.name}`);
-
-    } catch (error) {
-        console.error(`Error in linkFinReferencesJS for sheet ${worksheet.name}:`, error.debugInfo || error);
-        // Re-throw the error to allow the calling function to handle it
-        throw error;
-    }
-}
-
-/**
  * Placeholder for Format_Changes_In_Working_Capital VBA logic.
  * Inserts a row and adjusts formatting in "Financials" based on specific codes.
  * @param {Excel.Worksheet} financialsSheet - The "Financials" worksheet (within an Excel.run context).
@@ -1623,7 +1489,7 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      await populateFinancialsJS(currentWorksheet, updatedLastRow, financialsSheet);
 
                      // 6. Link Financial References
-                     await linkFinReferencesJS(currentWorksheet, updatedLastRow, financialsSheet);
+                     // await linkFinReferencesJS(currentWorksheet, updatedLastRow, financialsSheet);
 
                      // 7. Autofill AE9:AE<lastRow> -> CX<lastRow> on Assumption Tab
                      console.log(`Autofilling ${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${updatedLastRow} to ${AUTOFILL_END_COLUMN} on ${worksheetName}`);
