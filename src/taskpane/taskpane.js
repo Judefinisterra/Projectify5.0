@@ -12,7 +12,7 @@ import { validateCodeStrings } from './Validation.js';
 // Import the spreadsheet utilities
 import { handleInsertWorksheetsFromBase64 } from './SpreadsheetUtils.js';
 // Import code collection functions
-import { populateCodeCollection, exportCodeCollectionToText, runCodes, isActiveCellGreen, testTextFunction as testTextFunctionFromCollection, processAssumptionTabs, collapseGroupingsAndNavigateToFinancials, hideColumnsAndNavigate } from './CodeCollection.js';
+import { populateCodeCollection, exportCodeCollectionToText, runCodes, processAssumptionTabs, collapseGroupingsAndNavigateToFinancials, hideColumnsAndNavigate } from './CodeCollection.js';
 // Add the codeStrings variable with the specified content
 const codeStrings = `<TAB; label1="Revenue and Direct Costs">
 <VOLLI-EV; labelRow=""; row1 = "|# of units sold:|||||||||||"; row2 = "LI1|# of students|||||100|100|100|100|100|100| *LI1|# of teachers|||||100|100|400|100|100|100| *LI1|# of sites|||||100|100|100|200|340|100|"; row3 = "V1|Total # of units sold|||||F|F|F|F|F|F|";>
@@ -1215,11 +1215,8 @@ Office.onReady((info) => {
     if (resetButton) resetButton.onclick = resetChat;
     
     // Test Buttons (Add similar checks if they are essential)
-    const testGreenCellButton = document.getElementById('test-green-cell');
-    if (testGreenCellButton) testGreenCellButton.onclick = isActiveCellGreen;
-
-
-
+    // const testGreenCellButton = document.getElementById('test-green-cell');
+    // if (testGreenCellButton) testGreenCellButton.onclick = isActiveCellGreen;
 
     // Initialize API keys, load history etc.
     initializeAPIKeys().then(keysLoaded => {
