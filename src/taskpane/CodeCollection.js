@@ -1488,13 +1488,19 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      // 5. Populate Financials
                      await populateFinancialsJS(currentWorksheet, updatedLastRow, financialsSheet);
 
-                     // 6. Link Financial References
-                     // await linkFinReferencesJS(currentWorksheet, updatedLastRow, financialsSheet);
+                     // 6. Delete rows with green background (#CCFFCC)
+                     console.log(`Deleting green rows in ${worksheetName}...`);
+                     const finalLastRow = await deleteGreenRows(currentWorksheet, START_ROW, updatedLastRow);
+                     console.log(`After deleting green rows, last row is now: ${finalLastRow}`);
+
+                     // 6.5 Set font color to white in column A
+                     await setColumnAFontWhite(currentWorksheet, START_ROW, finalLastRow);
+                     console.log(`Set font color to white in column A from rows ${START_ROW}-${finalLastRow}`);
 
                      // 7. Autofill AE9:AE<lastRow> -> CX<lastRow> on Assumption Tab
-                     console.log(`Autofilling ${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${updatedLastRow} to ${AUTOFILL_END_COLUMN} on ${worksheetName}`);
-                     const sourceRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${updatedLastRow}`);
-                     const fillRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_END_COLUMN}${updatedLastRow}`);
+                     console.log(`Autofilling ${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow} to ${AUTOFILL_END_COLUMN} on ${worksheetName}`);
+                     const sourceRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow}`);
+                     const fillRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_END_COLUMN}${finalLastRow}`);
                      sourceRange.autoFill(fillRange, Excel.AutoFillType.fillDefault);
 
                      // Sync all batched operations for this tab
@@ -1529,26 +1535,12 @@ export async function processAssumptionTabs(assumptionTabNames) {
                  }
                  console.log(`Last row in Col B for ${FINANCIALS_SHEET_NAME}: ${financialsLastRow}`);
 
-                 // 3. Autofill AE9:AE<lastRow> -> CX<lastRow> on Financials
-                 console.log(`Autofilling ${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${financialsLastRow} to ${AUTOFILL_END_COLUMN} on ${FINANCIALS_SHEET_NAME}`);
-                 const sourceRangeFin = finSheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${financialsLastRow}`);
-                 const fillRangeFin = finSheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_END_COLUMN}${financialsLastRow}`);
-                 sourceRangeFin.autoFill(fillRangeFin, Excel.AutoFillType.fillDefault);
+                //  // 3. Autofill AE9:AE<lastRow> -> CX<lastRow> on Financials
+                //  console.log(`Autofilling ${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${financialsLastRow} to ${AUTOFILL_END_COLUMN} on ${FINANCIALS_SHEET_NAME}`);
+                //  const sourceRangeFin = finSheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${financialsLastRow}`);
+                //  const fillRangeFin = finSheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_END_COLUMN}${financialsLastRow}`);
+                //  sourceRangeFin.autoFill(fillRangeFin, Excel.AutoFillType.fillDefault);
 
-                 // Commented out VBA Retained Earnings logic - implement if needed
-                 // console.log("Finding rows for Retained Earnings calculation...");
-                 // const retainedEarningsRow = await findRowByValue(context, finSheet, "B:B", "Retained Earnings"); // Requires findRowByValue helper
-                 // const assetsRow = await findRowByValue(context, finSheet, "B:B", "Total Assets");
-                 // const liabilitiesRow = await findRowByValue(context, finSheet, "B:B", "Total Liabilities");
-                 // console.log(`Found Rows - RE: ${retainedEarningsRow}, Assets: ${assetsRow}, Liab: ${liabilitiesRow}`);
-                 // if (retainedEarningsRow > 0 && assetsRow > 0 && liabilitiesRow > 0) {
-                 //     const targetCell = finSheet.getRange(`AD${retainedEarningsRow}`); // Assuming AD is the target column
-                 //     const formula = `=AD${assetsRow}-AD${liabilitiesRow}`;
-                 //     console.log(`Setting Retained Earnings formula in AD${retainedEarningsRow}: ${formula}`);
-                 //     targetCell.formulas = [[formula]];
-                 // } else {
-                 //     console.warn("Could not find one or more rows required for Retained Earnings calculation.");
-                 // }
 
                  // Sync final Financials sheet operations
                  await context.sync();
@@ -1566,6 +1558,150 @@ export async function processAssumptionTabs(assumptionTabNames) {
     }
 }
 
+/**
+ * Deletes rows with light green background (#CCFFCC) in column B
+ * @param {Excel.Worksheet} worksheet - The worksheet to process
+ * @param {number} startRow - The first row to check
+ * @param {number} lastRow - The last row to check
+ * @returns {Promise<number>} - The new last row after deletions
+ */
+async function deleteGreenRows(worksheet, startRow, lastRow) {
+    console.log(`Deleting green rows (#CCFFCC) in ${worksheet.name} from row ${startRow} to ${lastRow}`);
+    
+    try {
+        // Create an array to store rows that need deletion (in descending order)
+        const rowsToDelete = [];
+        
+        // Process each row individually instead of as a range to avoid collection issues
+        for (let rowNum = startRow; rowNum <= lastRow; rowNum++) {
+            const cellAddress = `B${rowNum}`;
+            const cell = worksheet.getRange(cellAddress);
+            cell.load("format/fill/color");
+            
+            try {
+                await worksheet.context.sync();
+                
+                // Safely check if properties exist and if color matches
+                if (cell.format && 
+                    cell.format.fill && 
+                    cell.format.fill.color === "#CCFFCC") {
+                    rowsToDelete.push(rowNum);
+                }
+            } catch (cellError) {
+                console.warn(`Error checking color for ${cellAddress}: ${cellError.message}`);
+                // Continue to next cell if there's an error with this one
+            }
+        }
+        
+        // Sort in descending order to delete from bottom to top
+        rowsToDelete.sort((a, b) => b - a);
+        
+        console.log(`Found ${rowsToDelete.length} green rows to delete`);
+        
+        // Delete each row (from bottom to top)
+        if (rowsToDelete.length > 0) {
+            for (const rowNum of rowsToDelete) {
+                console.log(`Deleting row ${rowNum}`);
+                const rowRange = worksheet.getRange(`${rowNum}:${rowNum}`);
+                rowRange.delete(Excel.DeleteShiftDirection.up);
+            }
+            
+            await worksheet.context.sync();
+            
+            // Recalculate the last row
+            const newLastRow = await getLastUsedRow(worksheet, "B");
+            console.log(`New last row after deletions: ${newLastRow}`);
+            
+            return newLastRow;
+        } else {
+            console.log("No green rows found to delete");
+            return lastRow; // Return original lastRow if no rows deleted
+        }
+    } catch (error) {
+        console.error(`Error in deleteGreenRows: ${error.message}`, error);
+        // Return the original lastRow on error
+        return lastRow;
+    }
+}
+
+/**
+ * Sets the font color to white for all cells in column A
+ * @param {Excel.Worksheet} worksheet - The worksheet to process
+ * @param {number} startRow - The first row to format
+ * @param {number} lastRow - The last row to format
+ * @returns {Promise<void>}
+ */
+async function setColumnAFontWhite(worksheet, startRow, lastRow) {
+    console.log(`Setting font color to white in column A for ${worksheet.name} from row ${startRow} to ${lastRow}`);
+    
+    try {
+        // Get the entire range for column A from startRow to lastRow
+        const columnARange = worksheet.getRange(`A${startRow}:A${lastRow}`);
+        
+        // Set the font color to white
+        columnARange.format.font.color = "#FFFFFF";
+        
+        await worksheet.context.sync();
+        console.log(`Successfully set font color to white in column A for rows ${startRow}-${lastRow}`);
+    } catch (error) {
+        console.error(`Error in setColumnAFontWhite: ${error.message}`, error);
+    }
+}
+
 // TODO: Implement the actual logic within the JS helper functions (adjustDriversJS, replaceIndirectsJS, etc.).
 // TODO: Implement findRowByValue helper function if Retained Earnings logic is needed.
 // TODO: Update the calling code (e.g., button handler in taskpane.js) to call `processAssumptionTabs` after `runCodes`.
+
+/**
+ * Collapses all groupings in every worksheet and navigates to cell A1 of the Financials sheet
+ * @returns {Promise<void>}
+ */
+export async function collapseGroupingsAndNavigateToFinancials() {
+    try {
+        console.log("Collapsing all groupings and navigating to Financials sheet");
+        
+        await Excel.run(async (context) => {
+            // Get all worksheets
+            const worksheets = context.workbook.worksheets;
+            worksheets.load("items/name"); // Load names initially
+            await context.sync();
+
+            // Load the outline property for each worksheet
+            for (const worksheet of worksheets.items) {
+                worksheet.load("outline");
+            }
+            await context.sync(); // Sync after loading outlines
+            
+            // Iterate through each worksheet and attempt to collapse groupings
+            for (const worksheet of worksheets.items) {
+                console.log(`Processing sheet for outline collapse: ${worksheet.name}`);
+                // Activate the worksheet first
+                worksheet.activate();
+                // It might be good practice to sync after activate, but let's test without first
+                // await context.sync(); 
+
+                try {
+                    // Attempt to collapse row and column groupings to level 1
+                    // This might throw an error if no outline exists or other issues occur
+                    worksheet.outline.showLevels(1, 1);
+                    console.log(`  Successfully called showLevels(1, 1) for ${worksheet.name}.`);
+                } catch (outlineError) {
+                    // Log if showing levels failed, likely because outline is undefined
+                    console.warn(`  Could not show outline level 1 for ${worksheet.name}. Error: ${outlineError.message}`);
+                }
+            }
+            
+            // Navigate to Financials sheet and select cell A1
+            const financialsSheet = context.workbook.worksheets.getItem("Financials");
+            financialsSheet.activate();
+            const rangeA1 = financialsSheet.getRange("A1");
+            rangeA1.select();
+            
+            await context.sync();
+            console.log("Successfully collapsed groupings and navigated to Financials!A1");
+        });
+    } catch (error) {
+        console.error("Error in collapseGroupingsAndNavigateToFinancials:", error);
+        throw error;
+    }
+}
