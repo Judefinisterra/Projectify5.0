@@ -288,3 +288,60 @@ b {
     line-height: 1.4;
     overflow-x: auto;
 }
+
+/* Styles for the Codes Modal */
+.codes-modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1000; /* Sit on top */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+    padding-top: 60px; /* Location of the box */
+}
+
+.codes-modal-content {
+    background-color: #fefefe;
+    margin: 5% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%; /* Could be more or less, depending on screen size */
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.codes-modal-content h2 {
+    margin-top: 0;
+    color: #333;
+}
+
+.codes-textarea {
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 10px;
+    font-family: monospace;
+    font-size: 13px;
+    box-sizing: border-box; /* Include padding and border in element's total width and height */
+    margin-bottom: 15px;
+    flex-grow: 1; /* Allow textarea to grow */
+    min-height: 300px; /* Minimum height */
+    white-space: pre; /* Prevent line wrapping */
+    overflow-x: auto; /* Add horizontal scrollbar when needed */
+}
+
+.modal-button-container {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+/* Optional: Adjust button styling within the modal if needed */
+.codes-modal-content .ms-Button {
+    min-width: 80px; /* Example adjustment */
+}

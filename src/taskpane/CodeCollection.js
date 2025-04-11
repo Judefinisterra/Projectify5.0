@@ -174,12 +174,12 @@ export async function runCodes(codeCollection) {
                             // Check if worksheet exists
                             const existingSheet = sheets.items.find(sheet => sheet.name === tabName);
                             console.log("existingSheet", existingSheet);
-                            if (existingSheet) {
-                                // Delete the worksheet if it exists
-                                existingSheet.delete();
-                                await context.sync();
-                            }
-                            console.log("existingSheet deleted");
+                            // if (existingSheet) {
+                            //     // Delete the worksheet if it exists
+                            //     existingSheet.delete();
+                            //     await context.sync();
+                            // }
+                            // console.log("existingSheet deleted");
                             
                             // Get the Calcs worksheet AND the Financials worksheet
                             const sourceCalcsWS = context.workbook.worksheets.getItem("Calcs");
@@ -188,6 +188,8 @@ export async function runCodes(codeCollection) {
                             await context.sync(); // Sync to get Financials position
                             console.log(`sourceCalcsWS obtained. Financials sheet is at position ${financialsSheet.position}`);
                             
+
+                            if (!existingSheet) {
                             // Create a new worksheet by copying the Calcs worksheet
                             const newSheet = sourceCalcsWS.copy();
                             console.log("newSheet created by copying Calcs worksheet");
@@ -199,40 +201,44 @@ export async function runCodes(codeCollection) {
                             // <<< NEW: Set position relative to Financials sheet >>>
                             newSheet.position = financialsSheet.position + 1;
                             console.log(`Set position of ${tabName} to ${newSheet.position}`);
-                            
-                            // Set the first row
-                            const firstRow = 10; // <<< CHANGED FROM 9
-                            console.log("firstRow", firstRow);
-                            
-                            // Clear all cells including and below the first row
-                            const usedRange = newSheet.getUsedRange();
-                            usedRange.load("rowCount");
-                            await context.sync();
-                            
-                            if (usedRange.rowCount >= firstRow) {
-                                const clearRange = newSheet.getRange(`${firstRow}:${usedRange.rowCount}`);
-                                clearRange.clear();
-                                console.log(`Cleared all cells from row ${firstRow} to ${usedRange.rowCount}`);
-                            }
-                            
-                            // Add to assumption tabs collection
-                            assumptionTabs.push({
+                               // Add to assumption tabs collection
+                               assumptionTabs.push({
                                 name: tabName,
                                 worksheet: newSheet
-                            });
+                               }); // <-- Added closing brace and semicolon here
+
+
+                                currentWorksheetName = tabName;
                             
-                            // Set the current worksheet name
-                            currentWorksheetName = tabName;
+                                await context.sync();
+                                
+                                result.createdTabs.push(tabName);
+                                console.log("Tab created successfully:", tabName);
+                            // }); <-- Removed this closing parenthesis, it belongs to Excel.run below
+                        
+                            }
+
+                            else {
+                                console.log("Worksheet already exists:", tabName);
+                                assumptionTabs.push({
+                                    name: tabName,
+                                    worksheet: existingSheet
+                                });
+                                // Need to set currentWorksheetName here too if the sheet exists
+                                currentWorksheetName = tabName; 
+                            }
+                      
+       
                             
-                            await context.sync();
+                         
                             
-                            result.createdTabs.push(tabName);
-                            console.log("Tab created successfully:", tabName);
+                            // Set the current worksheet name <-- This comment is now redundant/misplaced
+                       
                         } catch (error) {
                             console.error("Detailed error in TAB processing:", error);
                             throw error;
                         }
-                    }).catch(error => {
+                    }).catch(error => { // <-- This is the correct closing for Excel.run
                         console.error(`Error processing TAB code: ${error.message}`);
                         result.errors.push({
                             codeIndex: i,
@@ -1906,3 +1912,48 @@ export async function hideRowsAndColumnsOnSheets(excludedSheetNames = ["Actuals 
 // TODO: Implement the actual logic within the JS helper functions (adjustDriversJS, replaceIndirectsJS, etc.).
 // TODO: Implement findRowByValue helper function if Retained Earnings logic is needed.
 // TODO: Update the calling code (e.g., button handler in taskpane.js) to call `processAssumptionTabs` after `runCodes`.
+
+/**
+ * Inserts worksheets from a base64-encoded Excel file into the current workbook
+ * @param {string} base64String - Base64-encoded string of the source Excel file
+ * @param {string[]} [sheetNames] - Optional array of sheet names to insert. If not provided, all sheets will be inserted.
+ * @returns {Promise<void>}
+ */
+export async function handleInsertWorksheetsFromBase64(base64String, sheetNames = null) {
+    try {
+        // Validate base64 string
+        if (!base64String || typeof base64String !== 'string') {
+            throw new Error("Invalid base64 string provided");
+        }
+
+        // Validate base64 format
+        if (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64String)) {
+            throw new Error("Invalid base64 format");
+        }
+
+        await Excel.run(async (context) => {
+            const workbook = context.workbook;
+            
+            // Check if we have the required API version
+            if (!workbook.insertWorksheetsFromBase64) {
+                throw new Error("This feature requires Excel API requirement set 1.13 or later");
+            }
+            
+            // Insert the worksheets with error handling
+            try {
+                await workbook.insertWorksheetsFromBase64(base64String, {
+                    sheetNames: sheetNames
+                });
+                
+                await context.sync();
+                console.log("Worksheets inserted successfully");
+            } catch (error) {
+                console.error("Error during worksheet insertion:", error);
+                throw new Error(`Failed to insert worksheets: ${error.message}`);
+            }
+        });
+    } catch (error) {
+        console.error("Error inserting worksheets from base64:", error);
+        throw error;
+    }
+}

@@ -48,6 +48,9 @@
                 <button id="reset-chat" class="ms-Button">
                     <span class="ms-Button-label">Reset Chat</span>
                 </button>
+                <button id="view-codes" class="ms-Button">
+                    <span class="ms-Button-label">View Codes</span>
+                </button>
                 <button id="insert-and-run" class="ms-Button ms-Button--primary">
                     <span class="ms-Button-label">Run Codes</span>
                 </button>
@@ -62,6 +65,22 @@
         <div id="error-display-area" class="error-display-area" style="display: none;"></div>
         
         <div id="response-area" class="response-area"></div>
+
+        <!-- Modal for viewing/editing codes -->
+        <div id="codes-modal" class="codes-modal" style="display: none;">
+            <div class="codes-modal-content">
+                <h2>Code Strings</h2>
+                <textarea id="codes-textarea" class="codes-textarea" rows="20"></textarea>
+                <div class="modal-button-container">
+                    <button id="save-codes-changes" class="ms-Button ms-Button--primary">
+                        <span class="ms-Button-label">Save & Close</span>
+                    </button>
+                    <button id="close-codes-modal" class="ms-Button">
+                        <span class="ms-Button-label">Close</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </main>
 </body>
 

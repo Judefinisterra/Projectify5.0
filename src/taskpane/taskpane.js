@@ -10,22 +10,11 @@
 // Add this test function
 import { validateCodeStrings } from './Validation.js';
 // Import the spreadsheet utilities
-import { handleInsertWorksheetsFromBase64 } from './SpreadsheetUtils.js';
+// import { handleInsertWorksheetsFromBase64 } from './SpreadsheetUtils.js';
 // Import code collection functions
-import { populateCodeCollection, exportCodeCollectionToText, runCodes, processAssumptionTabs, collapseGroupingsAndNavigateToFinancials, hideColumnsAndNavigate } from './CodeCollection.js';
+import { populateCodeCollection, exportCodeCollectionToText, runCodes, processAssumptionTabs, collapseGroupingsAndNavigateToFinancials, hideColumnsAndNavigate, handleInsertWorksheetsFromBase64 } from './CodeCollection.js';
 // Add the codeStrings variable with the specified content
-const codeStrings = `<TAB; label1="Revenue and Direct Costs">
-<VOLLI-EV; labelRow=""; row1 = "|# of units sold:|||||||||||"; row2 = "LI1|# of students|||||100|100|100|100|100|100| *LI1|# of teachers|||||100|100|400|100|100|100| *LI1|# of sites|||||100|100|100|200|340|100|"; row3 = "V1|Total # of units sold|||||F|F|F|F|F|F|";>
-<BR>
-<UNITREV-VR; driver1="LI1"; row1 = "AS2|Grant Revenue/Student/Month|||||10|10|10|10|10|10|"; row2 = "R1|Total Grant Revenue|IS: revenue||||F|F|F|F|F|F|">
-
-<TAB; label1="Working Capital">
-<BR>
-<LABELH1; row1 = "|Current Assets:|||||||||||";>
-<BR>
-<CURRENTASSETDSO-IS; labelRow=""; row1 = "|Accounts Receivable:|||||||||||"; row2 = "|Driver: Total Revenue|||||F|F|F|F|F|F|"; row3 = "AS|# of days sales outstanding|||||30|30|30|30|30|30|"; row4 = "A|Accounts Receivable|BS: current assets||||F|F|F|F|F|F|"; row5 = "||||||||||||"; row6 = "CF|Change in Accounts Receivable|CF: WC||||F|F|F|F|F|F|";>
-<CURRENTASSETDSO-IS; labelRow=""; row1 = "|Accounts Receivable:|||||||||||"; row2 = "|Driver: Total Revenue|||||F|F|F|F|F|F|"; row3 = "AS|# of days sales outstanding|||||30|30|30|30|30|30|"; row4 = "A|Accounts Receivable|BS: current assets||||F|F|F|F|F|F|"; row5 = "||||||||||||"; row6 = "CF|Change in Accounts Receivable|CF: WC||||F|F|F|F|F|F|";>
-`;
+// REMOVED hardcoded codeStrings variable
 
 // Mock fs module for browser environment
 const fs = {
@@ -42,6 +31,9 @@ const startTime = performance.now();
 
 //Debugging Toggle
 const DEBUG = true; 
+
+// Variable to store loaded code strings
+let loadedCodeStrings = "";
 
 // API keys storage
 let API_KEYS = {
@@ -1057,66 +1049,140 @@ async function insertSheetsFromBase64() {
     }
 }
 
-// Function to insert sheets and then run code collection - REVERTED
+// Function to insert sheets and then run code collection
 async function insertSheetsAndRunCodes() {
+    // *** Explicitly load the latest codes from localStorage for this run ***
+    let codesToRun = ""; // Use a local variable for this specific run
     try {
-        await Excel.run(async (context) => { // Assuming toggleManualCalculation needs Excel context
+        const storedCodes = localStorage.getItem('userCodeStrings');
+        if (storedCodes !== null) {
+            codesToRun = storedCodes;
+            console.log("[Run Codes] Loaded latest codes from localStorage for this run.");
+        } else {
+            console.warn("[Run Codes] No codes found in localStorage for this run. Using empty string.");
+        }
+        console.log("[Run Codes] Value of codesToRun:", codesToRun.substring(0, 200) + (codesToRun.length > 200 ? '...' : ''));
+
+        // *** ADDED: Load previous codes and compare ***
+        let previousCodes = null;
+        try {
+            previousCodes = localStorage.getItem('previousRunCodeStrings');
+        } catch (error) {
+            console.error("[Run Codes] Error loading previous codes from localStorage:", error);
+            // Continue without comparison if previous codes can't be loaded
+        }
+
+        if (previousCodes !== null) {
+            if (codesToRun !== previousCodes) {
+                console.warn("[Run Codes] Change detected since last run!");
+                console.log("[Run Codes] Previous (truncated):", previousCodes.substring(0, 100) + (previousCodes.length > 100 ? '...' : ''));
+                console.log("[Run Codes] Current  (truncated):", codesToRun.substring(0, 100) + (codesToRun.length > 100 ? '...' : ''));
+            } else {
+                console.log("[Run Codes] No change detected since last run.");
+            }
+        } else {
+            console.log("[Run Codes] No previous run codes found. Skipping change check.");
+        }
+
+        // *** ADDED: Update previous codes for the *next* run ***
+        try {
+            localStorage.setItem('previousRunCodeStrings', codesToRun);
+        } catch (error) { 
+             console.error("[Run Codes] Error saving current codes as previous for next run:", error);
+             // Don't stop execution, but log the error
+        }
+        // *** END ADDED Comparison Section ***
+
+    } catch (error) {
+        console.error("[Run Codes] Error loading codes from localStorage for this run:", error);
+        showError("Error loading codes for run. Please check storage.");
+        return;
+    }
+
+    let financialsSheetExists = false;
+    try {
+        // Check if "Financials" sheet exists first
+        await Excel.run(async (context) => {
+            try {
+                const financialsSheet = context.workbook.worksheets.getItem("Financials");
+                financialsSheet.load("name"); // Load a property to check existence
+                await context.sync();
+                financialsSheetExists = true; // Sheet exists
+                console.log("'Financials' sheet already exists. Skipping base sheet insertion.");
+            } catch (error) {
+                if (error instanceof OfficeExtension.Error && error.code === Excel.ErrorCodes.itemNotFound) {
+                    // Sheet does not exist, proceed with insertion
+                    console.log("'Financials' sheet not found. Proceeding with base sheet insertion.");
+                    financialsSheetExists = false;
+                } else {
+                    // Rethrow other errors
+                    console.error("Error checking for Financials sheet:", error);
+                    throw error;
+                }
+            }
+        });
+
+        // Set calculation mode to manual
+        await Excel.run(async (context) => {
             context.application.calculationMode = Excel.CalculationMode.manual;
             await context.sync();
         });
 
-        // Use the original busy state handling
         setButtonLoading(true);
-        console.log("Starting sheet insertion and code processing...");
+        console.log("Starting code processing...");
 
-        // --- 1. Fetch and Insert Base Sheets ---
-        console.log("Fetching base Excel file...");
-        const worksheetsResponse = await fetch('https://localhost:3002/assets/Worksheets_4.3.25 v1.xlsx');
-        if (!worksheetsResponse.ok) {
-            throw new Error(`Failed to load Worksheets Excel file: ${worksheetsResponse.status} ${worksheetsResponse.statusText}`);
+        // --- 1. Fetch and Insert Base Sheets (only if Financials doesn't exist) ---
+        if (!financialsSheetExists) {
+            console.log("Fetching base Excel file...");
+            const worksheetsResponse = await fetch('https://localhost:3002/assets/Worksheets_4.3.25 v1.xlsx');
+            if (!worksheetsResponse.ok) {
+                throw new Error(`Failed to load Worksheets Excel file: ${worksheetsResponse.status} ${worksheetsResponse.statusText}`);
+            }
+
+            console.log("Converting file to base64...");
+            const worksheetsArrayBuffer = await worksheetsResponse.arrayBuffer();
+            const worksheetsUint8Array = new Uint8Array(worksheetsArrayBuffer);
+            let worksheetsBinaryString = '';
+            const chunkSize = 8192; // Process in 8KB chunks
+            for (let i = 0; i < worksheetsUint8Array.length; i += chunkSize) {
+                const chunk = worksheetsUint8Array.slice(i, Math.min(i + chunkSize, worksheetsUint8Array.length));
+                worksheetsBinaryString += String.fromCharCode.apply(null, chunk);
+            }
+            const worksheetsBase64String = btoa(worksheetsBinaryString);
+            console.log("Base64 conversion complete. Inserting sheets...");
+
+            // Call the function to insert worksheets WITH the base64 string
+            await handleInsertWorksheetsFromBase64(worksheetsBase64String);
+            console.log("Base sheets inserted successfully.");
+        } else {
+            // Financials sheet exists, so fetch and insert sheets from codes.xlsx instead
+            console.log("Fetching codes Excel file...");
+            const codesResponse = await fetch('https://localhost:3002/assets/codes.xlsx');
+            if (!codesResponse.ok) {
+                throw new Error(`Failed to load Codes Excel file: ${codesResponse.status} ${codesResponse.statusText}`);
+            }
+            
+            console.log("Converting codes file to base64...");
+            const codesArrayBuffer = await codesResponse.arrayBuffer();
+            const codesUint8Array = new Uint8Array(codesArrayBuffer);
+            let codesBinaryString = '';
+            const chunkSize = 8192; // Process in 8KB chunks
+            for (let i = 0; i < codesUint8Array.length; i += chunkSize) {
+                const chunk = codesUint8Array.slice(i, Math.min(i + chunkSize, codesUint8Array.length));
+                codesBinaryString += String.fromCharCode.apply(null, chunk);
+            }
+            const codesBase64String = btoa(codesBinaryString);
+            console.log("Codes Base64 conversion complete. Inserting codes sheets...");
+
+            // Call the function to insert codes worksheets
+            await handleInsertWorksheetsFromBase64(codesBase64String);
+            console.log("Codes sheets inserted successfully.");
         }
-        
-        console.log("Converting file to base64...");
-        const worksheetsArrayBuffer = await worksheetsResponse.arrayBuffer();
-        const worksheetsUint8Array = new Uint8Array(worksheetsArrayBuffer);
-        let worksheetsBinaryString = '';
-        const chunkSize = 8192; // Process in 8KB chunks
-        for (let i = 0; i < worksheetsUint8Array.length; i += chunkSize) {
-            const chunk = worksheetsUint8Array.slice(i, Math.min(i + chunkSize, worksheetsUint8Array.length));
-            worksheetsBinaryString += String.fromCharCode.apply(null, chunk);
-        }
-        const worksheetsBase64String = btoa(worksheetsBinaryString);
-        console.log("Base64 conversion complete. Inserting sheets...");
-
-        // Call the function to insert worksheets WITH the base64 string
-        await handleInsertWorksheetsFromBase64(worksheetsBase64String); 
-        console.log("Base sheets inserted successfully.");
-        
-        // // --- 1b. Fetch and Insert Codes Sheets ---
-        // console.log("Fetching codes Excel file...");
-        // const codesResponse = await fetch('https://localhost:3002/assets/codes.xlsx');
-        // if (!codesResponse.ok) {
-        //     throw new Error(`Failed to load Codes Excel file: ${codesResponse.status} ${codesResponse.statusText}`);
-        // }
-        
-        // console.log("Converting codes file to base64...");
-        // const codesArrayBuffer = await codesResponse.arrayBuffer();
-        // const codesUint8Array = new Uint8Array(codesArrayBuffer);
-        // let codesBinaryString = '';
-        // for (let i = 0; i < codesUint8Array.length; i += chunkSize) {
-        //     const chunk = codesUint8Array.slice(i, Math.min(i + chunkSize, codesUint8Array.length));
-        //     codesBinaryString += String.fromCharCode.apply(null, chunk);
-        // }
-        // const codesBase64String = btoa(codesBinaryString);
-        // console.log("Codes Base64 conversion complete. Inserting codes sheets...");
-
-        // // Call the function to insert codes worksheets 
-        // await handleInsertWorksheetsFromBase64(codesBase64String); 
-        // console.log("Codes sheets inserted successfully.");
         
         // --- 2. Populate code collection ---
         console.log("Populating code collection...");
-        const collection = populateCodeCollection(codeStrings);
+        // *** Use the freshly loaded codesToRun for this specific execution ***
+        const collection = populateCodeCollection(codesToRun);
         console.log(`Code collection populated with ${collection.length} code(s)`);
         
         // --- 3. Run the codes ---
@@ -1161,31 +1227,38 @@ async function insertSheetsAndRunCodes() {
 
             try {
                 const calcsSheet = context.workbook.worksheets.getItem("Calcs");
-                calcsSheet.delete();
-                console.log("Deleted Calcs sheet.");
+                // calcsSheet.visibility = Excel.SheetVisibility.hidden; // REMOVED: Don't hide the Calcs sheet
+                console.log("Skipped hiding Calcs sheet."); // Updated log message
             } catch (error) {
                 // Log if sheet doesn't exist, but don't stop the process
                 if (error instanceof OfficeExtension.Error && error.code === Excel.ErrorCodes.itemNotFound) {
-                    console.warn("Calcs sheet not found, skipping deletion.");
+                    console.warn("Calcs sheet not found, skipping visibility check.");
                 } else {
-                    console.error("Error deleting Calcs sheet:", error);
+                    console.error("Error accessing Calcs sheet:", error);
                     // Decide if other errors should be re-thrown or just logged
                 }
             }
-            await context.sync(); // Sync deletions
+
+            await context.sync(); // Sync operations
         }).catch(error => {
              // Catch potential errors from the Excel.run call itself
-             console.error("Error during sheet deletion Excel.run block:", error);
+             console.error("Error during sheet deletion/hiding Excel.run block:", error);
         });
 
     } catch (error) {
         console.error("An error occurred during the build process:", error);
         showError(`Operation failed: ${error.message || error.toString()}`);
     } finally {
-        await Excel.run(async (context) => { // Assuming toggleManualCalculation needs Excel context
-            context.application.calculationMode = Excel.CalculationMode.automatic;
-            await context.sync();
-        });
+        // Always set calculation mode back to automatic
+        try {
+            await Excel.run(async (context) => {
+                context.application.calculationMode = Excel.CalculationMode.automatic;
+                await context.sync();
+            });
+        } catch (finalError) {
+            console.error("Error setting calculation mode to automatic:", finalError);
+            // Optionally show another error, but avoid hiding the primary error
+        }
         setButtonLoading(false);
     }
 }
@@ -1214,6 +1287,55 @@ Office.onReady((info) => {
     const resetButton = document.getElementById('reset-chat');
     if (resetButton) resetButton.onclick = resetChat;
     
+    // Get modal elements
+    const viewCodesButton = document.getElementById('view-codes');
+    const codesModal = document.getElementById('codes-modal');
+    const codesTextarea = document.getElementById('codes-textarea');
+    const closeCodesModalButton = document.getElementById('close-codes-modal');
+    const saveCodesChangesButton = document.getElementById('save-codes-changes');
+
+    // Add event listeners for modal
+    if (viewCodesButton && codesModal && codesTextarea) {
+      viewCodesButton.onclick = () => {
+        // Use the global variable to populate the textarea initially
+        codesTextarea.value = loadedCodeStrings; 
+        codesModal.style.display = 'block'; // Show modal
+      };
+    }
+
+    if (closeCodesModalButton && codesModal) {
+      closeCodesModalButton.onclick = () => {
+        codesModal.style.display = 'none'; // Hide modal
+      };
+    }
+
+    if (saveCodesChangesButton && codesModal && codesTextarea) {
+      saveCodesChangesButton.onclick = () => {
+        // Update the global variable first
+        loadedCodeStrings = codesTextarea.value;
+        // Log the update to the global variable
+        console.log('[Save Handler] Global loadedCodeStrings updated to:', loadedCodeStrings.substring(0,100) + '...'); 
+        try {
+          // Save the updated global variable to localStorage
+          localStorage.setItem('userCodeStrings', loadedCodeStrings); 
+          console.log("Code strings saved to localStorage.");
+          showMessage("Code changes saved."); // Inform user
+        } catch (error) {
+          console.error("Error saving code strings to localStorage:", error);
+          showError(`Error saving codes: ${error.message}`);
+        }
+        codesModal.style.display = 'none'; // Hide modal
+        // No need to log again here, already logged above
+      };
+    }
+
+    // Close modal if user clicks outside the content area (optional)
+    window.onclick = (event) => {
+      if (event.target == codesModal) {
+        codesModal.style.display = "none";
+      }
+    };
+
     // Test Buttons (Add similar checks if they are essential)
     // const testGreenCellButton = document.getElementById('test-green-cell');
     // if (testGreenCellButton) testGreenCellButton.onclick = isActiveCellGreen;
@@ -1225,9 +1347,30 @@ Office.onReady((info) => {
       }
       // Load conversation history after keys are potentially loaded
       conversationHistory = loadConversationHistory();
+
+      // Load code strings from localStorage into the global variable
+      try {
+          const storedCodes = localStorage.getItem('userCodeStrings');
+          if (storedCodes !== null) {
+              // Initialize the global variable
+              loadedCodeStrings = storedCodes;
+              console.log("Code strings loaded from localStorage into global variable.");
+              if (DEBUG) console.log("Initial loaded codes:", loadedCodeStrings.substring(0, 100) + '...'); 
+          } else {
+              console.log("No code strings found in localStorage, initializing global variable as empty.");
+              // Initialize the global variable
+              loadedCodeStrings = ""; 
+          }
+      } catch (error) {
+          console.error("Error loading code strings from localStorage:", error);
+          showError(`Error loading codes from storage: ${error.message}`);
+          // Initialize the global variable
+          loadedCodeStrings = ""; 
+      }
+
     }).catch(error => {
-        console.error("Error during API key initialization:", error);
-        showError("Error initializing API keys: " + error.message);
+        console.error("Error during initialization:", error);
+        showError("Error during initialization: " + error.message);
     });
     
     // Hide sideload message and show app body
