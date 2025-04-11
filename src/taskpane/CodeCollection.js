@@ -1359,6 +1359,27 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
             cellMonthsStart.format.numberFormat = CURRENCY_FORMAT;
 
             // Removed Actuals column population (was L in previous version)
+            
+            // --- NEW: Populate Actuals Columns S:AD with SUMIFS formula ---
+            try {
+                const actualsRange = financialsSheet.getRange(`S${populateRow}:AD${populateRow}`);
+                const sumifsFormula = "=SUMIFS('Actual Data'!$B:$B,'Actual Data'!$D:$D,EOMONTH(INDIRECT(ADDRESS(2,COLUMN())),0),'Actual Data'!$E:$E,@INDIRECT(ADDRESS(ROW(),2)))";
+                
+                // Create a 2D array matching the range dimensions
+                const numCols = columnLetterToIndex('AD') - columnLetterToIndex('S') + 1;
+                const formulasArray = [Array(numCols).fill(sumifsFormula)];
+                actualsRange.formulas = formulasArray;
+                
+                // Apply formatting
+                actualsRange.format.numberFormat = CURRENCY_FORMAT;
+                actualsRange.format.font.bold = false;
+                actualsRange.format.font.italic = false;
+                actualsRange.format.font.color = "#7030A0"; // Set font color
+                console.log(`  Set SUMIFS formula for S${populateRow}:AD${populateRow}`);
+            } catch (sumifsError) {
+                console.error(`Error setting SUMIFS formula for row ${populateRow} (Code: ${task.code}):`, sumifsError.debugInfo || sumifsError);
+            }
+            // --- END NEW SECTION ---
         }
         console.log("Finished setting values/formulas/formats for inserted rows.");
         await worksheet.context.sync(); // Sync all population and formatting
