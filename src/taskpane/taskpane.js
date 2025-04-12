@@ -1198,7 +1198,7 @@ async function insertSheetsAndRunCodes() {
 
     let codesToRun = loadedCodeStrings;
     let previousCodes = null;
-    // >>> REVISED: Unified list for all content to process <<<
+    // >>> REVISED: Unified list for all content to process
     let allCodeContentToProcess = ""; // Holds full text of *all* new AND modified tabs
     let runResult = null; // To store result from runCodes if called
     // Removed: codesToProcessForRunCodes, tabsToInsertIncrementally, codeStringToValidate (use allCodeContentToProcess)
@@ -1490,355 +1490,199 @@ Office.onReady((info) => {
     if (resetButton) resetButton.onclick = resetChat;
 
     const codesTextarea = document.getElementById('codes-textarea');
-    // REMOVE: const codeSearchInput = document.getElementById('code-search-input');
-    // REMOVE: const codeSuggestionsContainer = document.getElementById('code-suggestions');
+    const editParamsButton = document.getElementById('edit-code-params-button');
+    const paramsModal = document.getElementById('code-params-modal');
+    const paramsModalForm = document.getElementById('code-params-modal-form');
+    const closeModalButton = paramsModal.querySelector('.close-button');
+    const applyParamsButton = document.getElementById('apply-code-params-button');
+    const cancelParamsButton = document.getElementById('cancel-code-params-button');
 
-    // ADD: Create dynamic suggestions container
-    let dynamicSuggestionsContainer = document.getElementById('dynamic-suggestions-container');
-    if (!dynamicSuggestionsContainer) {
-        dynamicSuggestionsContainer = document.createElement('div');
-        dynamicSuggestionsContainer.id = 'dynamic-suggestions-container';
-        dynamicSuggestionsContainer.className = 'code-suggestions'; // Reuse class if styling exists
-        dynamicSuggestionsContainer.style.display = 'none';
-        // Basic positioning styles (adjust in CSS for better control)
-        dynamicSuggestionsContainer.style.position = 'absolute';
-        dynamicSuggestionsContainer.style.border = '1px solid #ccc';
-        dynamicSuggestionsContainer.style.backgroundColor = 'white';
-        dynamicSuggestionsContainer.style.maxHeight = '150px';
-        dynamicSuggestionsContainer.style.overflowY = 'auto';
-        dynamicSuggestionsContainer.style.zIndex = '1000';
+    let currentCodeStringRange = null; // To store {start, end} of the code string being edited
+    let currentCodeStringType = ''; // To store the type like 'VOL-EV'
 
-        // Insert after the textarea's container or adjust as needed
-        if (codesTextarea.parentNode) {
-            codesTextarea.parentNode.insertBefore(dynamicSuggestionsContainer, codesTextarea.nextSibling);
-        } else {
-            document.body.appendChild(dynamicSuggestionsContainer); // Fallback
-        }
-
-        // Function to update position and width
-        const updateSuggestionPosition = () => {
-          if (dynamicSuggestionsContainer.style.display === 'block') {
-              const rect = codesTextarea.getBoundingClientRect();
-              dynamicSuggestionsContainer.style.width = codesTextarea.offsetWidth + 'px';
-              dynamicSuggestionsContainer.style.top = (rect.bottom + window.scrollY) + 'px';
-              dynamicSuggestionsContainer.style.left = (rect.left + window.scrollX) + 'px';
-          }
-        };
-
-        // Update on resize and scroll
-        window.addEventListener('resize', updateSuggestionPosition);
-        window.addEventListener('scroll', updateSuggestionPosition, true); // Use capture phase for scroll
-    }
-
-    // RESTORE: Variables for suggestion state
-    let highlightedSuggestionIndex = -1;
-    let currentSuggestions = [];
-
-    // RESTORE: updateHighlight function (modified for dynamic container)
-    const updateHighlight = (newIndex) => {
-      const suggestionItems = dynamicSuggestionsContainer.querySelectorAll('.code-suggestion-item'); // Use dynamic container
-      if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestionItems.length) {
-        suggestionItems[highlightedSuggestionIndex].classList.remove('suggestion-highlight');
-      }
-      if (newIndex >= 0 && newIndex < suggestionItems.length) {
-        suggestionItems[newIndex].classList.add('suggestion-highlight');
-        suggestionItems[newIndex].scrollIntoView({ block: 'nearest' });
-      }
-      highlightedSuggestionIndex = newIndex;
+    // Function to show the modal
+    const showParamsModal = () => {
+        if (paramsModal) paramsModal.style.display = 'block';
     };
 
-    // RESTORE: showSuggestionsForTerm function (modified for dynamic container and positioning)
-    const showSuggestionsForTerm = (searchTerm) => {
-        searchTerm = searchTerm.toLowerCase().trim();
-        console.log(`[showSuggestionsForTerm] Search Term: '${searchTerm}'`);
-
-        dynamicSuggestionsContainer.innerHTML = ''; // Use dynamic container
-        highlightedSuggestionIndex = -1;
-        currentSuggestions = [];
-
-        if (searchTerm.length < 2) {
-            console.log("[showSuggestionsForTerm] Search term too short, hiding suggestions.");
-            dynamicSuggestionsContainer.style.display = 'none'; // Use dynamic container
-            return;
-        }
-
-        console.log("[showSuggestionsForTerm] Filtering code database...");
-        const suggestions = codeDatabase
-            .filter(item => {
-                const hasName = item && typeof item.name === 'string';
-                return hasName && item.name.toLowerCase().includes(searchTerm);
-            })
-            .slice(0, 10);
-
-        currentSuggestions = suggestions;
-        console.log(`[showSuggestionsForTerm] Found ${currentSuggestions.length} suggestions:`, currentSuggestions);
-
-        if (currentSuggestions.length > 0) {
-            console.log("[showSuggestionsForTerm] Populating suggestions container...");
-            currentSuggestions.forEach((item, i) => {
-                const suggestionDiv = document.createElement('div');
-                suggestionDiv.className = 'code-suggestion-item';
-                suggestionDiv.textContent = item.name;
-                suggestionDiv.dataset.index = i;
-
-                suggestionDiv.onclick = () => {
-                    console.log(`Suggestion clicked: '${item.name}'`);
-                    const currentText = codesTextarea.value;
-                    const cursorPosition = codesTextarea.selectionStart;
-                    let codeToAdd = item.code;
-
-                    let insertionPosition = cursorPosition;
-                    let wasAdjusted = false;
-                    const textBeforeCursor = currentText.substring(0, cursorPosition);
-                    const lastOpenBracket = textBeforeCursor.lastIndexOf('<');
-                    const lastCloseBracket = textBeforeCursor.lastIndexOf('>');
-
-                    if (lastOpenBracket > lastCloseBracket) {
-                        const textAfterCursor = currentText.substring(cursorPosition);
-                        const nextCloseBracket = textAfterCursor.indexOf('>');
-                        if (nextCloseBracket !== -1) {
-                            insertionPosition = cursorPosition + nextCloseBracket + 1;
-                            wasAdjusted = true;
-                            console.log(`Cursor inside <>, adjusting insertion point to after > at ${insertionPosition}`);
-                        }
-                    }
-
-                    const maxNumbers = getMaxDriverNumbers(currentText);
-                    const driverRegex = /(row\\d+\\s*=\\s*\")([A-Z]+)(\\d*)(\\|)/g;
-                    const nextNumbers = { ...maxNumbers };
-
-                    codeToAdd = codeToAdd.replace(driverRegex, (match, rowPart, prefix, existingNumberStr, pipePart) => {
-                        nextNumbers[prefix] = (nextNumbers[prefix] || 0) + 1;
-                        const newNumber = nextNumbers[prefix];
-                        const replacement = `${rowPart}${prefix}${newNumber}${pipePart}`;
-                        console.log(`Replacing driver: '${prefix}${existingNumberStr || ''}|' with '${prefix}${newNumber}|'`);
-                        return replacement;
-                    });
-
-                    console.log("Modified code to add:", codeToAdd);
-
-                    const textAfterInsertion = currentText.substring(insertionPosition);
-                    let textBeforeFinal = "";
-                    let searchStartIndex = insertionPosition;
-
-                    // Logic to replace the typed term before inserting the suggestion
-                    if (!wasAdjusted) {
-                        const textBeforeInsertion = currentText.substring(0, insertionPosition);
-                        // Find the start of the term being replaced (go back from cursor until delimiter)
-                        let tempSearchStart = cursorPosition - 1;
-                        while (tempSearchStart >= 0) {
-                            const char = textBeforeCursor[tempSearchStart];
-                            // CORRECTED REGEX IN ONCLICK:
-                            if (/\s|\n|>|<|;|\|/.test(char)) {
-                                tempSearchStart++;
-                                break;
-                            }
-                            tempSearchStart--;
-                        }
-                        if (tempSearchStart < 0) tempSearchStart = 0;
-
-                        // UNCONDITIONAL REPLACEMENT: Always use the calculated start index
-                        searchStartIndex = tempSearchStart;
-                        const searchTermToRemove = textBeforeCursor.substring(searchStartIndex, cursorPosition);
-                        console.log(`Attempting to replace term: '${searchTermToRemove}' starting at index ${searchStartIndex}`);
-                        textBeforeFinal = currentText.substring(0, searchStartIndex); // Always remove text before searchStartIndex
-
-                    } else {
-                         // If insertion was adjusted (inside <>), just use text up to adjusted position
-                         textBeforeFinal = currentText.substring(0, insertionPosition);
-                         searchStartIndex = insertionPosition; // Set searchStartIndex for correct newline logic
-                    }
-
-                    // Find remainder of the original line and subsequent lines
-                    const firstNewlineIndexInSuffix = textAfterInsertion.indexOf('\n');
-                    let remainderOfOriginalLine = "";
-                    let subsequentLines = "";
-
-                    if (firstNewlineIndexInSuffix === -1) {
-                        // No newline found after the cursor, everything was on the same line
-                        remainderOfOriginalLine = textAfterInsertion;
-                    } else {
-                        // Split the suffix into the rest of the current line and subsequent lines
-                        remainderOfOriginalLine = textAfterInsertion.substring(0, firstNewlineIndexInSuffix);
-                        subsequentLines = textAfterInsertion.substring(firstNewlineIndexInSuffix); // Includes the leading \n
-                    }
-
-                    // Construct the new text
-                    const newText = textBeforeFinal +
-                                    codeToAdd + // Insert the selected code
-                                    (remainderOfOriginalLine.length > 0 ? '\n' : '') + // Add newline only if there was text after cursor on the same line
-                                    remainderOfOriginalLine + // Add the rest of the original line
-                                    subsequentLines; // Add the subsequent lines
-
-                    codesTextarea.value = newText;
-
-                    // Set cursor position after the inserted code
-                    const newCursorPosition = (textBeforeFinal + codeToAdd).length;
-                    codesTextarea.focus(); // Ensure textarea has focus before setting selection
-                    codesTextarea.setSelectionRange(newCursorPosition, newCursorPosition);
-
-                    // REMOVE: if (codeSearchInput) codeSearchInput.value = ''; // Remove reference to deleted input
-                    dynamicSuggestionsContainer.innerHTML = ''; // Use dynamic container
-                    dynamicSuggestionsContainer.style.display = 'none'; // Use dynamic container
-                    highlightedSuggestionIndex = -1;
-                    currentSuggestions = [];
-                };
-
-                suggestionDiv.onmouseover = () => {
-                    updateHighlight(i);
-                };
-
-                dynamicSuggestionsContainer.appendChild(suggestionDiv); // Use dynamic container
-            });
-            console.log("[showSuggestionsForTerm] Setting suggestions display to 'block'");
-            // Update position just before showing
-            const rect = codesTextarea.getBoundingClientRect();
-            dynamicSuggestionsContainer.style.width = codesTextarea.offsetWidth + 'px';
-            dynamicSuggestionsContainer.style.top = (rect.bottom + window.scrollY) + 'px';
-            dynamicSuggestionsContainer.style.left = (rect.left + window.scrollX) + 'px';
-            dynamicSuggestionsContainer.style.display = 'block'; // Use dynamic container
-
-        } else {
-            console.log("[showSuggestionsForTerm] No suggestions found, hiding container.");
-            dynamicSuggestionsContainer.style.display = 'none'; // Use dynamic container
-        }
+    // Function to hide the modal
+    const hideParamsModal = () => {
+        if (paramsModal) paramsModal.style.display = 'none';
+        paramsModalForm.innerHTML = ''; // Clear the form
+        currentCodeStringRange = null; // Reset state
+        currentCodeStringType = '';
     };
 
-    // RESTORE: Event listeners for codesTextarea related to suggestions (modified for dynamic container)
-    if (codesTextarea && dynamicSuggestionsContainer) { // Check for dynamic container
-        codesTextarea.oninput = (event) => {
-            // Avoid triggering on programmatic changes
-             if (!event.isTrusted) {
-                 return;
-             }
-            const cursorPosition = codesTextarea.selectionStart;
-            const currentText = codesTextarea.value;
+    // Function to find the <...> block around the cursor
+    const findCodeStringAroundCursor = (text, cursorPos) => {
+        const textBeforeCursor = text.substring(0, cursorPos);
+        const textAfterCursor = text.substring(cursorPos);
 
-            const textBeforeCursor = currentText.substring(0, cursorPosition);
-            const lastOpenBracket = textBeforeCursor.lastIndexOf('<');
-            const lastCloseBracket = textBeforeCursor.lastIndexOf('>');
-            let isInsideBrackets = false;
-            if (lastOpenBracket > lastCloseBracket) {
-                const textAfterCursor = currentText.substring(cursorPosition);
-                const nextCloseBracket = textAfterCursor.indexOf('>');
-                // Only consider "inside" if the closing bracket is reasonably close or on the same line,
-                // prevents triggering deep inside a large code block.
-                if (nextCloseBracket !== -1 ) { // && nextCloseBracket < 100 check if needed
-                    isInsideBrackets = true;
-                }
+        const lastOpenBracket = textBeforeCursor.lastIndexOf('<');
+        const lastCloseBracketBefore = textBeforeCursor.lastIndexOf('>');
+
+        // Check if cursor is potentially inside brackets
+        if (lastOpenBracket > lastCloseBracketBefore) {
+            const firstCloseBracketAfter = textAfterCursor.indexOf('>');
+            if (firstCloseBracketAfter !== -1) {
+                const start = lastOpenBracket;
+                const end = cursorPos + firstCloseBracketAfter + 1; // +1 to include '>'
+                const codeString = text.substring(start, end);
+                console.log(`Found code string: ${codeString} at range [${start}, ${end})`);
+                return { codeString, start, end };
             }
+        }
+        console.log("Cursor not inside a <...> block.");
+        return null; // Cursor is not inside a valid <...> block
+    };
 
-            if (isInsideBrackets) {
-                console.log("[Textarea Input] Cursor inside <>, hiding suggestions.");
-                dynamicSuggestionsContainer.style.display = 'none'; // Use dynamic container
-                highlightedSuggestionIndex = -1;
-                currentSuggestions = [];
+    // Function to parse parameters from the code string content (inside <...>)
+    const parseCodeParameters = (content) => {
+        const parts = content.split(';');
+        if (parts.length < 1) return { type: '', params: {} };
+
+        const type = parts[0].trim();
+        const params = {};
+        // Regex to match key="value" or key=value (no quotes)
+        const paramRegex = /\s*([^=\s]+)\s*=\s*(?:"([^"]*)"|([^;]*))/g;
+
+        for (let i = 1; i < parts.length; i++) {
+            const part = parts[i].trim();
+            if (!part) continue;
+
+            // Reset regex index before each exec
+            paramRegex.lastIndex = 0;
+            const match = paramRegex.exec(part);
+
+            if (match) {
+                const key = match[1];
+                // Value could be in group 2 (quoted) or group 3 (unquoted)
+                const value = match[2] !== undefined ? match[2] : match[3];
+                 if (key) { // Ensure key is valid
+                    params[key] = value.trim();
+                }
             } else {
-                // Find the start of the current word/term being typed
-                let searchStart = cursorPosition - 1;
-                while (searchStart >= 0) {
-                    const char = textBeforeCursor[searchStart];
-                    // Extended delimiters: space, newline, brackets, semicolon, pipe
-                    // CORRECTED REGEX: Removed extra backslashes
-                    if (/\s|\n|>|<|;|\|/.test(char)) {
-                        searchStart++;
-                        break;
-                    }
-                    searchStart--;
-                }
-                if (searchStart < 0) searchStart = 0;
+                console.warn(`Could not parse parameter part: '${part}'`);
+            }
+        }
+        console.log(`Parsed type: ${type}, params:`, params);
+        return { type, params };
+    };
 
-                // ADDED: Detailed logging before searchTerm calculation
-                console.log(`[Textarea Input Debug] cursorPosition: ${cursorPosition}, calculated searchStart: ${searchStart}, char at searchStart: '${searchStart < currentText.length ? textBeforeCursor[searchStart] : 'EOF'}'`);
+    // Function to populate the modal form
+    const populateParamsModal = (type, params) => {
+        paramsModalForm.innerHTML = ''; // Clear previous form items
+        currentCodeStringType = type; // Store the type
 
-                const searchTerm = textBeforeCursor.substring(searchStart, cursorPosition);
-                 // Only trigger if search term is not empty and potentially valid (e.g., starts with letter)
-                // REFINED LOGGING:
-                const trimmedSearchTerm = searchTerm.trim();
-                if (trimmedSearchTerm.length === 0) {
-                    console.log(`[Textarea Input] Hiding suggestions (empty term detected immediately after delimiter)`);
-                } else if (!/^[a-zA-Z]/.test(trimmedSearchTerm)) {
-                    console.log(`[Textarea Input] Hiding suggestions (term does not start with letter: '${searchTerm}')`);
+        Object.entries(params).forEach(([key, value]) => {
+            const paramEntryDiv = document.createElement('div');
+            paramEntryDiv.className = 'param-entry';
+
+            const label = document.createElement('label');
+            label.htmlFor = `param-${key}`;
+            label.textContent = key;
+
+            // Use textarea for potentially long values like 'row1', input otherwise
+            let inputElement;
+            if (key.toLowerCase().includes('row') || value.length > 60) { // Heuristic for textarea
+                inputElement = document.createElement('textarea');
+                inputElement.rows = 3; // Adjust as needed
+            } else {
+                inputElement = document.createElement('input');
+                inputElement.type = 'text';
+            }
+
+            inputElement.id = `param-${key}`;
+            inputElement.value = value;
+            inputElement.dataset.paramKey = key; // Store the key
+
+            paramEntryDiv.appendChild(label);
+            paramEntryDiv.appendChild(inputElement);
+            paramsModalForm.appendChild(paramEntryDiv);
+        });
+    };
+
+    // --- Event Listener for the Edit Parameters Button ---
+    if (editParamsButton && codesTextarea && paramsModal) {
+        editParamsButton.onclick = () => {
+            const text = codesTextarea.value;
+            const cursorPos = codesTextarea.selectionStart;
+
+            const codeInfo = findCodeStringAroundCursor(text, cursorPos);
+
+            if (codeInfo) {
+                // Extract content within < >
+                const content = codeInfo.codeString.substring(1, codeInfo.codeString.length - 1);
+                const { type, params } = parseCodeParameters(content);
+
+                if (type) {
+                    currentCodeStringRange = { start: codeInfo.start, end: codeInfo.end };
+                    populateParamsModal(type, params);
+                    showParamsModal();
                 } else {
-                    console.log(`[Textarea Input] Cursor outside <>, potential search term: '${searchTerm}'`);
-                    showSuggestionsForTerm(searchTerm); // Pass original searchTerm, not trimmed
+                    showError("Could not parse the code string structure.");
                 }
-                // Hide suggestions if not showing them
-                if (!(trimmedSearchTerm.length > 0 && /^[a-zA-Z]/.test(trimmedSearchTerm))) {
-                    dynamicSuggestionsContainer.style.display = 'none';
-                    highlightedSuggestionIndex = -1;
-                    currentSuggestions = [];
-                }
+            } else {
+                showError("Place cursor inside a <...> code block to edit parameters.");
             }
         };
-
-        codesTextarea.onkeydown = (event) => {
-            // Only handle keydown if suggestions are visible
-            if (dynamicSuggestionsContainer.style.display !== 'block' || currentSuggestions.length === 0) {
-                return;
-            }
-
-            const suggestionItems = dynamicSuggestionsContainer.querySelectorAll('.code-suggestion-item'); // Use dynamic container
-            let newIndex = highlightedSuggestionIndex;
-
-            switch (event.key) {
-                case 'ArrowDown':
-                case 'ArrowUp':
-                    event.preventDefault(); // Prevent cursor move in textarea
-                    if (event.key === 'ArrowDown') {
-                        newIndex = (highlightedSuggestionIndex + 1) % currentSuggestions.length;
-                    } else {
-                        newIndex = (highlightedSuggestionIndex - 1 + currentSuggestions.length) % currentSuggestions.length;
-                    }
-                    updateHighlight(newIndex);
-                    break;
-
-                case 'Enter':
-                 case 'Tab': // Allow Tab to select as well
-                    event.preventDefault(); // Prevent newline/focus change
-                    if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestionItems.length) {
-                        suggestionItems[highlightedSuggestionIndex].click(); // Trigger click on highlighted
-                    } else if (currentSuggestions.length > 0 && suggestionItems.length > 0) {
-                         // If Enter/Tab pressed without explicit selection, select the first suggestion
-                         suggestionItems[0].click();
-                    }
-                    // Hide suggestions after selection
-                    dynamicSuggestionsContainer.style.display = 'none';
-                    highlightedSuggestionIndex = -1;
-                    currentSuggestions = [];
-                    break;
-
-                case 'Escape':
-                    event.preventDefault(); // Prevent other escape behavior
-                    dynamicSuggestionsContainer.style.display = 'none'; // Use dynamic container
-                    highlightedSuggestionIndex = -1;
-                    currentSuggestions = [];
-                    break;
-
-                default:
-                    // If typing letters/numbers/backspace etc. while suggestions are open,
-                    // let the oninput handler re-evaluate suggestions, but reset highlight
-                    if (!event.ctrlKey && !event.altKey && !event.metaKey && event.key.length === 1) {
-                       updateHighlight(-1); // Reset highlight as list will change
-                    }
-                    break;
-            }
-        };
-         // Add a blur listener to hide suggestions when focus leaves the textarea (modified)
-         codesTextarea.addEventListener('blur', () => {
-             // Delay slightly to allow suggestion click to register before hiding
-             setTimeout(() => {
-                 // Hide if focus is not within the dynamic suggestions container
-                 if (!dynamicSuggestionsContainer.contains(document.activeElement)) {
-                      dynamicSuggestionsContainer.style.display = 'none'; // Use dynamic container
-                      highlightedSuggestionIndex = -1;
-                      // Don't clear currentSuggestions here, might be needed if focus returns quickly
-                 }
-             }, 150);
-         });
     }
 
+    // --- Event Listeners for Modal Actions ---
+    if (closeModalButton) {
+        closeModalButton.onclick = hideParamsModal;
+    }
+    if (cancelParamsButton) {
+        cancelParamsButton.onclick = hideParamsModal;
+    }
 
+    if (applyParamsButton && codesTextarea) {
+        applyParamsButton.onclick = () => {
+            if (!currentCodeStringRange || !currentCodeStringType) return; // Safety check
+
+            const formElements = paramsModalForm.querySelectorAll('input[data-param-key], textarea[data-param-key]');
+            const updatedParams = [];
+
+            formElements.forEach(input => {
+                const key = input.dataset.paramKey;
+                const value = input.value;
+                // Re-add quotes around the value
+                updatedParams.push(`${key}="${value}"`);
+            });
+
+            // Reconstruct the code string
+            const newCodeStringContent = `${currentCodeStringType}; ${updatedParams.join('; ')}`;
+            const newCodeString = `<${newCodeStringContent}>`;
+
+            // Update the textarea content
+            const currentText = codesTextarea.value;
+            const textBefore = currentText.substring(0, currentCodeStringRange.start);
+            const textAfter = currentText.substring(currentCodeStringRange.end);
+
+            codesTextarea.value = textBefore + newCodeString + textAfter;
+
+            console.log(`Updated code string at [${currentCodeStringRange.start}, ${currentCodeStringRange.start + newCodeString.length})`);
+
+            // Optionally, update cursor position
+            const newCursorPos = currentCodeStringRange.start + newCodeString.length;
+            codesTextarea.focus();
+            codesTextarea.setSelectionRange(newCursorPos, newCursorPos);
+
+            hideParamsModal(); // Close modal after applying
+        };
+    }
+
+    // Hide modal if clicked outside the content
+    window.onclick = (event) => {
+        if (event.target == paramsModal) {
+            hideParamsModal();
+        }
+    };
+
+
+    // ... (rest of your Office.onReady, including suggestion logic, initializations)
+
+    // Make sure initialization runs after setting up modal logic
     Promise.all([
         initializeAPIKeys(),
         loadCodeDatabase()

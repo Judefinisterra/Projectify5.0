@@ -77,6 +77,9 @@
                      <button id="insert-and-run" class="ms-Button ms-Button--primary">
                          <span class="ms-Button-label">Run Codes</span>
                      </button>
+                     <button id="edit-code-params-button" class="ms-Button" title="Edit Parameters of Selected Code">
+                         <i class="ms-Icon ms-Icon--Edit"></i> Params
+                     </button>
                  </div>
             </div>
         </section>
@@ -84,6 +87,28 @@
         <!-- Removed response-area and codes-modal -->
 
     </main>
+
+    <!-- Modal Dialogue for Editing Code Parameters -->
+    <div id="code-params-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3>Edit Code Parameters</h3>
+            <div id="code-params-modal-form">
+                <!-- Parameter fields will be inserted here by JS -->
+            </div>
+            <div class="modal-actions">
+                <button id="apply-code-params-button" class="ms-Button ms-Button--primary">Apply Changes</button>
+                <button id="cancel-code-params-button" class="ms-Button">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <!-- Removed footer elements for brevity -->
+
+    <!-- Load main script -->
+    <script type="module" src="taskpane.js"></script>
+
 </body>
 
 </html>
