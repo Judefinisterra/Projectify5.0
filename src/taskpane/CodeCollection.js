@@ -1752,13 +1752,21 @@ export async function hideColumnsAndNavigate(assumptionTabNames) { // Renamed an
                 if (targetSheetNames.includes(sheetName)) { // Check if sheet is in our target list
                     console.log(`Queueing hide operations for: ${sheetName}`);
                     try {
-                        // Hide Columns C:I
-                        const colsCI = worksheet.getRange("C:I");
-                        colsCI.columnHidden = true;
-
-                        // Hide Rows 2:8
+                        // Hide Rows 2:8 (Applies to both)
                         const rows28 = worksheet.getRange("2:8");
                         rows28.rowHidden = true;
+
+                        // Conditional Column Hiding
+                        if (sheetName === "Financials") {
+                            console.log(`  -> Hiding Columns C:I for Financials`);
+                            const colsCI = worksheet.getRange("C:I");
+                            colsCI.columnHidden = true;
+                        } else {
+                            // Hide Columns C:E for Assumption Tabs
+                            console.log(`  -> Hiding Columns C:E for ${sheetName}`);
+                            const colsCE = worksheet.getRange("C:E");
+                            colsCE.columnHidden = true;
+                        }
 
                         // Hide Actuals Columns based on sheet type
                         if (sheetName === "Financials") {
@@ -1896,10 +1904,10 @@ export async function hideRowsAndColumnsOnSheets(excludedSheetNames = ["Actuals 
                     rowRange.rowHidden = true;
                     console.log(`  Hiding rows 1-8`);
 
-                    // Hide Columns C-I
-                    const colRange1 = worksheet.getRange("C:I");
+                    // Hide Columns C-E (Changed from C:I)
+                    const colRange1 = worksheet.getRange("C:E"); // Changed range
                     colRange1.columnHidden = true;
-                    console.log(`  Hiding columns C-I`);
+                    console.log(`  Hiding columns C-E`); // Update log message
 
                     // Hide Columns S-AC
                     const colRange2 = worksheet.getRange("S:AC");

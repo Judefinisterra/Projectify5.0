@@ -345,3 +345,25 @@ b {
 .codes-modal-content .ms-Button {
     min-width: 80px; /* Example adjustment */
 }
+
+/* Add this to taskpane.css */
+.code-suggestion-item.suggestion-highlight {
+    background-color: #e0e0e0; /* A light grey background */
+    cursor: pointer;
+  }
+  
+  /* Optional: Style for regular suggestion items */
+  .code-suggestion-item {
+      padding: 5px 8px;
+      border-bottom: 1px solid #f0f0f0; /* Light separator line */
+  }
+  
+  .code-suggestion-item:last-child {
+      border-bottom: none; /* Remove border from last item */
+  }
+  
+  /* Ensure suggestions appear above other elements if needed */
+  #code-suggestions {
+      position: relative; /* Or absolute depending on layout */
+      z-index: 1000;
+  }

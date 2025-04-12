@@ -70,6 +70,20 @@
         <div id="codes-modal" class="codes-modal" style="display: none;">
             <div class="codes-modal-content">
                 <h2>Code Strings</h2>
+                <div class="codes-modal-content">
+                    <h2>Code Strings</h2>
+    
+                    <!-- PASTE THE FOLLOWING TWO ELEMENTS HERE: -->
+                    <input type="text" id="code-search-input" placeholder="Search code names..." style="width: 95%; margin-bottom: 5px; padding: 5px;">
+                    <div id="code-suggestions" style="border: 1px solid #ccc; max-height: 150px; overflow-y: auto; display: none; background-color: white; position: relative; z-index: 10;">
+                        <!-- Suggestions will be populated here by JavaScript -->
+                    </div>
+    
+                    <textarea id="codes-textarea" class="codes-textarea" rows="20"></textarea>
+                    <div class="modal-button-container">
+                        <!-- ... buttons ... -->
+                    </div>
+                </div>
                 <textarea id="codes-textarea" class="codes-textarea" rows="20"></textarea>
                 <div class="modal-button-container">
                     <button id="save-codes-changes" class="ms-Button ms-Button--primary">

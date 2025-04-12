@@ -35,6 +35,9 @@ const DEBUG = true;
 // Variable to store loaded code strings
 let loadedCodeStrings = "";
 
+// Variable to store the parsed code database
+let codeDatabase = [];
+
 // API keys storage
 let API_KEYS = {
   OPENAI_API_KEY: "",
@@ -49,6 +52,38 @@ const srcPaths = [
   'https://localhost:3002/src/prompts/Validation_System.txt',
   'https://localhost:3002/src/prompts/Validation_Main.txt'
 ];
+
+// Function to load the code string database
+async function loadCodeDatabase() {
+  try {
+    console.log("Loading code database...");
+    const response = await fetch('https://localhost:3002/assets/codestringDB.txt');
+    if (!response.ok) {
+      throw new Error(`Failed to load codestringDB.txt: ${response.statusText}`);
+    }
+    const text = await response.text();
+    const lines = text.split(/[\r\n]+/).filter(line => line.trim() !== ''); // Split by lines and remove empty ones
+
+    codeDatabase = lines.map(line => {
+      const parts = line.split('\t'); // Assuming tab-separated
+      if (parts.length >= 2) {
+        return { name: parts[0].trim(), code: parts[1].trim() };
+      }
+      console.warn(`Skipping malformed line in codestringDB.txt: ${line}`);
+      return null;
+    }).filter(item => item !== null); // Filter out null entries from malformed lines
+
+    console.log(`Code database loaded successfully with ${codeDatabase.length} entries.`);
+    if (DEBUG && codeDatabase.length > 0) {
+        console.log("First few code database entries:", codeDatabase.slice(0, 5));
+    }
+
+  } catch (error) {
+    console.error("Error loading code database:", error);
+    showError("Failed to load code database. Search functionality will be unavailable.");
+    codeDatabase = []; // Ensure it's empty on error
+  }
+}
 
 // Function to load API keys from a config file
 // This allows the keys to be stored in a separate file that's .gitignored
@@ -1325,14 +1360,159 @@ Office.onReady((info) => {
     const closeCodesModalButton = document.getElementById('close-codes-modal');
     const saveCodesChangesButton = document.getElementById('save-codes-changes');
 
+    // >>>>>>>>> ADDED: Get references to new modal elements (assuming IDs)
+    const codeSearchInput = document.getElementById('code-search-input');
+    const codeSuggestionsContainer = document.getElementById('code-suggestions');
+    
+    // >>>>>>>>> ADDED: Variables for keyboard navigation state
+    let highlightedSuggestionIndex = -1;
+    let currentSuggestions = []; 
+
+    // >>>>>>>>> ADDED: Helper function to update highlighting
+    const updateHighlight = (newIndex) => {
+      const suggestionItems = codeSuggestionsContainer.querySelectorAll('.code-suggestion-item');
+      if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestionItems.length) {
+        suggestionItems[highlightedSuggestionIndex].classList.remove('suggestion-highlight');
+      }
+      if (newIndex >= 0 && newIndex < suggestionItems.length) {
+        suggestionItems[newIndex].classList.add('suggestion-highlight');
+        // Optional: Scroll the highlighted item into view
+        suggestionItems[newIndex].scrollIntoView({ block: 'nearest' });
+      }
+      highlightedSuggestionIndex = newIndex;
+    };
+
     // Add event listeners for modal
-    if (viewCodesButton && codesModal && codesTextarea) {
+    if (viewCodesButton && codesModal && codesTextarea) { 
       viewCodesButton.onclick = () => {
         // Use the global variable to populate the textarea initially
-        codesTextarea.value = loadedCodeStrings; 
+        codesTextarea.value = loadedCodeStrings;
+        
+        // Safely check for search elements before manipulating them
+        if (codeSearchInput) {
+            codeSearchInput.value = ''; 
+        }
+        if (codeSuggestionsContainer) {
+            codeSuggestionsContainer.innerHTML = '';
+            codeSuggestionsContainer.style.display = 'none';
+        }
+        
         codesModal.style.display = 'block'; // Show modal
+        // >>>>>>>>> ADDED: Reset keyboard nav state when modal opens
+        highlightedSuggestionIndex = -1;
+        currentSuggestions = [];
       };
     }
+
+    // Event listener for search input (This check remains correct)
+    if (codeSearchInput && codeSuggestionsContainer) {
+      codeSearchInput.oninput = () => {
+        const searchTerm = codeSearchInput.value.toLowerCase().trim();
+        console.log(`Search Term: '${searchTerm}'`);
+        
+        codeSuggestionsContainer.innerHTML = ''; // Clear previous suggestions
+        highlightedSuggestionIndex = -1; // <<< ADDED: Reset highlight on new input
+        currentSuggestions = []; // <<< ADDED: Clear current suggestions
+
+        if (searchTerm.length < 2) { // Only search if term is long enough
+          console.log("Search term too short, hiding suggestions.");
+          codeSuggestionsContainer.style.display = 'none';
+          return;
+        }
+
+        console.log("Filtering code database...");
+        const suggestions = codeDatabase
+          .filter(item => {
+              const hasName = item && typeof item.name === 'string';
+              if (!hasName) console.warn("Skipping item with missing/invalid name:", item);
+              return hasName && item.name.toLowerCase().includes(searchTerm);
+          })
+          .slice(0, 10); // Limit to 10 suggestions
+          
+        // >>>>>>>>> MODIFIED: Store suggestions
+        currentSuggestions = suggestions; 
+        console.log(`Found ${currentSuggestions.length} suggestions:`, currentSuggestions);
+
+        if (currentSuggestions.length > 0) {
+          console.log("Populating suggestions container...");
+          // >>>>>>>>> MODIFIED: Use index 'i'
+          currentSuggestions.forEach((item, i) => { 
+            const suggestionDiv = document.createElement('div');
+            suggestionDiv.className = 'code-suggestion-item'; // Add a class for styling
+            suggestionDiv.textContent = item.name;
+            suggestionDiv.dataset.index = i; // <<< ADDED: Store index
+            
+            suggestionDiv.onclick = () => {
+              console.log(`Suggestion clicked: '${item.name}'`);
+              // Append the code string to the textarea
+              const currentText = codesTextarea.value;
+              const codeToAdd = item.code;
+              const separator = (currentText.length > 0 && !currentText.endsWith('\n')) ? '\n' : '';
+              codesTextarea.value = currentText + separator + codeToAdd;
+
+              // Clear search and hide suggestions
+              codeSearchInput.value = '';
+              codeSuggestionsContainer.innerHTML = '';
+              codeSuggestionsContainer.style.display = 'none';
+              highlightedSuggestionIndex = -1; // Reset index
+              currentSuggestions = []; // Clear suggestions
+            };
+            
+            // Add mouse hover highlighting (optional but nice)
+             suggestionDiv.onmouseover = () => {
+                 updateHighlight(i);
+             };
+
+            codeSuggestionsContainer.appendChild(suggestionDiv);
+          });
+          console.log("Setting suggestions display to 'block'");
+          codeSuggestionsContainer.style.display = 'block'; // Show suggestions
+        } else {
+          console.log("No suggestions found, hiding container.");
+          codeSuggestionsContainer.style.display = 'none'; // Hide if no suggestions
+        }
+      };
+
+      // >>>>>>>>> ADDED: Keydown listener for navigation
+      codeSearchInput.onkeydown = (event) => {
+        // Only act if suggestions are visible
+        if (codeSuggestionsContainer.style.display !== 'block' || currentSuggestions.length === 0) {
+          return;
+        }
+
+        const suggestionItems = codeSuggestionsContainer.querySelectorAll('.code-suggestion-item');
+        let newIndex = highlightedSuggestionIndex;
+
+        switch (event.key) {
+          case 'ArrowDown':
+            event.preventDefault(); // Prevent cursor moving in input
+            newIndex = (highlightedSuggestionIndex + 1) % currentSuggestions.length;
+            updateHighlight(newIndex);
+            break;
+
+          case 'ArrowUp':
+            event.preventDefault(); // Prevent cursor moving in input
+            newIndex = (highlightedSuggestionIndex - 1 + currentSuggestions.length) % currentSuggestions.length;
+            updateHighlight(newIndex);
+            break;
+
+          case 'Enter':
+            event.preventDefault(); // Prevent form submission/newline
+            if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestionItems.length) {
+              suggestionItems[highlightedSuggestionIndex].click(); // Trigger the click handler
+            }
+            break;
+          
+          case 'Escape': // Optional: Hide suggestions on Escape
+             event.preventDefault();
+             codeSuggestionsContainer.style.display = 'none';
+             highlightedSuggestionIndex = -1;
+             currentSuggestions = [];
+             break;
+        }
+      };
+    }
+    // >>>>>>>>> END ADDED
 
     if (closeCodesModalButton && codesModal) {
       closeCodesModalButton.onclick = () => {
@@ -1345,10 +1525,10 @@ Office.onReady((info) => {
         // Update the global variable first
         loadedCodeStrings = codesTextarea.value;
         // Log the update to the global variable
-        console.log('[Save Handler] Global loadedCodeStrings updated to:', loadedCodeStrings.substring(0,100) + '...'); 
+        console.log('[Save Handler] Global loadedCodeStrings updated to:', loadedCodeStrings.substring(0,100) + '...');
         try {
           // Save the updated global variable to localStorage
-          localStorage.setItem('userCodeStrings', loadedCodeStrings); 
+          localStorage.setItem('userCodeStrings', loadedCodeStrings);
           console.log("Code strings saved to localStorage.");
           showMessage("Code changes saved."); // Inform user
         } catch (error) {
@@ -1372,7 +1552,10 @@ Office.onReady((info) => {
     // if (testGreenCellButton) testGreenCellButton.onclick = isActiveCellGreen;
 
     // Initialize API keys, load history etc.
-    initializeAPIKeys().then(keysLoaded => {
+    Promise.all([ // <<<<< UPDATED: Use Promise.all for parallel loading
+        initializeAPIKeys(),
+        loadCodeDatabase() // <<<<< ADDED: Load code database during init
+    ]).then(([keysLoaded]) => {
       if (!keysLoaded) {
         showError("Failed to load API keys. Please check configuration.");
       }
@@ -1386,17 +1569,17 @@ Office.onReady((info) => {
               // Initialize the global variable
               loadedCodeStrings = storedCodes;
               console.log("Code strings loaded from localStorage into global variable.");
-              if (DEBUG) console.log("Initial loaded codes:", loadedCodeStrings.substring(0, 100) + '...'); 
+              if (DEBUG) console.log("Initial loaded codes:", loadedCodeStrings.substring(0, 100) + '...');
           } else {
               console.log("No code strings found in localStorage, initializing global variable as empty.");
               // Initialize the global variable
-              loadedCodeStrings = ""; 
+              loadedCodeStrings = "";
           }
       } catch (error) {
           console.error("Error loading code strings from localStorage:", error);
           showError(`Error loading codes from storage: ${error.message}`);
           // Initialize the global variable
-          loadedCodeStrings = ""; 
+          loadedCodeStrings = "";
       }
 
     }).catch(error => {
