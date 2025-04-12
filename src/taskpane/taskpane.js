@@ -40,6 +40,12 @@ let loadedCodeStrings = "";
 // Variable to store the parsed code database
 let codeDatabase = [];
 
+// >>> ADDED: Variables for search/replace state <<<
+let lastSearchTerm = '';
+let lastSearchIndex = -1; // Tracks the starting index of the last found match
+let searchResultIndices = []; // Stores indices of all matches for Replace All
+let currentHighlightIndex = -1; // Index within searchResultIndices for Find Next
+
 // API keys storage
 let API_KEYS = {
   OPENAI_API_KEY: "",
@@ -1484,14 +1490,53 @@ Office.onReady((info) => {
     if (resetButton) resetButton.onclick = resetChat;
 
     const codesTextarea = document.getElementById('codes-textarea');
-    const codeSearchInput = document.getElementById('code-search-input');
-    const codeSuggestionsContainer = document.getElementById('code-suggestions');
+    // REMOVE: const codeSearchInput = document.getElementById('code-search-input');
+    // REMOVE: const codeSuggestionsContainer = document.getElementById('code-suggestions');
 
+    // ADD: Create dynamic suggestions container
+    let dynamicSuggestionsContainer = document.getElementById('dynamic-suggestions-container');
+    if (!dynamicSuggestionsContainer) {
+        dynamicSuggestionsContainer = document.createElement('div');
+        dynamicSuggestionsContainer.id = 'dynamic-suggestions-container';
+        dynamicSuggestionsContainer.className = 'code-suggestions'; // Reuse class if styling exists
+        dynamicSuggestionsContainer.style.display = 'none';
+        // Basic positioning styles (adjust in CSS for better control)
+        dynamicSuggestionsContainer.style.position = 'absolute';
+        dynamicSuggestionsContainer.style.border = '1px solid #ccc';
+        dynamicSuggestionsContainer.style.backgroundColor = 'white';
+        dynamicSuggestionsContainer.style.maxHeight = '150px';
+        dynamicSuggestionsContainer.style.overflowY = 'auto';
+        dynamicSuggestionsContainer.style.zIndex = '1000';
+
+        // Insert after the textarea's container or adjust as needed
+        if (codesTextarea.parentNode) {
+            codesTextarea.parentNode.insertBefore(dynamicSuggestionsContainer, codesTextarea.nextSibling);
+        } else {
+            document.body.appendChild(dynamicSuggestionsContainer); // Fallback
+        }
+
+        // Function to update position and width
+        const updateSuggestionPosition = () => {
+          if (dynamicSuggestionsContainer.style.display === 'block') {
+              const rect = codesTextarea.getBoundingClientRect();
+              dynamicSuggestionsContainer.style.width = codesTextarea.offsetWidth + 'px';
+              dynamicSuggestionsContainer.style.top = (rect.bottom + window.scrollY) + 'px';
+              dynamicSuggestionsContainer.style.left = (rect.left + window.scrollX) + 'px';
+          }
+        };
+
+        // Update on resize and scroll
+        window.addEventListener('resize', updateSuggestionPosition);
+        window.addEventListener('scroll', updateSuggestionPosition, true); // Use capture phase for scroll
+    }
+
+    // RESTORE: Variables for suggestion state
     let highlightedSuggestionIndex = -1;
     let currentSuggestions = [];
 
+    // RESTORE: updateHighlight function (modified for dynamic container)
     const updateHighlight = (newIndex) => {
-      const suggestionItems = codeSuggestionsContainer.querySelectorAll('.code-suggestion-item');
+      const suggestionItems = dynamicSuggestionsContainer.querySelectorAll('.code-suggestion-item'); // Use dynamic container
       if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestionItems.length) {
         suggestionItems[highlightedSuggestionIndex].classList.remove('suggestion-highlight');
       }
@@ -1502,17 +1547,18 @@ Office.onReady((info) => {
       highlightedSuggestionIndex = newIndex;
     };
 
+    // RESTORE: showSuggestionsForTerm function (modified for dynamic container and positioning)
     const showSuggestionsForTerm = (searchTerm) => {
         searchTerm = searchTerm.toLowerCase().trim();
         console.log(`[showSuggestionsForTerm] Search Term: '${searchTerm}'`);
 
-        codeSuggestionsContainer.innerHTML = '';
+        dynamicSuggestionsContainer.innerHTML = ''; // Use dynamic container
         highlightedSuggestionIndex = -1;
         currentSuggestions = [];
 
         if (searchTerm.length < 2) {
             console.log("[showSuggestionsForTerm] Search term too short, hiding suggestions.");
-            codeSuggestionsContainer.style.display = 'none';
+            dynamicSuggestionsContainer.style.display = 'none'; // Use dynamic container
             return;
         }
 
@@ -1558,7 +1604,7 @@ Office.onReady((info) => {
                     }
 
                     const maxNumbers = getMaxDriverNumbers(currentText);
-                    const driverRegex = /(row\d+\s*=\s*")([A-Z]+)(\d*)(\|)/g;
+                    const driverRegex = /(row\\d+\\s*=\\s*\")([A-Z]+)(\\d*)(\\|)/g;
                     const nextNumbers = { ...maxNumbers };
 
                     codeToAdd = codeToAdd.replace(driverRegex, (match, rowPart, prefix, existingNumberStr, pipePart) => {
@@ -1575,41 +1621,65 @@ Office.onReady((info) => {
                     let textBeforeFinal = "";
                     let searchStartIndex = insertionPosition;
 
+                    // Logic to replace the typed term before inserting the suggestion
                     if (!wasAdjusted) {
                         const textBeforeInsertion = currentText.substring(0, insertionPosition);
-                        const match = textBeforeInsertion.match(/[^<>\s\n]*$/);
-                        const searchTermToRemove = match ? match[0] : '';
-                        if (searchTermToRemove.length > 0 && item.name.toLowerCase().includes(searchTermToRemove.toLowerCase())) { // Ensure we remove the right thing
-                            searchStartIndex = insertionPosition - searchTermToRemove.length;
-                            console.log(`Replacing typed term: '${searchTermToRemove}'`);
-                            textBeforeFinal = currentText.substring(0, searchStartIndex);
-                        } else {
-                            textBeforeFinal = textBeforeInsertion;
+                        // Find the start of the term being replaced (go back from cursor until delimiter)
+                        let tempSearchStart = cursorPosition - 1;
+                        while (tempSearchStart >= 0) {
+                            const char = textBeforeCursor[tempSearchStart];
+                            // CORRECTED REGEX IN ONCLICK:
+                            if (/\s|\n|>|<|;|\|/.test(char)) {
+                                tempSearchStart++;
+                                break;
+                            }
+                            tempSearchStart--;
                         }
+                        if (tempSearchStart < 0) tempSearchStart = 0;
+
+                        // UNCONDITIONAL REPLACEMENT: Always use the calculated start index
+                        searchStartIndex = tempSearchStart;
+                        const searchTermToRemove = textBeforeCursor.substring(searchStartIndex, cursorPosition);
+                        console.log(`Attempting to replace term: '${searchTermToRemove}' starting at index ${searchStartIndex}`);
+                        textBeforeFinal = currentText.substring(0, searchStartIndex); // Always remove text before searchStartIndex
+
                     } else {
+                         // If insertion was adjusted (inside <>), just use text up to adjusted position
                          textBeforeFinal = currentText.substring(0, insertionPosition);
+                         searchStartIndex = insertionPosition; // Set searchStartIndex for correct newline logic
                     }
 
-                    let prefixNewline = '';
-                    if (searchStartIndex > 0 && textBeforeFinal.length > 0 && textBeforeFinal[textBeforeFinal.length - 1] !== '\n') {
-                        prefixNewline = '\n';
-                    }
-                    let suffixNewline = '\n';
-                     // Ensure suffix newline unless at end or already followed by newline
-                    if (insertionPosition >= currentText.length || (textAfterInsertion.length > 0 && textAfterInsertion[0] === '\n') ) {
-                        suffixNewline = '';
+                    // Find remainder of the original line and subsequent lines
+                    const firstNewlineIndexInSuffix = textAfterInsertion.indexOf('\n');
+                    let remainderOfOriginalLine = "";
+                    let subsequentLines = "";
+
+                    if (firstNewlineIndexInSuffix === -1) {
+                        // No newline found after the cursor, everything was on the same line
+                        remainderOfOriginalLine = textAfterInsertion;
+                    } else {
+                        // Split the suffix into the rest of the current line and subsequent lines
+                        remainderOfOriginalLine = textAfterInsertion.substring(0, firstNewlineIndexInSuffix);
+                        subsequentLines = textAfterInsertion.substring(firstNewlineIndexInSuffix); // Includes the leading \n
                     }
 
-                    const newText = textBeforeFinal + prefixNewline + codeToAdd + suffixNewline + textAfterInsertion;
+                    // Construct the new text
+                    const newText = textBeforeFinal +
+                                    codeToAdd + // Insert the selected code
+                                    (remainderOfOriginalLine.length > 0 ? '\n' : '') + // Add newline only if there was text after cursor on the same line
+                                    remainderOfOriginalLine + // Add the rest of the original line
+                                    subsequentLines; // Add the subsequent lines
+
                     codesTextarea.value = newText;
 
-                    const newCursorPosition = textBeforeFinal.length + (prefixNewline + codeToAdd + suffixNewline).length;
+                    // Set cursor position after the inserted code
+                    const newCursorPosition = (textBeforeFinal + codeToAdd).length;
                     codesTextarea.focus(); // Ensure textarea has focus before setting selection
                     codesTextarea.setSelectionRange(newCursorPosition, newCursorPosition);
 
-                    if (codeSearchInput) codeSearchInput.value = '';
-                    codeSuggestionsContainer.innerHTML = '';
-                    codeSuggestionsContainer.style.display = 'none';
+                    // REMOVE: if (codeSearchInput) codeSearchInput.value = ''; // Remove reference to deleted input
+                    dynamicSuggestionsContainer.innerHTML = ''; // Use dynamic container
+                    dynamicSuggestionsContainer.style.display = 'none'; // Use dynamic container
                     highlightedSuggestionIndex = -1;
                     currentSuggestions = [];
                 };
@@ -1618,63 +1688,24 @@ Office.onReady((info) => {
                     updateHighlight(i);
                 };
 
-                codeSuggestionsContainer.appendChild(suggestionDiv);
+                dynamicSuggestionsContainer.appendChild(suggestionDiv); // Use dynamic container
             });
             console.log("[showSuggestionsForTerm] Setting suggestions display to 'block'");
-            codeSuggestionsContainer.style.display = 'block';
+            // Update position just before showing
+            const rect = codesTextarea.getBoundingClientRect();
+            dynamicSuggestionsContainer.style.width = codesTextarea.offsetWidth + 'px';
+            dynamicSuggestionsContainer.style.top = (rect.bottom + window.scrollY) + 'px';
+            dynamicSuggestionsContainer.style.left = (rect.left + window.scrollX) + 'px';
+            dynamicSuggestionsContainer.style.display = 'block'; // Use dynamic container
+
         } else {
             console.log("[showSuggestionsForTerm] No suggestions found, hiding container.");
-            codeSuggestionsContainer.style.display = 'none';
+            dynamicSuggestionsContainer.style.display = 'none'; // Use dynamic container
         }
     };
 
-    if (codeSearchInput && codeSuggestionsContainer) {
-        codeSearchInput.oninput = () => {
-            showSuggestionsForTerm(codeSearchInput.value);
-        };
-
-      codeSearchInput.onkeydown = (event) => {
-        if (codeSuggestionsContainer.style.display !== 'block' || currentSuggestions.length === 0) {
-          return;
-        }
-
-        const suggestionItems = codeSuggestionsContainer.querySelectorAll('.code-suggestion-item');
-        let newIndex = highlightedSuggestionIndex;
-
-        switch (event.key) {
-          case 'ArrowDown':
-            event.preventDefault();
-            newIndex = (highlightedSuggestionIndex + 1) % currentSuggestions.length;
-            updateHighlight(newIndex);
-            break;
-
-          case 'ArrowUp':
-            event.preventDefault();
-            newIndex = (highlightedSuggestionIndex - 1 + currentSuggestions.length) % currentSuggestions.length;
-            updateHighlight(newIndex);
-            break;
-
-          case 'Enter':
-            event.preventDefault();
-            // Click the highlighted suggestion if one exists, otherwise click the first one
-            if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestionItems.length) {
-                 suggestionItems[highlightedSuggestionIndex].click();
-            } else if (currentSuggestions.length > 0 && suggestionItems.length > 0) {
-                 suggestionItems[0].click(); // Click the first suggestion item
-            }
-            break;
-
-          case 'Escape':
-             event.preventDefault();
-             codeSuggestionsContainer.style.display = 'none';
-             highlightedSuggestionIndex = -1;
-             currentSuggestions = [];
-             break;
-        }
-      };
-    }
-
-    if (codesTextarea && codeSuggestionsContainer) {
+    // RESTORE: Event listeners for codesTextarea related to suggestions (modified for dynamic container)
+    if (codesTextarea && dynamicSuggestionsContainer) { // Check for dynamic container
         codesTextarea.oninput = (event) => {
             // Avoid triggering on programmatic changes
              if (!event.isTrusted) {
@@ -1699,14 +1730,16 @@ Office.onReady((info) => {
 
             if (isInsideBrackets) {
                 console.log("[Textarea Input] Cursor inside <>, hiding suggestions.");
-                codeSuggestionsContainer.style.display = 'none';
+                dynamicSuggestionsContainer.style.display = 'none'; // Use dynamic container
                 highlightedSuggestionIndex = -1;
                 currentSuggestions = [];
             } else {
+                // Find the start of the current word/term being typed
                 let searchStart = cursorPosition - 1;
                 while (searchStart >= 0) {
                     const char = textBeforeCursor[searchStart];
                     // Extended delimiters: space, newline, brackets, semicolon, pipe
+                    // CORRECTED REGEX: Removed extra backslashes
                     if (/\s|\n|>|<|;|\|/.test(char)) {
                         searchStart++;
                         break;
@@ -1715,14 +1748,24 @@ Office.onReady((info) => {
                 }
                 if (searchStart < 0) searchStart = 0;
 
+                // ADDED: Detailed logging before searchTerm calculation
+                console.log(`[Textarea Input Debug] cursorPosition: ${cursorPosition}, calculated searchStart: ${searchStart}, char at searchStart: '${searchStart < currentText.length ? textBeforeCursor[searchStart] : 'EOF'}'`);
+
                 const searchTerm = textBeforeCursor.substring(searchStart, cursorPosition);
                  // Only trigger if search term is not empty and potentially valid (e.g., starts with letter)
-                if (searchTerm.trim().length > 0 && /^[a-zA-Z]/.test(searchTerm)) {
-                    console.log(`[Textarea Input] Cursor outside <>, potential search term: '${searchTerm}'`);
-                    showSuggestionsForTerm(searchTerm);
+                // REFINED LOGGING:
+                const trimmedSearchTerm = searchTerm.trim();
+                if (trimmedSearchTerm.length === 0) {
+                    console.log(`[Textarea Input] Hiding suggestions (empty term detected immediately after delimiter)`);
+                } else if (!/^[a-zA-Z]/.test(trimmedSearchTerm)) {
+                    console.log(`[Textarea Input] Hiding suggestions (term does not start with letter: '${searchTerm}')`);
                 } else {
-                    console.log(`[Textarea Input] Hiding suggestions (empty or invalid term: '${searchTerm}')`);
-                    codeSuggestionsContainer.style.display = 'none';
+                    console.log(`[Textarea Input] Cursor outside <>, potential search term: '${searchTerm}'`);
+                    showSuggestionsForTerm(searchTerm); // Pass original searchTerm, not trimmed
+                }
+                // Hide suggestions if not showing them
+                if (!(trimmedSearchTerm.length > 0 && /^[a-zA-Z]/.test(trimmedSearchTerm))) {
+                    dynamicSuggestionsContainer.style.display = 'none';
                     highlightedSuggestionIndex = -1;
                     currentSuggestions = [];
                 }
@@ -1730,17 +1773,18 @@ Office.onReady((info) => {
         };
 
         codesTextarea.onkeydown = (event) => {
-            if (codeSuggestionsContainer.style.display !== 'block' || currentSuggestions.length === 0) {
+            // Only handle keydown if suggestions are visible
+            if (dynamicSuggestionsContainer.style.display !== 'block' || currentSuggestions.length === 0) {
                 return;
             }
 
-            const suggestionItems = codeSuggestionsContainer.querySelectorAll('.code-suggestion-item');
+            const suggestionItems = dynamicSuggestionsContainer.querySelectorAll('.code-suggestion-item'); // Use dynamic container
             let newIndex = highlightedSuggestionIndex;
 
             switch (event.key) {
                 case 'ArrowDown':
                 case 'ArrowUp':
-                    event.preventDefault();
+                    event.preventDefault(); // Prevent cursor move in textarea
                     if (event.key === 'ArrowDown') {
                         newIndex = (highlightedSuggestionIndex + 1) % currentSuggestions.length;
                     } else {
@@ -1751,18 +1795,22 @@ Office.onReady((info) => {
 
                 case 'Enter':
                  case 'Tab': // Allow Tab to select as well
-                    event.preventDefault();
+                    event.preventDefault(); // Prevent newline/focus change
                     if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestionItems.length) {
-                        suggestionItems[highlightedSuggestionIndex].click();
+                        suggestionItems[highlightedSuggestionIndex].click(); // Trigger click on highlighted
                     } else if (currentSuggestions.length > 0 && suggestionItems.length > 0) {
                          // If Enter/Tab pressed without explicit selection, select the first suggestion
                          suggestionItems[0].click();
                     }
+                    // Hide suggestions after selection
+                    dynamicSuggestionsContainer.style.display = 'none';
+                    highlightedSuggestionIndex = -1;
+                    currentSuggestions = [];
                     break;
 
                 case 'Escape':
-                    event.preventDefault();
-                    codeSuggestionsContainer.style.display = 'none';
+                    event.preventDefault(); // Prevent other escape behavior
+                    dynamicSuggestionsContainer.style.display = 'none'; // Use dynamic container
                     highlightedSuggestionIndex = -1;
                     currentSuggestions = [];
                     break;
@@ -1776,18 +1824,20 @@ Office.onReady((info) => {
                     break;
             }
         };
-         // Add a blur listener to hide suggestions when focus leaves the textarea
+         // Add a blur listener to hide suggestions when focus leaves the textarea (modified)
          codesTextarea.addEventListener('blur', () => {
-             // Delay slightly to allow suggestion click to register
+             // Delay slightly to allow suggestion click to register before hiding
              setTimeout(() => {
-                 if (document.activeElement !== codeSearchInput &&
-                     !codeSuggestionsContainer.contains(document.activeElement)) {
-                      codeSuggestionsContainer.style.display = 'none';
+                 // Hide if focus is not within the dynamic suggestions container
+                 if (!dynamicSuggestionsContainer.contains(document.activeElement)) {
+                      dynamicSuggestionsContainer.style.display = 'none'; // Use dynamic container
                       highlightedSuggestionIndex = -1;
+                      // Don't clear currentSuggestions here, might be needed if focus returns quickly
                  }
              }, 150);
          });
     }
+
 
     Promise.all([
         initializeAPIKeys(),
@@ -1831,4 +1881,278 @@ Office.onReady((info) => {
     document.getElementById("app-body").style.display = "block";
   }
 });
+
+// >>> ADDED: Search and Replace Functions <<<
+
+function clearSearchHighlight() {
+    const textarea = document.getElementById('codes-textarea');
+    if (textarea && lastSearchIndex !== -1) {
+        // Simple way: just reset selection to the start
+        textarea.setSelectionRange(0, 0);
+        textarea.blur(); // Remove focus to clear visible selection highlight
+        textarea.focus();
+        console.log("Cleared search highlight.");
+    }
+    lastSearchIndex = -1;
+    searchResultIndices = [];
+    currentHighlightIndex = -1;
+    updateSearchStatus('');
+}
+
+function updateSearchStatus(message) {
+    const statusElement = document.getElementById('search-status');
+    if (statusElement) {
+        statusElement.textContent = message;
+    }
+}
+
+function findNext() {
+    const textarea = document.getElementById('codes-textarea');
+    const searchTerm = document.getElementById('search-input').value;
+    const statusElement = document.getElementById('search-status');
+    const selectionOnlyCheckbox = document.getElementById('search-selection-only');
+
+    if (!textarea || !searchTerm) {
+        updateSearchStatus("Enter a search term.");
+        return;
+    }
+
+    const isSelectionOnly = selectionOnlyCheckbox?.checked;
+    let currentText = textarea.value;
+    let scopeStartIndex = 0;
+    let selectionEndIndex = currentText.length; // Use current length
+
+    if (isSelectionOnly) {
+        scopeStartIndex = textarea.selectionStart;
+        selectionEndIndex = textarea.selectionEnd;
+        if (scopeStartIndex === selectionEndIndex) {
+            updateSearchStatus("Select text first for 'Search Selection Only'.");
+            return;
+        }
+        let searchScopeText = currentText.substring(scopeStartIndex, selectionEndIndex);
+        console.log(`Searching within selection (${scopeStartIndex}-${selectionEndIndex}): "${searchScopeText}"`);
+
+        // Determine if a re-scan is needed
+        const storedSelStart = textarea.dataset.lastSelectionScanStart;
+        const storedSelEnd = textarea.dataset.lastSelectionScanEnd;
+        const needsRescan = lastSearchTerm !== searchTerm || 
+                            !storedSelStart || 
+                            storedSelStart != scopeStartIndex || 
+                            storedSelEnd != selectionEndIndex;
+
+        if (needsRescan) {
+            console.log("Re-scanning selection.");
+            lastSearchTerm = searchTerm;
+            textarea.dataset.lastSelectionScanStart = scopeStartIndex; // Store bounds used for THIS scan
+            textarea.dataset.lastSelectionScanEnd = selectionEndIndex;
+            lastSearchIndex = -1; // Absolute index reset
+            currentHighlightIndex = -1;
+            searchResultIndices = []; // Stores relative indices
+
+            let relativeIndex = searchScopeText.indexOf(searchTerm);
+            while (relativeIndex !== -1) {
+                searchResultIndices.push(relativeIndex);
+                relativeIndex = searchScopeText.indexOf(searchTerm, relativeIndex + 1);
+            }
+            console.log(`Found ${searchResultIndices.length} occurrences within selection. Relative Indices:`, searchResultIndices);
+        }
+        // If no re-scan needed, we continue with existing searchResultIndices and currentHighlightIndex
+
+        if (searchResultIndices.length === 0) {
+            updateSearchStatus(`"${searchTerm}" not found in selection.`);
+            return;
+        }
+    }
+    else { // Full text search
+        const storedSelStart = textarea.dataset.lastSelectionScanStart;
+        // Reset if term changed or switching FROM selection mode
+        if (searchTerm !== lastSearchTerm || storedSelStart) {
+            console.log("Scanning full text.");
+            lastSearchTerm = searchTerm;
+            lastSearchIndex = -1; // Absolute index
+            currentHighlightIndex = -1;
+            searchResultIndices = []; // Stores absolute indices
+            textarea.dataset.lastSelectionScanStart = ''; // Clear selection memory
+            textarea.dataset.lastSelectionScanEnd = '';
+
+            let index = currentText.indexOf(searchTerm);
+            while (index !== -1) {
+                searchResultIndices.push(index);
+                index = currentText.indexOf(searchTerm, index + 1);
+            }
+            console.log(`Found ${searchResultIndices.length} occurrences of "${searchTerm}". Absolute Indices:`, searchResultIndices);
+        }
+
+        if (searchResultIndices.length === 0) {
+            updateSearchStatus(`"${searchTerm}" not found.`);
+            return;
+        }
+    }
+
+    // Cycle through the found indices
+    currentHighlightIndex = (currentHighlightIndex + 1) % searchResultIndices.length;
+    const foundIndex = searchResultIndices[currentHighlightIndex]; // Could be relative or absolute
+
+    // Highlight the found text (calculate absolute index)
+    const highlightStartIndex = isSelectionOnly ? scopeStartIndex + foundIndex : foundIndex;
+    const highlightEndIndex = highlightStartIndex + searchTerm.length;
+
+    // Store the absolute index of the current highlight for replace validation
+    lastSearchIndex = highlightStartIndex;
+
+    textarea.focus();
+    textarea.setSelectionRange(highlightStartIndex, highlightEndIndex);
+    textarea.scrollTop = textarea.scrollHeight * (highlightStartIndex / currentText.length) - 50; // Estimate scroll position
+
+    updateSearchStatus(`Found at index ${highlightStartIndex} (${currentHighlightIndex + 1}/${searchResultIndices.length})${isSelectionOnly ? ' (in selection)' : ''}`);
+    console.log(`Highlighting ${isSelectionOnly ? 'relative index ' + foundIndex : 'absolute index'} (Absolute: ${highlightStartIndex})`);
+}
+
+function replace() {
+    const textarea = document.getElementById('codes-textarea');
+    const searchTerm = document.getElementById('search-input').value;
+    const replaceTerm = document.getElementById('replace-input').value;
+    const selectionOnlyCheckbox = document.getElementById('search-selection-only');
+
+    if (!textarea || !searchTerm) {
+        updateSearchStatus("Enter a search term.");
+        return;
+    }
+
+    // Must have a valid highlighted match from findNext
+    if (lastSearchIndex === -1 || textarea.selectionStart !== lastSearchIndex || textarea.selectionEnd !== lastSearchIndex + searchTerm.length) {
+         updateSearchStatus("Find match first.");
+         // Attempt to find the first match if none is selected
+         findNext();
+         return;
+    }
+
+    const isSelectionOnly = selectionOnlyCheckbox?.checked;
+
+    // If selection only, double-check the match is within the bounds used for the last scan
+    if (isSelectionOnly) {
+        const storedSelStart = parseInt(textarea.dataset.lastSelectionScanStart || '-1', 10);
+        const storedSelEnd = parseInt(textarea.dataset.lastSelectionScanEnd || '-1', 10);
+        if (storedSelStart === -1 || lastSearchIndex < storedSelStart || (lastSearchIndex + searchTerm.length) > storedSelEnd) {
+            updateSearchStatus("Match is outside selection bounds. Find Next?");
+            console.log("Replace cancelled: Highlight outside selection scan bounds.");
+            // Reset highlight and let user find again
+            clearSearchHighlight();
+            lastSearchTerm = searchTerm; // Keep term
+            return;
+        }
+    }
+
+    // Perform the replacement
+    const currentText = textarea.value;
+    const before = currentText.substring(0, lastSearchIndex);
+    const after = currentText.substring(lastSearchIndex + searchTerm.length);
+    const lengthDifference = replaceTerm.length - searchTerm.length;
+
+    textarea.value = before + replaceTerm + after;
+    console.log(`Replaced "${searchTerm}" with "${replaceTerm}" at absolute index ${lastSearchIndex}`);
+
+    // --- State Update ---
+    if (isSelectionOnly) {
+        // Update the END boundary used for the scan to reflect the change
+        const storedSelEnd = parseInt(textarea.dataset.lastSelectionScanEnd || '-1', 10);
+        if (storedSelEnd !== -1) {
+            textarea.dataset.lastSelectionScanEnd = storedSelEnd + lengthDifference;
+            console.log(`Updated selection scan end boundary to: ${textarea.dataset.lastSelectionScanEnd}`);
+        }
+        // Clear the specific match state, forcing findNext to re-scan the selection
+        lastSearchIndex = -1;
+        searchResultIndices = [];
+        currentHighlightIndex = -1;
+    } else {
+        // Full text replace: Just clear everything, simplest approach
+        clearSearchHighlight();
+        lastSearchTerm = searchTerm; // Keep term
+    }
+
+    // Set cursor position after the replaced text
+    textarea.focus();
+    const newCursorPos = lastSearchIndex + replaceTerm.length; // lastSearchIndex is the START of the replaced section
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+
+    updateSearchStatus(`Replaced at ${lastSearchIndex}. Find Next?`);
+
+    // DO NOT automatically call findNext(). Let the user do it.
+}
+
+function replaceAll() {
+    const textarea = document.getElementById('codes-textarea');
+    const searchTerm = document.getElementById('search-input').value;
+    const replaceTerm = document.getElementById('replace-input').value;
+    const selectionOnlyCheckbox = document.getElementById('search-selection-only'); // <<< ADDED
+
+    if (!textarea || !searchTerm) {
+        updateSearchStatus("Enter search term.");
+        return;
+    }
+
+    const isSelectionOnly = selectionOnlyCheckbox?.checked; // <<< ADDED
+    let replacementsMade = 0;
+    const originalText = textarea.value;
+    let newText = originalText;
+
+    // Escaping regex special characters in search term for safety
+    const escapedSearchTerm = searchTerm.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+    const regex = new RegExp(escapedSearchTerm, 'g'); // Global flag
+
+    // <<< ADDED: Logic for Selection Only >>>
+    if (isSelectionOnly) {
+        const startIndex = textarea.selectionStart;
+        const endIndex = textarea.selectionEnd;
+
+        if (startIndex === endIndex) {
+            updateSearchStatus("Select text first for 'Replace All in Selection'.");
+            return;
+        }
+
+        const selectedText = originalText.substring(startIndex, endIndex);
+        let replacedSelectedText = selectedText.replace(regex, () => {
+            replacementsMade++;
+            return replaceTerm;
+        });
+
+        if (replacementsMade > 0) {
+            newText = originalText.substring(0, startIndex) + replacedSelectedText + originalText.substring(endIndex);
+             textarea.value = newText;
+             // Optionally re-select the modified text
+             textarea.focus();
+             textarea.setSelectionRange(startIndex, startIndex + replacedSelectedText.length);
+
+             console.log(`Replaced ${replacementsMade} occurrences within selection.`);
+             updateSearchStatus(`Replaced ${replacementsMade} in selection.`);
+             // Reset search state
+             lastSearchTerm = '';
+             clearSearchHighlight();
+        } else {
+             updateSearchStatus(`"${searchTerm}" not found in selection.`);
+             console.log(`"${searchTerm}" not found for Replace All within selection.`);
+        }
+
+    }
+    // <<< END ADDED >>>
+    else {
+        // Full text replace (existing logic)
+        newText = originalText.replace(regex, () => {
+            replacementsMade++;
+            return replaceTerm;
+        });
+
+        if (replacementsMade > 0) {
+            textarea.value = newText;
+            console.log(`Replaced ${replacementsMade} occurrences of "${searchTerm}" with "${replaceTerm}".`);
+            updateSearchStatus(`Replaced ${replacementsMade} occurrences.`);
+            // Reset search state as content has significantly changed
+            lastSearchTerm = '';
+            clearSearchHighlight();
+        } else {
+            updateSearchStatus(`"${searchTerm}" not found.`);
+            console.log(`"${searchTerm}" not found for Replace All.`);
+        }
+    }
+}
 
