@@ -93,6 +93,16 @@
         <div class="modal-content">
             <span class="close-button">&times;</span>
             <h3>Edit Code Parameters</h3>
+
+            <!-- Find and Replace within Modal -->
+            <div class="modal-find-replace">
+                <input type="text" id="modal-find-input" placeholder="Find in values">
+                <input type="text" id="modal-replace-input" placeholder="Replace with">
+                <button id="modal-replace-all-button" class="ms-Button ms-Button--small">Replace All</button>
+                <span id="modal-search-status" class="modal-search-status-message"></span>
+            </div>
+            <!-- End Find and Replace -->
+
             <div id="code-params-modal-form">
                 <!-- Parameter fields will be inserted here by JS -->
             </div>

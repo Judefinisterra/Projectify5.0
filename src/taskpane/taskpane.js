@@ -1497,20 +1497,55 @@ Office.onReady((info) => {
     const applyParamsButton = document.getElementById('apply-code-params-button');
     const cancelParamsButton = document.getElementById('cancel-code-params-button');
 
+    // Modal Find/Replace elements
+    const modalFindInput = document.getElementById('modal-find-input');
+    const modalReplaceInput = document.getElementById('modal-replace-input');
+    const modalReplaceAllButton = document.getElementById('modal-replace-all-button');
+    const modalSearchStatus = document.getElementById('modal-search-status');
+
     let currentCodeStringRange = null; // To store {start, end} of the code string being edited
     let currentCodeStringType = ''; // To store the type like 'VOL-EV'
 
+    // State for modal find/replace (Simplified)
+    let modalSearchableElements = []; // Stores {element, originalValue}
+    // Removed modalSearchTerm, modalCurrentMatchIndex, modalAllMatches
+
+    // Function to reset modal search state (Simplified)
+    const resetModalSearchState = () => {
+        modalSearchableElements = Array.from(paramsModalForm.querySelectorAll('input[data-param-key], textarea[data-param-key]'));
+        if (modalSearchStatus) modalSearchStatus.textContent = '';
+        // Clear input fields as well?
+        // if (modalFindInput) modalFindInput.value = '';
+        // if (modalReplaceInput) modalReplaceInput.value = '';
+        console.log("Modal search state reset.");
+    };
+
+    // Function to update modal search status
+    const updateModalSearchStatus = (message) => {
+        if (modalSearchStatus) {
+            modalSearchStatus.textContent = message;
+        }
+    };
+
+    // Removed findAllMatchesInModal function
+
     // Function to show the modal
     const showParamsModal = () => {
-        if (paramsModal) paramsModal.style.display = 'block';
+        if (paramsModal) {
+            paramsModal.style.display = 'block';
+            resetModalSearchState(); // Reset search when modal opens
+        }
     };
 
     // Function to hide the modal
     const hideParamsModal = () => {
-        if (paramsModal) paramsModal.style.display = 'none';
-        paramsModalForm.innerHTML = ''; // Clear the form
-        currentCodeStringRange = null; // Reset state
-        currentCodeStringType = '';
+        if (paramsModal) {
+            paramsModal.style.display = 'none';
+            paramsModalForm.innerHTML = ''; // Clear the form
+            currentCodeStringRange = null; // Reset state
+            currentCodeStringType = '';
+            resetModalSearchState(); // Also reset search state on close
+        }
     };
 
     // Function to find the <...> block around the cursor
@@ -1569,7 +1604,7 @@ Office.onReady((info) => {
         return { type, params };
     };
 
-    // Function to populate the modal form
+    // Function to populate the modal form (needs to update searchable elements)
     const populateParamsModal = (type, params) => {
         paramsModalForm.innerHTML = ''; // Clear previous form items
         currentCodeStringType = type; // Store the type
@@ -1582,11 +1617,13 @@ Office.onReady((info) => {
             label.htmlFor = `param-${key}`;
             label.textContent = key;
 
-            // Use textarea for potentially long values like 'row1', input otherwise
             let inputElement;
-            if (key.toLowerCase().includes('row') || value.length > 60) { // Heuristic for textarea
+            const isLongValue = key.toLowerCase().includes('row') || value.length > 60;
+            const isLIParam = /LI\d+\|/.test(value.trim()); // Check if value starts with LI<digit>|
+
+            if (isLongValue || isLIParam) { // Use textarea for LI params too, for consistency
                 inputElement = document.createElement('textarea');
-                inputElement.rows = 3; // Adjust as needed
+                inputElement.rows = isLIParam ? 2 : 3; // Slightly smaller for LI rows initially
             } else {
                 inputElement = document.createElement('input');
                 inputElement.type = 'text';
@@ -1594,12 +1631,75 @@ Office.onReady((info) => {
 
             inputElement.id = `param-${key}`;
             inputElement.value = value;
-            inputElement.dataset.paramKey = key; // Store the key
+            inputElement.dataset.paramKey = key;
+            if (isLIParam) {
+                inputElement.dataset.isOriginalLi = "true"; // Mark original LI fields
+            }
 
             paramEntryDiv.appendChild(label);
-            paramEntryDiv.appendChild(inputElement);
+
+            if (isLIParam) {
+                // Create a container for the LI field and its add button
+                const liContainer = document.createElement('div');
+                liContainer.className = 'li-parameter-container';
+                liContainer.dataset.originalLiKey = key; // Link container to original key
+
+                liContainer.appendChild(inputElement); // Add the input field first
+
+                // Create the Add button
+                const addButton = document.createElement('button');
+                addButton.type = 'button'; // Important: prevent form submission
+                addButton.textContent = '+';
+                addButton.className = 'ms-Button ms-Button--icon add-li-button'; // Add specific class
+                addButton.title = 'Add another LI item based on this one';
+                addButton.dataset.targetLiKey = key; // Link button to the input's key
+
+                addButton.onclick = (event) => {
+                    const sourceInput = document.getElementById(`param-${key}`);
+                    if (!sourceInput) return;
+
+                    const newValueContainer = document.createElement('div');
+                    newValueContainer.className = 'added-li-item';
+
+                    const newInput = sourceInput.cloneNode(true); // Clone the original input/textarea
+                    // Clear ID, mark as added, remove original marker
+                    newInput.id = '';
+                    newInput.dataset.isAddedLi = "true";
+                    delete newInput.dataset.isOriginalLi;
+                    newInput.dataset.originalLiKey = key; // Link back to the original key
+                    // Keep the same value as the original initially
+                    newInput.value = sourceInput.value; // Duplicate the content
+
+                    // Add a remove button for the added item
+                    const removeButton = document.createElement('button');
+                    removeButton.type = 'button';
+                    removeButton.textContent = '-';
+                    removeButton.className = 'ms-Button ms-Button--icon remove-li-button';
+                    removeButton.title = 'Remove this added LI item';
+                    removeButton.onclick = () => {
+                        newValueContainer.remove();
+                    };
+
+                    newValueContainer.appendChild(newInput);
+                    newValueContainer.appendChild(removeButton);
+
+                    // Insert the new container after the clicked button
+                    // or after the last added item within this container
+                    event.target.parentNode.appendChild(newValueContainer);
+                     // Maybe scroll container? paramsModalForm.scrollTop = paramsModalForm.scrollHeight;
+                };
+
+                liContainer.appendChild(addButton); // Add button after input
+                paramEntryDiv.appendChild(liContainer); // Add container to entry div
+
+            } else {
+                 paramEntryDiv.appendChild(inputElement); // Non-LI params added directly
+            }
+
             paramsModalForm.appendChild(paramEntryDiv);
         });
+        // IMPORTANT: Update searchable elements after populating
+        resetModalSearchState(); // Reset search state after populating form
     };
 
     // --- Event Listener for the Edit Parameters Button ---
@@ -1636,18 +1736,53 @@ Office.onReady((info) => {
         cancelParamsButton.onclick = hideParamsModal;
     }
 
+    // --- APPLY CHANGES LOGIC (MODIFIED) ---
     if (applyParamsButton && codesTextarea) {
         applyParamsButton.onclick = () => {
             if (!currentCodeStringRange || !currentCodeStringType) return; // Safety check
 
+            // Use a map to reconstruct parameters, handling LI aggregation
+            const paramValues = {};
+
+            // Process all input/textarea fields in the form
             const formElements = paramsModalForm.querySelectorAll('input[data-param-key], textarea[data-param-key]');
-            const updatedParams = [];
 
             formElements.forEach(input => {
                 const key = input.dataset.paramKey;
+                const isOriginalLI = input.dataset.isOriginalLi === "true";
+                const isAddedLI = input.dataset.isAddedLi === "true";
                 const value = input.value;
-                // Re-add quotes around the value
-                updatedParams.push(`${key}="${value}"`);
+
+                if (isOriginalLI) {
+                    // If it's an original LI, initialize its value in the map
+                    if (!paramValues[key]) {
+                        paramValues[key] = value; // Start with the original value
+                    }
+                } else if (isAddedLI) {
+                    // This case handled below by finding related elements
+                    // We only need to store original keys first
+                } else if (key && !isAddedLI) {
+                    // Standard parameter, just store its value
+                     if (!paramValues[key]) { // Check prevents overwriting if key appears twice (shouldn't happen)
+                       paramValues[key] = value;
+                    }
+                }
+            });
+
+            // Now, aggregate added LI items
+            const addedLiElements = paramsModalForm.querySelectorAll('textarea[data-is-added-li="true"]');
+            addedLiElements.forEach(addedInput => {
+                 const originalKey = addedInput.dataset.originalLiKey;
+                 if (originalKey && paramValues[originalKey]) {
+                      // Append the added value, prefixed with *
+                      paramValues[originalKey] += ` *${addedInput.value}`;
+                 }
+            });
+
+            // Build the final parameter string parts
+            const updatedParams = Object.entries(paramValues).map(([key, finalValue]) => {
+                 // Re-add quotes around the final aggregated value
+                 return `${key}="${finalValue}"`;
             });
 
             // Reconstruct the code string
@@ -1662,6 +1797,7 @@ Office.onReady((info) => {
             codesTextarea.value = textBefore + newCodeString + textAfter;
 
             console.log(`Updated code string at [${currentCodeStringRange.start}, ${currentCodeStringRange.start + newCodeString.length})`);
+            console.log("New string:", newCodeString);
 
             // Optionally, update cursor position
             const newCursorPos = currentCodeStringRange.start + newCodeString.length;
@@ -1672,13 +1808,51 @@ Office.onReady((info) => {
         };
     }
 
-    // Hide modal if clicked outside the content
-    window.onclick = (event) => {
-        if (event.target == paramsModal) {
-            hideParamsModal();
+    // --- Modal Find/Replace Logic (Simplified) ---
+
+    const modalReplaceAll = () => {
+        const searchTerm = modalFindInput.value;
+        const replaceTerm = modalReplaceInput.value;
+        if (!searchTerm) {
+            updateModalSearchStatus("Enter search term.");
+            return;
+        }
+
+        // Ensure searchable elements are up-to-date
+        modalSearchableElements = Array.from(paramsModalForm.querySelectorAll('input[data-param-key], textarea[data-param-key]'));
+
+        let replacementsMade = 0;
+        modalSearchableElements.forEach((element, index) => {
+            let currentValue = element.value;
+            // Escape regex special characters in search term
+            const escapedSearchTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            let newValue = currentValue.replace(new RegExp(escapedSearchTerm, 'g'), () => {
+                replacementsMade++;
+                return replaceTerm;
+            });
+            if (currentValue !== newValue) {
+                element.value = newValue;
+                console.log(`Modal Replace All: Made replacements in element ${index}`);
+            }
+        });
+
+        if (replacementsMade > 0) {
+            updateModalSearchStatus(`Replaced ${replacementsMade} occurrence(s).`);
+            // No need to reset search state as there's no find next
+        } else {
+            updateModalSearchStatus(`"${searchTerm}" not found.`);
         }
     };
 
+    // Add event listeners for modal find/replace buttons (Simplified)
+    // Removed listeners for Find Next and Replace
+    if (modalReplaceAllButton) modalReplaceAllButton.onclick = modalReplaceAll;
+    // Removed input listener for modalFindInput
+
+    // --- Event Listeners for Modal Actions ---
+    if (closeModalButton) {
+        closeModalButton.onclick = hideParamsModal;
+    }
 
     // ... (rest of your Office.onReady, including suggestion logic, initializations)
 
