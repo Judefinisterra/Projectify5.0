@@ -13,6 +13,8 @@ import { validateCodeStrings } from './Validation.js';
 // import { handleInsertWorksheetsFromBase64 } from './SpreadsheetUtils.js';
 // Import code collection functions
 import { populateCodeCollection, exportCodeCollectionToText, runCodes, processAssumptionTabs, collapseGroupingsAndNavigateToFinancials, hideColumnsAndNavigate, handleInsertWorksheetsFromBase64 } from './CodeCollection.js';
+// >>> ADDED: Import the new validation function
+import { validateCodeStringsForRun } from './Validation.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -1144,26 +1146,29 @@ function getMaxDriverNumbers(text) {
 // Function to insert sheets and then run code collection
 async function insertSheetsAndRunCodes() {
 
-    let codesToRun = "";
-    let previousCodes = null;
-    let codeStringToProcess = ""; // This will hold the codes actually run
-
-    // Load current codes
-    try {
-        const storedCodes = localStorage.getItem('userCodeStrings');
-        codesToRun = storedCodes !== null ? storedCodes : "";
-        console.log("[Run Codes] Initial value loaded for codesToRun (truncated):", codesToRun.substring(0, 200) + (codesToRun.length > 200 ? '...' : '')); 
-        console.log("[Run Codes] Initial length for codesToRun: " + codesToRun.length);
-        if (codesToRun.trim().length === 0) {
-             console.warn("[Run Codes] Code string is empty. Nothing to run.");
-             showMessage("Code string is empty. Please add codes via 'View Codes'.");
-             return;
-        }
-    } catch (error) {
-        console.error("[Run Codes] Error loading current codes from localStorage:", error);
-        showError("Error loading codes. Cannot proceed.");
+    // >>> ADDED: Get codes from textarea and save automatically
+    const codesTextarea = document.getElementById('codes-textarea');
+    if (!codesTextarea) {
+        showError("Could not find the code input area. Cannot run codes.");
         return;
     }
+    loadedCodeStrings = codesTextarea.value; // Update global variable
+    try {
+        localStorage.setItem('userCodeStrings', loadedCodeStrings);
+        console.log("[Run Codes] Automatically saved codes from textarea to localStorage.");
+        // Optionally show a brief success message, though might be too noisy
+        // showMessage("Codes saved automatically."); 
+    } catch (error) {
+        console.error("[Run Codes] Error auto-saving codes to localStorage:", error);
+        showError(`Error automatically saving codes: ${error.message}. Run may not reflect latest changes.`);
+        // Decide if we should stop here or continue with potentially old codes
+        // For now, we'll continue but the user has been warned.
+    }
+    // <<< END ADDED CODE
+
+    let codesToRun = loadedCodeStrings; // Use the updated global variable
+    let previousCodes = null;
+    let codeStringToProcess = ""; // Reset this here
 
     // Main processing wrapped in try/catch/finally
     try {
@@ -1300,6 +1305,35 @@ async function insertSheetsAndRunCodes() {
          
         // If we have codes to process, continue...
         console.log("Populating collection for codes to process...");
+        
+        // >>> ADDED: Validate the codes before running
+        console.log("Validating codes before execution...");
+        // Use the new validation function
+        const validationErrors = await validateCodeStringsForRun(codeStringToProcess.split(/\r?\n/).filter(line => line.trim() !== '')); 
+        
+        if (validationErrors && validationErrors.length > 0) { // Check if the array has errors
+            // Revert to simpler error message construction assuming an array
+            const errorMsg = "Validation failed. Please fix the errors before running:\n" + validationErrors.join("\n");
+            
+            /* // Remove the complex type checking
+            // Check if the result is an array before joining
+            if (Array.isArray(validationErrors)) {
+                errorMsg += validationErrors.join("\n");
+            } else {
+                // If not an array, treat as a single message or convert object to string
+                errorMsg += String(validationErrors); 
+            }
+            */
+            
+            console.error("Code validation failed:", validationErrors);
+            showError("Code validation failed. See chat for details.");
+            appendMessage(errorMsg); // Show errors in chat
+            setButtonLoading(false); // Re-enable button
+            return; // Stop execution
+        }
+        console.log("Code validation successful.");
+        // <<< END VALIDATION
+        
         const collection = populateCodeCollection(codeStringToProcess);
         console.log(`Collection populated with ${collection.length} code(s)`);
 
@@ -1383,8 +1417,7 @@ Office.onReady((info) => {
     
     // Get modal elements
     const codesTextarea = document.getElementById('codes-textarea');
-    const saveCodesChangesButton = document.getElementById('save-codes-changes');
-
+    
     // >>>>>>>>> ADDED: Get references to new modal elements (assuming IDs)
     const codeSearchInput = document.getElementById('code-search-input');
     const codeSuggestionsContainer = document.getElementById('code-suggestions');
@@ -1450,50 +1483,61 @@ Office.onReady((info) => {
               const cursorPosition = codesTextarea.selectionStart; // Get cursor position
               let codeToAdd = item.code; // Start with the original code
 
-              // 1. Find max existing numbers
-              const maxNumbers = getMaxDriverNumbers(currentText);
+              // --- Determine actual insertion position --- 
+              let insertionPosition = cursorPosition;
+              const textBeforeCursor = currentText.substring(0, cursorPosition);
+              const lastOpenBracket = textBeforeCursor.lastIndexOf('<');
+              const lastCloseBracket = textBeforeCursor.lastIndexOf('>');
+              
+              if (lastOpenBracket > lastCloseBracket) { // Cursor is potentially inside a tag
+                const textAfterCursor = currentText.substring(cursorPosition);
+                const nextCloseBracket = textAfterCursor.indexOf('>');
+                if (nextCloseBracket !== -1) { // Found a closing bracket after the cursor
+                    // Cursor is confirmed inside <...>. Adjust insertion point.
+                    insertionPosition = cursorPosition + nextCloseBracket + 1;
+                    console.log(`Cursor inside <>, adjusting insertion point to after > at ${insertionPosition}`);
+                }
+              }
+              // --- End insertion position adjustment ---
+
+              // 1. Find max existing numbers (using full text)
+              const maxNumbers = getMaxDriverNumbers(currentText); 
 
               // 2. Modify the codeToAdd with incremented numbers
-              // MODIFIED Regex: Allow optional spaces around =
-              // Captures: 1=(row...="), 2=prefix, 3=existingNum(opt), 4=pipe
               const driverRegex = /(row\d+\s*=\s*")([A-Z]+)(\d*)(\|)/g;
               const nextNumbers = { ...maxNumbers }; // Clone for incrementing
 
               codeToAdd = codeToAdd.replace(driverRegex, (match, rowPart, prefix, existingNumberStr, pipePart) => {
-                  // Calculate the next number based on existing max
                   nextNumbers[prefix] = (nextNumbers[prefix] || 0) + 1;
                   const newNumber = nextNumbers[prefix];
-                  // Construct the replacement: rowPart + prefix + newNumber + pipePart
                   const replacement = `${rowPart}${prefix}${newNumber}${pipePart}`;
                   console.log(`Replacing driver: '${prefix}${existingNumberStr || ''}|' with '${prefix}${newNumber}|'`);
                   return replacement;
               });
 
+              console.log("Modified code to add:", codeToAdd);
 
-              console.log("Modified code to add:", codeToAdd); // Debug log
+              // 3. Insert the modified code string at the calculated insertionPosition
+              const textBeforeInsertion = currentText.substring(0, insertionPosition);
+              const textAfterInsertion = currentText.substring(insertionPosition);
 
-              // 3. Insert the modified code string at the cursor position
-              const textBeforeCursor = currentText.substring(0, cursorPosition);
-              const textAfterCursor = currentText.substring(cursorPosition);
-
-              // Add newlines for better formatting if needed
+              // Add newlines for better formatting
               let prefixNewline = '';
-              if (cursorPosition > 0 && textBeforeCursor[cursorPosition - 1] !== '\n') {
-                  prefixNewline = '\n'; // Add newline before if not at the start of a line
+              if (insertionPosition > 0 && textBeforeInsertion[insertionPosition - 1] !== '\n') {
+                  prefixNewline = '\n';
               }
-              let suffixNewline = '\n'; // Add newline after by default
-              if (cursorPosition === currentText.length || textAfterCursor[0] === '\n') {
-                  suffixNewline = ''; // Don't add suffix newline if at the end or next char is already newline
+              let suffixNewline = '\n';
+              if (insertionPosition === currentText.length || (textAfterInsertion.length > 0 && textAfterInsertion[0] === '\n') ) {
+                  suffixNewline = '';
               }
               
               // Construct the new text
-              const newText = textBeforeCursor + prefixNewline + codeToAdd + suffixNewline + textAfterCursor;
+              const newText = textBeforeInsertion + prefixNewline + codeToAdd + suffixNewline + textAfterInsertion;
               codesTextarea.value = newText;
               
-              // Optional: Set cursor position after the inserted text
-              const newCursorPosition = cursorPosition + (prefixNewline + codeToAdd + suffixNewline).length;
+              // Set cursor position after the inserted text
+              const newCursorPosition = insertionPosition + (prefixNewline + codeToAdd + suffixNewline).length;
               codesTextarea.setSelectionRange(newCursorPosition, newCursorPosition);
-
 
               // Clear search and hide suggestions
               codeSearchInput.value = '';
@@ -1559,28 +1603,8 @@ Office.onReady((info) => {
     }
     // >>>>>>>>> END ADDED
 
-    if (saveCodesChangesButton && codesTextarea) {
-       saveCodesChangesButton.onclick = () => {
-         // Update the global variable first
-         loadedCodeStrings = codesTextarea.value;
-         // Log the update to the global variable
-         console.log('[Save Handler] Global loadedCodeStrings updated to:', loadedCodeStrings.substring(0,100) + '...');
-         try {
-           // Save the updated global variable to localStorage
-           localStorage.setItem('userCodeStrings', loadedCodeStrings);
-           console.log("Code strings saved to localStorage.");
-           showMessage("Code changes saved."); // Inform user
-         } catch (error) {
-           console.error("Error saving code strings to localStorage:", error);
-           showError(`Error saving codes: ${error.message}`);
-         }
-         // No need to log again here, already logged above
-       };
-     }
-
     // Test Buttons (Add similar checks if they are essential)
     // const testGreenCellButton = document.getElementById('test-green-cell');
-    // if (testGreenCellButton) testGreenCellButton.onclick = isActiveCellGreen;
 
     // Initialize API keys, load history etc.
     Promise.all([ // <<<<< UPDATED: Use Promise.all for parallel loading
