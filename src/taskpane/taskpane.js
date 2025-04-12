@@ -1723,6 +1723,329 @@ Office.onReady((info) => {
 
     document.getElementById("sideload-msg").style.display = "none";
     document.getElementById("app-body").style.display = "block";
+
+    // ... (existing modal logic: applyParamsButton.onclick, window.onclick)
+
+    // --- Code Suggestion Logic (Restored) ---
+    let dynamicSuggestionsContainer = document.getElementById('dynamic-suggestions-container');
+    if (!dynamicSuggestionsContainer) {
+        dynamicSuggestionsContainer = document.createElement('div');
+        dynamicSuggestionsContainer.id = 'dynamic-suggestions-container';
+        dynamicSuggestionsContainer.className = 'code-suggestions'; // Reuse class if styling exists
+        dynamicSuggestionsContainer.style.display = 'none';
+        // Basic positioning styles (adjust in CSS for better control)
+        dynamicSuggestionsContainer.style.position = 'absolute';
+        dynamicSuggestionsContainer.style.border = '1px solid #ccc';
+        dynamicSuggestionsContainer.style.backgroundColor = 'white';
+        dynamicSuggestionsContainer.style.maxHeight = '150px';
+        dynamicSuggestionsContainer.style.overflowY = 'auto';
+        dynamicSuggestionsContainer.style.zIndex = '1000';
+
+        // Insert after the textarea's container or adjust as needed
+        if (codesTextarea && codesTextarea.parentNode) { // Check if codesTextarea exists
+            codesTextarea.parentNode.insertBefore(dynamicSuggestionsContainer, codesTextarea.nextSibling);
+        } else {
+            // Fallback: Append to body, though less ideal positioning
+            document.body.appendChild(dynamicSuggestionsContainer);
+        }
+
+        // Function to update position and width
+        const updateSuggestionPosition = () => {
+          if (dynamicSuggestionsContainer.style.display === 'block' && codesTextarea) {
+              const rect = codesTextarea.getBoundingClientRect();
+              dynamicSuggestionsContainer.style.width = codesTextarea.offsetWidth + 'px';
+              dynamicSuggestionsContainer.style.top = (rect.bottom + window.scrollY) + 'px';
+              dynamicSuggestionsContainer.style.left = (rect.left + window.scrollX) + 'px';
+          }
+        };
+
+        // Update on resize and scroll
+        window.addEventListener('resize', updateSuggestionPosition);
+        window.addEventListener('scroll', updateSuggestionPosition, true); // Use capture phase for scroll
+    }
+
+    let highlightedSuggestionIndex = -1;
+    let currentSuggestions = [];
+
+    const updateHighlight = (newIndex) => {
+      if (!dynamicSuggestionsContainer) return; // Guard against null
+      const suggestionItems = dynamicSuggestionsContainer.querySelectorAll('.code-suggestion-item');
+      if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestionItems.length) {
+        suggestionItems[highlightedSuggestionIndex].classList.remove('suggestion-highlight');
+      }
+      if (newIndex >= 0 && newIndex < suggestionItems.length) {
+        suggestionItems[newIndex].classList.add('suggestion-highlight');
+        suggestionItems[newIndex].scrollIntoView({ block: 'nearest' });
+      }
+      highlightedSuggestionIndex = newIndex;
+    };
+
+    const showSuggestionsForTerm = (searchTerm) => {
+        if (!dynamicSuggestionsContainer || !codesTextarea) return; // Guard against null
+
+        searchTerm = searchTerm.toLowerCase().trim();
+        console.log(`[showSuggestionsForTerm] Search Term: '${searchTerm}'`);
+
+        dynamicSuggestionsContainer.innerHTML = '';
+        highlightedSuggestionIndex = -1;
+        currentSuggestions = [];
+
+        if (searchTerm.length < 2) {
+            console.log("[showSuggestionsForTerm] Search term too short, hiding suggestions.");
+            dynamicSuggestionsContainer.style.display = 'none';
+            return;
+        }
+
+        console.log("[showSuggestionsForTerm] Filtering code database...");
+        const suggestions = codeDatabase
+            .filter(item => {
+                const hasName = item && typeof item.name === 'string';
+                return hasName && item.name.toLowerCase().includes(searchTerm);
+            })
+            .slice(0, 10);
+
+        currentSuggestions = suggestions;
+        console.log(`[showSuggestionsForTerm] Found ${currentSuggestions.length} suggestions:`, currentSuggestions);
+
+        if (currentSuggestions.length > 0) {
+            console.log("[showSuggestionsForTerm] Populating suggestions container...");
+            currentSuggestions.forEach((item, i) => {
+                const suggestionDiv = document.createElement('div');
+                suggestionDiv.className = 'code-suggestion-item';
+                suggestionDiv.textContent = item.name;
+                suggestionDiv.dataset.index = i;
+
+                suggestionDiv.onclick = () => {
+                    console.log(`Suggestion clicked: '${item.name}'`);
+                    const currentText = codesTextarea.value;
+                    const cursorPosition = codesTextarea.selectionStart;
+                    let codeToAdd = item.code;
+
+                    let insertionPosition = cursorPosition;
+                    let wasAdjusted = false;
+                    const textBeforeCursor = currentText.substring(0, cursorPosition);
+                    const lastOpenBracket = textBeforeCursor.lastIndexOf('<');
+                    const lastCloseBracket = textBeforeCursor.lastIndexOf('>');
+
+                    if (lastOpenBracket > lastCloseBracket) {
+                        const textAfterCursor = currentText.substring(cursorPosition);
+                        const nextCloseBracket = textAfterCursor.indexOf('>');
+                        if (nextCloseBracket !== -1) {
+                            insertionPosition = cursorPosition + nextCloseBracket + 1;
+                            wasAdjusted = true;
+                            console.log(`Cursor inside <>, adjusting insertion point to after > at ${insertionPosition}`);
+                        }
+                    }
+
+                    const maxNumbers = getMaxDriverNumbers(currentText);
+                    // Corrected regex - double escapes not needed in string literal here
+                    const driverRegex = /(row\d+\s*=\s*")([A-Z]+)(\d*)(\|)/g;
+                    const nextNumbers = { ...maxNumbers };
+
+                    codeToAdd = codeToAdd.replace(driverRegex, (match, rowPart, prefix, existingNumberStr, pipePart) => {
+                        nextNumbers[prefix] = (nextNumbers[prefix] || 0) + 1;
+                        const newNumber = nextNumbers[prefix];
+                        const replacement = `${rowPart}${prefix}${newNumber}${pipePart}`;
+                        console.log(`Replacing driver: '${prefix}${existingNumberStr || ''}|' with '${prefix}${newNumber}|'`);
+                        return replacement;
+                    });
+
+                    console.log("Modified code to add:", codeToAdd);
+
+                    const textAfterInsertion = currentText.substring(insertionPosition);
+                    let textBeforeFinal = "";
+                    let searchStartIndex = insertionPosition;
+
+                    if (!wasAdjusted) {
+                        const textBeforeInsertion = currentText.substring(0, insertionPosition);
+                        let tempSearchStart = cursorPosition - 1;
+                        while (tempSearchStart >= 0) {
+                            const char = textBeforeCursor[tempSearchStart];
+                             // CORRECTED REGEX IN ONCLICK:
+                            if (/\s|\n|>|<|;|\|/.test(char)) {
+                                tempSearchStart++;
+                                break;
+                            }
+                            tempSearchStart--;
+                        }
+                        if (tempSearchStart < 0) tempSearchStart = 0;
+
+                        searchStartIndex = tempSearchStart;
+                        const searchTermToRemove = textBeforeCursor.substring(searchStartIndex, cursorPosition);
+                        console.log(`Attempting to replace term: '${searchTermToRemove}' starting at index ${searchStartIndex}`);
+                        textBeforeFinal = currentText.substring(0, searchStartIndex);
+                    } else {
+                         textBeforeFinal = currentText.substring(0, insertionPosition);
+                         searchStartIndex = insertionPosition;
+                    }
+
+                    const firstNewlineIndexInSuffix = textAfterInsertion.indexOf('\n');
+                    let remainderOfOriginalLine = "";
+                    let subsequentLines = "";
+
+                    if (firstNewlineIndexInSuffix === -1) {
+                        remainderOfOriginalLine = textAfterInsertion;
+                    } else {
+                        remainderOfOriginalLine = textAfterInsertion.substring(0, firstNewlineIndexInSuffix);
+                        subsequentLines = textAfterInsertion.substring(firstNewlineIndexInSuffix);
+                    }
+
+                    const newText = textBeforeFinal +
+                                    codeToAdd +
+                                    (remainderOfOriginalLine.length > 0 ? '\n' : '') +
+                                    remainderOfOriginalLine +
+                                    subsequentLines;
+
+                    codesTextarea.value = newText;
+
+                    const newCursorPosition = (textBeforeFinal + codeToAdd).length;
+                    codesTextarea.focus();
+                    codesTextarea.setSelectionRange(newCursorPosition, newCursorPosition);
+
+                    dynamicSuggestionsContainer.innerHTML = '';
+                    dynamicSuggestionsContainer.style.display = 'none';
+                    highlightedSuggestionIndex = -1;
+                    currentSuggestions = [];
+                };
+
+                suggestionDiv.onmouseover = () => {
+                    updateHighlight(i);
+                };
+
+                dynamicSuggestionsContainer.appendChild(suggestionDiv);
+            });
+            console.log("[showSuggestionsForTerm] Setting suggestions display to 'block'");
+
+            const rect = codesTextarea.getBoundingClientRect();
+            dynamicSuggestionsContainer.style.width = codesTextarea.offsetWidth + 'px';
+            dynamicSuggestionsContainer.style.top = (rect.bottom + window.scrollY) + 'px';
+            dynamicSuggestionsContainer.style.left = (rect.left + window.scrollX) + 'px';
+            dynamicSuggestionsContainer.style.display = 'block';
+        } else {
+            console.log("[showSuggestionsForTerm] No suggestions found, hiding container.");
+            dynamicSuggestionsContainer.style.display = 'none';
+        }
+    };
+
+    if (codesTextarea && dynamicSuggestionsContainer) {
+        codesTextarea.oninput = (event) => {
+             if (!event.isTrusted || !dynamicSuggestionsContainer) {
+                 return;
+             }
+            const cursorPosition = codesTextarea.selectionStart;
+            const currentText = codesTextarea.value;
+
+            const textBeforeCursor = currentText.substring(0, cursorPosition);
+            const lastOpenBracket = textBeforeCursor.lastIndexOf('<');
+            const lastCloseBracket = textBeforeCursor.lastIndexOf('>');
+            let isInsideBrackets = false;
+            if (lastOpenBracket > lastCloseBracket) {
+                const textAfterCursor = currentText.substring(cursorPosition);
+                const nextCloseBracket = textAfterCursor.indexOf('>');
+                if (nextCloseBracket !== -1 ) {
+                    isInsideBrackets = true;
+                }
+            }
+
+            if (isInsideBrackets) {
+                console.log("[Textarea Input] Cursor inside <>, hiding suggestions.");
+                dynamicSuggestionsContainer.style.display = 'none';
+                highlightedSuggestionIndex = -1;
+                currentSuggestions = [];
+            } else {
+                let searchStart = cursorPosition - 1;
+                while (searchStart >= 0) {
+                    const char = textBeforeCursor[searchStart];
+                    // CORRECTED REGEX: No double escapes needed
+                    if (/\s|\n|>|<|;|\|/.test(char)) {
+                        searchStart++;
+                        break;
+                    }
+                    searchStart--;
+                }
+                if (searchStart < 0) searchStart = 0;
+
+                console.log(`[Textarea Input Debug] cursorPosition: ${cursorPosition}, calculated searchStart: ${searchStart}, char at searchStart: '${searchStart < currentText.length ? textBeforeCursor[searchStart] : 'EOF'}'`);
+
+                const searchTerm = textBeforeCursor.substring(searchStart, cursorPosition);
+                const trimmedSearchTerm = searchTerm.trim();
+
+                if (trimmedSearchTerm.length === 0 || !/^[a-zA-Z]/.test(trimmedSearchTerm)) {
+                     if (trimmedSearchTerm.length === 0) {
+                         console.log(`[Textarea Input] Hiding suggestions (empty term detected immediately after delimiter)`);
+                     } else {
+                         console.log(`[Textarea Input] Hiding suggestions (term does not start with letter: '${searchTerm}')`);
+                     }
+                    dynamicSuggestionsContainer.style.display = 'none';
+                    highlightedSuggestionIndex = -1;
+                    currentSuggestions = [];
+                } else {
+                    console.log(`[Textarea Input] Cursor outside <>, potential search term: '${searchTerm}'`);
+                    showSuggestionsForTerm(searchTerm);
+                }
+            }
+        };
+
+        codesTextarea.onkeydown = (event) => {
+            if (!dynamicSuggestionsContainer || dynamicSuggestionsContainer.style.display !== 'block' || currentSuggestions.length === 0) {
+                return;
+            }
+
+            const suggestionItems = dynamicSuggestionsContainer.querySelectorAll('.code-suggestion-item');
+            let newIndex = highlightedSuggestionIndex;
+
+            switch (event.key) {
+                case 'ArrowDown':
+                case 'ArrowUp':
+                    event.preventDefault();
+                    newIndex = event.key === 'ArrowDown'
+                        ? (highlightedSuggestionIndex + 1) % currentSuggestions.length
+                        : (highlightedSuggestionIndex - 1 + currentSuggestions.length) % currentSuggestions.length;
+                    updateHighlight(newIndex);
+                    break;
+
+                case 'Enter':
+                 case 'Tab':
+                    event.preventDefault();
+                    if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestionItems.length) {
+                        suggestionItems[highlightedSuggestionIndex].click();
+                    } else if (currentSuggestions.length > 0 && suggestionItems.length > 0) {
+                         suggestionItems[0].click(); // Select first if none highlighted
+                    }
+                    // Suggestion click handles hiding
+                    break;
+
+                case 'Escape':
+                    event.preventDefault();
+                    dynamicSuggestionsContainer.style.display = 'none';
+                    highlightedSuggestionIndex = -1;
+                    currentSuggestions = [];
+                    break;
+
+                default:
+                    if (!event.ctrlKey && !event.altKey && !event.metaKey && event.key.length === 1) {
+                       updateHighlight(-1);
+                    }
+                    break;
+            }
+        };
+
+         codesTextarea.addEventListener('blur', () => {
+             if (!dynamicSuggestionsContainer) return;
+             setTimeout(() => {
+                 if (!dynamicSuggestionsContainer.contains(document.activeElement)) {
+                      dynamicSuggestionsContainer.style.display = 'none';
+                      highlightedSuggestionIndex = -1;
+                 }
+             }, 150);
+         });
+    }
+    // --- End of Code Suggestion Logic ---
+
+
+    // ... (rest of your Office.onReady, e.g., Promise.all)
+
+    // Make sure initialization runs after setting up modal logic
   }
 });
 
