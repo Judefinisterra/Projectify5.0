@@ -706,8 +706,6 @@ async function handleInitialConversation(clientprompt) {
 
 }
 
-
-
 function savePromptAnalysis(clientprompt, systemPrompt, MainPrompt, validationSystemPrompt, validationMainPrompt, validationResults, call2context, call1context, trainingdataCall2, codeOptions, outputArray2) {
     try {
         const analysisData = {
@@ -1111,7 +1109,37 @@ function getTabBlocks(codeString) {
     }
     return tabBlocks;
 }
-// *** End Helper Function Definition ***
+
+// Helper function to find max driver numbers in existing text
+function getMaxDriverNumbers(text) {
+    const maxNumbers = {};
+    // MODIFIED Regex: Allow optional spaces around =
+    const regex = /row\d+\s*=\s*"([A-Z]+)(\d*)\|/g;
+    let match;
+    console.log("Scanning text for drivers:", text.substring(0, 200) + "..."); // Log input text
+
+    while ((match = regex.exec(text)) !== null) {
+        const prefix = match[1];
+        const numberStr = match[2];
+        const number = numberStr ? parseInt(numberStr, 10) : 0;
+        console.log(`Found driver match: prefix='${prefix}', numberStr='${numberStr}', number=${number}`); // Log each match
+
+        if (isNaN(number)) {
+             console.warn(`Parsed NaN for number from '${numberStr}' for prefix '${prefix}'. Skipping.`);
+             continue;
+        }
+
+        if (!maxNumbers[prefix] || number > maxNumbers[prefix]) {
+            maxNumbers[prefix] = number;
+            console.log(`Updated max for '${prefix}' to ${number}`); // Log updates
+        }
+    }
+    if (Object.keys(maxNumbers).length === 0) {
+        console.log("No existing drivers found matching the pattern.");
+    }
+    console.log("Final max existing driver numbers:", maxNumbers);
+    return maxNumbers;
+}
 
 // Function to insert sheets and then run code collection
 async function insertSheetsAndRunCodes() {
@@ -1435,7 +1463,6 @@ Office.onReady((info) => {
 
         if (currentSuggestions.length > 0) {
           console.log("Populating suggestions container...");
-          // >>>>>>>>> MODIFIED: Use index 'i'
           currentSuggestions.forEach((item, i) => { 
             const suggestionDiv = document.createElement('div');
             suggestionDiv.className = 'code-suggestion-item'; // Add a class for styling
@@ -1444,9 +1471,32 @@ Office.onReady((info) => {
             
             suggestionDiv.onclick = () => {
               console.log(`Suggestion clicked: '${item.name}'`);
-              // Append the code string to the textarea
               const currentText = codesTextarea.value;
-              const codeToAdd = item.code;
+              let codeToAdd = item.code; // Start with the original code
+
+              // 1. Find max existing numbers
+              const maxNumbers = getMaxDriverNumbers(currentText);
+
+              // 2. Modify the codeToAdd with incremented numbers
+              // MODIFIED Regex: Allow optional spaces around =
+              // Captures: 1=(row...="), 2=prefix, 3=existingNum(opt), 4=pipe
+              const driverRegex = /(row\d+\s*=\s*")([A-Z]+)(\d*)(\|)/g;
+              const nextNumbers = { ...maxNumbers }; // Clone for incrementing
+
+              codeToAdd = codeToAdd.replace(driverRegex, (match, rowPart, prefix, existingNumberStr, pipePart) => {
+                  // Calculate the next number based on existing max
+                  nextNumbers[prefix] = (nextNumbers[prefix] || 0) + 1;
+                  const newNumber = nextNumbers[prefix];
+                  // Construct the replacement: rowPart + prefix + newNumber + pipePart
+                  const replacement = `${rowPart}${prefix}${newNumber}${pipePart}`;
+                  console.log(`Replacing driver: '${prefix}${existingNumberStr || ''}|' with '${prefix}${newNumber}|'`);
+                  return replacement;
+              });
+
+
+              console.log("Modified code to add:", codeToAdd); // Debug log
+
+              // 3. Append the modified code string
               const separator = (currentText.length > 0 && !currentText.endsWith('\n')) ? '\n' : '';
               codesTextarea.value = currentText + separator + codeToAdd;
 
@@ -1592,9 +1642,4 @@ Office.onReady((info) => {
     document.getElementById("app-body").style.display = "block";
   }
 });
-
-// --- Export function (if needed elsewhere, otherwise can be removed) ---
-// Keep the existing exportCurrentCodes function if present
-
-// ... rest of the existing taskpane.js code ...
 
