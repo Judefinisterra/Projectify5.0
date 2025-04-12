@@ -1447,6 +1447,7 @@ Office.onReady((info) => {
             suggestionDiv.onclick = () => {
               console.log(`Suggestion clicked: '${item.name}'`);
               const currentText = codesTextarea.value;
+              const cursorPosition = codesTextarea.selectionStart; // Get cursor position
               let codeToAdd = item.code; // Start with the original code
 
               // 1. Find max existing numbers
@@ -1471,9 +1472,28 @@ Office.onReady((info) => {
 
               console.log("Modified code to add:", codeToAdd); // Debug log
 
-              // 3. Append the modified code string
-              const separator = (currentText.length > 0 && !currentText.endsWith('\n')) ? '\n' : '';
-              codesTextarea.value = currentText + separator + codeToAdd;
+              // 3. Insert the modified code string at the cursor position
+              const textBeforeCursor = currentText.substring(0, cursorPosition);
+              const textAfterCursor = currentText.substring(cursorPosition);
+
+              // Add newlines for better formatting if needed
+              let prefixNewline = '';
+              if (cursorPosition > 0 && textBeforeCursor[cursorPosition - 1] !== '\n') {
+                  prefixNewline = '\n'; // Add newline before if not at the start of a line
+              }
+              let suffixNewline = '\n'; // Add newline after by default
+              if (cursorPosition === currentText.length || textAfterCursor[0] === '\n') {
+                  suffixNewline = ''; // Don't add suffix newline if at the end or next char is already newline
+              }
+              
+              // Construct the new text
+              const newText = textBeforeCursor + prefixNewline + codeToAdd + suffixNewline + textAfterCursor;
+              codesTextarea.value = newText;
+              
+              // Optional: Set cursor position after the inserted text
+              const newCursorPosition = cursorPosition + (prefixNewline + codeToAdd + suffixNewline).length;
+              codesTextarea.setSelectionRange(newCursorPosition, newCursorPosition);
+
 
               // Clear search and hide suggestions
               codeSearchInput.value = '';
