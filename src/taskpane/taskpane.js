@@ -1440,131 +1440,151 @@ Office.onReady((info) => {
       highlightedSuggestionIndex = newIndex;
     };
 
-    // Event listener for search input (This check remains correct)
-    if (codeSearchInput && codeSuggestionsContainer) {
-      codeSearchInput.oninput = () => {
-        const searchTerm = codeSearchInput.value.toLowerCase().trim();
-        console.log(`Search Term: '${searchTerm}'`);
-        
-        codeSuggestionsContainer.innerHTML = ''; // Clear previous suggestions
-        highlightedSuggestionIndex = -1; // <<< ADDED: Reset highlight on new input
-        currentSuggestions = []; // <<< ADDED: Clear current suggestions
+    // >>>>>>>>> REFACTORED: Function to show suggestions based on a search term
+    const showSuggestionsForTerm = (searchTerm) => {
+        searchTerm = searchTerm.toLowerCase().trim();
+        console.log(`[showSuggestionsForTerm] Search Term: '${searchTerm}'`);
 
-        if (searchTerm.length < 2) { // Only search if term is long enough
-          console.log("Search term too short, hiding suggestions.");
-          codeSuggestionsContainer.style.display = 'none';
-          return;
+        codeSuggestionsContainer.innerHTML = ''; // Clear previous suggestions
+        highlightedSuggestionIndex = -1; 
+        currentSuggestions = []; 
+
+        if (searchTerm.length < 2) { 
+            console.log("[showSuggestionsForTerm] Search term too short, hiding suggestions.");
+            codeSuggestionsContainer.style.display = 'none';
+            return;
         }
 
-        console.log("Filtering code database...");
+        console.log("[showSuggestionsForTerm] Filtering code database...");
         const suggestions = codeDatabase
-          .filter(item => {
-              const hasName = item && typeof item.name === 'string';
-              if (!hasName) console.warn("Skipping item with missing/invalid name:", item);
-              return hasName && item.name.toLowerCase().includes(searchTerm);
-          })
-          .slice(0, 10); // Limit to 10 suggestions
-          
-        // >>>>>>>>> MODIFIED: Store suggestions
+            .filter(item => {
+                const hasName = item && typeof item.name === 'string';
+                // if (!hasName) console.warn("Skipping item with missing/invalid name:", item);
+                return hasName && item.name.toLowerCase().includes(searchTerm);
+            })
+            .slice(0, 10); 
+            
         currentSuggestions = suggestions; 
-        console.log(`Found ${currentSuggestions.length} suggestions:`, currentSuggestions);
+        console.log(`[showSuggestionsForTerm] Found ${currentSuggestions.length} suggestions:`, currentSuggestions);
 
         if (currentSuggestions.length > 0) {
-          console.log("Populating suggestions container...");
-          currentSuggestions.forEach((item, i) => { 
-            const suggestionDiv = document.createElement('div');
-            suggestionDiv.className = 'code-suggestion-item'; // Add a class for styling
-            suggestionDiv.textContent = item.name;
-            suggestionDiv.dataset.index = i; // <<< ADDED: Store index
-            
-            suggestionDiv.onclick = () => {
-              console.log(`Suggestion clicked: '${item.name}'`);
-              const currentText = codesTextarea.value;
-              const cursorPosition = codesTextarea.selectionStart; // Get cursor position
-              let codeToAdd = item.code; // Start with the original code
+            console.log("[showSuggestionsForTerm] Populating suggestions container...");
+            currentSuggestions.forEach((item, i) => { 
+                const suggestionDiv = document.createElement('div');
+                suggestionDiv.className = 'code-suggestion-item'; 
+                suggestionDiv.textContent = item.name;
+                suggestionDiv.dataset.index = i; 
+                
+                suggestionDiv.onclick = () => {
+                    console.log(`Suggestion clicked: '${item.name}'`);
+                    const currentText = codesTextarea.value;
+                    const cursorPosition = codesTextarea.selectionStart;
+                    let codeToAdd = item.code;
 
-              // --- Determine actual insertion position --- 
-              let insertionPosition = cursorPosition;
-              const textBeforeCursor = currentText.substring(0, cursorPosition);
-              const lastOpenBracket = textBeforeCursor.lastIndexOf('<');
-              const lastCloseBracket = textBeforeCursor.lastIndexOf('>');
-              
-              if (lastOpenBracket > lastCloseBracket) { // Cursor is potentially inside a tag
-                const textAfterCursor = currentText.substring(cursorPosition);
-                const nextCloseBracket = textAfterCursor.indexOf('>');
-                if (nextCloseBracket !== -1) { // Found a closing bracket after the cursor
-                    // Cursor is confirmed inside <...>. Adjust insertion point.
-                    insertionPosition = cursorPosition + nextCloseBracket + 1;
-                    console.log(`Cursor inside <>, adjusting insertion point to after > at ${insertionPosition}`);
-                }
-              }
-              // --- End insertion position adjustment ---
+                    let insertionPosition = cursorPosition;
+                    let wasAdjusted = false; // Flag to track if insertion point moved
+                    const textBeforeCursor = currentText.substring(0, cursorPosition);
+                    const lastOpenBracket = textBeforeCursor.lastIndexOf('<');
+                    const lastCloseBracket = textBeforeCursor.lastIndexOf('>');
+                    
+                    if (lastOpenBracket > lastCloseBracket) { 
+                        const textAfterCursor = currentText.substring(cursorPosition);
+                        const nextCloseBracket = textAfterCursor.indexOf('>');
+                        if (nextCloseBracket !== -1) { 
+                            insertionPosition = cursorPosition + nextCloseBracket + 1;
+                            wasAdjusted = true; // Mark as adjusted
+                            console.log(`Cursor inside <>, adjusting insertion point to after > at ${insertionPosition}`);
+                        }
+                    }
 
-              // 1. Find max existing numbers (using full text)
-              const maxNumbers = getMaxDriverNumbers(currentText); 
+                    const maxNumbers = getMaxDriverNumbers(currentText); 
+                    const driverRegex = /(row\d+\s*=\s*")([A-Z]+)(\d*)(\|)/g;
+                    const nextNumbers = { ...maxNumbers }; 
 
-              // 2. Modify the codeToAdd with incremented numbers
-              const driverRegex = /(row\d+\s*=\s*")([A-Z]+)(\d*)(\|)/g;
-              const nextNumbers = { ...maxNumbers }; // Clone for incrementing
+                    codeToAdd = codeToAdd.replace(driverRegex, (match, rowPart, prefix, existingNumberStr, pipePart) => {
+                        nextNumbers[prefix] = (nextNumbers[prefix] || 0) + 1;
+                        const newNumber = nextNumbers[prefix];
+                        const replacement = `${rowPart}${prefix}${newNumber}${pipePart}`;
+                        console.log(`Replacing driver: '${prefix}${existingNumberStr || ''}|' with '${prefix}${newNumber}|'`);
+                        return replacement;
+                    });
 
-              codeToAdd = codeToAdd.replace(driverRegex, (match, rowPart, prefix, existingNumberStr, pipePart) => {
-                  nextNumbers[prefix] = (nextNumbers[prefix] || 0) + 1;
-                  const newNumber = nextNumbers[prefix];
-                  const replacement = `${rowPart}${prefix}${newNumber}${pipePart}`;
-                  console.log(`Replacing driver: '${prefix}${existingNumberStr || ''}|' with '${prefix}${newNumber}|'`);
-                  return replacement;
-              });
+                    console.log("Modified code to add:", codeToAdd);
 
-              console.log("Modified code to add:", codeToAdd);
+                    // 3. Insert the modified code string, potentially replacing the search term
+                    const textAfterInsertion = currentText.substring(insertionPosition);
+                    let textBeforeFinal = "";
+                    let searchStartIndex = insertionPosition; // Default to insertion point
 
-              // 3. Insert the modified code string at the calculated insertionPosition
-              const textBeforeInsertion = currentText.substring(0, insertionPosition);
-              const textAfterInsertion = currentText.substring(insertionPosition);
+                    if (!wasAdjusted) {
+                        // If not adjusted, try to find and remove the search term
+                        const textBeforeInsertion = currentText.substring(0, insertionPosition);
+                        const match = textBeforeInsertion.match(/[^<>\s\n]*$/);
+                        const searchTermToRemove = match ? match[0] : '';
+                        if (searchTermToRemove.length > 0) {
+                            searchStartIndex = insertionPosition - searchTermToRemove.length;
+                            console.log(`Replacing typed term: '${searchTermToRemove}'`);
+                            textBeforeFinal = currentText.substring(0, searchStartIndex);
+                        } else {
+                            // No term found to remove, behave like simple insertion
+                            textBeforeFinal = textBeforeInsertion;
+                        }
+                    } else {
+                        // If adjusted (was inside <>), just insert, don't remove text
+                         textBeforeFinal = currentText.substring(0, insertionPosition); 
+                    }
 
-              // Add newlines for better formatting
-              let prefixNewline = '';
-              if (insertionPosition > 0 && textBeforeInsertion[insertionPosition - 1] !== '\n') {
-                  prefixNewline = '\n';
-              }
-              let suffixNewline = '\n';
-              if (insertionPosition === currentText.length || (textAfterInsertion.length > 0 && textAfterInsertion[0] === '\n') ) {
-                  suffixNewline = '';
-              }
-              
-              // Construct the new text
-              const newText = textBeforeInsertion + prefixNewline + codeToAdd + suffixNewline + textAfterInsertion;
-              codesTextarea.value = newText;
-              
-              // Set cursor position after the inserted text
-              const newCursorPosition = insertionPosition + (prefixNewline + codeToAdd + suffixNewline).length;
-              codesTextarea.setSelectionRange(newCursorPosition, newCursorPosition);
+                    // Add newlines for better formatting
+                    let prefixNewline = '';
+                    // Check char before the *final* start position (after potential removal)
+                    if (searchStartIndex > 0 && textBeforeFinal.length > 0 && textBeforeFinal[textBeforeFinal.length - 1] !== '\n') {
+                        prefixNewline = '\n';
+                    }
+                    let suffixNewline = '\n';
+                    if (insertionPosition === currentText.length || (textAfterInsertion.length > 0 && textAfterInsertion[0] === '\n') ) {
+                        suffixNewline = '';
+                    }
+                    
+                    // Construct the new text using textBeforeFinal
+                    const newText = textBeforeFinal + prefixNewline + codeToAdd + suffixNewline + textAfterInsertion;
+                    codesTextarea.value = newText;
+                    
+                    // Set cursor position after the inserted text (relative to the final text structure)
+                    const newCursorPosition = textBeforeFinal.length + (prefixNewline + codeToAdd + suffixNewline).length;
+                    codesTextarea.setSelectionRange(newCursorPosition, newCursorPosition);
 
-              // Clear search and hide suggestions
-              codeSearchInput.value = '';
-              codeSuggestionsContainer.innerHTML = '';
-              codeSuggestionsContainer.style.display = 'none';
-              highlightedSuggestionIndex = -1; // Reset index
-              currentSuggestions = []; // Clear suggestions
-            };
-            
-            // Add mouse hover highlighting (optional but nice)
-             suggestionDiv.onmouseover = () => {
-                 updateHighlight(i);
-             };
+                    // Clear search and hide suggestions
+                    if (codeSearchInput) codeSearchInput.value = ''; // Clear search bar too
+                    codeSuggestionsContainer.innerHTML = '';
+                    codeSuggestionsContainer.style.display = 'none';
+                    highlightedSuggestionIndex = -1; 
+                    currentSuggestions = []; 
+                };
+                
+                suggestionDiv.onmouseover = () => {
+                    updateHighlight(i);
+                };
 
-            codeSuggestionsContainer.appendChild(suggestionDiv);
-          });
-          console.log("Setting suggestions display to 'block'");
-          codeSuggestionsContainer.style.display = 'block'; // Show suggestions
+                codeSuggestionsContainer.appendChild(suggestionDiv);
+            });
+            console.log("[showSuggestionsForTerm] Setting suggestions display to 'block'");
+            codeSuggestionsContainer.style.display = 'block'; 
         } else {
-          console.log("No suggestions found, hiding container.");
-          codeSuggestionsContainer.style.display = 'none'; // Hide if no suggestions
+            console.log("[showSuggestionsForTerm] No suggestions found, hiding container.");
+            codeSuggestionsContainer.style.display = 'none'; 
         }
-      };
+    };
+    // >>>>>>>>> END REFACTORED FUNCTION
 
-      // >>>>>>>>> ADDED: Keydown listener for navigation
+    // Event listener for search input (This check remains correct)
+    if (codeSearchInput && codeSuggestionsContainer) {
+        codeSearchInput.oninput = () => {
+            // Simply call the refactored function
+            showSuggestionsForTerm(codeSearchInput.value);
+        };
+
+      // >>>>>>>>> MODIFIED: Keydown listener for navigation (applies to search input)
       codeSearchInput.onkeydown = (event) => {
-        // Only act if suggestions are visible
         if (codeSuggestionsContainer.style.display !== 'block' || currentSuggestions.length === 0) {
           return;
         }
@@ -1587,8 +1607,13 @@ Office.onReady((info) => {
 
           case 'Enter':
             event.preventDefault(); // Prevent form submission/newline
-            if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestionItems.length) {
-              suggestionItems[highlightedSuggestionIndex].click(); // Trigger the click handler
+            // Check if suggestions are visible and there's at least one
+            if (codeSuggestionsContainer.style.display === 'block' && currentSuggestions.length > 0) {
+                // Find the first suggestion item in the container
+                const firstSuggestionItem = codeSuggestionsContainer.querySelector('.code-suggestion-item[data-index="0"]');
+                if (firstSuggestionItem) {
+                    firstSuggestionItem.click(); // Trigger the click handler for the first item
+                }
             }
             break;
           
@@ -1600,6 +1625,102 @@ Office.onReady((info) => {
              break;
         }
       };
+    }
+    // >>>>>>>>> END ADDED
+
+    // >>>>>>>>> ADDED: Listener for the main codes textarea
+    if (codesTextarea && codeSuggestionsContainer) {
+        codesTextarea.oninput = () => {
+            const cursorPosition = codesTextarea.selectionStart;
+            const currentText = codesTextarea.value;
+
+            // Check if cursor is inside <...>
+            const textBeforeCursor = currentText.substring(0, cursorPosition);
+            const lastOpenBracket = textBeforeCursor.lastIndexOf('<');
+            const lastCloseBracket = textBeforeCursor.lastIndexOf('>');
+            let isInsideBrackets = false;
+            if (lastOpenBracket > lastCloseBracket) { 
+                const textAfterCursor = currentText.substring(cursorPosition);
+                const nextCloseBracket = textAfterCursor.indexOf('>');
+                if (nextCloseBracket !== -1) {
+                    isInsideBrackets = true;
+                }
+            }
+
+            if (isInsideBrackets) {
+                // If inside brackets, hide suggestions
+                console.log("[Textarea Input] Cursor inside <>, hiding suggestions.");
+                codeSuggestionsContainer.style.display = 'none';
+                highlightedSuggestionIndex = -1;
+                currentSuggestions = [];
+            } else {
+                // If outside brackets, find the word before cursor
+                // Find the start of the current word/segment
+                let searchStart = cursorPosition - 1;
+                while (searchStart >= 0) {
+                    const char = textBeforeCursor[searchStart];
+                    // Break on space, newline, or closing bracket
+                    if (char === ' ' || char === '\n' || char === '>') {
+                        searchStart++; // Start search after the delimiter
+                        break;
+                    }
+                    searchStart--;
+                }
+                if (searchStart < 0) searchStart = 0; // Handle start of text
+
+                const searchTerm = textBeforeCursor.substring(searchStart, cursorPosition);
+                console.log(`[Textarea Input] Cursor outside <>, potential search term: '${searchTerm}'`);
+                
+                // Show suggestions for this term
+                showSuggestionsForTerm(searchTerm);
+            }
+        };
+
+        // >>>>>>>>> ADDED: Keydown listener for navigation (applies to TEXTAREA)
+        codesTextarea.onkeydown = (event) => {
+            if (codeSuggestionsContainer.style.display !== 'block' || currentSuggestions.length === 0) {
+                return; // Only act if suggestions are visible
+            }
+
+            const suggestionItems = codeSuggestionsContainer.querySelectorAll('.code-suggestion-item');
+            let newIndex = highlightedSuggestionIndex;
+
+            switch (event.key) {
+                case 'ArrowDown':
+                case 'ArrowUp':
+                    event.preventDefault(); // Prevent cursor moving in textarea
+                    if (event.key === 'ArrowDown') {
+                        newIndex = (highlightedSuggestionIndex + 1) % currentSuggestions.length;
+                    } else {
+                        newIndex = (highlightedSuggestionIndex - 1 + currentSuggestions.length) % currentSuggestions.length;
+                    }
+                    updateHighlight(newIndex);
+                    break;
+
+                case 'Enter':
+                    event.preventDefault(); // Prevent newline in textarea when selecting
+                    if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestionItems.length) {
+                        suggestionItems[highlightedSuggestionIndex].click(); // Trigger the click handler
+                    }
+                    break;
+                
+                case 'Escape':
+                    event.preventDefault();
+                    codeSuggestionsContainer.style.display = 'none';
+                    highlightedSuggestionIndex = -1;
+                    currentSuggestions = [];
+                    break;
+                
+                // Allow other keys (like Tab, Shift, Ctrl, letters, numbers, backspace, delete etc.) to function normally
+                default:
+                    // If a suggestion is highlighted, typing might clear it
+                    // Optionally, you could choose to hide suggestions on typing other chars
+                    // codeSuggestionsContainer.style.display = 'none';
+                    // highlightedSuggestionIndex = -1;
+                    // currentSuggestions = [];
+                    break; 
+            }
+        };
     }
     // >>>>>>>>> END ADDED
 
