@@ -1143,7 +1143,35 @@ function getMaxDriverNumbers(text) {
     return maxNumbers;
 }
 
-// Function to insert sheets and then run code collection
+async function findNewCodes(previousText, currentText) {
+    const codeRegex = /<[^>]+>/g; // Regex to find <...> codes
+    const prevCodes = new Set(previousText.match(codeRegex) || []);
+    const currentCodes = currentText.match(codeRegex) || [];
+    
+    // Filter current codes to find those not present in the previous set
+    const newCodes = currentCodes.filter(code => !prevCodes.has(code));
+    console.log(`[findNewCodes] Found ${newCodes.length} new codes by comparing content.`);
+    if (newCodes.length > 0 && DEBUG) {
+        console.log("[findNewCodes] New codes:", newCodes);
+    }
+    return newCodes;
+}
+
+// Helper function to extract the sheet name from the label1 parameter within a TAB tag
+function getSheetNameFromTabTag(tabTag) {
+    // Matches label1="Sheet Name" inside the tag, capturing "Sheet Name"
+    // Allows for optional spaces around =
+    const match = tabTag.match(/label1\s*=\s*"([^"]+)"/);
+    if (match && match[1]) {
+        const sheetName = match[1].trim();
+        console.log(`[getSheetNameFromTabTag] Extracted sheet name '${sheetName}' from tag: ${tabTag}`);
+        return sheetName;
+    }
+    // Fallback or error handling if label1 is not found
+    console.warn(`[getSheetNameFromTabTag] Could not extract sheet name (label1) from tab tag: ${tabTag}`);
+    return null; // Return null if name cannot be extracted
+}
+
 async function insertSheetsAndRunCodes() {
 
     // >>> ADDED: Get codes from textarea and save automatically
@@ -1156,23 +1184,22 @@ async function insertSheetsAndRunCodes() {
     try {
         localStorage.setItem('userCodeStrings', loadedCodeStrings);
         console.log("[Run Codes] Automatically saved codes from textarea to localStorage.");
-        // Optionally show a brief success message, though might be too noisy
-        // showMessage("Codes saved automatically."); 
     } catch (error) {
         console.error("[Run Codes] Error auto-saving codes to localStorage:", error);
         showError(`Error automatically saving codes: ${error.message}. Run may not reflect latest changes.`);
-        // Decide if we should stop here or continue with potentially old codes
-        // For now, we'll continue but the user has been warned.
     }
     // <<< END ADDED CODE
 
-    let codesToRun = loadedCodeStrings; // Use the updated global variable
+    let codesToRun = loadedCodeStrings;
     let previousCodes = null;
-    let codeStringToProcess = ""; // Reset this here
+    // >>> REVISED: Unified list for all content to process <<<
+    let allCodeContentToProcess = ""; // Holds full text of *all* new AND modified tabs
+    let runResult = null; // To store result from runCodes if called
+    // Removed: codesToProcessForRunCodes, tabsToInsertIncrementally, codeStringToValidate (use allCodeContentToProcess)
 
     // Main processing wrapped in try/catch/finally
     try {
-        // --- Check Financials Sheet Existence --- 
+        // --- Check Financials Sheet Existence ---
         let financialsSheetExists = false;
         await Excel.run(async (context) => {
             try {
@@ -1200,7 +1227,29 @@ async function insertSheetsAndRunCodes() {
         if (!financialsSheetExists) {
             // *** FIRST PASS ***
             console.log("[Run Codes] FIRST PASS: Financials sheet not found.");
+            allCodeContentToProcess = codesToRun; // All codes are new
+
+            // >>> VALIDATION FOR FIRST PASS <<<
+            if (allCodeContentToProcess.trim().length > 0) {
+                console.log("Validating ALL codes before initial base sheet insertion...");
+                const validationErrors = await validateCodeStringsForRun(allCodeContentToProcess.split(/\r?\n/).filter(line => line.trim() !== ''));
+                if (validationErrors && validationErrors.length > 0) {
+                    const errorMsg = "Initial validation failed. Please fix the errors before running:\n" + validationErrors.join("\n");
+                    console.error("Code validation failed:", validationErrors);
+                    showError("Code validation failed. See chat for details.");
+                    appendMessage(errorMsg);
+                    setButtonLoading(false);
+                    return; // Stop execution
+                }
+                console.log("Initial code validation successful.");
+            } else {
+                console.log("[Run Codes] No codes to validate on first pass.");
+                // If no codes, no need to insert base sheets? Or insert anyway? Assuming insert needed.
+            }
+
+            // --- Insert BASE sheets ---
             console.log("Inserting base sheets from Worksheets_4.3.25 v1.xlsx...");
+            // ... (fetch and handleInsertWorksheetsFromBase64 for Worksheets_4.3.25 remains the same) ...
             const worksheetsResponse = await fetch('https://localhost:3002/assets/Worksheets_4.3.25 v1.xlsx');
             if (!worksheetsResponse.ok) throw new Error(`Worksheets load failed: ${worksheetsResponse.statusText}`);
             const worksheetsArrayBuffer = await worksheetsResponse.arrayBuffer();
@@ -1216,9 +1265,7 @@ async function insertSheetsAndRunCodes() {
             console.log("Base64 conversion complete.");
             await handleInsertWorksheetsFromBase64(worksheetsBase64String);
             console.log("Base sheets inserted.");
-            
-            // Process ALL codes on first pass
-            codeStringToProcess = codesToRun;
+            // No need to insert codes.xlsx here, it happens after runCodes
 
         } else {
             // *** SECOND PASS (or later) ***
@@ -1230,123 +1277,140 @@ async function insertSheetsAndRunCodes() {
             } catch (error) {
                  console.error("[Run Codes] Error loading previous codes for comparison:", error);
                  console.warn("[Run Codes] Could not load previous codes. Processing ALL current codes as fallback.");
-                 previousCodes = null;
+                 previousCodes = null; // Treat as if all codes are new if loading fails
             }
 
             // Check for NO changes first
             if (previousCodes !== null && previousCodes === codesToRun) {
                  console.log("[Run Codes] No change in code strings since last run. Nothing to process.");
-                 // Update previous codes timestamp anyway, then exit
+                 // Update previous state just in case, though it's identical
                  try { localStorage.setItem('previousRunCodeStrings', codesToRun); } catch(e) { console.error("Err updating prev codes:", e); }
-                 showMessage("No code changes to run."); // <<< Show message to user
-                 setButtonLoading(false); // Ensure button is re-enabled
+                 showMessage("No code changes to run.");
+                 setButtonLoading(false);
                  return; // <<< EXIT EARLY
             }
 
-            // If changed or first subsequent run, insert codes.xlsx
-            console.log("Inserting base sheets from codes.xlsx...");
-            try {
-                const codesResponse = await fetch('https://localhost:3002/assets/codes.xlsx');
-                if (!codesResponse.ok) throw new Error(`codes.xlsx load failed: ${codesResponse.statusText}`);
-                const codesArrayBuffer = await codesResponse.arrayBuffer();
-                console.log("Converting codes.xlsx file to base64 (using chunks)...");
-                const codesUint8Array = new Uint8Array(codesArrayBuffer);
-                let codesBinaryString = '';
-                const chunkSize_codes = 8192;
-                for (let i = 0; i < codesUint8Array.length; i += chunkSize_codes) {
-                    const chunk = codesUint8Array.slice(i, Math.min(i + chunkSize_codes, codesUint8Array.length));
-                    codesBinaryString += String.fromCharCode.apply(null, chunk);
+            // --- Identify New and Modified Tabs & Collect ALL content ---
+            const currentTabs = getTabBlocks(codesToRun);
+            const previousTabs = getTabBlocks(previousCodes || ""); // Use empty string if previousCodes is null
+            const previousTabMap = new Map(previousTabs.map(block => [block.tag, block.text]));
+
+            let hasAnyChanges = false; // Flag to check if codes.xlsx needs inserting
+
+            for (const currentTab of currentTabs) {
+                const currentTag = currentTab.tag;
+                const currentText = currentTab.text;
+                const previousText = previousTabMap.get(currentTag);
+
+                if (previousText === undefined) {
+                    // *** New Tab ***
+                    console.log(`[Run Codes] Identified NEW tab: ${currentTag}`);
+                    allCodeContentToProcess += currentText + "\n\n"; // Add full content
+                    hasAnyChanges = true;
+                } else if (previousText !== currentText) {
+                    // *** Modified Existing Tab ***
+                    console.log(`[Run Codes] Identified MODIFIED tab: ${currentTag}.`);
+                    allCodeContentToProcess += currentText + "\n\n"; // Add full content
+                    hasAnyChanges = true; // Mark change because the text differs
                 }
-                const codesBase64String = btoa(codesBinaryString);
-                console.log("codes.xlsx Base64 conversion complete.");
-                await handleInsertWorksheetsFromBase64(codesBase64String);
-                console.log("codes.xlsx sheets inserted.");
-            } catch (e) {
-                console.error("Failed to insert sheets from codes.xlsx:", e);
-                showError("Failed to insert necessary sheets from codes.xlsx. Aborting.");
-                setButtonLoading(false);
-                return;
+                // else: Tab exists and text is identical - do nothing.
             }
 
-            // Now determine which codes to process based on comparison
-            if (previousCodes === null) {
-                 console.log("[Run Codes] First subsequent run or previous codes missing. Processing all current codes.");
-                 codeStringToProcess = codesToRun;
-            } else {
-                // Find new tabs (since previousCodes !== codesToRun here)
-                const currentTabs = getTabBlocks(codesToRun);
-                const previousTabs = getTabBlocks(previousCodes);
-                const previousTabTags = new Set(previousTabs.map(block => block.tag));
-                const newTabs = currentTabs.filter(block => !previousTabTags.has(block.tag));
-                
-                if (newTabs.length > 0) {
-                    console.log(`[Run Codes] Found ${newTabs.length} new TAB block(s) to process:`, newTabs.map(t => t.tag));
-                    codeStringToProcess = newTabs.map(block => block.text).join('\n\n'); // Join new blocks
-                    console.log("[Run Codes] Filtered codeStringToProcess for new tabs (truncated):", codeStringToProcess.substring(0, 200) + (codeStringToProcess.length > 200 ? '...' : ''));
+            // --- Validate ALL collected content BEFORE inserting codes.xlsx ---
+            if (hasAnyChanges) {
+                if (allCodeContentToProcess.trim().length > 0) {
+                    console.log("Validating ALL content from new/modified tabs BEFORE inserting codes.xlsx...");
+                    const validationErrors = await validateCodeStringsForRun(allCodeContentToProcess.split(/\r?\n/).filter(line => line.trim() !== ''));
+
+                    if (validationErrors && validationErrors.length > 0) {
+                        const errorMsg = "Validation failed. Please fix the errors before running:\n" + validationErrors.join("\n");
+                        console.error("Code validation failed:", validationErrors);
+                        showError("Code validation failed. See chat for details.");
+                        appendMessage(errorMsg);
+                        setButtonLoading(false);
+                        return; // Stop execution
+                    }
+                    console.log("Code validation successful for new/modified tabs.");
                 } else {
-                    console.log("[Run Codes] Codes changed, but no new TAB blocks detected. Nothing specific to process incrementally.");
-                    codeStringToProcess = ""; // Ensure nothing is processed if only old tabs changed
+                    console.log("[Run Codes] Changes detected, but no code content found for validation in new/modified tabs.");
+                     // This case might occur if only whitespace/comments changed within tabs
+                     // Decide if codes.xlsx insertion is still needed? Assuming yes if hasAnyChanges=true
                 }
-            }
-        } // End of pass logic (if/else financialsSheetExists)
-        
-        // --- Execute Processing --- 
-        if (codeStringToProcess.trim().length === 0) {
-             console.log("[Run Codes] After filtering/pass logic, there are no codes to process.");
-             // Only show message if it wasn't already shown by the 'no change' check
-             if (!(previousCodes !== null && previousCodes === codesToRun)) {
-                showMessage("No new codes identified to run.");
-             }
-             // Still update previous state even if nothing ran this time
-             try { localStorage.setItem('previousRunCodeStrings', codesToRun); } catch(e) { console.error("Err updating prev codes:", e); }
-             setButtonLoading(false);
-             return; // Exit if nothing to process
-        }
-         
-        // If we have codes to process, continue...
-        console.log("Populating collection for codes to process...");
-        
-        // >>> ADDED: Validate the codes before running
-        console.log("Validating codes before execution...");
-        // Use the new validation function
-        const validationErrors = await validateCodeStringsForRun(codeStringToProcess.split(/\r?\n/).filter(line => line.trim() !== '')); 
-        
-        if (validationErrors && validationErrors.length > 0) { // Check if the array has errors
-            // Revert to simpler error message construction assuming an array
-            const errorMsg = "Validation failed. Please fix the errors before running:\n" + validationErrors.join("\n");
-            
-            /* // Remove the complex type checking
-            // Check if the result is an array before joining
-            if (Array.isArray(validationErrors)) {
-                errorMsg += validationErrors.join("\n");
+
+                // --- Insert codes.xlsx only AFTER successful validation if changes were detected ---
+                console.log("[Run Codes] Changes detected and validated. Inserting base sheets from codes.xlsx...");
+                try {
+                    const codesResponse = await fetch('https://localhost:3002/assets/codes.xlsx');
+                    if (!codesResponse.ok) throw new Error(`codes.xlsx load failed: ${codesResponse.statusText}`);
+                    const codesArrayBuffer = await codesResponse.arrayBuffer();
+                    console.log("Converting codes.xlsx file to base64 (using chunks)...");
+                    // ... (base64 conversion remains the same) ...
+                    const codesUint8Array = new Uint8Array(codesArrayBuffer);
+                    let codesBinaryString = '';
+                    const chunkSize_codes = 8192;
+                    for (let i = 0; i < codesUint8Array.length; i += chunkSize_codes) {
+                        const chunk = codesUint8Array.slice(i, Math.min(i + chunkSize_codes, codesUint8Array.length));
+                        codesBinaryString += String.fromCharCode.apply(null, chunk);
+                    }
+                    const codesBase64String = btoa(codesBinaryString);
+
+                    console.log("codes.xlsx Base64 conversion complete.");
+                    await handleInsertWorksheetsFromBase64(codesBase64String);
+                    console.log("codes.xlsx sheets inserted.");
+                } catch (e) {
+                    console.error("Failed to insert sheets from codes.xlsx:", e);
+                    showError("Failed to insert necessary sheets from codes.xlsx. Aborting.");
+                    setButtonLoading(false);
+                    return;
+                }
             } else {
-                // If not an array, treat as a single message or convert object to string
-                errorMsg += String(validationErrors); 
+                 console.log("[Run Codes] No changes identified in tabs compared to previous run. Nothing to insert or process.");
+                 // Update previous state as the content is effectively the same
+                 try { localStorage.setItem('previousRunCodeStrings', codesToRun); } catch(e) { console.error("Err updating prev codes:", e); }
+                 showMessage("No code changes identified to run.");
+                 setButtonLoading(false);
+                 return; // Exit if no actionable changes
             }
-            */
-            
-            console.error("Code validation failed:", validationErrors);
-            showError("Code validation failed. See chat for details.");
-            appendMessage(errorMsg); // Show errors in chat
-            setButtonLoading(false); // Re-enable button
-            return; // Stop execution
+
+        } // End of pass logic (if/else financialsSheetExists)
+
+        // --- Execute Processing ---
+
+        // >>> REMOVED: Incremental Insertion block <<<
+
+        // --- Process ALL collected content (New + Modified Tabs) using runCodes ---
+        if (allCodeContentToProcess.trim().length > 0) {
+            console.log("[Run Codes] Processing collected content from new/modified tabs...");
+            console.log("Populating collection...");
+            const collection = populateCodeCollection(allCodeContentToProcess);
+            console.log(`Collection populated with ${collection.length} code(s)`);
+
+             // Check if collection is empty after population (might happen if only comments/whitespace)
+            if (collection.length > 0) {
+                console.log("Running codes...");
+                runResult = await runCodes(collection); // Store the result
+                console.log("Codes executed:", runResult);
+            } else {
+                 console.log("[Run Codes] Collection is empty after population, skipping runCodes execution.");
+                 // Ensure runResult is initialized for post-processing
+                 if (!runResult) runResult = { assumptionTabs: [] };
+            }
+        } else {
+            console.log("[Run Codes] No code content collected to process via runCodes.");
+             // Initialize runResult structure if needed by post-processing
+             if (!runResult) runResult = { assumptionTabs: [] }; // Ensure runResult exists
         }
-        console.log("Code validation successful.");
-        // <<< END VALIDATION
-        
-        const collection = populateCodeCollection(codeStringToProcess);
-        console.log(`Collection populated with ${collection.length} code(s)`);
 
-        console.log("Running codes...");
-        const runResult = await runCodes(collection);
-        console.log("Codes executed:", runResult);
-
-        // Post-processing
+        // --- Post-processing (Runs regardless) ---
+        console.log("[Run Codes] Starting post-processing steps...");
         if (runResult && runResult.assumptionTabs && runResult.assumptionTabs.length > 0) {
             console.log("Processing assumption tabs...");
             await processAssumptionTabs(runResult.assumptionTabs);
+        } else {
+             console.log("No assumption tabs to process.");
         }
         console.log("Hiding specific columns and navigating...");
+        // Pass assumption tabs from runResult (if any), otherwise an empty array.
         await hideColumnsAndNavigate(runResult?.assumptionTabs || []);
 
         // Cleanup
@@ -1361,14 +1425,15 @@ async function insertSheetsAndRunCodes() {
                      console.warn("Codes sheet not found, skipping deletion.");
                 } else { console.error("Error deleting Codes sheet:", e); }
             }
+            // Hiding Calcs sheet logic was removed previously, keeping it out.
             await context.sync();
         }).catch(error => { console.error("Error during sheet cleanup:", error); });
 
-        // --- IMPORTANT: Update previous codes state AFTER successful processing --- 
+        // --- IMPORTANT: Update previous codes state AFTER successful processing ---
         try {
-            localStorage.setItem('previousRunCodeStrings', codesToRun); 
+            localStorage.setItem('previousRunCodeStrings', codesToRun);
             console.log("[Run Codes] Updated previous run state with full current codes.");
-        } catch (error) { 
+        } catch (error) {
              console.error("[Run Codes] Failed to update previous run state:", error);
         }
 
@@ -1391,42 +1456,40 @@ async function insertSheetsAndRunCodes() {
     }
 }
 
-// Ensure Office.onReady sets up the button click handler for the REVERTED function
+// Ensure Office.onReady sets up the button click handler for the REVISED function
 Office.onReady((info) => {
   if (info.host === Office.HostType.Excel) {
-    // ***** ADAPT THIS ID TO YOUR ACTUAL BUTTON *****
-    const button = document.getElementById("insert-and-run"); 
+    // Assign the REVISED async function as the handler
+    const button = document.getElementById("insert-and-run");
     if (button) {
-        // Assign the REVERTED async function as the handler
-        button.onclick = insertSheetsAndRunCodes; 
+        button.onclick = insertSheetsAndRunCodes; // Use the revised function
     } else {
-        // Update the error message to reflect the ID we were looking for
         console.error("Could not find button with id='insert-and-run'");
     }
 
+    // >>> ADDED: Helper function findNewCodes (defined above, ensure it's accessible)
+    // No need to add it here again if defined globally or within taskpane.js scope before Office.onReady
+
+
+    // ... (rest of your Office.onReady remains the same) ...
+
     // Keep the setup for your other buttons (send-button, reset-button, etc.)
-    // Assign event listeners to the buttons
     const sendButton = document.getElementById('send');
     if (sendButton) sendButton.onclick = handleSend;
 
     const writeButton = document.getElementById('write-to-excel');
     if (writeButton) writeButton.onclick = writeToExcel;
-    
+
     const resetButton = document.getElementById('reset-chat');
     if (resetButton) resetButton.onclick = resetChat;
-    
-    // Get modal elements
+
     const codesTextarea = document.getElementById('codes-textarea');
-    
-    // >>>>>>>>> ADDED: Get references to new modal elements (assuming IDs)
     const codeSearchInput = document.getElementById('code-search-input');
     const codeSuggestionsContainer = document.getElementById('code-suggestions');
-    
-    // >>>>>>>>> ADDED: Variables for keyboard navigation state
-    let highlightedSuggestionIndex = -1;
-    let currentSuggestions = []; 
 
-    // >>>>>>>>> ADDED: Helper function to update highlighting
+    let highlightedSuggestionIndex = -1;
+    let currentSuggestions = [];
+
     const updateHighlight = (newIndex) => {
       const suggestionItems = codeSuggestionsContainer.querySelectorAll('.code-suggestion-item');
       if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestionItems.length) {
@@ -1434,22 +1497,20 @@ Office.onReady((info) => {
       }
       if (newIndex >= 0 && newIndex < suggestionItems.length) {
         suggestionItems[newIndex].classList.add('suggestion-highlight');
-        // Optional: Scroll the highlighted item into view
         suggestionItems[newIndex].scrollIntoView({ block: 'nearest' });
       }
       highlightedSuggestionIndex = newIndex;
     };
 
-    // >>>>>>>>> REFACTORED: Function to show suggestions based on a search term
     const showSuggestionsForTerm = (searchTerm) => {
         searchTerm = searchTerm.toLowerCase().trim();
         console.log(`[showSuggestionsForTerm] Search Term: '${searchTerm}'`);
 
-        codeSuggestionsContainer.innerHTML = ''; // Clear previous suggestions
-        highlightedSuggestionIndex = -1; 
-        currentSuggestions = []; 
+        codeSuggestionsContainer.innerHTML = '';
+        highlightedSuggestionIndex = -1;
+        currentSuggestions = [];
 
-        if (searchTerm.length < 2) { 
+        if (searchTerm.length < 2) {
             console.log("[showSuggestionsForTerm] Search term too short, hiding suggestions.");
             codeSuggestionsContainer.style.display = 'none';
             return;
@@ -1459,22 +1520,21 @@ Office.onReady((info) => {
         const suggestions = codeDatabase
             .filter(item => {
                 const hasName = item && typeof item.name === 'string';
-                // if (!hasName) console.warn("Skipping item with missing/invalid name:", item);
                 return hasName && item.name.toLowerCase().includes(searchTerm);
             })
-            .slice(0, 10); 
-            
-        currentSuggestions = suggestions; 
+            .slice(0, 10);
+
+        currentSuggestions = suggestions;
         console.log(`[showSuggestionsForTerm] Found ${currentSuggestions.length} suggestions:`, currentSuggestions);
 
         if (currentSuggestions.length > 0) {
             console.log("[showSuggestionsForTerm] Populating suggestions container...");
-            currentSuggestions.forEach((item, i) => { 
+            currentSuggestions.forEach((item, i) => {
                 const suggestionDiv = document.createElement('div');
-                suggestionDiv.className = 'code-suggestion-item'; 
+                suggestionDiv.className = 'code-suggestion-item';
                 suggestionDiv.textContent = item.name;
-                suggestionDiv.dataset.index = i; 
-                
+                suggestionDiv.dataset.index = i;
+
                 suggestionDiv.onclick = () => {
                     console.log(`Suggestion clicked: '${item.name}'`);
                     const currentText = codesTextarea.value;
@@ -1482,24 +1542,24 @@ Office.onReady((info) => {
                     let codeToAdd = item.code;
 
                     let insertionPosition = cursorPosition;
-                    let wasAdjusted = false; // Flag to track if insertion point moved
+                    let wasAdjusted = false;
                     const textBeforeCursor = currentText.substring(0, cursorPosition);
                     const lastOpenBracket = textBeforeCursor.lastIndexOf('<');
                     const lastCloseBracket = textBeforeCursor.lastIndexOf('>');
-                    
-                    if (lastOpenBracket > lastCloseBracket) { 
+
+                    if (lastOpenBracket > lastCloseBracket) {
                         const textAfterCursor = currentText.substring(cursorPosition);
                         const nextCloseBracket = textAfterCursor.indexOf('>');
-                        if (nextCloseBracket !== -1) { 
+                        if (nextCloseBracket !== -1) {
                             insertionPosition = cursorPosition + nextCloseBracket + 1;
-                            wasAdjusted = true; // Mark as adjusted
+                            wasAdjusted = true;
                             console.log(`Cursor inside <>, adjusting insertion point to after > at ${insertionPosition}`);
                         }
                     }
 
-                    const maxNumbers = getMaxDriverNumbers(currentText); 
+                    const maxNumbers = getMaxDriverNumbers(currentText);
                     const driverRegex = /(row\d+\s*=\s*")([A-Z]+)(\d*)(\|)/g;
-                    const nextNumbers = { ...maxNumbers }; 
+                    const nextNumbers = { ...maxNumbers };
 
                     codeToAdd = codeToAdd.replace(driverRegex, (match, rowPart, prefix, existingNumberStr, pipePart) => {
                         nextNumbers[prefix] = (nextNumbers[prefix] || 0) + 1;
@@ -1511,56 +1571,49 @@ Office.onReady((info) => {
 
                     console.log("Modified code to add:", codeToAdd);
 
-                    // 3. Insert the modified code string, potentially replacing the search term
                     const textAfterInsertion = currentText.substring(insertionPosition);
                     let textBeforeFinal = "";
-                    let searchStartIndex = insertionPosition; // Default to insertion point
+                    let searchStartIndex = insertionPosition;
 
                     if (!wasAdjusted) {
-                        // If not adjusted, try to find and remove the search term
                         const textBeforeInsertion = currentText.substring(0, insertionPosition);
                         const match = textBeforeInsertion.match(/[^<>\s\n]*$/);
                         const searchTermToRemove = match ? match[0] : '';
-                        if (searchTermToRemove.length > 0) {
+                        if (searchTermToRemove.length > 0 && item.name.toLowerCase().includes(searchTermToRemove.toLowerCase())) { // Ensure we remove the right thing
                             searchStartIndex = insertionPosition - searchTermToRemove.length;
                             console.log(`Replacing typed term: '${searchTermToRemove}'`);
                             textBeforeFinal = currentText.substring(0, searchStartIndex);
                         } else {
-                            // No term found to remove, behave like simple insertion
                             textBeforeFinal = textBeforeInsertion;
                         }
                     } else {
-                        // If adjusted (was inside <>), just insert, don't remove text
-                         textBeforeFinal = currentText.substring(0, insertionPosition); 
+                         textBeforeFinal = currentText.substring(0, insertionPosition);
                     }
 
-                    // Add newlines for better formatting
                     let prefixNewline = '';
-                    // Check char before the *final* start position (after potential removal)
                     if (searchStartIndex > 0 && textBeforeFinal.length > 0 && textBeforeFinal[textBeforeFinal.length - 1] !== '\n') {
                         prefixNewline = '\n';
                     }
                     let suffixNewline = '\n';
-                    if (insertionPosition === currentText.length || (textAfterInsertion.length > 0 && textAfterInsertion[0] === '\n') ) {
+                     // Ensure suffix newline unless at end or already followed by newline
+                    if (insertionPosition >= currentText.length || (textAfterInsertion.length > 0 && textAfterInsertion[0] === '\n') ) {
                         suffixNewline = '';
                     }
-                    
-                    // Construct the new text using textBeforeFinal
+
                     const newText = textBeforeFinal + prefixNewline + codeToAdd + suffixNewline + textAfterInsertion;
                     codesTextarea.value = newText;
-                    
-                    // Set cursor position after the inserted text (relative to the final text structure)
+
                     const newCursorPosition = textBeforeFinal.length + (prefixNewline + codeToAdd + suffixNewline).length;
+                    codesTextarea.focus(); // Ensure textarea has focus before setting selection
                     codesTextarea.setSelectionRange(newCursorPosition, newCursorPosition);
 
-                    // Clear search and hide suggestions
-                    if (codeSearchInput) codeSearchInput.value = ''; // Clear search bar too
+                    if (codeSearchInput) codeSearchInput.value = '';
                     codeSuggestionsContainer.innerHTML = '';
                     codeSuggestionsContainer.style.display = 'none';
-                    highlightedSuggestionIndex = -1; 
-                    currentSuggestions = []; 
+                    highlightedSuggestionIndex = -1;
+                    currentSuggestions = [];
                 };
-                
+
                 suggestionDiv.onmouseover = () => {
                     updateHighlight(i);
                 };
@@ -1568,22 +1621,18 @@ Office.onReady((info) => {
                 codeSuggestionsContainer.appendChild(suggestionDiv);
             });
             console.log("[showSuggestionsForTerm] Setting suggestions display to 'block'");
-            codeSuggestionsContainer.style.display = 'block'; 
+            codeSuggestionsContainer.style.display = 'block';
         } else {
             console.log("[showSuggestionsForTerm] No suggestions found, hiding container.");
-            codeSuggestionsContainer.style.display = 'none'; 
+            codeSuggestionsContainer.style.display = 'none';
         }
     };
-    // >>>>>>>>> END REFACTORED FUNCTION
 
-    // Event listener for search input (This check remains correct)
     if (codeSearchInput && codeSuggestionsContainer) {
         codeSearchInput.oninput = () => {
-            // Simply call the refactored function
             showSuggestionsForTerm(codeSearchInput.value);
         };
 
-      // >>>>>>>>> MODIFIED: Keydown listener for navigation (applies to search input)
       codeSearchInput.onkeydown = (event) => {
         if (codeSuggestionsContainer.style.display !== 'block' || currentSuggestions.length === 0) {
           return;
@@ -1594,30 +1643,28 @@ Office.onReady((info) => {
 
         switch (event.key) {
           case 'ArrowDown':
-            event.preventDefault(); // Prevent cursor moving in input
+            event.preventDefault();
             newIndex = (highlightedSuggestionIndex + 1) % currentSuggestions.length;
             updateHighlight(newIndex);
             break;
 
           case 'ArrowUp':
-            event.preventDefault(); // Prevent cursor moving in input
+            event.preventDefault();
             newIndex = (highlightedSuggestionIndex - 1 + currentSuggestions.length) % currentSuggestions.length;
             updateHighlight(newIndex);
             break;
 
           case 'Enter':
-            event.preventDefault(); // Prevent form submission/newline
-            // Check if suggestions are visible and there's at least one
-            if (codeSuggestionsContainer.style.display === 'block' && currentSuggestions.length > 0) {
-                // Find the first suggestion item in the container
-                const firstSuggestionItem = codeSuggestionsContainer.querySelector('.code-suggestion-item[data-index="0"]');
-                if (firstSuggestionItem) {
-                    firstSuggestionItem.click(); // Trigger the click handler for the first item
-                }
+            event.preventDefault();
+            // Click the highlighted suggestion if one exists, otherwise click the first one
+            if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestionItems.length) {
+                 suggestionItems[highlightedSuggestionIndex].click();
+            } else if (currentSuggestions.length > 0 && suggestionItems.length > 0) {
+                 suggestionItems[0].click(); // Click the first suggestion item
             }
             break;
-          
-          case 'Escape': // Optional: Hide suggestions on Escape
+
+          case 'Escape':
              event.preventDefault();
              codeSuggestionsContainer.style.display = 'none';
              highlightedSuggestionIndex = -1;
@@ -1626,60 +1673,65 @@ Office.onReady((info) => {
         }
       };
     }
-    // >>>>>>>>> END ADDED
 
-    // >>>>>>>>> ADDED: Listener for the main codes textarea
     if (codesTextarea && codeSuggestionsContainer) {
-        codesTextarea.oninput = () => {
+        codesTextarea.oninput = (event) => {
+            // Avoid triggering on programmatic changes
+             if (!event.isTrusted) {
+                 return;
+             }
             const cursorPosition = codesTextarea.selectionStart;
             const currentText = codesTextarea.value;
 
-            // Check if cursor is inside <...>
             const textBeforeCursor = currentText.substring(0, cursorPosition);
             const lastOpenBracket = textBeforeCursor.lastIndexOf('<');
             const lastCloseBracket = textBeforeCursor.lastIndexOf('>');
             let isInsideBrackets = false;
-            if (lastOpenBracket > lastCloseBracket) { 
+            if (lastOpenBracket > lastCloseBracket) {
                 const textAfterCursor = currentText.substring(cursorPosition);
                 const nextCloseBracket = textAfterCursor.indexOf('>');
-                if (nextCloseBracket !== -1) {
+                // Only consider "inside" if the closing bracket is reasonably close or on the same line,
+                // prevents triggering deep inside a large code block.
+                if (nextCloseBracket !== -1 ) { // && nextCloseBracket < 100 check if needed
                     isInsideBrackets = true;
                 }
             }
 
             if (isInsideBrackets) {
-                // If inside brackets, hide suggestions
                 console.log("[Textarea Input] Cursor inside <>, hiding suggestions.");
                 codeSuggestionsContainer.style.display = 'none';
                 highlightedSuggestionIndex = -1;
                 currentSuggestions = [];
             } else {
-                // If outside brackets, find the word before cursor
-                // Find the start of the current word/segment
                 let searchStart = cursorPosition - 1;
                 while (searchStart >= 0) {
                     const char = textBeforeCursor[searchStart];
-                    // Break on space, newline, or closing bracket
-                    if (char === ' ' || char === '\n' || char === '>') {
-                        searchStart++; // Start search after the delimiter
+                    // Extended delimiters: space, newline, brackets, semicolon, pipe
+                    if (/\s|\n|>|<|;|\|/.test(char)) {
+                        searchStart++;
                         break;
                     }
                     searchStart--;
                 }
-                if (searchStart < 0) searchStart = 0; // Handle start of text
+                if (searchStart < 0) searchStart = 0;
 
                 const searchTerm = textBeforeCursor.substring(searchStart, cursorPosition);
-                console.log(`[Textarea Input] Cursor outside <>, potential search term: '${searchTerm}'`);
-                
-                // Show suggestions for this term
-                showSuggestionsForTerm(searchTerm);
+                 // Only trigger if search term is not empty and potentially valid (e.g., starts with letter)
+                if (searchTerm.trim().length > 0 && /^[a-zA-Z]/.test(searchTerm)) {
+                    console.log(`[Textarea Input] Cursor outside <>, potential search term: '${searchTerm}'`);
+                    showSuggestionsForTerm(searchTerm);
+                } else {
+                    console.log(`[Textarea Input] Hiding suggestions (empty or invalid term: '${searchTerm}')`);
+                    codeSuggestionsContainer.style.display = 'none';
+                    highlightedSuggestionIndex = -1;
+                    currentSuggestions = [];
+                }
             }
         };
 
-        // >>>>>>>>> ADDED: Keydown listener for navigation (applies to TEXTAREA)
         codesTextarea.onkeydown = (event) => {
             if (codeSuggestionsContainer.style.display !== 'block' || currentSuggestions.length === 0) {
-                return; // Only act if suggestions are visible
+                return;
             }
 
             const suggestionItems = codeSuggestionsContainer.querySelectorAll('.code-suggestion-item');
@@ -1688,7 +1740,7 @@ Office.onReady((info) => {
             switch (event.key) {
                 case 'ArrowDown':
                 case 'ArrowUp':
-                    event.preventDefault(); // Prevent cursor moving in textarea
+                    event.preventDefault();
                     if (event.key === 'ArrowDown') {
                         newIndex = (highlightedSuggestionIndex + 1) % currentSuggestions.length;
                     } else {
@@ -1698,66 +1750,75 @@ Office.onReady((info) => {
                     break;
 
                 case 'Enter':
-                    event.preventDefault(); // Prevent newline in textarea when selecting
+                 case 'Tab': // Allow Tab to select as well
+                    event.preventDefault();
                     if (highlightedSuggestionIndex >= 0 && highlightedSuggestionIndex < suggestionItems.length) {
-                        suggestionItems[highlightedSuggestionIndex].click(); // Trigger the click handler
+                        suggestionItems[highlightedSuggestionIndex].click();
+                    } else if (currentSuggestions.length > 0 && suggestionItems.length > 0) {
+                         // If Enter/Tab pressed without explicit selection, select the first suggestion
+                         suggestionItems[0].click();
                     }
                     break;
-                
+
                 case 'Escape':
                     event.preventDefault();
                     codeSuggestionsContainer.style.display = 'none';
                     highlightedSuggestionIndex = -1;
                     currentSuggestions = [];
                     break;
-                
-                // Allow other keys (like Tab, Shift, Ctrl, letters, numbers, backspace, delete etc.) to function normally
+
                 default:
-                    // If a suggestion is highlighted, typing might clear it
-                    // Optionally, you could choose to hide suggestions on typing other chars
-                    // codeSuggestionsContainer.style.display = 'none';
-                    // highlightedSuggestionIndex = -1;
-                    // currentSuggestions = [];
-                    break; 
+                    // If typing letters/numbers/backspace etc. while suggestions are open,
+                    // let the oninput handler re-evaluate suggestions, but reset highlight
+                    if (!event.ctrlKey && !event.altKey && !event.metaKey && event.key.length === 1) {
+                       updateHighlight(-1); // Reset highlight as list will change
+                    }
+                    break;
             }
         };
+         // Add a blur listener to hide suggestions when focus leaves the textarea
+         codesTextarea.addEventListener('blur', () => {
+             // Delay slightly to allow suggestion click to register
+             setTimeout(() => {
+                 if (document.activeElement !== codeSearchInput &&
+                     !codeSuggestionsContainer.contains(document.activeElement)) {
+                      codeSuggestionsContainer.style.display = 'none';
+                      highlightedSuggestionIndex = -1;
+                 }
+             }, 150);
+         });
     }
-    // >>>>>>>>> END ADDED
 
-    // Test Buttons (Add similar checks if they are essential)
-    // const testGreenCellButton = document.getElementById('test-green-cell');
-
-    // Initialize API keys, load history etc.
-    Promise.all([ // <<<<< UPDATED: Use Promise.all for parallel loading
+    Promise.all([
         initializeAPIKeys(),
-        loadCodeDatabase() // <<<<< ADDED: Load code database during init
+        loadCodeDatabase()
     ]).then(([keysLoaded]) => {
       if (!keysLoaded) {
         showError("Failed to load API keys. Please check configuration.");
       }
-      // Load conversation history after keys are potentially loaded
       conversationHistory = loadConversationHistory();
 
-      // Load code strings from localStorage into the global variable
       try {
           const storedCodes = localStorage.getItem('userCodeStrings');
           if (storedCodes !== null) {
-              // Initialize the global variable
               loadedCodeStrings = storedCodes;
-              if (codesTextarea) { // Check if textarea exists
+              if (codesTextarea) {
                   codesTextarea.value = loadedCodeStrings;
               }
               console.log("Code strings loaded from localStorage into global variable.");
-              if (DEBUG) console.log("Initial loaded codes:", loadedCodeStrings.substring(0, 100) + '...');
           } else {
               console.log("No code strings found in localStorage, initializing global variable as empty.");
-              // Initialize the global variable
               loadedCodeStrings = "";
           }
+          // Also load the previous run codes if available
+           const storedPreviousCodes = localStorage.getItem('previousRunCodeStrings');
+           if (storedPreviousCodes) {
+               console.log("Previous run code strings loaded from localStorage.");
+           }
+
       } catch (error) {
           console.error("Error loading code strings from localStorage:", error);
           showError(`Error loading codes from storage: ${error.message}`);
-          // Initialize the global variable
           loadedCodeStrings = "";
       }
 
@@ -1765,8 +1826,7 @@ Office.onReady((info) => {
         console.error("Error during initialization:", error);
         showError("Error during initialization: " + error.message);
     });
-    
-    // Hide sideload message and show app body
+
     document.getElementById("sideload-msg").style.display = "none";
     document.getElementById("app-body").style.display = "block";
   }
