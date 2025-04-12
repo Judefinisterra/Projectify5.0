@@ -1382,10 +1382,7 @@ Office.onReady((info) => {
     if (resetButton) resetButton.onclick = resetChat;
     
     // Get modal elements
-    const viewCodesButton = document.getElementById('view-codes');
-    const codesModal = document.getElementById('codes-modal');
     const codesTextarea = document.getElementById('codes-textarea');
-    const closeCodesModalButton = document.getElementById('close-codes-modal');
     const saveCodesChangesButton = document.getElementById('save-codes-changes');
 
     // >>>>>>>>> ADDED: Get references to new modal elements (assuming IDs)
@@ -1409,28 +1406,6 @@ Office.onReady((info) => {
       }
       highlightedSuggestionIndex = newIndex;
     };
-
-    // Add event listeners for modal
-    if (viewCodesButton && codesModal && codesTextarea) { 
-      viewCodesButton.onclick = () => {
-        // Use the global variable to populate the textarea initially
-        codesTextarea.value = loadedCodeStrings;
-        
-        // Safely check for search elements before manipulating them
-        if (codeSearchInput) {
-            codeSearchInput.value = ''; 
-        }
-        if (codeSuggestionsContainer) {
-            codeSuggestionsContainer.innerHTML = '';
-            codeSuggestionsContainer.style.display = 'none';
-        }
-        
-        codesModal.style.display = 'block'; // Show modal
-        // >>>>>>>>> ADDED: Reset keyboard nav state when modal opens
-        highlightedSuggestionIndex = -1;
-        currentSuggestions = [];
-      };
-    }
 
     // Event listener for search input (This check remains correct)
     if (codeSearchInput && codeSuggestionsContainer) {
@@ -1564,38 +1539,24 @@ Office.onReady((info) => {
     }
     // >>>>>>>>> END ADDED
 
-    if (closeCodesModalButton && codesModal) {
-      closeCodesModalButton.onclick = () => {
-        codesModal.style.display = 'none'; // Hide modal
-      };
-    }
-
-    if (saveCodesChangesButton && codesModal && codesTextarea) {
-      saveCodesChangesButton.onclick = () => {
-        // Update the global variable first
-        loadedCodeStrings = codesTextarea.value;
-        // Log the update to the global variable
-        console.log('[Save Handler] Global loadedCodeStrings updated to:', loadedCodeStrings.substring(0,100) + '...');
-        try {
-          // Save the updated global variable to localStorage
-          localStorage.setItem('userCodeStrings', loadedCodeStrings);
-          console.log("Code strings saved to localStorage.");
-          showMessage("Code changes saved."); // Inform user
-        } catch (error) {
-          console.error("Error saving code strings to localStorage:", error);
-          showError(`Error saving codes: ${error.message}`);
-        }
-        codesModal.style.display = 'none'; // Hide modal
-        // No need to log again here, already logged above
-      };
-    }
-
-    // Close modal if user clicks outside the content area (optional)
-    window.onclick = (event) => {
-      if (event.target == codesModal) {
-        codesModal.style.display = "none";
-      }
-    };
+    if (saveCodesChangesButton && codesTextarea) {
+       saveCodesChangesButton.onclick = () => {
+         // Update the global variable first
+         loadedCodeStrings = codesTextarea.value;
+         // Log the update to the global variable
+         console.log('[Save Handler] Global loadedCodeStrings updated to:', loadedCodeStrings.substring(0,100) + '...');
+         try {
+           // Save the updated global variable to localStorage
+           localStorage.setItem('userCodeStrings', loadedCodeStrings);
+           console.log("Code strings saved to localStorage.");
+           showMessage("Code changes saved."); // Inform user
+         } catch (error) {
+           console.error("Error saving code strings to localStorage:", error);
+           showError(`Error saving codes: ${error.message}`);
+         }
+         // No need to log again here, already logged above
+       };
+     }
 
     // Test Buttons (Add similar checks if they are essential)
     // const testGreenCellButton = document.getElementById('test-green-cell');
@@ -1618,6 +1579,9 @@ Office.onReady((info) => {
           if (storedCodes !== null) {
               // Initialize the global variable
               loadedCodeStrings = storedCodes;
+              if (codesTextarea) { // Check if textarea exists
+                  codesTextarea.value = loadedCodeStrings;
+              }
               console.log("Code strings loaded from localStorage into global variable.");
               if (DEBUG) console.log("Initial loaded codes:", loadedCodeStrings.substring(0, 100) + '...');
           } else {
