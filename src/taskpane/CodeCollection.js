@@ -1160,7 +1160,8 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
            } catch(e) {
                console.warn(`Could not get last cell directly for Financials col ${FINANCIALS_CODE_COLUMN}. Error: ${e.message}. Attempting fallback range loading.`);
                try {
-                   const fallbackRange = financialsSheet.getRange(`${FINANCIALS_CODE_COLUMN}1:${FINANCIALS_CODE_COLUMN}10000`);
+                   // Use a potentially more reliable column like B for last row fallback
+                   const fallbackRange = financialsSheet.getRange(`${FINANCIALS_TARGET_COL_B}1:${FINANCIALS_TARGET_COL_B}10000`); // Check Col B
                    fallbackRange.load("values");
                    await worksheet.context.sync();
                    for (let i = fallbackRange.values.length - 1; i >= 0; i--) {
@@ -1169,14 +1170,23 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
                            break;
                        }
                    }
-                   if (financialsLastRow === 0) console.warn(`Fallback range load for Financials col ${FINANCIALS_CODE_COLUMN} also yielded no data.`);
+                   if (financialsLastRow === 0) console.warn(`Fallback range load for Financials col ${FINANCIALS_TARGET_COL_B} also yielded no data.`);
                } catch (fallbackError) {
-                    console.error(`Error during fallback range loading for Financials col ${FINANCIALS_CODE_COLUMN}:`, fallbackError);
-                    financialsLastRow = 0;
+                    console.error(`Error during fallback range loading for Financials col ${FINANCIALS_TARGET_COL_B}:`, fallbackError);
+                    financialsLastRow = 0; // Keep it 0 if fallback fails
                }
            }
         }
-        console.log(`Financials last relevant row in column ${FINANCIALS_CODE_COLUMN}: ${financialsLastRow}`);
+        // Recalculate financialsLastRow based on Col B if it's potentially larger
+        try {
+            const lastRowB = await getLastUsedRow(financialsSheet, FINANCIALS_TARGET_COL_B);
+            financialsLastRow = Math.max(financialsLastRow, lastRowB);
+        } catch (lastRowBErr) {
+            console.warn(`Could not get last row from Col B: ${lastRowBErr.message}`);
+        }
+
+        console.log(`Financials last relevant row used for processing: ${financialsLastRow}`);
+
 
         // 3. Create Map of Financials Codes (Col I) -> Row Number
         const financialsCodeMap = new Map();
@@ -1187,13 +1197,38 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
             for (let i = 0; i < financialsCodeRange.values.length; i++) {
                 const code = financialsCodeRange.values[i][0];
                 if (code !== null && code !== "") {
-                    financialsCodeMap.set(code, i + 1);
+                    // Only map the first occurrence of a code, like .Find would
+                    if (!financialsCodeMap.has(code)) {
+                         financialsCodeMap.set(code, i + 1);
+                    }
                 }
             }
             console.log(`Built Financials code map with ${financialsCodeMap.size} entries.`);
         } else {
-            console.warn(`Financials sheet column ${FINANCIALS_CODE_COLUMN} appears empty or last row not found. No codes loaded.`);
+            console.warn(`Financials sheet column ${FINANCIALS_CODE_COLUMN} appears empty or last row not found. No codes loaded for map.`);
         }
+
+        // *** NEW: Build set of existing data links from Financials Column B ***
+        const existingDataLinks = new Set();
+        if (financialsLastRow > 0) {
+            console.log(`Loading existing formulas from Financials column ${FINANCIALS_TARGET_COL_B} up to row ${financialsLastRow}`);
+            const financialsLinkColRange = financialsSheet.getRange(`${FINANCIALS_TARGET_COL_B}1:${FINANCIALS_TARGET_COL_B}${financialsLastRow}`);
+            financialsLinkColRange.load("formulas");
+            await worksheet.context.sync(); // Sync formulas load
+
+            const financialsFormulasB = financialsLinkColRange.formulas;
+            if (financialsFormulasB) {
+                for (let i = 0; i < financialsFormulasB.length; i++) {
+                    const formula = financialsFormulasB[i][0];
+                    // Check if it looks like a link formula ='SheetName'!CellRef
+                    if (typeof formula === 'string' && formula.startsWith("='") && formula.includes("'!")) {
+                        existingDataLinks.add(formula);
+                    }
+                }
+            }
+            console.log(`Built set of ${existingDataLinks.size} existing link formulas from Financials Col ${FINANCIALS_TARGET_COL_B}.`);
+        }
+        // *** END NEW ***
 
         // 4. Identify rows to insert and prepare task data
         const tasks = [];
@@ -1210,31 +1245,35 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
             const assumptionRow = CALCS_FIRST_ROW + i; // This is the correct Excel row number
 
             if (code !== null && code !== "") {
-                if (financialsCodeMap.has(code)) {
-                    const targetRow = financialsCodeMap.get(code);
+                // Construct the potential link formulas first
+                const linkFormulaB = `='${worksheet.name}'!${ASSUMPTION_LINK_COL_B}${assumptionRow}`;
+                const linkFormulaD = `='${worksheet.name}'!${ASSUMPTION_LINK_COL_D}${assumptionRow}`;
+                const linkFormulaMonths = `='${worksheet.name}'!${ASSUMPTION_MONTHS_START_COL}${assumptionRow}`;
 
-                    // --- Manually construct the address strings ---
-                    const cellAddressB = `${ASSUMPTION_LINK_COL_B}${assumptionRow}`;
-                    const cellAddressD = `${ASSUMPTION_LINK_COL_D}${assumptionRow}`;
-                    const cellAddressMonths = `${ASSUMPTION_MONTHS_START_COL}${assumptionRow}`;
-
-                    // Construct the full formula links directly
-                    const formulaLinkB = `='${worksheet.name}'!${cellAddressB}`;
-                    const formulaLinkD = `='${worksheet.name}'!${cellAddressD}`;
-                    const formulaLinkMonths = `='${worksheet.name}'!${cellAddressMonths}`;
-
-                    // --- REMOVED getSimpleAddress helper function and related checks ---
-                    console.log(`  Task Prep: Row ${assumptionRow}, Code ${code}`); // Simplified log
-
-                    tasks.push({
-                        targetRow: targetRow,
-                        assumptionRow: assumptionRow,
-                        code: code,
-                        addressB: formulaLinkB,     // Use the constructed formula link
-                        addressD: formulaLinkD,     // Use the constructed formula link
-                        addressMonths: formulaLinkMonths // Use the constructed formula link
-                    });
+                // *** NEW CHECK 1: Skip if this assumption row link already exists in Financials Col B ***
+                if (existingDataLinks.has(linkFormulaB)) {
+                    console.log(`  Skipping Code ${code} (Assumption Row ${assumptionRow}): Link ${linkFormulaB} already exists in Financials!${FINANCIALS_TARGET_COL_B}.`);
+                    continue; // Skip to next assumption code
                 }
+
+                // *** ORIGINAL CHECK (modified): Check if code exists in the Financials template map ***
+                if (!financialsCodeMap.has(code)) {
+                     console.log(`  Skipping Code ${code} (Assumption Row ${assumptionRow}): Code not found in Financials template column ${FINANCIALS_CODE_COLUMN}. Cannot determine target row.`);
+                     continue; // Skip if no template row found
+                }
+
+                // If both checks pass, proceed to create the task
+                const targetRow = financialsCodeMap.get(code); // Get the row number from the map
+                console.log(`  Task Prep: Code ${code} (Assumption Row ${assumptionRow}) -> Target Financials Row (for insertion): ${targetRow}`);
+
+                tasks.push({
+                    targetRow: targetRow,
+                    assumptionRow: assumptionRow,
+                    code: code,
+                    addressB: linkFormulaB,     // Use the constructed formula link
+                    addressD: linkFormulaD,     // Use the constructed formula link
+                    addressMonths: linkFormulaMonths // Use the constructed formula link
+                });
             }
         }
 
