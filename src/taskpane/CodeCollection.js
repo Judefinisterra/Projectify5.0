@@ -1208,34 +1208,24 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
             console.warn(`Financials sheet column ${FINANCIALS_CODE_COLUMN} appears empty or last row not found. No codes loaded for map.`);
         }
 
-        // *** NEW: Build set of existing data links from Financials Column B ***
-        const existingDataLinks = new Set();
-        if (financialsLastRow > 0) {
-            console.log(`Loading existing formulas from Financials column ${FINANCIALS_TARGET_COL_B} up to row ${financialsLastRow}`);
-            const financialsLinkColRange = financialsSheet.getRange(`${FINANCIALS_TARGET_COL_B}1:${FINANCIALS_TARGET_COL_B}${financialsLastRow}`);
-            financialsLinkColRange.load("formulas");
-            await worksheet.context.sync(); // Sync formulas load
-
-            const financialsFormulasB = financialsLinkColRange.formulas;
-            if (financialsFormulasB) {
-                for (let i = 0; i < financialsFormulasB.length; i++) {
-                    const formula = financialsFormulasB[i][0];
-                    // Check if it looks like a link formula ='SheetName'!CellRef
-                    if (typeof formula === 'string' && formula.startsWith("='") && formula.includes("'!")) {
-                        existingDataLinks.add(formula);
-                    }
-                }
-            }
-            console.log(`Built set of ${existingDataLinks.size} existing link formulas from Financials Col ${FINANCIALS_TARGET_COL_B}.`);
-        }
-        // *** END NEW ***
+        // *** REMOVED: Logic for existingDataLinks Set ***
+        // const existingDataLinks = new Set();
+        // if (financialsLastRow > 0) {
+        //     ... load formulas from Financials Col B ...
+        //     ... populate existingDataLinks set ...
+        // }
+        // *** END REMOVED ***
 
         // 4. Identify rows to insert and prepare task data
         const tasks = [];
         console.log("populateFinancialsJS: Syncing assumption codes load...");
         await worksheet.context.sync(); // Sync needed for assumptionCodeRange.values
 
-        const assumptionCodes = assumptionCodeRange.values;
+        // *** RELOAD assumption codes here AFTER the sync above, just in case ***
+        // It's safer to reload after any potential sync/modification, though unlikely needed here.
+        // Keeping the original load before the Financials code map creation seems okay.
+        const assumptionCodes = assumptionCodeRange.values; // Use the already loaded values
+
         console.log(`populateFinancialsJS: Processing ${assumptionCodes?.length ?? 0} assumption rows.`);
 
         // --- REMOVED Debug logging for row 17 values/addresses ---
@@ -1250,11 +1240,11 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
                 const linkFormulaD = `='${worksheet.name}'!${ASSUMPTION_LINK_COL_D}${assumptionRow}`;
                 const linkFormulaMonths = `='${worksheet.name}'!${ASSUMPTION_MONTHS_START_COL}${assumptionRow}`;
 
-                // *** NEW CHECK 1: Skip if this assumption row link already exists in Financials Col B ***
-                if (existingDataLinks.has(linkFormulaB)) {
-                    console.log(`  Skipping Code ${code} (Assumption Row ${assumptionRow}): Link ${linkFormulaB} already exists in Financials!${FINANCIALS_TARGET_COL_B}.`);
-                    continue; // Skip to next assumption code
-                }
+                // *** REMOVED CHECK 1: Skip if this assumption row link already exists in Financials Col B ***
+                // if (existingDataLinks.has(linkFormulaB)) {
+                //     console.log(`  Skipping Code ${code} (Assumption Row ${assumptionRow}): Link ${linkFormulaB} already exists in Financials!${FINANCIALS_TARGET_COL_B}.`);
+                //     continue; // Skip to next assumption code
+                // }
 
                 // *** ORIGINAL CHECK (modified): Check if code exists in the Financials template map ***
                 if (!financialsCodeMap.has(code)) {
@@ -1262,7 +1252,7 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
                      continue; // Skip if no template row found
                 }
 
-                // If both checks pass, proceed to create the task
+                // If the code exists in the map, proceed to create the task
                 const targetRow = financialsCodeMap.get(code); // Get the row number from the map
                 console.log(`  Task Prep: Code ${code} (Assumption Row ${assumptionRow}) -> Target Financials Row (for insertion): ${targetRow}`);
 
@@ -1459,6 +1449,44 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
         console.log("Finished setting up autofills.");
         await worksheet.context.sync(); // Sync all autofill operations
         console.log("Autofills synced.");
+
+        // *** NEW STEP: Modify codes in Assumption Sheet Column C ***
+        console.log(`Modifying codes in ${worksheet.name} column ${ASSUMPTION_CODE_COL} (${CALCS_FIRST_ROW}:${lastRow}) by prepending '-'...`);
+        try {
+            // Re-get the range and load values (ensure we have the latest state)
+            const codeColRange = worksheet.getRange(`${ASSUMPTION_CODE_COL}${CALCS_FIRST_ROW}:${ASSUMPTION_CODE_COL}${lastRow}`);
+            codeColRange.load("values");
+            await worksheet.context.sync(); // Load the values
+
+            const currentCodeValues = codeColRange.values;
+            const modifiedCodeValues = [];
+            let modifiedCount = 0;
+
+            for (let i = 0; i < currentCodeValues.length; i++) {
+                const originalValue = currentCodeValues[i][0];
+                if (originalValue !== null && originalValue !== "" && !String(originalValue).startsWith('-')) {
+                    modifiedCodeValues.push(["-" + originalValue]); // Prepend "-"
+                    modifiedCount++;
+                } else {
+                    modifiedCodeValues.push([originalValue]); // Keep original if empty, null, or already starts with '-'
+                }
+            }
+
+            // Write the modified values back if any changes were made
+            if (modifiedCount > 0) {
+                 console.log(`  Writing ${modifiedCount} modified codes back to ${ASSUMPTION_CODE_COL}${CALCS_FIRST_ROW}:${ASSUMPTION_CODE_COL}${lastRow}`);
+                 codeColRange.values = modifiedCodeValues;
+                 await worksheet.context.sync(); // Sync the code modifications
+                 console.log("  Synced code modifications.");
+            } else {
+                console.log("  No codes needed modification.");
+            }
+        } catch (modifyError) {
+             console.error(`Error modifying codes in ${worksheet.name} column ${ASSUMPTION_CODE_COL}:`, modifyError.debugInfo || modifyError);
+             // Continue even if modification fails? Or throw? Let's log and continue.
+        }
+        // *** END NEW STEP ***
+
 
         console.log(`populateFinancialsJS successfully completed for ${worksheet.name} -> ${financialsSheet.name}`);
 

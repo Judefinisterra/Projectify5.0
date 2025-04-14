@@ -1302,24 +1302,42 @@ async function insertSheetsAndRunCodes() {
             const previousTabMap = new Map(previousTabs.map(block => [block.tag, block.text]));
 
             let hasAnyChanges = false; // Flag to check if codes.xlsx needs inserting
+            const codeRegex = /<[^>]+>/g; // Regex to find <...> codes
 
             for (const currentTab of currentTabs) {
-                const currentTag = currentTab.tag;
-                const currentText = currentTab.text;
+                const currentTag = currentTab.tag; // This is the <TAB;...> tag
+                const currentText = currentTab.text; // This is the full text block starting with <TAB;...>
                 const previousText = previousTabMap.get(currentTag);
 
                 if (previousText === undefined) {
                     // *** New Tab ***
-                    console.log(`[Run Codes] Identified NEW tab: ${currentTag}`);
-                    allCodeContentToProcess += currentText + "\n\n"; // Add full content
-                    hasAnyChanges = true;
-                } else if (previousText !== currentText) {
-                    // *** Modified Existing Tab ***
-                    console.log(`[Run Codes] Identified MODIFIED tab: ${currentTag}.`);
-                    allCodeContentToProcess += currentText + "\n\n"; // Add full content
-                    hasAnyChanges = true; // Mark change because the text differs
+                    console.log(`[Run Codes] Identified NEW tab: ${currentTag}. Adding all its codes.`);
+                    const newTabCodes = currentText.match(codeRegex) || [];
+                    if (newTabCodes.length > 0) {
+                        allCodeContentToProcess += newTabCodes.join("\n") + "\n\n"; // newTabCodes already includes the TAB tag
+                        hasAnyChanges = true;
+                    }
+                } else {
+                    // *** Existing Tab: Compare individual codes ***
+                    const currentCodes = currentText.match(codeRegex) || [];
+                    const previousCodesSet = new Set((previousText || "").match(codeRegex) || []);
+                    let tabHasChanges = false;
+                    let codesToAddForThisTab = ""; // Collect codes for this tab
+
+                    for (const currentCode of currentCodes) {
+                        if (!previousCodesSet.has(currentCode)) {
+                            console.log(`[Run Codes] Identified NEW/MODIFIED code in tab ${currentTag}: ${currentCode.substring(0, 80)}...`);
+                            codesToAddForThisTab += currentCode + "\n"; // Collect only the new/modified code
+                            hasAnyChanges = true;
+                            tabHasChanges = true; // Mark that this specific tab had changes
+                        }
+                    }
+                    // If codes were added from this modified tab, prefix them with the TAB tag
+                    if (tabHasChanges) {
+                        allCodeContentToProcess += currentTag + "\n"; // Add TAB tag
+                        allCodeContentToProcess += codesToAddForThisTab + "\n"; // Add collected codes + separator
+                    }
                 }
-                // else: Tab exists and text is identical - do nothing.
             }
 
             // --- Validate ALL collected content BEFORE inserting codes.xlsx ---
@@ -1344,7 +1362,7 @@ async function insertSheetsAndRunCodes() {
                 }
 
                 // --- Insert codes.xlsx only AFTER successful validation if changes were detected ---
-                console.log("[Run Codes] Changes detected and validated. Inserting base sheets from codes.xlsx...");
+                console.log(`[Run Codes] Changes detected and validated: ${currentTabs.filter(tab => !previousTabMap.has(tab.tag) || previousTabMap.get(tab.tag) !== tab.text).map(tab => tab.tag).join(', ')}. Inserting base sheets from codes.xlsx...`);
                 try {
                     const codesResponse = await fetch('https://localhost:3002/assets/codes.xlsx');
                     if (!codesResponse.ok) throw new Error(`codes.xlsx load failed: ${codesResponse.statusText}`);
