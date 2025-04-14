@@ -11,9 +11,5 @@ config.js
 *.xlsx#
 *.xlsx~ 
 
-# Package files
-package.json
-package-lock.json
-
 # Output files
 output.json 
