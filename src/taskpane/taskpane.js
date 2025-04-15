@@ -15,6 +15,8 @@ import { validateCodeStrings } from './Validation.js';
 import { populateCodeCollection, exportCodeCollectionToText, runCodes, processAssumptionTabs, collapseGroupingsAndNavigateToFinancials, hideColumnsAndNavigate, handleInsertWorksheetsFromBase64 } from './CodeCollection.js';
 // >>> ADDED: Import the new validation function
 import { validateCodeStringsForRun } from './Validation.js';
+// >>> ADDED: Import the tab string generator function
+import { generateTabString } from './IndexWorksheet.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -43,10 +45,11 @@ let loadedCodeStrings = "";
 let codeDatabase = [];
 
 // >>> ADDED: Variables for search/replace state <<<
-let lastSearchTerm = '';
-let lastSearchIndex = -1; // Tracks the starting index of the last found match
-let searchResultIndices = []; // Stores indices of all matches for Replace All
-let currentHighlightIndex = -1; // Index within searchResultIndices for Find Next
+// >>> REMOVED: Main search/replace state variables <<<
+// let lastSearchTerm = '';
+// let lastSearchIndex = -1; // Tracks the starting index of the last found match
+// let searchResultIndices = []; // Stores indices of all matches for Replace All
+// let currentHighlightIndex = -1; // Index within searchResultIndices for Find Next
 
 // API keys storage - initialized by initializeAPIKeys
 let INTERNAL_API_KEYS = {
@@ -488,7 +491,6 @@ export async function structureDatabasequeries(clientprompt) {
       throw error; // Re-throw
   }
 }
-
 
 // Function: Query Vector Database using Pinecone REST API
 export async function queryVectorDB({ queryPrompt, indexName = 'codes', numResults = 10, similarityThreshold = null }) {
@@ -1644,6 +1646,15 @@ Office.onReady((info) => {
 
     const resetButton = document.getElementById('reset-chat');
     if (resetButton) resetButton.onclick = resetChat;
+
+    // >>> ADDED: Setup for Generate Tab String button
+    const generateTabStringButton = document.getElementById('generate-tab-string-button');
+    if (generateTabStringButton) {
+        generateTabStringButton.onclick = generateTabString; // Assign the imported function
+    } else {
+        console.error("Could not find button with id='generate-tab-string-button'");
+    }
+    // <<< END ADDED CODE
 
     const codesTextarea = document.getElementById('codes-textarea');
     const editParamsButton = document.getElementById('edit-code-params-button');
