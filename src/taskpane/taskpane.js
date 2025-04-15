@@ -17,6 +17,10 @@ import { populateCodeCollection, exportCodeCollectionToText, runCodes, processAs
 import { validateCodeStringsForRun } from './Validation.js';
 // >>> ADDED: Import the tab string generator function
 import { generateTabString } from './IndexWorksheet.js';
+// >>> UPDATED: Import structureDatabasequeries from the helper file
+import { structureDatabasequeries } from './StructureHelper.js';
+// >>> ADDED: Import setAPIKeys function from AIcalls
+import { setAPIKeys } from './AIcalls.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -405,92 +409,10 @@ async function processPrompt({ userInput, systemPrompt, model, temperature, hist
 }
 
 // Function: Structure database queries
-export async function structureDatabasequeries(clientprompt) {
-  if (DEBUG) console.log("Processing structured database queries:", clientprompt);
-
-  try {
-      if (DEBUG) console.log("Getting structure system prompt");
-      const systemStructurePrompt = await getSystemPromptFromFile('Structure_System');
-
-      if (!systemStructurePrompt) {
-          throw new Error("Failed to load structure system prompt");
-      }
-
-      if (DEBUG) console.log("Got system prompt, processing query strings");
-      // processPrompt expects history, pass empty array if none applicable here
-      const queryStrings = await processPrompt({
-          userInput: clientprompt,
-          systemPrompt: systemStructurePrompt,
-          model: GPT41,
-          temperature: 1,
-          history: [] // Explicitly empty
-      });
-
-      if (!queryStrings || !Array.isArray(queryStrings)) {
-          console.error("Invalid query strings received:", queryStrings);
-          throw new Error("Failed to get valid query strings from structuring prompt");
-      }
-
-      if (DEBUG) console.log("Got query strings:", queryStrings);
-      const results = [];
-
-      for (const queryString of queryStrings) {
-          if (DEBUG) console.log("Processing query:", queryString);
-          try {
-              // Make sure queryVectorDB uses the internal API keys
-              const queryResults = {
-                  query: queryString,
-                  trainingData: await queryVectorDB({
-                      queryPrompt: queryString,
-                      similarityThreshold: .2,
-                      indexName: 'call2trainingdata',
-                      numResults: 3
-                  }),
-                  call2Context: await queryVectorDB({
-                      queryPrompt: queryString,
-                      similarityThreshold: .2,
-                      indexName: 'call2context',
-                      numResults: 5
-                  }),
-                  call1Context: await queryVectorDB({
-                      queryPrompt: queryString,
-                      similarityThreshold: .2,
-                      indexName: 'call1context',
-                      numResults: 5
-                  }),
-                  codeOptions: await queryVectorDB({
-                      queryPrompt: queryString,
-                      indexName: 'codes',
-                      numResults: 3,
-                      similarityThreshold: .1
-                  })
-              };
-
-              results.push(queryResults);
-              if (DEBUG) console.log("Successfully processed query:", queryString);
-          } catch (error) {
-              console.error(`Error processing query "${queryString}":`, error);
-              // Continue with next query instead of failing completely
-          }
-      }
-
-      if (results.length === 0 && queryStrings.length > 0) {
-           console.warn("All structured queries failed to produce results.");
-           // Decide whether to throw an error or return empty results
-           // Throwing error based on original logic
-           throw new Error("No valid results were obtained from any structured queries");
-      } else if (queryStrings.length === 0) {
-           console.warn("Structuring prompt returned no query strings.");
-           // Throwing error as subsequent steps likely depend on results
-           throw new Error("Structuring prompt did not return any queries to process.");
-      }
-
-      return results;
-  } catch (error) {
-      console.error("Error in structureDatabasequeries:", error);
-      throw error; // Re-throw
-  }
-}
+// >>> REMOVED: structureDatabasequeries function definition <<<
+// export async function structureDatabasequeries(clientprompt) {
+//   ... function body ...
+// }
 
 // Function: Query Vector Database using Pinecone REST API
 export async function queryVectorDB({ queryPrompt, indexName = 'codes', numResults = 10, similarityThreshold = null }) {
@@ -1631,10 +1553,6 @@ Office.onReady((info) => {
         console.error("Could not find button with id='insert-and-run'");
     }
 
-    // >>> ADDED: Helper function findNewCodes (defined above, ensure it's accessible)
-    // No need to add it here again if defined globally or within taskpane.js scope before Office.onReady
-
-
     // ... (rest of your Office.onReady remains the same) ...
 
     // Keep the setup for your other buttons (send-button, reset-button, etc.)
@@ -2027,9 +1945,12 @@ Office.onReady((info) => {
     Promise.all([
         initializeAPIKeys(),
         loadCodeDatabase()
-    ]).then(([keysLoaded]) => {
-      if (!keysLoaded) {
+    ]).then(([keys]) => {
+      if (!keys) {
         showError("Failed to load API keys. Please check configuration.");
+      } else {
+        // >>> ADDED: Set the API keys in AIcalls module
+        setAPIKeys(keys);
       }
       conversationHistory = loadConversationHistory();
 
