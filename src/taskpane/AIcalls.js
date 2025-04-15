@@ -325,7 +325,7 @@ export async function createEmbedding(text) {
 }
 
 // Function to load prompts from files
-async function loadPromptFromFile(promptKey) {
+export async function loadPromptFromFile(promptKey) {
   try {
     const paths = [
       `https://localhost:3002/prompts/${promptKey}.txt`,
@@ -358,7 +358,7 @@ async function loadPromptFromFile(promptKey) {
 }
 
 // Function to get system prompt from file
-async function getSystemPromptFromFile(promptKey) {
+export async function getSystemPromptFromFile(promptKey) {
   try {
     const prompt = await loadPromptFromFile(promptKey);
     if (!prompt) {
@@ -372,7 +372,7 @@ async function getSystemPromptFromFile(promptKey) {
 };
 
 // Function: OpenAI Call with conversation history support
-async function processPrompt({ userInput, systemPrompt, model, temperature, history = [] }) {
+export async function processPrompt({ userInput, systemPrompt, model, temperature, history = [] }) {
     if (DEBUG) console.log("API Key being used for processPrompt:", INTERNAL_API_KEYS.OPENAI_API_KEY ? `${INTERNAL_API_KEYS.OPENAI_API_KEY.substring(0, 3)}...` : "None");
 
     const messages = [
@@ -618,7 +618,7 @@ function extractTextFromJson(jsonInput) {
 
 
 // Helper function to format JSON for prompts (handle potential errors)
-function safeJsonForPrompt(obj, readable = true) {
+export function safeJsonForPrompt(obj, readable = true) {
     try {
         if (!readable) {
             // Simple stringify, remove potential noise, escape braces
@@ -667,7 +667,7 @@ function safeJsonForPrompt(obj, readable = true) {
 
 
 // Function: Handle Follow-Up Conversation
-async function handleFollowUpConversation(clientprompt, currentHistory) {
+export async function handleFollowUpConversation(clientprompt, currentHistory) {
     if (DEBUG) console.log("Processing follow-up question:", clientprompt);
     if (DEBUG) console.log("Using conversation history length:", currentHistory.length);
 
@@ -763,7 +763,7 @@ async function handleFollowUpConversation(clientprompt, currentHistory) {
 
 
 // Function: Handle Initial Conversation
-async function handleInitialConversation(clientprompt) {
+export async function handleInitialConversation(clientprompt) {
     if (DEBUG) console.log("Processing initial question:", clientprompt);
 
      // Ensure API keys are available
