@@ -648,20 +648,8 @@ async function handleFollowUpConversation(clientprompt, currentHistory) {
 
     // Persist updated history and analysis data (using localStorage helpers)
     saveConversationHistory(updatedHistory); // Save the new history state
-    savePromptAnalysis(
-        clientprompt,
-        systemPrompt,
-        mainPromptText,
-        null, // No validation prompt info available here
-        null, // No validation prompt info available here
-        null, // No validation results available here
-        safeJsonForPrompt(call2context, false), // Save non-readable for potential re-use
-        safeJsonForPrompt(call1context, false),
-        safeJsonForPrompt(trainingdataCall2, false),
-        safeJsonForPrompt(codeOptions, false),
-        responseArray
-    );
-    saveTrainingData(clientprompt, responseArray);
+
+   
 
     if (DEBUG) console.log("Follow-up conversation processed. History length:", updatedHistory.length);
 
@@ -711,15 +699,8 @@ async function handleInitialConversation(clientprompt) {
 
     // Persist history and analysis data
     saveConversationHistory(initialHistory);
-    savePromptAnalysis(
-        clientprompt,
-        systemPrompt,
-        mainPromptText,
-        null, null, null, // No validation info
-        "", "", "", "", // No vector DB context yet
-        outputArray
-    );
-    saveTrainingData(clientprompt, outputArray);
+
+
 
     if (DEBUG) console.log("Initial conversation processed. History length:", initialHistory.length);
     if (DEBUG) console.log("Initial Response:", outputArray);
@@ -749,53 +730,6 @@ export async function handleConversation(clientprompt, currentHistory) {
 }
 
 
-// Function: Save prompt analysis data to localStorage
-function savePromptAnalysis(clientprompt, systemPrompt, mainPrompt, validationSystemPrompt, validationMainPrompt, validationResults, call2context, call1context, trainingdataCall2, codeOptions, outputArray) {
-    try {
-        const analysisData = {
-            clientRequest: clientprompt || "",
-            systemPrompt: systemPrompt || "",
-            mainPrompt: mainPrompt || "",
-            validationSystemPrompt: validationSystemPrompt || "",
-            validationMainPrompt: validationMainPrompt || "",
-            validationResults: validationResults || [],
-            call2context: call2context || "", // Store the potentially non-readable string used
-            call1context: call1context || "",
-            trainingdataCall2: trainingdataCall2 || "",
-            codeOptions: codeOptions || "",
-            outputArray: outputArray || []
-        };
-
-        localStorage.setItem('promptAnalysis', JSON.stringify(analysisData));
-        if (DEBUG) console.log('Prompt analysis saved to localStorage');
-    } catch (error) {
-        console.error("Error saving prompt analysis:", error);
-    }
-}
-
-// Function: Save training data pair to localStorage
-function saveTrainingData(clientprompt, outputArray) {
-    try {
-        // Helper to clean text for storage
-        function cleanText(text) {
-            if (!text) return '';
-            // Convert non-strings (like arrays) to string first
-            const str = Array.isArray(text) ? JSON.stringify(text) : String(text);
-            return str.replace(/[\r\n\t]+/g, ' ').trim(); // Replace newlines/tabs with space
-        }
-
-        const trainingData = {
-            prompt: cleanText(clientprompt),
-            // Ensure outputArray is stringified if it's an array
-            response: cleanText(outputArray)
-        };
-
-        localStorage.setItem('trainingData', JSON.stringify(trainingData));
-        if (DEBUG) console.log('Training data saved to localStorage');
-    } catch (error) {
-        console.error("Error saving training data:", error);
-    }
-}
 
 
 // Function: Perform validation correction using LLM
@@ -1117,40 +1051,7 @@ function resetChat() {
     console.log("Chat reset completed");
 }
 
-/**
- * Inserts worksheets from a base64-encoded Excel file
- */
-async function insertSheetsFromBase64() {
-    try {
-        // Fetch the Excel file
-        const response = await fetch('https://localhost:3002/assets/Worksheets_4.3.25 v1.xlsx');
-        if (!response.ok) {
-            throw new Error('Failed to load Excel file');
-        }
-        
-        // Convert the response to an ArrayBuffer
-        const arrayBuffer = await response.arrayBuffer();
-        
-        // Convert ArrayBuffer to base64 string in chunks
-        const uint8Array = new Uint8Array(arrayBuffer);
-        let binaryString = '';
-        const chunkSize = 8192; // Process in 8KB chunks
-        
-        for (let i = 0; i < uint8Array.length; i += chunkSize) {
-            const chunk = uint8Array.slice(i, Math.min(i + chunkSize, uint8Array.length));
-            binaryString += String.fromCharCode.apply(null, chunk);
-        }
-        
-        const base64String = btoa(binaryString);
-        
-        // Call the function to insert worksheets
-        await handleInsertWorksheetsFromBase64(base64String);
-        console.log("Worksheets inserted successfully");
-    } catch (error) {
-        console.error("Error inserting worksheets:", error);
-        showError(error.message);
-    }
-}
+
 
 // *** Define Helper Function Globally (BEFORE Office.onReady) ***
 function getTabBlocks(codeString) {
@@ -2311,277 +2212,10 @@ Office.onReady((info) => {
   }
 });
 
-// >>> ADDED: Search and Replace Functions <<<
 
-function clearSearchHighlight() {
-    const textarea = document.getElementById('codes-textarea');
-    if (textarea && lastSearchIndex !== -1) {
-        // Simple way: just reset selection to the start
-        textarea.setSelectionRange(0, 0);
-        textarea.blur(); // Remove focus to clear visible selection highlight
-        textarea.focus();
-        console.log("Cleared search highlight.");
-    }
-    lastSearchIndex = -1;
-    searchResultIndices = [];
-    currentHighlightIndex = -1;
-    updateSearchStatus('');
-}
 
-function updateSearchStatus(message) {
-    const statusElement = document.getElementById('search-status');
-    if (statusElement) {
-        statusElement.textContent = message;
-    }
-}
 
-function findNext() {
-    const textarea = document.getElementById('codes-textarea');
-    const searchTerm = document.getElementById('search-input').value;
-    const statusElement = document.getElementById('search-status');
-    const selectionOnlyCheckbox = document.getElementById('search-selection-only');
 
-    if (!textarea || !searchTerm) {
-        updateSearchStatus("Enter a search term.");
-        return;
-    }
 
-    const isSelectionOnly = selectionOnlyCheckbox?.checked;
-    let currentText = textarea.value;
-    let scopeStartIndex = 0;
-    let selectionEndIndex = currentText.length; // Use current length
 
-    if (isSelectionOnly) {
-        scopeStartIndex = textarea.selectionStart;
-        selectionEndIndex = textarea.selectionEnd;
-        if (scopeStartIndex === selectionEndIndex) {
-            updateSearchStatus("Select text first for 'Search Selection Only'.");
-            return;
-        }
-        let searchScopeText = currentText.substring(scopeStartIndex, selectionEndIndex);
-        console.log(`Searching within selection (${scopeStartIndex}-${selectionEndIndex}): "${searchScopeText}"`);
-
-        // Determine if a re-scan is needed
-        const storedSelStart = textarea.dataset.lastSelectionScanStart;
-        const storedSelEnd = textarea.dataset.lastSelectionScanEnd;
-        const needsRescan = lastSearchTerm !== searchTerm || 
-                            !storedSelStart || 
-                            storedSelStart != scopeStartIndex || 
-                            storedSelEnd != selectionEndIndex;
-
-        if (needsRescan) {
-            console.log("Re-scanning selection.");
-            lastSearchTerm = searchTerm;
-            textarea.dataset.lastSelectionScanStart = scopeStartIndex; // Store bounds used for THIS scan
-            textarea.dataset.lastSelectionScanEnd = selectionEndIndex;
-            lastSearchIndex = -1; // Absolute index reset
-            currentHighlightIndex = -1;
-            searchResultIndices = []; // Stores relative indices
-
-            let relativeIndex = searchScopeText.indexOf(searchTerm);
-            while (relativeIndex !== -1) {
-                searchResultIndices.push(relativeIndex);
-                relativeIndex = searchScopeText.indexOf(searchTerm, relativeIndex + 1);
-            }
-            console.log(`Found ${searchResultIndices.length} occurrences within selection. Relative Indices:`, searchResultIndices);
-        }
-        // If no re-scan needed, we continue with existing searchResultIndices and currentHighlightIndex
-
-        if (searchResultIndices.length === 0) {
-            updateSearchStatus(`"${searchTerm}" not found in selection.`);
-            return;
-        }
-    }
-    else { // Full text search
-        const storedSelStart = textarea.dataset.lastSelectionScanStart;
-        // Reset if term changed or switching FROM selection mode
-        if (searchTerm !== lastSearchTerm || storedSelStart) {
-            console.log("Scanning full text.");
-            lastSearchTerm = searchTerm;
-            lastSearchIndex = -1; // Absolute index
-            currentHighlightIndex = -1;
-            searchResultIndices = []; // Stores absolute indices
-            textarea.dataset.lastSelectionScanStart = ''; // Clear selection memory
-            textarea.dataset.lastSelectionScanEnd = '';
-
-            let index = currentText.indexOf(searchTerm);
-            while (index !== -1) {
-                searchResultIndices.push(index);
-                index = currentText.indexOf(searchTerm, index + 1);
-            }
-            console.log(`Found ${searchResultIndices.length} occurrences of "${searchTerm}". Absolute Indices:`, searchResultIndices);
-        }
-
-        if (searchResultIndices.length === 0) {
-            updateSearchStatus(`"${searchTerm}" not found.`);
-            return;
-        }
-    }
-
-    // Cycle through the found indices
-    currentHighlightIndex = (currentHighlightIndex + 1) % searchResultIndices.length;
-    const foundIndex = searchResultIndices[currentHighlightIndex]; // Could be relative or absolute
-
-    // Highlight the found text (calculate absolute index)
-    const highlightStartIndex = isSelectionOnly ? scopeStartIndex + foundIndex : foundIndex;
-    const highlightEndIndex = highlightStartIndex + searchTerm.length;
-
-    // Store the absolute index of the current highlight for replace validation
-    lastSearchIndex = highlightStartIndex;
-
-    textarea.focus();
-    textarea.setSelectionRange(highlightStartIndex, highlightEndIndex);
-    textarea.scrollTop = textarea.scrollHeight * (highlightStartIndex / currentText.length) - 50; // Estimate scroll position
-
-    updateSearchStatus(`Found at index ${highlightStartIndex} (${currentHighlightIndex + 1}/${searchResultIndices.length})${isSelectionOnly ? ' (in selection)' : ''}`);
-    console.log(`Highlighting ${isSelectionOnly ? 'relative index ' + foundIndex : 'absolute index'} (Absolute: ${highlightStartIndex})`);
-}
-
-function replace() {
-    const textarea = document.getElementById('codes-textarea');
-    const searchTerm = document.getElementById('search-input').value;
-    const replaceTerm = document.getElementById('replace-input').value;
-    const selectionOnlyCheckbox = document.getElementById('search-selection-only');
-
-    if (!textarea || !searchTerm) {
-        updateSearchStatus("Enter a search term.");
-        return;
-    }
-
-    // Must have a valid highlighted match from findNext
-    if (lastSearchIndex === -1 || textarea.selectionStart !== lastSearchIndex || textarea.selectionEnd !== lastSearchIndex + searchTerm.length) {
-         updateSearchStatus("Find match first.");
-         // Attempt to find the first match if none is selected
-         findNext();
-         return;
-    }
-
-    const isSelectionOnly = selectionOnlyCheckbox?.checked;
-
-    // If selection only, double-check the match is within the bounds used for the last scan
-    if (isSelectionOnly) {
-        const storedSelStart = parseInt(textarea.dataset.lastSelectionScanStart || '-1', 10);
-        const storedSelEnd = parseInt(textarea.dataset.lastSelectionScanEnd || '-1', 10);
-        if (storedSelStart === -1 || lastSearchIndex < storedSelStart || (lastSearchIndex + searchTerm.length) > storedSelEnd) {
-            updateSearchStatus("Match is outside selection bounds. Find Next?");
-            console.log("Replace cancelled: Highlight outside selection scan bounds.");
-            // Reset highlight and let user find again
-            clearSearchHighlight();
-            lastSearchTerm = searchTerm; // Keep term
-            return;
-        }
-    }
-
-    // Perform the replacement
-    const currentText = textarea.value;
-    const before = currentText.substring(0, lastSearchIndex);
-    const after = currentText.substring(lastSearchIndex + searchTerm.length);
-    const lengthDifference = replaceTerm.length - searchTerm.length;
-
-    textarea.value = before + replaceTerm + after;
-    console.log(`Replaced "${searchTerm}" with "${replaceTerm}" at absolute index ${lastSearchIndex}`);
-
-    // --- State Update ---
-    if (isSelectionOnly) {
-        // Update the END boundary used for the scan to reflect the change
-        const storedSelEnd = parseInt(textarea.dataset.lastSelectionScanEnd || '-1', 10);
-        if (storedSelEnd !== -1) {
-            textarea.dataset.lastSelectionScanEnd = storedSelEnd + lengthDifference;
-            console.log(`Updated selection scan end boundary to: ${textarea.dataset.lastSelectionScanEnd}`);
-        }
-        // Clear the specific match state, forcing findNext to re-scan the selection
-        lastSearchIndex = -1;
-        searchResultIndices = [];
-        currentHighlightIndex = -1;
-    } else {
-        // Full text replace: Just clear everything, simplest approach
-        clearSearchHighlight();
-        lastSearchTerm = searchTerm; // Keep term
-    }
-
-    // Set cursor position after the replaced text
-    textarea.focus();
-    const newCursorPos = lastSearchIndex + replaceTerm.length; // lastSearchIndex is the START of the replaced section
-    textarea.setSelectionRange(newCursorPos, newCursorPos);
-
-    updateSearchStatus(`Replaced at ${lastSearchIndex}. Find Next?`);
-
-    // DO NOT automatically call findNext(). Let the user do it.
-}
-
-function replaceAll() {
-    const textarea = document.getElementById('codes-textarea');
-    const searchTerm = document.getElementById('search-input').value;
-    const replaceTerm = document.getElementById('replace-input').value;
-    const selectionOnlyCheckbox = document.getElementById('search-selection-only'); // <<< ADDED
-
-    if (!textarea || !searchTerm) {
-        updateSearchStatus("Enter search term.");
-        return;
-    }
-
-    const isSelectionOnly = selectionOnlyCheckbox?.checked; // <<< ADDED
-    let replacementsMade = 0;
-    const originalText = textarea.value;
-    let newText = originalText;
-
-    // Escaping regex special characters in search term for safety
-    const escapedSearchTerm = searchTerm.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
-    const regex = new RegExp(escapedSearchTerm, 'g'); // Global flag
-
-    // <<< ADDED: Logic for Selection Only >>>
-    if (isSelectionOnly) {
-        const startIndex = textarea.selectionStart;
-        const endIndex = textarea.selectionEnd;
-
-        if (startIndex === endIndex) {
-            updateSearchStatus("Select text first for 'Replace All in Selection'.");
-            return;
-        }
-
-        const selectedText = originalText.substring(startIndex, endIndex);
-        let replacedSelectedText = selectedText.replace(regex, () => {
-            replacementsMade++;
-            return replaceTerm;
-        });
-
-        if (replacementsMade > 0) {
-            newText = originalText.substring(0, startIndex) + replacedSelectedText + originalText.substring(endIndex);
-             textarea.value = newText;
-             // Optionally re-select the modified text
-             textarea.focus();
-             textarea.setSelectionRange(startIndex, startIndex + replacedSelectedText.length);
-
-             console.log(`Replaced ${replacementsMade} occurrences within selection.`);
-             updateSearchStatus(`Replaced ${replacementsMade} in selection.`);
-             // Reset search state
-             lastSearchTerm = '';
-             clearSearchHighlight();
-        } else {
-             updateSearchStatus(`"${searchTerm}" not found in selection.`);
-             console.log(`"${searchTerm}" not found for Replace All within selection.`);
-        }
-
-    }
-    // <<< END ADDED >>>
-    else {
-        // Full text replace (existing logic)
-        newText = originalText.replace(regex, () => {
-            replacementsMade++;
-            return replaceTerm;
-        });
-
-        if (replacementsMade > 0) {
-            textarea.value = newText;
-            console.log(`Replaced ${replacementsMade} occurrences of "${searchTerm}" with "${replaceTerm}".`);
-            updateSearchStatus(`Replaced ${replacementsMade} occurrences.`);
-            // Reset search state as content has significantly changed
-            lastSearchTerm = '';
-            clearSearchHighlight();
-        } else {
-            updateSearchStatus(`"${searchTerm}" not found.`);
-            console.log(`"${searchTerm}" not found for Replace All.`);
-        }
-    }
-}
 
