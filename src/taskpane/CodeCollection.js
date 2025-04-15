@@ -13,7 +13,7 @@ import { convertKeysToCamelCase } from "@pinecone-database/pinecone/dist/utils";
 export function populateCodeCollection(inputText) {
     try {
         console.log("Processing input text for code collection");
-        
+         
         // Initialize an empty code collection
         const codeCollection = [];
         
@@ -181,41 +181,125 @@ export async function runCodes(codeCollection) {
                             // }
                             // console.log("existingSheet deleted");
                             
-                            // Get the Calcs worksheet AND the Financials worksheet
-                            const sourceCalcsWS = context.workbook.worksheets.getItem("Calcs");
+                            // Get the Financials worksheet (needed for position and as fallback template)
                             const financialsSheet = context.workbook.worksheets.getItem("Financials");
                             financialsSheet.load("position"); // Load Financials sheet position
                             await context.sync(); // Sync to get Financials position
-                            console.log(`sourceCalcsWS obtained. Financials sheet is at position ${financialsSheet.position}`);
+                            console.log(`Financials sheet is at position ${financialsSheet.position}`);
                             
-
+                            // Check if the target tab already exists
                             if (!existingSheet) {
-                            // Create a new worksheet by copying the Calcs worksheet
-                            const newSheet = sourceCalcsWS.copy();
-                            console.log("newSheet created by copying Calcs worksheet");
-                            
-                            // Rename it
-                            newSheet.name = tabName;
-                            console.log("newSheet renamed to", tabName);
-                            
-                            // <<< NEW: Set position relative to Financials sheet >>>
-                            newSheet.position = financialsSheet.position + 1;
-                            console.log(`Set position of ${tabName} to ${newSheet.position}`);
-                               // Add to assumption tabs collection
-                               assumptionTabs.push({
-                                name: tabName,
-                                worksheet: newSheet
-                               }); // <-- Added closing brace and semicolon here
+                                let newSheet;
+                                let sourceSheetName;
 
+                                // Try to get the Calcs worksheet
+                                try {
+                                    const sourceCalcsWS = context.workbook.worksheets.getItem("Calcs");
+                                    await context.sync(); // Ensure it's loaded if found
+                                    console.log("Using Calcs worksheet as template.");
+                                    newSheet = sourceCalcsWS.copy();
+                                    sourceSheetName = "Calcs";
+                                } catch (calcsError) {
+                                    // If Calcs doesn't exist, use Financials as the template
+                                    console.warn("Calcs worksheet not found. Using Financials as template.");
+                                    newSheet = financialsSheet.copy();
+                                    sourceSheetName = "Financials";
+                                    // Sync needed *after* copy to reference the new sheet object reliably
+                                    await context.sync(); 
+                                    
+                                    // --- Load name before accessing it ---
+                                    newSheet.load("name");
+                                    await context.sync();
+                                    // --- End Load name ---
+                                    
+                                    // --- Clear rows 10 down if copied from Financials ---
+                                    console.log(`Clearing contents and formats from row 10 down in new sheet ${newSheet.name} copied from ${sourceSheetName}`);
+                                    // Use a reasonable large row number or get last row if needed, 10000 should suffice
+                                    const clearRange = newSheet.getRange("10:10000"); 
+                                    clearRange.clear(Excel.ClearApplyTo.all);
+                                    // Do NOT sync clear yet, batch with linking below
+
+                                    // --- Link non-empty cells in rows 1-8 back to Financials ---
+                                    console.log(`Linking header rows (1-8) in ${newSheet.name} back to Financials`);
+                                    // Get used range of the new sheet to find last column
+                                    const usedRange = newSheet.getUsedRange(true); // Use valuesOnly = true
+                                    usedRange.load(["columnCount", "rowCount"]);
+                                    // Sync to get the used range info *before* calculating link range address
+                                    await context.sync();
+
+                                    const lastColIndex = usedRange.columnCount > 0 ? usedRange.columnCount - 1 : 0; 
+                                    const lastColLetter = columnIndexToLetter(lastColIndex);
+                                    // Process only up to row 8
+                                    const linkRangeAddress = `A1:${lastColLetter}8`;
+
+                                    console.log(`Processing header link range: ${linkRangeAddress}`);
+                                    const linkRange = newSheet.getRange(linkRangeAddress);
+                                    linkRange.load("values");
+                                    // Sync to load the values *before* iterating and setting formulas
+                                    await context.sync();
+
+                                    const values = linkRange.values;
+                                    // Batch formula setting directly
+                                    for (let r = 0; r < values.length; r++) {
+                                        const rowNum = r + 1;
+                                        for (let c = 0; c < values[r].length; c++) {
+                                            const cellValue = values[r][c];
+                                            if (cellValue !== null && cellValue !== "") {
+                                                const colLetter = columnIndexToLetter(c);
+                                                const cellAddress = `${colLetter}${rowNum}`;
+                                                const formula = `=Financials!${cellAddress}`;
+                                                // Get the specific cell and queue the formula update
+                                                const targetCell = newSheet.getRange(cellAddress);
+                                                targetCell.formulas = [[formula]];
+                                                // console.log(`  Queueing formula for ${cellAddress} to ${formula}`); 
+                                            }
+                                        }
+                                    }
+                                    // The sync for these formula changes will happen later, along with rename/position.
+                                    // --- End Link header rows ---
+
+                                    // --- Set font color for rows 2-8 ---
+                                    console.log(`Setting font color for rows 2-8 in ${newSheet.name}`);
+                                    const headerFormatRangeAddress = `A2:${lastColLetter}8`;
+                                    const headerFormatRange = newSheet.getRange(headerFormatRangeAddress);
+                                    headerFormatRange.format.font.color = "#008000"; // Green
+                                    // --- End Set font color ---
+
+                                    // --- Set tab color ---
+                                    console.log(`Setting tab color for ${newSheet.name}`);
+                                    newSheet.tabColor = "#4472C4"; // Blue
+                                    // --- End Set tab color ---
+                                }
+
+                                // Sync copy operation if not already synced (e.g., if Calcs was used)
+                                // If Financials was used, sync happened before clear. If Calcs was used, sync happens here.
+                                if (sourceSheetName === "Calcs") {
+                                     await context.sync();
+                                }
+
+                                console.log(`newSheet created by copying ${sourceSheetName} worksheet`);
+
+                                // Rename it
+                                newSheet.name = tabName;
+                                console.log("newSheet renamed to", tabName);
+
+                                // <<< NEW: Set position relative to Financials sheet >>>
+                                newSheet.position = financialsSheet.position + 1;
+                                console.log(`Set position of ${tabName} to ${newSheet.position}`);
+                                // Add to assumption tabs collection
+                                assumptionTabs.push({
+                                    name: tabName,
+                                    worksheet: newSheet
+                                }); // <-- Added closing brace and semicolon here
 
                                 currentWorksheetName = tabName;
-                            
-                                await context.sync();
-                                
+
+                                await context.sync(); // Sync rename and position changes
+
                                 result.createdTabs.push(tabName);
                                 console.log("Tab created successfully:", tabName);
                             // }); <-- Removed this closing parenthesis, it belongs to Excel.run below
-                        
+
                             }
 
                             else {
