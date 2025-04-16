@@ -1693,7 +1693,8 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      
                      // 7. Delete rows with green background (#CCFFCC) - AFTER Index Growth
                      console.log(`Deleting green rows in ${worksheetName}...`);
-                     const finalLastRow = await deleteGreenRows(currentWorksheet, START_ROW, updatedLastRow); // Get the new last row AFTER deletions
+                     // Changed START_ROW to START_ROW - 1 to include row 9
+                     const finalLastRow = await deleteGreenRows(currentWorksheet, START_ROW - 1, updatedLastRow); // Get the new last row AFTER deletions
                      console.log(`After deleting green rows, last row is now: ${finalLastRow}`);
  
                      // 8. Autofill AE9:AE<lastRow> -> CX<lastRow> on Assumption Tab - Use finalLastRow
