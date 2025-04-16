@@ -1418,7 +1418,7 @@ Office.onReady((info) => {
 
                     const newCursorPosition = (textBeforeFinal + codeToAdd).length;
                     codesTextarea.focus();
-                    codesTextarea.setSelectionRange(newCursorPosition, newCursorPosition);
+                    codesTextarea.setSelectionRange(newCursorPos, newCursorPos);
 
                     dynamicSuggestionsContainer.innerHTML = '';
                     dynamicSuggestionsContainer.style.display = 'none';
@@ -1596,14 +1596,34 @@ async function insertResponseToEditor() {
         }
 
         let responseText = "";
-        // Ensure lastResponse is treated as an array and join with newlines
+        // >>> MODIFIED: Extract <...> strings and ensure each is on a new line
+        let codeStringsToInsert = [];
         if (Array.isArray(lastResponse)) {
-            responseText = lastResponse.join('\n');
+            // Filter out empty strings just in case
+            codeStringsToInsert = lastResponse.filter(item => typeof item === 'string' && item.trim().length > 0);
         } else if (typeof lastResponse === 'string') {
-            responseText = lastResponse.trim(); // Use trimmed string
+            const matches = lastResponse.match(/<[^>]+>/g); // Find all <...> patterns
+            if (matches) {
+                codeStringsToInsert = matches;
+            } else if (lastResponse.trim().length > 0) {
+                 // Fallback: If it's a string but no <...> found, maybe insert the whole string?
+                 // For now, let's only insert if <...> are found based on the requirement.
+                 console.log("[insertResponseToEditor] lastResponse is a string but no <...> tags found.");
+            }
         } else {
-            throw new Error("Invalid format for last response.");
+            // Log if the format is unexpected
+             console.warn("[insertResponseToEditor] lastResponse is not an array or string:", lastResponse);
         }
+
+        if (codeStringsToInsert.length === 0) {
+            showMessage("No code strings found in the response to insert.");
+            console.log("[insertResponseToEditor] No <...> strings extracted from lastResponse.");
+            return;
+        }
+
+        // Join the extracted strings, each on its own line
+        responseText = codeStringsToInsert.join('\n');
+        // <<< END MODIFIED BLOCK
 
         if (!responseText) {
             showMessage("Response is empty, nothing to insert.");
@@ -1613,6 +1633,16 @@ async function insertResponseToEditor() {
         const currentText = codesTextarea.value;
         // Define insertionPoint using the validated cursor position
         const insertionPoint = lastEditorCursorPosition;
+
+        // >>> ADDED: Check for <TAB; prefix if missing
+        const tabPrefix = '<TAB; ';
+        const defaultTabString = '<TAB; label1="Calcs";>';
+        let addDefaultTab = false;
+        if (!currentText.includes(tabPrefix) && !responseText.includes(tabPrefix)) {
+            addDefaultTab = true;
+            console.log("[insertResponseToEditor] Neither editor nor response contains '<TAB; '. Prepending default tab.");
+        }
+        // <<< END ADDED CHECK
 
         // Validate insertionPoint is within bounds (safety check)
         if (insertionPoint < 0 || insertionPoint > currentText.length) {
@@ -1626,16 +1656,16 @@ async function insertResponseToEditor() {
         const textAfter = currentText.substring(insertionPoint);
 
         // Insert the response, adding a newline before if inserting mid-text and not at the start or after a newline
-        let textToInsert = responseText;
+        let textToInsert = (addDefaultTab ? defaultTabString + '\n' : '') + responseText; // Prepend default tab if needed
         if (insertionPoint > 0 && textBefore.charAt(textBefore.length - 1) !== '\n') {
-             textToInsert = '\n' + responseText;
+             textToInsert = '\n' + textToInsert; // Add leading newline to the combined string (tab + response)
         }
         // Add a newline after if not inserting at the very end or before an existing newline
         if (insertionPoint < currentText.length && textAfter.charAt(0) !== '\n') {
              textToInsert += '\n';
         } else if (insertionPoint === currentText.length && currentText.length > 0 && textBefore.charAt(textBefore.length - 1) !== '\n') {
              // Special case: inserting exactly at the end, ensure newline separation from previous content
-             textToInsert = '\n' + responseText;
+             textToInsert = '\n' + textToInsert;
         }
 
 

@@ -17,8 +17,8 @@ export function populateCodeCollection(inputText) {
         // Initialize an empty code collection
         const codeCollection = [];
         
-        // Split the input text by newlines to process each line
-        const lines = inputText.split('\n');
+        // Split the input text by newlines (handles \n and \r\n)
+        const lines = inputText.split(/\r?\n/);
         
         for (const line of lines) {
             // Skip empty lines
@@ -29,12 +29,14 @@ export function populateCodeCollection(inputText) {
             if (!codeMatch) continue;
             
             const codeType = codeMatch[1].trim();
-            const paramsString = codeMatch[2].trim();
+            // Remove potential leftover newline/carriage return characters from the params string
+            const paramsString = codeMatch[2].replace(/[\r\n]+/g, '').trim();
             
             // Parse parameters
             const params = {};
             
             // Handle special case for row parameters with asterisks
+            // Use the cleaned paramsString
             const rowMatches = paramsString.matchAll(/row(\d+)\s*=\s*"([^"]*)"/g);
             for (const match of rowMatches) {
                 const rowNum = match[1];
@@ -43,6 +45,7 @@ export function populateCodeCollection(inputText) {
             }
             
             // Parse other parameters
+            // Use the cleaned paramsString
             const paramMatches = paramsString.matchAll(/(\w+)\s*=\s*"([^"]*)"/g);
             for (const match of paramMatches) {
                 const paramName = match[1].trim();
@@ -1678,11 +1681,11 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      await setColumnAFontWhite(currentWorksheet, START_ROW, updatedLastRow); 
                      console.log(`Set font color to white in column A from rows ${START_ROW}-${updatedLastRow}`);
   
-                     // Force recalculation before Index Growth Curve (especially if manual calc mode)
-                     console.log(`Performing full workbook recalculation before Index Growth Curve for ${worksheetName}...`);
-                     context.workbook.application.calculate(Excel.CalculationType.fullRebuild);
-                     await context.sync(); // Sync the calculation
-                     console.log(`Recalculation complete for ${worksheetName}.`);
+                     // // Force recalculation before Index Growth Curve (especially if manual calc mode)
+                     // console.log(`Performing full workbook recalculation before Index Growth Curve for ${worksheetName}...`);
+                     // context.workbook.application.calculate(Excel.CalculationType.fullRebuild);
+                     // await context.sync(); // Sync the calculation
+                     // console.log(`Recalculation complete for ${worksheetName}.`);
  
                       // 6.8 Apply Index Growth Curve logic (if applicable)
                      // Run Index Growth *before* deleting rows. Use updatedLastRow as the boundary.
