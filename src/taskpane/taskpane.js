@@ -1,4 +1,3 @@
-
 import { validateCodeStrings } from './Validation.js';
 
 import { populateCodeCollection, exportCodeCollectionToText, runCodes, processAssumptionTabs, collapseGroupingsAndNavigateToFinancials, hideColumnsAndNavigate, handleInsertWorksheetsFromBase64 } from './CodeCollection.js';
@@ -32,15 +31,6 @@ import { handleFollowUpConversation, handleInitialConversation, handleConversati
 
 import { API_KEYS as configApiKeys } from '../../config.js'; // Assuming config.js exports API_KEYS
 
-// Mock fs module for browser environment (if needed within AIcalls)
-const fs = {
-    writeFileSync: (path, content) => {
-        console.log(`Mock writeFileSync called with path: ${path}`);
-        // In browser, we'll just log the content instead of writing to file
-        console.log(`Content would be written to ${path}:`, content.substring(0, 100) + '...');
-    }
-};
-
 //Debugging Toggle
 const DEBUG = true;
 
@@ -56,14 +46,8 @@ let INTERNAL_API_KEYS = {
   PINECONE_API_KEY: ""
 };
 
-const srcPaths = [
-  'https://localhost:3002/src/prompts/Encoder_System.txt',
-  'https://localhost:3002/src/prompts/Encoder_Main.txt',
-  'https://localhost:3002/src/prompts/Followup_System.txt',
-  'https://localhost:3002/src/prompts/Structure_System.txt',
-  'https://localhost:3002/src/prompts/Validation_System.txt',
-  'https://localhost:3002/src/prompts/Validation_Main.txt'
-];
+// >>> MOVED & MODIFIED: Ensure truly global scope for cursor position
+var lastEditorCursorPosition = null;
 
 // Function to load the code string database
 async function loadCodeDatabase() {
@@ -210,15 +194,22 @@ function showError(message) {
 
 // Add this function at the top level
 function setButtonLoading(isLoading) {
+    console.log(`[setButtonLoading] Called with isLoading: ${isLoading}`);
     const sendButton = document.getElementById('send');
     const loadingAnimation = document.getElementById('loading-animation');
     
     if (sendButton) {
         sendButton.disabled = isLoading;
+    } else {
+        console.warn("[setButtonLoading] Could not find send button with id='send'");
     }
     
     if (loadingAnimation) {
-        loadingAnimation.style.display = isLoading ? 'flex' : 'none';
+        const newDisplay = isLoading ? 'flex' : 'none';
+        console.log(`[setButtonLoading] Found loadingAnimation element. Setting display to: ${newDisplay}`);
+        loadingAnimation.style.display = newDisplay;
+    } else {
+        console.error("[setButtonLoading] Could not find loading animation element with id='loading-animation'");
     }
 }
 
@@ -350,31 +341,37 @@ async function handleSend() {
         console.log("Enhanced prompt:", enhancedPrompt);
 
         console.log("Starting handleConversation");
-        let response = await handleConversation(enhancedPrompt, isResponse);
+        let conversationResult = await handleConversation(enhancedPrompt, isResponse); // Store the whole result object
         console.log("Conversation completed");
-        console.log("Initial Response:", response);
+        console.log("Initial Conversation Result:", conversationResult); // Log the whole object
 
-        if (!response || !Array.isArray(response)) {
-            console.error("Invalid response:", response);
-            throw new Error("Failed to get valid response from conversation");
+        // Extract the response array and update history
+        let responseArray = conversationResult.response;
+        conversationHistory = conversationResult.history; // Update global history if needed (check AIcalls.js if it manages history internally)
+
+        // Validate the extracted response array
+        if (!responseArray || !Array.isArray(responseArray)) {
+            console.error("Invalid response array extracted:", responseArray);
+            throw new Error("Failed to get valid response array from conversation result");
         }
 
-        // Run validation and correction if needed
+        // Run validation and correction if needed (using the extracted array)
         console.log("Starting validation");
-        const validationResults = await validateCodeStrings(response);
+        const validationResults = await validateCodeStrings(responseArray);
         console.log("Validation completed:", validationResults);
 
         if (validationResults && validationResults.length > 0) {
             console.log("Starting validation correction");
-            response = await validationCorrection(userInput, response, validationResults);
+            // Pass the extracted array to validationCorrection
+            responseArray = await validationCorrection(userInput, responseArray, validationResults);
             console.log("Validation correction completed");
         }
-        
-        // Store the response for Excel writing
-        lastResponse = response;
-        
-        // Add assistant message to chat
-        appendMessage(response.join('\n'));
+
+        // Store the final response array for Excel writing
+        lastResponse = responseArray;
+
+        // Add assistant message to chat (using the extracted array)
+        appendMessage(responseArray.join('\n'));
         
     } catch (error) {
         console.error("Error in handleSend:", error);
@@ -1212,6 +1209,31 @@ Office.onReady((info) => {
           loadedCodeStrings = "";
       }
 
+      // >>> MOVED: Assign event listeners AFTER initialization is complete
+      // Setup cursor position tracking
+      if (codesTextarea) {
+          const updateCursorPosition = () => {
+              lastEditorCursorPosition = codesTextarea.selectionStart;
+              // console.log(`Cursor position updated: ${lastEditorCursorPosition}`); // Optional debug log
+          };
+          codesTextarea.addEventListener('keyup', updateCursorPosition); // Update on key release
+          codesTextarea.addEventListener('mouseup', updateCursorPosition); // Update on mouse click release
+          codesTextarea.addEventListener('focus', updateCursorPosition);   // Update when focus is gained
+          // codesTextarea.addEventListener('blur', updateCursorPosition); // Maybe don't update on blur?
+          console.log("[Office.onReady] Added event listeners to codesTextarea for cursor tracking."); // <<< DEBUG LOG
+      }
+
+      // Setup Insert to Editor button
+      const insertToEditorButton = document.getElementById('insert-to-editor');
+      if (insertToEditorButton) {
+          console.log("[Office.onReady] Found insert-to-editor button."); // <<< DEBUG LOG
+          insertToEditorButton.onclick = insertResponseToEditor;
+          console.log("[Office.onReady] Assigned onclick for insert-to-editor button."); // <<< DEBUG LOG
+      } else {
+          console.error("[Office.onReady] Could not find button with id='insert-to-editor'");
+      }
+      // <<< END MOVED CODE
+
     }).catch(error => {
         console.error("Error during initialization:", error);
         showError("Error during initialization: " + error.message);
@@ -1544,6 +1566,95 @@ Office.onReady((info) => {
     // Make sure initialization runs after setting up modal logic
   }
 });
+
+// >>> ADDED: Function definition moved here
+async function insertResponseToEditor() {
+    console.log("[insertResponseToEditor] Function called.");
+    if (!lastResponse) {
+        console.log("[insertResponseToEditor] Exiting: lastResponse is null or empty.");
+        showError('No response to insert');
+        return;
+    }
+
+    console.log("[insertResponseToEditor] lastResponse:", lastResponse);
+
+    const codesTextarea = document.getElementById('codes-textarea');
+    if (!codesTextarea) {
+        console.error("[insertResponseToEditor] Exiting: Could not find codes-textarea.");
+        showError('Could not find the code editor textarea');
+        return;
+    }
+
+    console.log("[insertResponseToEditor] Found codesTextarea.");
+
+    try {
+        // Check for valid cursor position FIRST
+        if (lastEditorCursorPosition === null) {
+             console.log("[insertResponseToEditor] Exiting: lastEditorCursorPosition is null.");
+             showError("Please click in the code editor first to set the insertion point.");
+             return;
+        }
+
+        let responseText = "";
+        // Ensure lastResponse is treated as an array and join with newlines
+        if (Array.isArray(lastResponse)) {
+            responseText = lastResponse.join('\n');
+        } else if (typeof lastResponse === 'string') {
+            responseText = lastResponse.trim(); // Use trimmed string
+        } else {
+            throw new Error("Invalid format for last response.");
+        }
+
+        if (!responseText) {
+            showMessage("Response is empty, nothing to insert.");
+            return;
+        }
+
+        const currentText = codesTextarea.value;
+        // Define insertionPoint using the validated cursor position
+        const insertionPoint = lastEditorCursorPosition;
+
+        // Validate insertionPoint is within bounds (safety check)
+        if (insertionPoint < 0 || insertionPoint > currentText.length) {
+             console.error(`[insertResponseToEditor] Invalid insertionPoint: ${insertionPoint}, currentText length: ${currentText.length}`);
+             showError("Invalid cursor position detected. Please click in the editor again.");
+             lastEditorCursorPosition = null; // Reset invalid position
+             return;
+        }
+
+        const textBefore = currentText.substring(0, insertionPoint);
+        const textAfter = currentText.substring(insertionPoint);
+
+        // Insert the response, adding a newline before if inserting mid-text and not at the start or after a newline
+        let textToInsert = responseText;
+        if (insertionPoint > 0 && textBefore.charAt(textBefore.length - 1) !== '\n') {
+             textToInsert = '\n' + responseText;
+        }
+        // Add a newline after if not inserting at the very end or before an existing newline
+        if (insertionPoint < currentText.length && textAfter.charAt(0) !== '\n') {
+             textToInsert += '\n';
+        } else if (insertionPoint === currentText.length && currentText.length > 0 && textBefore.charAt(textBefore.length - 1) !== '\n') {
+             // Special case: inserting exactly at the end, ensure newline separation from previous content
+             textToInsert = '\n' + responseText;
+        }
+
+
+        codesTextarea.value = textBefore + textToInsert + textAfter;
+
+        // Update the last cursor position to be after the inserted text
+        const newCursorPos = insertionPoint + textToInsert.length;
+        codesTextarea.focus();
+        codesTextarea.setSelectionRange(newCursorPos, newCursorPos);
+        lastEditorCursorPosition = newCursorPos; // Update tracked position
+
+        showMessage("Response inserted into editor.");
+        console.log(`Response inserted at position: ${insertionPoint}`);
+
+    } catch (error) {
+        console.error("Error inserting response to editor:", error);
+        showError(`Failed to insert response: ${error.message}`);
+    }
+}
 
 
 

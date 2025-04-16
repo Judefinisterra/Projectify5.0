@@ -1673,22 +1673,33 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      // 5. Populate Financials
                      await populateFinancialsJS(currentWorksheet, updatedLastRow, financialsSheet);
 
-                     // 6. Delete rows with green background (#CCFFCC)
-                     console.log(`Deleting green rows in ${worksheetName}...`);
-                     const finalLastRow = await deleteGreenRows(currentWorksheet, START_ROW, updatedLastRow);
-                     console.log(`After deleting green rows, last row is now: ${finalLastRow}`);
-
                      // 6.5 Set font color to white in column A
-                     await setColumnAFontWhite(currentWorksheet, START_ROW, finalLastRow);
-                     console.log(`Set font color to white in column A from rows ${START_ROW}-${finalLastRow}`);
-
-                     // 7. Autofill AE9:AE<lastRow> -> CX<lastRow> on Assumption Tab
+                     // We use updatedLastRow here, as deletions haven't happened yet
+                     await setColumnAFontWhite(currentWorksheet, START_ROW, updatedLastRow); 
+                     console.log(`Set font color to white in column A from rows ${START_ROW}-${updatedLastRow}`);
+  
+                     // Force recalculation before Index Growth Curve (especially if manual calc mode)
+                     console.log(`Performing full workbook recalculation before Index Growth Curve for ${worksheetName}...`);
+                     context.workbook.application.calculate(Excel.CalculationType.fullRebuild);
+                     await context.sync(); // Sync the calculation
+                     console.log(`Recalculation complete for ${worksheetName}.`);
+ 
+                      // 6.8 Apply Index Growth Curve logic (if applicable)
+                     // Run Index Growth *before* deleting rows. Use updatedLastRow as the boundary.
+                     await applyIndexGrowthCurveJS(currentWorksheet, updatedLastRow); 
+                     
+                     // 7. Delete rows with green background (#CCFFCC) - AFTER Index Growth
+                     console.log(`Deleting green rows in ${worksheetName}...`);
+                     const finalLastRow = await deleteGreenRows(currentWorksheet, START_ROW, updatedLastRow); // Get the new last row AFTER deletions
+                     console.log(`After deleting green rows, last row is now: ${finalLastRow}`);
+ 
+                     // 8. Autofill AE9:AE<lastRow> -> CX<lastRow> on Assumption Tab - Use finalLastRow
                      console.log(`Autofilling ${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow} to ${AUTOFILL_END_COLUMN} on ${worksheetName}`);
                      const sourceRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow}`);
                      const fillRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_END_COLUMN}${finalLastRow}`);
                      sourceRange.autoFill(fillRange, Excel.AutoFillType.fillDefault);
-
-                     // 8. Set Row 9 interior color to none
+ 
+                     // 9. Set Row 9 interior color to none
                      console.log(`Setting row 9 interior color to none for ${worksheetName}`);
                      const row9Range = currentWorksheet.getRange("9:9");
                      row9Range.format.fill.clear();
@@ -2137,3 +2148,262 @@ export async function handleInsertWorksheetsFromBase64(base64String, sheetNames 
         throw error;
     }
 }
+
+/**
+ * Applies the Index Growth Curve logic to a worksheet, mimicking VBA Function IndexGrowthCurve.
+ * Finds INDEXBEGIN/INDEXEND, inserts rows, populates data and formulas, applies formatting.
+ * @param {Excel.Worksheet} worksheet - The assumption worksheet (within an Excel.run context).
+ * @param {number} initialLastRow - The last row determined before this function runs.
+ */
+async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
+    console.log(`Running applyIndexGrowthCurveJS for sheet: ${worksheet.name}`);
+    const START_ROW = 9; // Row to start searching for INDEXBEGIN
+    const BEGIN_MARKER = "INDEXBEGIN";
+    const END_MARKER = "INDEXEND";
+    const DATA_COL = "C";
+    const SEARCH_COL = "D";
+    const OUTPUT_COL_B = "B";
+    const OUTPUT_COL_C = "C";
+    const OUTPUT_COL_D = "D";
+    const CHECK_COL_B = "B"; // Column B for green check
+    const VALUE_COL_A = "A"; // Column A for BS/AV check
+    const DRIVER_REF_COL = "AE"; // Column containing driver range ref in END_MARKER row
+    const SUMIF_START_COL = "K"; // K
+    const SUMIF_END_COL = "P"; // P
+    const SUMPRODUCT_COL = "AE"; // AE (VBA used AE, not S)
+    const MONTHS_START_COL = "AE"; // AE
+    const MONTHS_END_COL = "CX"; // CX
+    const LIGHT_BLUE_COLOR = "#D9E1F2"; // RGB(217, 225, 242)
+    const LIGHT_GREEN_COLOR = "#CCFFCC"; // RGB(204, 255, 204)
+ 
+    try {
+        // Re-get worksheet reference within this context to ensure freshness
+        const context = worksheet.context; // Get context from the passed object
+        const worksheetName = worksheet.name; // Get name from potentially stale object
+        const currentWorksheet = context.workbook.worksheets.getItem(worksheetName);
+        // We assume the context itself is valid for this entire Excel.run block
+ 
+        // --- 1. Find INDEXBEGIN and INDEXEND rows ---
+        console.log(`Searching for ${BEGIN_MARKER} and ${END_MARKER} in column ${SEARCH_COL} of ${worksheetName}`);
+        const searchRangeAddress = `${SEARCH_COL}${START_ROW}:${SEARCH_COL}${initialLastRow}`; 
+        const searchRange = currentWorksheet.getRange(searchRangeAddress); // Use refreshed worksheet object
+        searchRange.load("values");
+        await context.sync(); // Use the context variable
+ 
+        let firstRow = -1;
+        let lastRow = -1;
+        let indexEndRow = -1; // Keep track of the original END_MARKER row
+ 
+        if (searchRange.values) {
+            for (let i = 0; i < searchRange.values.length; i++) {
+                const currentRow = START_ROW + i;
+                const cellValue = searchRange.values[i][0];
+                if (cellValue === BEGIN_MARKER && firstRow === -1) {
+                    firstRow = currentRow;
+                }
+                if (cellValue === END_MARKER) {
+                    lastRow = currentRow; // This will be the last END_MARKER found
+                    indexEndRow = currentRow; // Store the original row index
+                }
+            }
+        }
+ 
+        if (firstRow === -1 || lastRow === -1 || lastRow < firstRow) {
+            console.log(`Markers ${BEGIN_MARKER}/${END_MARKER} not found or in wrong order in ${searchRangeAddress}. Skipping Index Growth Curve.`);
+            return; // Exit if markers not found or invalid
+        }
+        console.log(`Found ${BEGIN_MARKER} at row ${firstRow}, ${END_MARKER} at row ${lastRow}`);
+ 
+        // --- 2. Collect Index Rows (Rows between markers where Col C is not empty) ---
+        const indexRows = [];
+        // CHANGE DATA_COL here if needed, e.g. const DATA_COL_TO_CHECK = "B";
+        const DATA_COL_TO_CHECK = "B"; // Or "A", etc.
+        const dataColRangeAddress = `${DATA_COL_TO_CHECK}${firstRow}:${DATA_COL_TO_CHECK}${lastRow}`;
+        const dataColRange = currentWorksheet.getRange(dataColRangeAddress);
+        // ... rest of the loading and checking logic ...
+ 
+        if (indexRows.length === 0) {
+            console.log(`No data rows found between ${BEGIN_MARKER} and ${END_MARKER} in column ${DATA_COL}. Skipping rest of Index Growth Curve.`);
+            return; // Exit if no data rows found
+        }
+        console.log(`Collected ${indexRows.length} index rows:`, indexRows);
+ 
+        // --- 3. Set Background Color for non-green rows ---
+        // Range: B(firstRow+2) to CX(lastRow-2) in VBA, but logic only checks B color. Let's adjust row color based on B.
+        const formatCheckStartRow = firstRow + 2;
+        const formatCheckEndRow = lastRow - 2;
+        console.log(`Setting background color for non-green rows between ${formatCheckStartRow} and ${formatCheckEndRow}`);
+        if (formatCheckStartRow <= formatCheckEndRow) {
+             // Load colors first
+             const checkColorRange = currentWorksheet.getRange(`${CHECK_COL_B}${formatCheckStartRow}:${CHECK_COL_B}${formatCheckEndRow}`);
+             checkColorRange.load("format/fill/color");
+             await context.sync();
+ 
+              // Queue formatting changes
+              for (let i = 0; i < checkColorRange.values.length; i++) { // checkColorRange.values isn't loaded, use index
+                 const currentRow = formatCheckStartRow + i;
+                  // Use loaded format object
+                 if (checkColorRange.format.fill.color !== LIGHT_GREEN_COLOR) {
+                     console.log(`  Setting row ${currentRow} background to ${LIGHT_BLUE_COLOR}`);
+                     const rowRange = currentWorksheet.getRange(`${currentRow}:${currentRow}`);
+                     rowRange.format.fill.color = LIGHT_BLUE_COLOR;
+                     // Clear fill in column A specifically
+                     const cellARange = currentWorksheet.getRange(`A${currentRow}`);
+                     cellARange.format.fill.clear();
+                 }
+              }
+         }
+ 
+         // --- 4. Insert Rows ---
+         const newRowStart = lastRow + 2;
+         const numNewRows = indexRows.length;
+         const newRowEnd = newRowStart + numNewRows - 1;
+         console.log(`Inserting ${numNewRows} rows at range ${newRowStart}:${newRowEnd}`);
+         const insertRange = currentWorksheet.getRange(`${newRowStart}:${newRowEnd}`);
+         insertRange.insert(Excel.InsertShiftDirection.down);
+         // Sync required before populating new rows
+         await context.sync();
+ 
+         // --- 5. Populate New Rows (B, C, D) ---
+         console.log(`Populating columns ${OUTPUT_COL_B}, ${OUTPUT_COL_C}, ${OUTPUT_COL_D} in new rows ${newRowStart}:${newRowEnd}`);
+         // Load source data from original index rows
+         const sourceDataAddresses = indexRows.map(r => `${OUTPUT_COL_B}${r}:${OUTPUT_COL_C}${r}`);
+         // Cannot load disjoint ranges easily this way. Load columns B and C for the whole original block.
+         const sourceBlockRange = currentWorksheet.getRange(`${OUTPUT_COL_B}${firstRow}:${OUTPUT_COL_C}${lastRow}`);
+         sourceBlockRange.load("values");
+         await context.sync();
+ 
+         const outputDataBC = [];
+         const outputDataD = [];
+         const sourceValues = sourceBlockRange.values;
+         for (const originalRow of indexRows) {
+             const rowIndexInBlock = originalRow - firstRow; // 0-based index within the loaded block
+             const valB = sourceValues[rowIndexInBlock][0]; // Col B is index 0
+             const valC = sourceValues[rowIndexInBlock][1]; // Col C is index 1
+             outputDataBC.push([valB, valC]);
+             outputDataD.push([END_MARKER]);
+         }
+ 
+         const outputRangeBC = currentWorksheet.getRange(`${OUTPUT_COL_B}${newRowStart}:${OUTPUT_COL_C}${newRowEnd}`);
+         outputRangeBC.values = outputDataBC;
+         const outputRangeD = currentWorksheet.getRange(`${OUTPUT_COL_D}${newRowStart}:${OUTPUT_COL_D}${newRowEnd}`);
+         outputRangeD.values = outputDataD;
+ 
+         // --- 6. Apply SUMIF Formulas (K-P) ---
+         console.log(`Applying SUMIF formulas to ${SUMIF_START_COL}${newRowStart}:${SUMIF_END_COL}${newRowEnd}`);
+         // Load necessary data: Col C and Col A values from original index rows
+         const sourceColCRange = currentWorksheet.getRange(`${DATA_COL}${firstRow}:${DATA_COL}${lastRow}`);
+         const sourceColARange = currentWorksheet.getRange(`${VALUE_COL_A}${firstRow}:${VALUE_COL_A}${lastRow}`);
+         sourceColCRange.load("values");
+         sourceColARange.load("values");
+         await context.sync();
+ 
+         const sourceValuesC = sourceColCRange.values;
+         const sourceValuesA = sourceColARange.values;
+         const numSumifCols = columnLetterToIndex(SUMIF_END_COL) - columnLetterToIndex(SUMIF_START_COL) + 1;
+         const sumifFormulas = [];
+ 
+         for (let i = 0; i < indexRows.length; i++) {
+             const originalRow = indexRows[i];
+             const rowIndexInBlock = originalRow - firstRow; // 0-based index within the loaded block
+             const codeC = sourceValuesC[rowIndexInBlock][0] || ""; // Ensure string
+             const valueA = sourceValuesA[rowIndexInBlock][0];
+             const targetRowNum = newRowStart + i; // Row where formula will be placed
+ 
+             let baseFormula;
+             // Check if Col C starts with "BS" or Col A is "AV"
+             if (codeC.toUpperCase().startsWith("BS") || String(valueA).toUpperCase() === "AV") {
+                 // "=SUMIF($3:$3,@ INDIRECT(ADDRESS(ROW($A$2),COLUMN(),2)), INDIRECT(ROW() & "":"" & ROW()))"
+                  baseFormula = `=SUMIF($3:$3, INDIRECT(ADDRESS(2,COLUMN())), ${targetRowNum}:${targetRowNum})`;
+             } else {
+                 // "=SUMIF($4:$4,@ INDIRECT(ADDRESS(ROW($A$2),COLUMN(),2)), INDIRECT(ROW() & "":"" & ROW()))"
+                  baseFormula = `=SUMIF($4:$4, INDIRECT(ADDRESS(2,COLUMN())), ${targetRowNum}:${targetRowNum})`;
+             }
+             // Create array for the row
+             sumifFormulas.push(Array(numSumifCols).fill(baseFormula));
+         }
+ 
+         const sumifRange = currentWorksheet.getRange(`${SUMIF_START_COL}${newRowStart}:${SUMIF_END_COL}${newRowEnd}`);
+         sumifRange.formulas = sumifFormulas;
+ 
+         // --- 7. Apply SUMPRODUCT Formulas (AE) ---
+         console.log(`Applying SUMPRODUCT formulas to ${SUMPRODUCT_COL}${newRowStart}:${SUMPRODUCT_COL}${newRowEnd}`);
+         // Get the driver range string from the original END_MARKER row, column AE
+         const driverCell = currentWorksheet.getRange(`${DRIVER_REF_COL}${indexEndRow}`);
+         driverCell.load("values");
+         await context.sync();
+         const driverRangeString = driverCell.values[0][0];
+ 
+         if (!driverRangeString || typeof driverRangeString !== 'string') {
+             console.warn(`Driver range string not found or invalid in cell ${DRIVER_REF_COL}${indexEndRow}. Skipping SUMPRODUCT.`);
+         } else {
+              console.log(`Using driver range: ${driverRangeString}`);
+              // Iterate and set formula for each cell individually (mimics FormulaArray)
+              for (let i = 0; i < indexRows.length; i++) {
+                  const originalRow = indexRows[i];
+                  const targetRow = newRowStart + i;
+                  const dataRangeString = `$${MONTHS_START_COL}$${originalRow}:$${MONTHS_END_COL}$${originalRow}`;
+                  // Formula: =SUMPRODUCT(INDEX(driverRange, N(IF({1}, MAX(COLUMN(driverRange)) - COLUMN(driverRange) + 1))), dataRange)
+                  const sumproductFormula = `=SUMPRODUCT(INDEX(${driverRangeString},N(IF({1},MAX(COLUMN(${driverRangeString}))-COLUMN(${driverRangeString})+1))), ${dataRangeString})`;
+ 
+                  const targetCell = currentWorksheet.getRange(`${SUMPRODUCT_COL}${targetRow}`);
+                  targetCell.formulas = [[sumproductFormula]];
+                  // console.log(`  Set formula for ${SUMPRODUCT_COL}${targetRow}: ${sumproductFormula}`);
+             }
+         }
+ 
+         // --- 8. Copy Formats and Adjust ---
+         console.log(`Copying formats and adjusting for new rows ${newRowStart}:${newRowEnd}`);
+         for (let i = 0; i < indexRows.length; i++) {
+             const sourceRow = indexRows[i];
+             const targetRow = newRowStart + i;
+ 
+             const sourceRowRange = currentWorksheet.getRange(`${sourceRow}:${sourceRow}`);
+             const targetRowRange = currentWorksheet.getRange(`${targetRow}:${targetRow}`);
+ 
+             // Copy formats first
+             targetRowRange.copyFrom(sourceRowRange, Excel.RangeCopyType.formats);
+              await context.sync(); // Sync after each copy maybe needed? Let's try one sync after loop.
+ 
+             // Apply format overrides
+             targetRowRange.format.font.color = "#000000"; // Black font
+             targetRowRange.format.borders.load('items'); // Load borders collection
+              await context.sync(); // Need to sync load before clearing
+ 
+              targetRowRange.format.borders.items.forEach(border => border.style = 'None');
+             // Explicitly clear all borders (simpler?)
+             // targetRowRange.format.borders.getItem('EdgeTop').style = 'None';
+             // targetRowRange.format.borders.getItem('EdgeBottom').style = 'None';
+             // targetRowRange.format.borders.getItem('EdgeLeft').style = 'None';
+             // targetRowRange.format.borders.getItem('EdgeRight').style = 'None';
+             // targetRowRange.format.borders.getItem('InsideVertical').style = 'None';
+             // targetRowRange.format.borders.getItem('InsideHorizontal').style = 'None';
+ 
+             targetRowRange.format.fill.clear(); // Clear interior color
+             targetRowRange.format.font.bold = false; // Remove bold
+ 
+             // Set indent level for column B
+             const targetCellB = currentWorksheet.getRange(`${OUTPUT_COL_B}${targetRow}`);
+             targetCellB.format.indentLevel = 2;
+         }
+          await context.sync(); // Sync format changes
+ 
+         // --- 9. Clear Original Column C values ---
+         console.log(`Clearing values in original index rows (${indexRows.join(', ')}) column ${DATA_COL}`);
+         // It's safer to clear individually if rows aren't contiguous
+         for (const originalRow of indexRows) {
+             const cellToClear = currentWorksheet.getRange(`${DATA_COL}${originalRow}`);
+             cellToClear.clear(Excel.ClearApplyTo.contents);
+         }
+          await context.sync(); // Sync clears
+ 
+         console.log(`applyIndexGrowthCurveJS completed successfully for sheet: ${worksheetName}`);
+ 
+     } catch (error) {
+         console.error(`Error in applyIndexGrowthCurveJS for sheet ${worksheet.name}:`, error);
+         // Decide if error should be re-thrown
+         // throw error; // Optional: re-throw to stop processAssumptionTabs if critical
+     }
+     // Note: This function runs within the context of the calling Excel.run in processAssumptionTabs.
+     // Syncs are added within the function for critical steps like after insertion.
+ }
