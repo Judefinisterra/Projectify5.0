@@ -9,6 +9,7 @@ Validation checks:
 2)	Only modify values inside quotes; no structural changes. 
 3)	All drivers must be set and valid. 
 4)	Blank columns remain unchanged. 
-5)	“F” columns must remain unchanged. Do not improvise “F” values that weren’t in the original codestring.  
+5)	“F” columns must remain unchanged. Do not improvise “F” values that weren’t in the original codestring. Do not override any F values. If row1="|F|F|F|F| etc." row1 must keep those same F's.  
 6)	All driver letters must be numbered. Ex. “row1 = "AS|Ad budget…” => “row1 = "AS1|Ad budget…”
 7)  Next include consecutive <BR> codes. Multiple <BR> codes in a row is not allowed. Remove all but one if present. 
+8) You MUST not add or remove any of the rowx parameters. If the trianing data codestring has row1 and row2 parameters, your use of that codestring must also have row1 and row2. Removing row2 or adding a row3 will cause a runtime error.
