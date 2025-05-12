@@ -1416,7 +1416,7 @@ Office.onReady((info) => {
 
                     codesTextarea.value = newText;
 
-                    const newCursorPosition = (textBeforeFinal + codeToAdd).length;
+                    const newCursorPos = (textBeforeFinal + codeToAdd).length;
                     codesTextarea.focus();
                     codesTextarea.setSelectionRange(newCursorPos, newCursorPos);
 
