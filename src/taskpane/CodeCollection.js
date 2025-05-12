@@ -1394,6 +1394,7 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
 
 
         // 3. Create Map of Financials Codes (Col I) -> Row Number
+        // MODIFIED: Use a case-insensitive map for codes
         const financialsCodeMap = new Map();
         if (financialsLastRow > 0) {
             const financialsCodeRange = financialsSheet.getRange(`${FINANCIALS_CODE_COLUMN}1:${FINANCIALS_CODE_COLUMN}${financialsLastRow}`);
@@ -1402,9 +1403,11 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
             for (let i = 0; i < financialsCodeRange.values.length; i++) {
                 const code = financialsCodeRange.values[i][0];
                 if (code !== null && code !== "") {
+                    // Convert code to uppercase for case-insensitive comparison
+                    const upperCode = String(code).toUpperCase();
                     // Only map the first occurrence of a code, like .Find would
-                    if (!financialsCodeMap.has(code)) {
-                         financialsCodeMap.set(code, i + 1);
+                    if (!financialsCodeMap.has(upperCode)) {
+                         financialsCodeMap.set(upperCode, i + 1);
                     }
                 }
             }
@@ -1451,14 +1454,15 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
                 //     continue; // Skip to next assumption code
                 // }
 
-                // *** ORIGINAL CHECK (modified): Check if code exists in the Financials template map ***
-                if (!financialsCodeMap.has(code)) {
+                // *** MODIFIED: Use case-insensitive check for code existence ***
+                const upperCode = String(code).toUpperCase();
+                if (!financialsCodeMap.has(upperCode)) {
                      console.log(`  Skipping Code ${code} (Assumption Row ${assumptionRow}): Code not found in Financials template column ${FINANCIALS_CODE_COLUMN}. Cannot determine target row.`);
                      continue; // Skip if no template row found
                 }
 
                 // If the code exists in the map, proceed to create the task
-                const targetRow = financialsCodeMap.get(code); // Get the row number from the map
+                const targetRow = financialsCodeMap.get(upperCode); // Get the row number from the map
                 console.log(`  Task Prep: Code ${code} (Assumption Row ${assumptionRow}) -> Target Financials Row (for insertion): ${targetRow}`);
 
                 tasks.push({
@@ -1571,7 +1575,8 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
             cellD.format.indentLevel = 2;
 
             // --- Populate Annuals Start Column (J) with SUMIF ---
-            const codePrefix = String(task.code).substring(0, 2).toUpperCase();
+            // MODIFIED: Make code prefix comparison case-insensitive
+            let codePrefix = String(task.code).substring(0, 2).toUpperCase();
             let formulaJ = "";
             if (codePrefix === "IS" || codePrefix === "CF") {
                  // Corrected R2C[1] to R2C: Criteria should reference current column's header (J$2)
