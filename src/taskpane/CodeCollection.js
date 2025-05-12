@@ -624,6 +624,94 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
             // USE calcsPasteRow in console log
             console.log(`Processing driver/assumption inputs for worksheet: ${worksheetName}, Code: ${code.type}, Start Row: ${calcsPasteRow}, Using Last Row: ${determinedLastRow}`);
 
+            // NEW SECTION: Convert row references to absolute for columns >= AE
+            // First, load all formulas from columns AE to CX for the range of interest
+            console.log("Making row references absolute for cell references in columns >= AE before row insertion");
+            
+            const START_ROW = 10;
+            const TARGET_COL = "AE";
+            const END_COL = "CX";
+            
+            // Define range to process
+            let processStartRow = Math.min(calcsPasteRow, START_ROW);
+            let processEndRow = determinedLastRow;
+            
+            const formulaRangeAddress = `${TARGET_COL}${processStartRow}:${END_COL}${processEndRow}`;
+            console.log(`Loading formulas from range: ${formulaRangeAddress}`);
+            
+            try {
+                const formulaRange = currentWorksheet.getRange(formulaRangeAddress);
+                formulaRange.load("formulas");
+                await context.sync();
+                
+                // Calculate TARGET_COL index for reference comparisons
+                const targetColIndex = columnLetterToIndex(TARGET_COL);
+                console.log(`Target column ${TARGET_COL} has index ${targetColIndex}`);
+                
+                let formulasUpdated = false;
+                const origFormulas = formulaRange.formulas;
+                const newFormulas = [];
+                
+                // Process each formula in the range
+                for (let r = 0; r < origFormulas.length; r++) {
+                    const rowFormulas = [];
+                    
+                    for (let c = 0; c < origFormulas[r].length; c++) {
+                        let formula = origFormulas[r][c];
+                        
+                        // Only process string formulas
+                        if (typeof formula === 'string') {
+                            // Skip if it's not a formula
+                            if (!formula.startsWith('=')) {
+                                rowFormulas.push(formula);
+                                continue;
+                            }
+                            
+                            // Find cell references (e.g., A1, B2, AA34) but exclude already absolute refs (e.g., A$1, $A$1)
+                            // This regex captures: group 1 = column letter(s), group 2 = row number
+                            // It skips references that already have $ before the row number
+                            const cellRefRegex = /([A-Z]+)(\d+)(?![^\W_])/g;
+                            
+                            // Replace with absolute row references where needed
+                            const originalFormula = formula;
+                            formula = formula.replace(cellRefRegex, (match, col, row) => {
+                                // Get column index
+                                const colIndex = columnLetterToIndex(col);
+                                
+                                // If column index is >= target column index, make row reference absolute
+                                if (colIndex >= targetColIndex) {
+                                    return `${col}$${row}`;
+                                }
+                                return match; // Keep as is for columns before TARGET_COL
+                            });
+                            
+                            if (formula !== originalFormula) {
+                                formulasUpdated = true;
+                                //console.log(`  Row ${processStartRow + r}, Col ${columnIndexToLetter(c + targetColIndex)}: Formula changed from '${originalFormula}' to '${formula}'`);
+                            }
+                        }
+                        
+                        rowFormulas.push(formula);
+                    }
+                    
+                    newFormulas.push(rowFormulas);
+                }
+                
+                // Only update if changes were made
+                if (formulasUpdated) {
+                    console.log(`Updating formulas with absolute row references in range ${formulaRangeAddress}`);
+                    formulaRange.formulas = newFormulas;
+                    await context.sync();
+                    console.log("Formula updates completed");
+                } else {
+                    console.log("No formulas needed absolute row reference updates");
+                }
+            } catch (formulaError) {
+                console.error(`Error processing formulas for absolute row references: ${formulaError.message}`, formulaError);
+                // Continue with the function, don't let this conversion stop the flow
+            }
+            // END NEW SECTION
+
             const columnSequence = ['A', 'B', 'C', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'O', 'P', 'R'];
             
             // Get the code value
@@ -845,7 +933,6 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
         throw error;
     }
 }
-
 
 /**
  * Finds the last used row in a specific column of a worksheet.
@@ -1097,6 +1184,11 @@ async function replaceIndirectsJS(worksheet, lastRow) {
         // 4. Second Pass: Replace INDIRECT with looked-up values
         console.log("Replace_Indirects: Pass 2 - Replacing INDIRECT calls.");
         const newFormulas = []; // Array of arrays: [[newF1], [newF2], ...]
+        
+        // Calculate TARGET_COL index for reference comparisons
+        const targetColIndex = columnLetterToIndex(TARGET_COL);
+        console.log(`Target column ${TARGET_COL} has index ${targetColIndex}`);
+        
         for (const item of formulaData) {
             let currentFormula = item.originalFormula;
 
@@ -1161,7 +1253,33 @@ async function replaceIndirectsJS(worksheet, lastRow) {
                 if (loopCount === MAX_LOOPS) {
                     console.warn(`Row ${START_ROW + item.index}: Max replacement loops reached for formula. Result might be incomplete: ${currentFormula}`);
                 }
+                
+                // NEW SECTION: Convert row references to absolute for columns >= TARGET_COL
+                if (typeof currentFormula === 'string') {
+                    console.log(`Making row references absolute for cell references in columns >= ${TARGET_COL} in row ${START_ROW + item.index}`);
+                    
+                    // Find cell references (e.g., A1, B2, AA34) but exclude already absolute refs (e.g., A$1, $A$1)
+                    // This regex captures: group 1 = column letter(s), group 2 = row number
+                    // It skips references that already have $ before the row number
+                    const cellRefRegex = /([A-Z]+)(\d+)(?![^\W_])/g;
+                    
+                    // Replace with absolute row references where needed
+                    currentFormula = currentFormula.replace(cellRefRegex, (match, col, row) => {
+                        // Get column index
+                        const colIndex = columnLetterToIndex(col);
+                        
+                        // If column index is >= target column index, make row reference absolute
+                        if (colIndex >= targetColIndex) {
+                            return `${col}$${row}`;
+                        }
+                        return match; // Keep as is for columns before TARGET_COL
+                    });
+                    
+                    console.log(`  Formula after converting to absolute row refs: ${currentFormula}`);
+                }
+                // END NEW SECTION
             }
+            
             // Add the processed formula (or original if not string/no INDIRECT) to the result array
             newFormulas.push([currentFormula]);
 
