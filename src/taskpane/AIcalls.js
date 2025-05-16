@@ -17,6 +17,8 @@ import { populateCodeCollection, exportCodeCollectionToText, runCodes, processAs
 import { validateCodeStringsForRun } from './Validation.js';
 // >>> ADDED: Import the tab string generator function
 import { generateTabString } from './IndexWorksheet.js';
+// >>> ADDED: Import AIModelPlanner functions
+import { handleAIModelPlannerConversation, resetAIModelPlannerConversation, setAIModelPlannerOpenApiKey, plannerHandleSend, plannerHandleReset, plannerHandleWriteToExcel, plannerHandleInsertToEditor } from './AIModelPlanner.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -121,7 +123,8 @@ export async function initializeAPIKeys() {
     // Use keys from imported config.js if available
     if (configApiKeys?.OPENAI_API_KEY) {
         INTERNAL_API_KEYS.OPENAI_API_KEY = configApiKeys.OPENAI_API_KEY;
-        console.log("OpenAI API key loaded from config.js");
+        setAIModelPlannerOpenApiKey(configApiKeys.OPENAI_API_KEY);
+        console.log("OpenAI API key loaded from config.js and set for AI Model Planner");
     } else {
          console.warn("OpenAI API key not found in config.js.");
     }
@@ -146,7 +149,8 @@ export async function initializeAPIKeys() {
 
                 if (!INTERNAL_API_KEYS.OPENAI_API_KEY && openaiKeyMatch && openaiKeyMatch[1]) {
                     INTERNAL_API_KEYS.OPENAI_API_KEY = openaiKeyMatch[1];
-                    console.log("OpenAI API key loaded via fetch fallback.");
+                    setAIModelPlannerOpenApiKey(openaiKeyMatch[1]);
+                    console.log("OpenAI API key loaded via fetch fallback and set for AI Model Planner.");
                 }
 
                 if (!INTERNAL_API_KEYS.PINECONE_API_KEY && pineconeKeyMatch && pineconeKeyMatch[1]) {
@@ -160,7 +164,7 @@ export async function initializeAPIKeys() {
             console.warn("Could not load config.js via fetch fallback:", error);
         }
     }
-
+    
     // Add debug logging with secure masking of keys
     console.log("Loaded API Keys (AIcalls.js):");
     console.log("  OPENAI_API_KEY:", INTERNAL_API_KEYS.OPENAI_API_KEY ?
@@ -963,4 +967,223 @@ export async function validationCorrection(clientprompt, initialResponse, valida
         return ["Error during validation correction: " + error.message];
     }
 }
+
+// >>> ADDED: Global variable for AI Model Planner responses
+let lastAIModelPlannerResponse = null; 
+
+// >>> ADDED: Functions for Client Mode Chat
+function displayInClientChat(message, isUser) {
+    const chatLog = document.getElementById('chat-log-client');
+    const welcomeMessage = document.getElementById('welcome-message-client');
+    if (welcomeMessage) {
+        welcomeMessage.style.display = 'none';
+    }
+
+    const messageElement = document.createElement('div');
+    messageElement.className = `chat-message ${isUser ? 'user-message' : 'assistant-message'}`;
+    
+    const contentElement = document.createElement('p');
+    contentElement.className = 'message-content';
+    
+    if (typeof message === 'string') {
+        contentElement.textContent = message;
+    } else if (Array.isArray(message)) { // Assuming array of strings for text
+        contentElement.textContent = message.join('\n');
+    } else if (typeof message === 'object' && message !== null) { // For JSON objects
+        contentElement.textContent = JSON.stringify(message, null, 2);
+        // Optionally, add a class or style for preformatted JSON
+        contentElement.style.whiteSpace = 'pre-wrap'; 
+    } else {
+        contentElement.textContent = String(message); // Fallback
+    }
+    
+    messageElement.appendChild(contentElement);
+    chatLog.appendChild(messageElement);
+    chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function setClientLoadingButton(isLoading) {
+    const sendButton = document.getElementById('send-client');
+    const loadingAnimation = document.getElementById('loading-animation-client');
+
+    if (sendButton) {
+        sendButton.disabled = isLoading;
+    }
+    if (loadingAnimation) {
+        loadingAnimation.style.display = isLoading ? 'flex' : 'none';
+    }
+}
+
+async function handleClientModeSend() {
+    const userInputElement = document.getElementById('user-input-client');
+    const userInput = userInputElement.value.trim();
+
+    if (!userInput) {
+        // Potentially show a message to the user, but for now, just log and return
+        console.warn("Client mode: User input is empty.");
+        return;
+    }
+
+    displayInClientChat(userInput, true);
+    userInputElement.value = '';
+    setClientLoadingButton(true);
+
+    try {
+        const result = await handleAIModelPlannerConversation(userInput);
+        lastAIModelPlannerResponse = result.response; // Store the raw response
+
+        // Display logic handles string, array, or object responses
+        displayInClientChat(result.response, false);
+
+    } catch (error) {
+        console.error("Error in client mode conversation:", error);
+        displayInClientChat(`Error: ${error.message}`, false);
+    } finally {
+        setClientLoadingButton(false);
+    }
+}
+
+function handleClientModeResetChat() {
+    const chatLog = document.getElementById('chat-log-client');
+    const welcomeMessage = document.getElementById('welcome-message-client');
+    
+    chatLog.innerHTML = ''; // Clear existing messages
+    if (welcomeMessage) {
+        // Re-add welcome message or set its display to block
+        const newWelcome = document.createElement('div');
+        newWelcome.id = 'welcome-message-client';
+        newWelcome.className = 'welcome-message';
+        newWelcome.innerHTML = '<h1>Ask me anything (Client Mode)</h1>';
+        chatLog.appendChild(newWelcome);
+    }
+    
+    resetAIModelPlannerConversation(); // Reset the conversation history in the planner
+    lastAIModelPlannerResponse = null;
+    document.getElementById('user-input-client').value = '';
+    console.log("Client mode chat reset.");
+}
+
+// These functions are placeholders for client mode; actual Excel/editor interaction might differ or be disabled.
+function handleClientModeWriteToExcel() {
+    if (!lastAIModelPlannerResponse) {
+        displayInClientChat("No response to write to Excel.", false);
+        return;
+    }
+    // For now, just log it or display a message. 
+    // Actual Excel writing might be complex if it's JSON.
+    let contentToWrite = "";
+    if (typeof lastAIModelPlannerResponse === 'object') {
+        contentToWrite = JSON.stringify(lastAIModelPlannerResponse, null, 2);
+    } else if (Array.isArray(lastAIModelPlannerResponse)) {
+        contentToWrite = lastAIModelPlannerResponse.join("\n");
+    } else {
+        contentToWrite = String(lastAIModelPlannerResponse);
+    }
+    console.log("Client Mode - Write to Excel (Placeholder):\n", contentToWrite);
+    displayInClientChat("Write to Excel (Placeholder): Response logged to console. Actual Excel writing depends on format.", false);
+}
+
+function handleClientModeInsertToEditor() {
+    if (!lastAIModelPlannerResponse) {
+        displayInClientChat("No response to insert into editor.", false);
+        return;
+    }
+    let contentToInsert = "";
+     if (typeof lastAIModelPlannerResponse === 'object') {
+        contentToInsert = JSON.stringify(lastAIModelPlannerResponse, null, 2);
+    } else if (Array.isArray(lastAIModelPlannerResponse)) {
+        contentToInsert = lastAIModelPlannerResponse.join("\n");
+    } else {
+        contentToInsert = String(lastAIModelPlannerResponse);
+    }
+    console.log("Client Mode - Insert to Editor (Placeholder):\n", contentToInsert);
+    displayInClientChat("Insert to Editor (Placeholder): Response logged to console. Actual editor insertion depends on context.", false);
+}
+
+
+Office.onReady(async (info) => {
+  if (info.host === Office.HostType.Excel) {
+    // ... existing setup for developer mode buttons, API keys, etc. ...
+    
+    // Initialize API Keys (calls setAIModelPlannerOpenApiKey inside)
+    try {
+        await initializeAPIKeys();
+    } catch (error) {
+        console.error("Failed to initialize API keys on startup:", error);
+        // Potentially show error to user
+    }
+
+    // --- SETUP FOR CLIENT MODE UI ---
+    // Assign event handlers from AIModelPlanner.js to client mode buttons
+    const sendClientButton = document.getElementById('send-client');
+    if (sendClientButton) sendClientButton.onclick = plannerHandleSend;
+
+    const resetClientChatButton = document.getElementById('reset-chat-client');
+    if (resetClientChatButton) resetClientChatButton.onclick = plannerHandleReset;
+    
+    const writeToExcelClientButton = document.getElementById('write-to-excel-client');
+    if (writeToExcelClientButton) writeToExcelClientButton.onclick = plannerHandleWriteToExcel;
+
+    const insertToEditorClientButton = document.getElementById('insert-to-editor-client');
+    if (insertToEditorClientButton) insertToEditorClientButton.onclick = plannerHandleInsertToEditor;
+    
+    const userInputClient = document.getElementById('user-input-client');
+    if (userInputClient) {
+        userInputClient.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault(); 
+                if (plannerHandleSend) plannerHandleSend(); // Call the imported handler
+            }
+        });
+    }
+    // --- END CLIENT MODE UI SETUP ---
+
+    // Load developer chat history
+    // conversationHistory = loadConversationHistory(); // Assuming loadConversationHistory is for dev chat
+    // ... display developer chat history ...
+
+    // Startup Menu Logic (assuming this is still part of AIcalls.js)
+    const startupMenu = document.getElementById('startup-menu');
+    const developerModeButton = document.getElementById('developer-mode-button');
+    const clientModeButton = document.getElementById('client-mode-button');
+    const appBody = document.getElementById('app-body');
+    const clientModeView = document.getElementById('client-mode-view');
+
+    function showDeveloperModeView() { // Renamed to avoid conflict if global
+      if (startupMenu) startupMenu.style.display = 'none';
+      if (appBody) appBody.style.display = 'flex'; 
+      if (clientModeView) clientModeView.style.display = 'none';
+      console.log("Developer Mode view activated");
+    }
+
+    function showClientModeView() { // Renamed
+      if (startupMenu) startupMenu.style.display = 'none';
+      if (appBody) appBody.style.display = 'none';
+      if (clientModeView) clientModeView.style.display = 'flex';
+      console.log("Client Mode view activated");
+    }
+    
+    function showStartupMenuView() { // Renamed
+        if (startupMenu) startupMenu.style.display = 'flex';
+        if (appBody) appBody.style.display = 'none';
+        if (clientModeView) clientModeView.style.display = 'none';
+        console.log("Startup Menu view activated");
+    }
+
+    if (developerModeButton) developerModeButton.onclick = showDeveloperModeView;
+    if (clientModeButton) clientModeButton.onclick = showClientModeView;
+
+    const backToMenuDevButton = document.getElementById('back-to-menu-dev-button');
+    if (backToMenuDevButton) backToMenuDevButton.onclick = showStartupMenuView;
+    const backToMenuClientButton = document.getElementById('back-to-menu-client-button');
+    if (backToMenuClientButton) backToMenuClientButton.onclick = showStartupMenuView;
+    
+    document.getElementById("sideload-msg").style.display = "none";
+    if (startupMenu) startupMenu.style.display = "flex"; // Show startup menu first
+    if (appBody) appBody.style.display = "none";
+    if (clientModeView) clientModeView.style.display = "none";
+
+    // ... any other existing Office.onReady logic for developer mode ...
+  }
+});
 
