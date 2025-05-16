@@ -154,6 +154,14 @@ export async function initializeAPIKeys() {
 // Conversation history storage
 let conversationHistory = [];
 
+// Add this variable to track if the current message is a response
+let isResponse = false;
+
+// >>> ADDED: State for Client Chat
+let conversationHistoryClient = [];
+let lastResponseClient = null;
+// <<< END ADDED
+
 // Add this function at the top level
 function showMessage(message) {
     const messageDiv = document.createElement('div');
@@ -213,11 +221,30 @@ function setButtonLoading(isLoading) {
     }
 }
 
+// >>> ADDED: setButtonLoading for Client Mode
+function setButtonLoadingClient(isLoading) {
+    console.log(`[setButtonLoadingClient] Called with isLoading: ${isLoading}`);
+    const sendButton = document.getElementById('send-client');
+    const loadingAnimation = document.getElementById('loading-animation-client');
+    
+    if (sendButton) {
+        sendButton.disabled = isLoading;
+    } else {
+        console.warn("[setButtonLoadingClient] Could not find send button with id='send-client'");
+    }
+    
+    if (loadingAnimation) {
+        const newDisplay = isLoading ? 'flex' : 'none';
+        console.log(`[setButtonLoadingClient] Found loadingAnimation element. Setting display to: ${newDisplay}`);
+        loadingAnimation.style.display = newDisplay;
+    } else {
+        console.error("[setButtonLoadingClient] Could not find loading animation element with id='loading-animation-client'");
+    }
+}
+// <<< END ADDED
+
 // Add this variable to store the last response
 let lastResponse = null;
-
-// Add this variable to track if the current message is a response
-let isResponse = false;
 
 // Add this function to write to Excel
 async function writeToExcel() {
@@ -271,9 +298,15 @@ async function writeToExcel() {
 }
 
 // Add this function to append messages to the chat log
-function appendMessage(content, isUser = false) {
-    const chatLog = document.getElementById('chat-log');
-    const welcomeMessage = document.getElementById('welcome-message');
+// >>> REFACTORED: to accept chatLogId and welcomeMessageId
+function appendMessage(content, isUser = false, chatLogId = 'chat-log', welcomeMessageId = 'welcome-message') {
+    const chatLog = document.getElementById(chatLogId);
+    const welcomeMessage = document.getElementById(welcomeMessageId);
+
+    if (!chatLog) {
+        console.error(`[appendMessage] Chat log element with ID '${chatLogId}' not found.`);
+        return;
+    }
     
     // Hide welcome message when first message is added
     if (welcomeMessage) {
@@ -383,6 +416,43 @@ async function handleSend() {
     }
 }
 
+// >>> ADDED: handleSend for Client Mode (Simplified)
+async function handleSendClient() {
+    const userInputElement = document.getElementById('user-input-client');
+    if (!userInputElement) {
+        console.error("[handleSendClient] User input element 'user-input-client' not found.");
+        return;
+    }
+    const userInput = userInputElement.value.trim();
+    
+    if (!userInput) {
+        // Consider using a client-specific showError if available, or alert
+        alert('Please enter a request (Client Mode)'); 
+        return;
+    }
+
+    appendMessage(userInput, true, 'chat-log-client', 'welcome-message-client');
+    userInputElement.value = '';
+    setButtonLoadingClient(true);
+
+    try {
+        // Simulate an API call or simple response for client mode
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
+        const clientResponse = `Client received: "${userInput}". This is a placeholder response.`;
+        lastResponseClient = clientResponse; // Store for potential client-side "Write to Excel"
+        conversationHistoryClient.push({ user: userInput, assistant: clientResponse });
+
+        appendMessage(clientResponse, false, 'chat-log-client', 'welcome-message-client');
+
+    } catch (error) {
+        console.error("Error in handleSendClient:", error);
+        appendMessage(`Error: ${error.message}`, false, 'chat-log-client', 'welcome-message-client');
+    } finally {
+        setButtonLoadingClient(false);
+    }
+}
+// <<< END ADDED
+
 // Add this function to reset the chat
 function resetChat() {
     // Clear the chat log
@@ -411,6 +481,35 @@ function resetChat() {
     
     console.log("Chat reset completed");
 }
+
+// >>> ADDED: resetChat for Client Mode
+function resetChatClient() {
+    const chatLogClient = document.getElementById('chat-log-client');
+    if (chatLogClient) {
+        chatLogClient.innerHTML = '';
+    } else {
+        console.error("[resetChatClient] Chat log element 'chat-log-client' not found.");
+        return;
+    }
+    
+    const welcomeMessageClient = document.createElement('div');
+    welcomeMessageClient.id = 'welcome-message-client';
+    welcomeMessageClient.className = 'welcome-message';
+    const welcomeTitleClient = document.createElement('h1');
+    welcomeTitleClient.textContent = 'Ask me anything (Client Mode)';
+    welcomeMessageClient.appendChild(welcomeTitleClient);
+    chatLogClient.appendChild(welcomeMessageClient);
+    
+    conversationHistoryClient = [];
+    lastResponseClient = null;
+    
+    const userInputClient = document.getElementById('user-input-client');
+    if (userInputClient) {
+        userInputClient.value = '';
+    }
+    console.log("Client chat reset completed");
+}
+// <<< END ADDED
 
 // *** Define Helper Function Globally (BEFORE Office.onReady) ***
 function getTabBlocks(codeString) {
@@ -861,6 +960,23 @@ Office.onReady((info) => {
 
     const resetButton = document.getElementById('reset-chat');
     if (resetButton) resetButton.onclick = resetChat;
+
+    // >>> ADDED: Setup for Client Mode Chat Buttons
+    const sendClientButton = document.getElementById('send-client');
+    if (sendClientButton) sendClientButton.onclick = handleSendClient;
+
+    const resetChatClientButton = document.getElementById('reset-chat-client');
+    if (resetChatClientButton) resetChatClientButton.onclick = resetChatClient;
+
+    const writeToExcelClientButton = document.getElementById('write-to-excel-client');
+    if (writeToExcelClientButton) {
+        writeToExcelClientButton.onclick = () => alert('Client Mode \"Write to Excel\" is not yet implemented.');
+    }
+    const insertToEditorClientButton = document.getElementById('insert-to-editor-client');
+    if (insertToEditorClientButton) {
+        insertToEditorClientButton.onclick = () => alert('Client Mode \"Insert to Editor\" is not yet implemented.');
+    }
+    // <<< END ADDED
 
     // >>> ADDED: Setup for Generate Tab String button
     const generateTabStringButton = document.getElementById('generate-tab-string-button');

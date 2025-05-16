@@ -138,12 +138,37 @@
     </main>
 
     <!-- Client Mode View -->
-    <div id="client-mode-view" class="ms-welcome__main" style="display: none; justify-content: center; align-items: center; height: 100vh; position: relative;">
+    <div id="client-mode-view" class="ms-welcome__main" style="display: none; justify-content: center; align-items: center; height: 100vh; position: relative; flex-direction: column;">
         <button id="back-to-menu-client-button" class="ms-Button back-to-menu-button">
             <span class="ms-Button-label">Back to Menu</span>
         </button>
-        <h1 class="ms-fontSize-su ms-fontWeight-light ms-fontColor-neutralPrimary">Client Mode</h1>
-        <!-- Content for client mode will go here -->
+        <h1 class="ms-fontSize-su ms-fontWeight-light ms-fontColor-neutralPrimary" style="margin-bottom: 20px;">Client Mode Chat</h1>
+        
+        <!-- Copied Chat Interface for Client Mode -->
+        <div class="container" style="width: 90%; max-width: 800px; height: 70%; border: 1px solid #ccc; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column;">
+            <div id="chat-log-client" class="chat-log" style="flex-grow: 1; overflow-y: auto; border-bottom: 1px solid #eee; margin-bottom: 10px;">
+                <div id="welcome-message-client" class="welcome-message">
+                    <h1>Ask me anything (Client Mode)</h1>
+                </div>
+            </div>
+            <div class="input-area">
+                <input type="text" id="user-input-client" placeholder="Enter your request here...">
+                <button id="send-client" class="ms-Button ms-Button--primary">
+                    <span class="ms-Button-label">Send</span>
+                </button>
+                <div id="loading-animation-client" class="loading-animation" style="display: none;"></div> <!-- Ensure display: none initially -->
+                <button id="write-to-excel-client" class="ms-Button">
+                    <span class="ms-Button-label">Write to Excel</span>
+                </button>
+                <button id="insert-to-editor-client" class="ms-Button">
+                    <span class="ms-Button-label">Insert to Editor</span>
+                </button>
+                <button id="reset-chat-client" class="ms-Button">
+                    <span class="ms-Button-label">Reset Chat</span>
+                </button>
+            </div>
+        </div>
+        <!-- End Copied Chat Interface -->
     </div>
 
     <script type="text/javascript" src="taskpane.js"></script>
