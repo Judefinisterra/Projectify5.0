@@ -25,9 +25,26 @@
 
 <body class="ms-Fabric" dir="ltr">
     <div id="sideload-msg" class="ms-Rule ms-font-xl">
-        <p>Please <a target="_blank" href="https://learn.microsoft.com/office/dev/add-ins/testing/sideload-office-add-ins-for-testing">sideload</a> your add-in to see app body.</p>
+        <p>Please <a target="_blank" href="https://learn.microsoft.com/office/dev/add-ins/testing/sideload-office-add-ins-for-testing" rel="noopener">sideload</a> your add-in to see app body.</p>
     </div>
+
+    <!-- Startup Menu -->
+    <div id="startup-menu" class="ms-welcome__main" style="display: none; justify-content: center; align-items: center; flex-direction: column; height: 100vh;">
+        <h1 class="ms-fontSize-su ms-fontWeight-light ms-fontColor-neutralPrimary">Choose Mode</h1>
+        <div style="margin-top: 20px;">
+            <button id="developer-mode-button" class="ms-Button ms-Button--primary" style="margin-right: 10px;">
+                <span class="ms-Button-label">Developer Mode</span>
+            </button>
+            <button id="client-mode-button" class="ms-Button ms-Button--primary">
+                <span class="ms-Button-label">Client Mode</span>
+            </button>
+        </div>
+    </div>
+
     <main id="app-body" class="ms-welcome__main" style="display: none;">
+        <button id="back-to-menu-dev-button" class="ms-Button back-to-menu-button">
+            <span class="ms-Button-label">Back to Menu</span>
+        </button>
         <div class="container">
             <!-- >>> REMOVED: Logo Image <<< -->
             <!-- <img src="../../assets/ChatGPT Image Apr 2, 2025, 10_34_50 PM.png" alt="Logo" style="max-width: 100px; display: block; margin: 10px auto;" /> -->
@@ -119,6 +136,15 @@
 
         </div>
     </main>
+
+    <!-- Client Mode View -->
+    <div id="client-mode-view" class="ms-welcome__main" style="display: none; justify-content: center; align-items: center; height: 100vh; position: relative;">
+        <button id="back-to-menu-client-button" class="ms-Button back-to-menu-button">
+            <span class="ms-Button-label">Back to Menu</span>
+        </button>
+        <h1 class="ms-fontSize-su ms-fontWeight-light ms-fontColor-neutralPrimary">Client Mode</h1>
+        <!-- Content for client mode will go here -->
+    </div>
 
     <script type="text/javascript" src="taskpane.js"></script>
 

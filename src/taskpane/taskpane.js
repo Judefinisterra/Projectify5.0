@@ -773,9 +773,75 @@ async function insertSheetsAndRunCodes() {
     }
 }
 
-// Ensure Office.onReady sets up the button click handler for the REVISED function
+// >>> ADDED: Global or accessible view switching functions
+function showDeveloperMode() {
+  const startupMenu = document.getElementById('startup-menu');
+  const appBody = document.getElementById('app-body');
+  const clientModeView = document.getElementById('client-mode-view');
+  if (startupMenu) startupMenu.style.display = 'none';
+  if (appBody) appBody.style.display = 'flex'; // Use 'flex' to match .ms-welcome__main if it's styled with flex
+  if (clientModeView) clientModeView.style.display = 'none';
+  console.log("Developer Mode activated");
+}
+
+function showClientMode() {
+  const startupMenu = document.getElementById('startup-menu');
+  const appBody = document.getElementById('app-body');
+  const clientModeView = document.getElementById('client-mode-view');
+  if (startupMenu) startupMenu.style.display = 'none';
+  if (appBody) appBody.style.display = 'none';
+  if (clientModeView) clientModeView.style.display = 'flex'; // Use 'flex'
+  console.log("Client Mode activated");
+}
+
+// >>> ADDED: Function to show the startup menu
+function showStartupMenu() {
+  const startupMenu = document.getElementById('startup-menu');
+  const appBody = document.getElementById('app-body');
+  const clientModeView = document.getElementById('client-mode-view');
+
+  if (startupMenu) startupMenu.style.display = 'flex';
+  if (appBody) appBody.style.display = 'none';
+  if (clientModeView) clientModeView.style.display = 'none';
+  console.log("Startup Menu activated");
+}
+
 Office.onReady((info) => {
   if (info.host === Office.HostType.Excel) {
+    // Get references to the new elements
+    const startupMenu = document.getElementById('startup-menu');
+    const developerModeButton = document.getElementById('developer-mode-button');
+    const clientModeButton = document.getElementById('client-mode-button');
+    const appBody = document.getElementById('app-body'); // Already exists, ensure it's captured
+    const clientModeView = document.getElementById('client-mode-view');
+
+    // Functions to switch views
+    function showDeveloperMode() {
+      if (startupMenu) startupMenu.style.display = 'none';
+      if (appBody) appBody.style.display = 'flex'; // Matches .ms-welcome__main display if it's flex
+      if (clientModeView) clientModeView.style.display = 'none';
+      console.log("Developer Mode activated");
+    }
+
+    function showClientMode() {
+      if (startupMenu) startupMenu.style.display = 'none';
+      if (appBody) appBody.style.display = 'none';
+      if (clientModeView) clientModeView.style.display = 'flex'; // Matches .ms-welcome__main display
+      console.log("Client Mode activated");
+    }
+
+    // Assign click handlers for startup menu buttons
+    if (developerModeButton) {
+        developerModeButton.onclick = showDeveloperMode;
+    } else {
+        console.error("Could not find button with id='developer-mode-button'");
+    }
+    if (clientModeButton) {
+        clientModeButton.onclick = showClientMode;
+    } else {
+        console.error("Could not find button with id='client-mode-button'");
+    }
+
     // Assign the REVISED async function as the handler
     const button = document.getElementById("insert-and-run");
     if (button) {
@@ -1234,13 +1300,58 @@ Office.onReady((info) => {
       }
       // <<< END MOVED CODE
 
+      // Startup Menu Logic - Placed before Promise.all to ensure elements are handled
+      const startupMenu = document.getElementById('startup-menu');
+      const developerModeButton = document.getElementById('developer-mode-button');
+      const clientModeButton = document.getElementById('client-mode-button');
+      // appBody and clientModeView will be fetched inside showDeveloperMode/showClientMode
+      // or assume they are accessible if defined earlier in Office.onReady
+
+      if (developerModeButton) {
+          developerModeButton.onclick = showDeveloperMode; // Assumes showDeveloperMode is globally accessible
+      } else {
+          console.error("[Office.onReady] Could not find button with id='developer-mode-button'");
+      }
+      if (clientModeButton) {
+          clientModeButton.onclick = showClientMode; // Assumes showClientMode is globally accessible
+      } else {
+          console.error("[Office.onReady] Could not find button with id='client-mode-button'");
+      }
+
+      // Get references and assign handlers for Back to Menu buttons
+      const backToMenuDevButton = document.getElementById('back-to-menu-dev-button');
+      const backToMenuClientButton = document.getElementById('back-to-menu-client-button');
+
+      if (backToMenuDevButton) {
+          backToMenuDevButton.onclick = showStartupMenu; // Assumes showStartupMenu is globally accessible
+      } else {
+          console.error("[Office.onReady] Could not find button with id='back-to-menu-dev-button'");
+      }
+      if (backToMenuClientButton) {
+          backToMenuClientButton.onclick = showStartupMenu; // Assumes showStartupMenu is globally accessible
+      } else {
+          console.error("[Office.onReady] Could not find button with id='back-to-menu-client-button'");
+      }
+
+      document.getElementById("sideload-msg").style.display = "none";
+      const appBody = document.getElementById('app-body');
+      const clientModeView = document.getElementById('client-mode-view');
+
+      if (startupMenu) startupMenu.style.display = "flex";
+      if (appBody) appBody.style.display = "none";
+      if (clientModeView) clientModeView.style.display = "none";
+      // End Startup Menu Logic
+
     }).catch(error => {
         console.error("Error during initialization:", error);
         showError("Error during initialization: " + error.message);
     });
 
     document.getElementById("sideload-msg").style.display = "none";
-    document.getElementById("app-body").style.display = "block";
+    // document.getElementById("app-body").style.display = "block"; // Keep app-body hidden initially
+    if (startupMenu) startupMenu.style.display = "flex"; // Show startup menu instead
+    if (appBody) appBody.style.display = "none";
+    if (clientModeView) clientModeView.style.display = "none";
 
     // ... (existing modal logic: applyParamsButton.onclick, window.onclick)
 
