@@ -16,3 +16,4 @@ node_modules/
 
 # Output files
 output.json 
+dist/taskpane.js 
