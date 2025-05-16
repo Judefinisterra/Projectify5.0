@@ -29,9 +29,10 @@ export function setAIModelPlannerOpenApiKey(key) {
 async function getAIModelPlanningSystemPrompt() {
   const promptKey = "AIModelPlanning_System"; // Key for this specific prompt file
   const paths = [
-    `https://localhost:3002/src/prompts/${promptKey}.txt`
-    // If there were other potential locations or fallback URLs for *this specific planner prompt*,
-    // they could be added here, similar to how srcPaths might be used in AIcalls.js for other prompts.
+    // Try path relative to root if /src/ is not working, assuming 'prompts' is then at root level of served dir
+    // THIS IS A GUESS - The original path `https://localhost:3002/src/prompts/...` should work if server is configured for it.
+    `https://localhost:3002/prompts/${promptKey}.txt`, 
+    `https://localhost:3002/src/prompts/${promptKey}.txt` // Original path as a fallback
   ];
 
   if (DEBUG_PLANNER) console.log(`AIModelPlanner: Attempting to load prompt file: ${promptKey}.txt`);
@@ -65,6 +66,28 @@ async function callOpenAIForModelPlanner(messages, model = "gpt-4.1", temperatur
     console.error("AIModelPlanner: OpenAI API key not set.");
     throw new Error("OpenAI API key not set for AIModelPlanner.");
   }
+
+  if (DEBUG_PLANNER) {
+    if (messages && messages.length > 0) {
+      const systemMessage = messages.find(msg => msg.role === 'system');
+      const userMessages = messages.filter(msg => msg.role === 'user');
+      const lastUserMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
+
+      if (systemMessage) {
+        console.log("AIModelPlanner API Call: System Prompt:", systemMessage.content);
+      } else {
+        console.warn("AIModelPlanner API Call: No system prompt found in messages.");
+      }
+      if (lastUserMessage) {
+        console.log("AIModelPlanner API Call: Main User Prompt:", lastUserMessage.content);
+      } else {
+        console.warn("AIModelPlanner API Call: No user prompt found in messages.");
+      }
+    } else {
+      console.warn("AIModelPlanner API Call: Messages array is empty or undefined.");
+    }
+  }
+
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -326,6 +349,19 @@ export async function plannerHandleSend() {
     try {
         const resultResponse = await _handleAIModelPlannerConversation(userInput);
         lastPlannerResponseForClient = resultResponse; // Store for other buttons
+
+        // Check if the response is JSON
+        if (typeof resultResponse === 'string') {
+            try {
+                JSON.parse(resultResponse);
+                console.log("test passed");
+            } catch (e) {
+                // Not a JSON string
+            }
+        } else if (typeof resultResponse === 'object' && resultResponse !== null && !Array.isArray(resultResponse)) {
+            console.log("test passed");
+        }
+
         displayInClientChatLogPlanner(resultResponse, false);
     } catch (error) {
         console.error("Error in AIModelPlanner conversation:", error);

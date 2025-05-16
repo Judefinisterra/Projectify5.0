@@ -807,3 +807,51 @@ body {
     text-align: left;
     min-height: 1em; /* Prevent layout shift */
 }
+
+/* Startup Menu Styles */
+#startup-menu {
+    display: flex; /* Changed from initial none to flex, JS will control visibility */
+    -ms-flex-direction: column; /* IE 10 */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    text-align: center;
+}
+
+#startup-menu h1 {
+    margin-bottom: 20px;
+}
+
+#startup-menu .ms-Button {
+    margin-top: 10px;
+}
+
+/* Client Mode View Styles */
+#client-mode-view {
+    display: none; /* Initially hidden */
+    -ms-flex-direction: column; /* IE 10 */
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    text-align: center;
+}
+
+#client-mode-view h1 {
+    margin-bottom: 20px;
+}
+
+/* Back to Menu Button Styles */
+.back-to-menu-button {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    z-index: 1000; /* Ensure it's above other content */
+    padding: 5px 10px; /* Smaller padding */
+    min-width: auto; /* Allow button to be smaller */
+    font-size: 12px; /* Smaller font */
+}
+
+/* Specific IDs if needed, though class is better */
+/* #back-to-menu-dev-button, #back-to-menu-client-button {} */
