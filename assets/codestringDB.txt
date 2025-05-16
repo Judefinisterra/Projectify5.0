@@ -178,7 +178,7 @@ SUMEX-RR	<SUMEX-RR; labelRow=""; driver1=""; row1 = "R|Total Revenue|IS: revenue
 SUM-RR	<SUM-RR; labelRow=""; driver1=""; row1 = "R|Total Revenue|IS: revenue||||F|F|F|F|F|F|";>
 SUMV-V	<SUMV-V; labelRow=""; driver1=""; row1 = "V|Vol|||||F|F|F|F|F|F|";>
 SUM-VV	<SUM-VV; labelRow=""; driver1=""; row1 = "R|Total Revenue|IS: revenue||||F|F|F|F|F|F|";>
-TAB	<TAB; labelRow="";>
+TAB	<TAB; label1="";>
 TAM-ER	<TAM-ER; labelRow=""; row1 = "V|Sales in US|IS: revenue||||F|F|F|F|F|F|"; row2 = "AS|% CAGR|||||0.05|0.05|0.05|0.05|0.05|0.05|";>
 TAM-EV	<TAM-EV; labelRow=""; row1 = "V|# of untis in US|||||100000|F|F|F|F|F|"; row2 = "AS|% CAGR|||||0.05|0.05|0.05|0.05|0.05|0.05|";>
 TAXDTA-ISR	<TAXDTA-ISR; labelRow=""; financialsdriver="Pre-Tax Income"; row1 = "|Income Tax:|||||||||||"; row2 = "|Driver: Pre-Tax Income|||||F|F|F|F|F|F|"; row3 = "AS|% of EBITDA - Driver Pre-Tax Income|||||0.25|0.25|0.25|0.25|0.25|0.25|"; row4 = "C|Income Tax|IS: Net income||||F|F|F|F|F|F|"; row5 = "||||||||||||"; row6 = "A|Deferred Tax Asset|BS: current assets||||F|F|F|F|F|F|"; row7 = "||||||||||||"; row8 = "CF|Change in Deferred Tax Asset|CF: WC||||F|F|F|F|F|F|";>
