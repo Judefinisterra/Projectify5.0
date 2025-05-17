@@ -10,6 +10,8 @@ let lastPlannerResponseForClient = null; // To store the last response for clien
 
 const DEBUG_PLANNER = true; // For planner-specific debugging
 
+import { getAICallsProcessedResponse } from './AIcalls.js'; // <<< ADDED IMPORT
+
 // Helper function to get API keys (placeholder, adapt as needed based on your structure)
 // This might need to be coordinated with how API keys are managed in your main taskpane.js
 // For now, we'll assume AIcalls.js might make setAPIKeys and INTERNAL_API_KEYS available or similar.
@@ -357,24 +359,61 @@ export async function plannerHandleSend() {
                 const parsedResponse = JSON.parse(resultResponse);
                 if (typeof parsedResponse === 'object' && parsedResponse !== null && !Array.isArray(parsedResponse)) {
                     jsonObjectToProcess = parsedResponse;
-                    console.log("test passed (JSON string successfully parsed to an object)");
+                    console.log("test passed (JSON string successfully parsed to an object for tab processing)");
                 }
             } catch (e) {
                 // Not a JSON string, or parsing did not result in a suitable object
             }
         } else if (typeof resultResponse === 'object' && resultResponse !== null && !Array.isArray(resultResponse)) {
             jsonObjectToProcess = resultResponse;
-            console.log("test passed (response is already a suitable JSON object)");
+            console.log("test passed (response is already a suitable JSON object for tab processing)");
         }
 
         if (jsonObjectToProcess) {
-            let ModelCodes = "";
+            let ModelCodes = ""; 
+            console.log("AIModelPlanner: Starting to process JSON object for ModelCodes generation.");
+
             for (const tabLabel in jsonObjectToProcess) {
                 if (Object.prototype.hasOwnProperty.call(jsonObjectToProcess, tabLabel)) {
-                    ModelCodes += `<TAB; label1="${tabLabel}";>\n`;
+                    ModelCodes += `<TAB; label1="${tabLabel}";>\n`; 
+
+                    const tabDescription = jsonObjectToProcess[tabLabel];
+                    let tabDescriptionString = "";
+
+                    if (typeof tabDescription === 'string') {
+                        tabDescriptionString = tabDescription;
+                    } else if (typeof tabDescription === 'object' && tabDescription !== null) {
+                        tabDescriptionString = JSON.stringify(tabDescription);
+                    } else {
+                        tabDescriptionString = String(tabDescription);
+                    }
+                    
+                    if (tabDescriptionString.trim() !== "") {
+                        console.log(`AIModelPlanner: Submitting description for tab "${tabLabel}" to getAICallsProcessedResponse...`);
+                        try {
+                            const aiResponseForTabArray = await getAICallsProcessedResponse(tabDescriptionString);
+                            
+                            let formattedAiResponse = "";
+                            if (typeof aiResponseForTabArray === 'object' && aiResponseForTabArray !== null && !Array.isArray(aiResponseForTabArray)) {
+                                formattedAiResponse = JSON.stringify(aiResponseForTabArray, null, 2); 
+                            } else if (Array.isArray(aiResponseForTabArray)) {
+                                formattedAiResponse = aiResponseForTabArray.join('\n');
+                            } else {
+                                formattedAiResponse = String(aiResponseForTabArray);
+                            }
+                            
+                            ModelCodes += formattedAiResponse + "\n\n"; 
+                            console.log(`AIModelPlanner: Received and appended AI response for tab "${tabLabel}"`);
+                        } catch (tabError) {
+                            console.error(`AIModelPlanner: Error processing description for tab "${tabLabel}" via getAICallsProcessedResponse:`, tabError);
+                            ModelCodes += `// Error processing tab ${tabLabel}: ${tabError.message}\n\n`;
+                        }
+                    } else {
+                        ModelCodes += `// No description provided for tab ${tabLabel}\n\n`;
+                    }
                 }
             }
-            console.log("Generated ModelCodes:\n", ModelCodes);
+            console.log("Generated ModelCodes (final):\n" + ModelCodes); 
         }
 
         displayInClientChatLogPlanner(resultResponse, false);

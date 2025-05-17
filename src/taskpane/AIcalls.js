@@ -1187,3 +1187,74 @@ Office.onReady(async (info) => {
   }
 });
 
+// NEW FUNCTION to process text input like handleSend but without UI and main history side effects
+export async function getAICallsProcessedResponse(userInputString) {
+    if (DEBUG) console.log("[getAICallsProcessedResponse] Processing input:", userInputString.substring(0, 100) + "...");
+
+    try {
+        // 1. Structure database queries
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Calling structureDatabasequeries...");
+        const dbResults = await structureDatabasequeries(userInputString);
+        if (DEBUG) console.log("[getAICallsProcessedResponse] structureDatabasequeries completed. Results:", dbResults);
+
+        if (!dbResults || !Array.isArray(dbResults)) {
+            console.error("[getAICallsProcessedResponse] Invalid database results:", dbResults);
+            throw new Error("Failed to get valid database results from structureDatabasequeries");
+        }
+
+        // 2. Format database results into an enhanced prompt
+        const plainTextResults = dbResults.map(result => {
+            if (!result) return "No results found for a query";
+            return `Query: ${result.query || 'No query'}\n` +
+                   `Training Data:\n${(result.trainingData || []).join('\n')}\n` +
+                   `Code Options:\n${(result.codeOptions || []).join('\n')}\n` +
+                   `Code Choosing Context:\n${(result.call1Context || []).join('\n')}\n` +
+                   `Code Editing Context:\n${(result.call2Context || []).join('\n')}\n` +
+                   `---\n`;
+        }).join('\n');
+
+        const enhancedPrompt = `Client request: ${userInputString}\n\nDatabase Results:\n${plainTextResults}`;
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Enhanced prompt created:", enhancedPrompt.substring(0, 200) + "...");
+
+        // 3. Call the AI using processPrompt (to avoid main history side effects of handleConversation)
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Loading system and main prompts for AI call...");
+        const systemPrompt = await getSystemPromptFromFile('Encoder_System');
+        const mainPromptText = await getSystemPromptFromFile('Encoder_Main');
+
+        if (!systemPrompt || !mainPromptText) {
+            throw new Error("[getAICallsProcessedResponse] Failed to load 'Encoder_System' or 'Encoder_Main' prompt.");
+        }
+        
+        const combinedInputForAI = `Client request: ${enhancedPrompt}\nMain Prompt: ${mainPromptText}`; // This matches how handleInitialConversation constructs it
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Calling processPrompt...");
+
+        let responseArray = await processPrompt({
+            userInput: combinedInputForAI,
+            systemPrompt: systemPrompt,
+            model: GPT41, // Using the same model as in other parts
+            temperature: 1, // Consistent temperature
+            history: [] // Treat each call as independent for this processing
+        });
+        if (DEBUG) console.log("[getAICallsProcessedResponse] processPrompt completed. Response:", responseArray);
+
+        // 4. Validate the response
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Validating response array...");
+        const validationErrors = await validateCodeStrings(responseArray);
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Validation completed. Errors:", validationErrors);
+
+        // 5. Perform validation correction if needed
+        if (validationErrors && validationErrors.length > 0) {
+            if (DEBUG) console.log("[getAICallsProcessedResponse] Validation errors found. Performing correction...");
+            responseArray = await validationCorrection(userInputString, responseArray, validationErrors);
+            if (DEBUG) console.log("[getAICallsProcessedResponse] Validation correction completed. Corrected response:", responseArray);
+        }
+
+        return responseArray;
+
+    } catch (error) {
+        console.error("[getAICallsProcessedResponse] Error during processing:", error);
+        // Return an error message array, consistent with other function returns
+        return [`Error processing tab description: ${error.message}`];
+    }
+}
+
