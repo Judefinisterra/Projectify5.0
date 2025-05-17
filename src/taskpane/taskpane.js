@@ -426,27 +426,81 @@ async function handleSendClient() {
     const userInput = userInputElement.value.trim();
     
     if (!userInput) {
-        // Consider using a client-specific showError if available, or alert
         alert('Please enter a request (Client Mode)'); 
         return;
     }
 
+    // Append user's message to the chat log
     appendMessage(userInput, true, 'chat-log-client', 'welcome-message-client');
-    userInputElement.value = '';
+    userInputElement.value = ''; // Clear the input field
     setButtonLoadingClient(true);
 
-    try {
-        // Simulate an API call or simple response for client mode
-        await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate network delay
-        const clientResponse = `Client received: "${userInput}". This is a placeholder response.`;
-        lastResponseClient = clientResponse; // Store for potential client-side "Write to Excel"
-        conversationHistoryClient.push({ user: userInput, assistant: clientResponse });
+    // Get the chat log and welcome message elements
+    const chatLogClient = document.getElementById('chat-log-client');
+    const welcomeMessageClient = document.getElementById('welcome-message-client');
 
-        appendMessage(clientResponse, false, 'chat-log-client', 'welcome-message-client');
+    if (!chatLogClient) {
+        console.error("[handleSendClient] Chat log element 'chat-log-client' not found.");
+        setButtonLoadingClient(false);
+        return;
+    }
+
+    // Hide welcome message if it's visible
+    if (welcomeMessageClient) {
+        welcomeMessageClient.style.display = 'none';
+    }
+
+    // Create assistant's message container
+    const assistantMessageDiv = document.createElement('div');
+    assistantMessageDiv.className = 'chat-message assistant-message';
+    const assistantMessageContent = document.createElement('p');
+    assistantMessageContent.className = 'message-content';
+    assistantMessageContent.textContent = ''; // Start with empty content
+    assistantMessageDiv.appendChild(assistantMessageContent);
+    chatLogClient.appendChild(assistantMessageDiv);
+    chatLogClient.scrollTop = chatLogClient.scrollHeight; // Scroll to bottom
+
+    let fullAssistantResponse = "";
+
+    try {
+        // Prepare messages for OpenAI API
+        // Add current user input. For a more complete conversation, you'd include previous messages from conversationHistoryClient
+        const messages = [
+            // Example: Add system prompt if you have one
+            // { role: "system", content: "You are a helpful assistant." },
+            ...conversationHistoryClient.map(item => ({ role: "user", content: item.user })),
+            ...conversationHistoryClient.map(item => ({ role: "assistant", content: item.assistant })),
+            { role: "user", content: userInput }
+        ];
+        
+        console.log("[handleSendClient] Calling OpenAI with stream enabled. Messages:", messages);
+
+        // Call OpenAI API with streaming
+        // Assuming callOpenAI is available and handles API key internally,
+        // and returns an async iterable for stream.
+        // Adjust the model as needed, e.g., "gpt-3.5-turbo" or "gpt-4"
+        const stream = await callOpenAI(messages, { stream: true, model: "gpt-3.5-turbo" });
+
+        for await (const chunk of stream) {
+            const content = chunk.choices && chunk.choices[0]?.delta?.content;
+            if (content) {
+                fullAssistantResponse += content;
+                assistantMessageContent.textContent += content; // Append new content
+                chatLogClient.scrollTop = chatLogClient.scrollHeight; // Keep scrolling to bottom
+            }
+        }
+
+        lastResponseClient = fullAssistantResponse;
+        conversationHistoryClient.push({ user: userInput, assistant: fullAssistantResponse });
+
+        console.log("[handleSendClient] Streaming finished. Full response:", fullAssistantResponse);
 
     } catch (error) {
-        console.error("Error in handleSendClient:", error);
-        appendMessage(`Error: ${error.message}`, false, 'chat-log-client', 'welcome-message-client');
+        console.error("Error in handleSendClient during OpenAI call:", error);
+        // Display error in the assistant's message bubble or a separate error message
+        assistantMessageContent.textContent = `Error: ${error.message || 'Failed to get response'}`;
+        // Also log to general error display if available
+        showError(`Client mode error: ${error.message}`);
     } finally {
         setButtonLoadingClient(false);
     }

@@ -75,64 +75,99 @@ async function getAIModelPlanningSystemPrompt() {
 }
 
 // Direct OpenAI API call function (simplified version, adapt if AIcalls.js exports its own)
-async function callOpenAIForModelPlanner(messages, model = "gpt-4.1", temperature = 0.7) {
+async function* callOpenAIForModelPlanner(messages, options = {}) {
+  const { model = "gpt-4.1", temperature = 0.7, stream = false } = options;
+
   if (!AI_MODEL_PLANNER_OPENAI_API_KEY) {
     console.error("AIModelPlanner: OpenAI API key not set.");
     throw new Error("OpenAI API key not set for AIModelPlanner.");
   }
 
   if (DEBUG_PLANNER) {
-    if (messages && messages.length > 0) {
-      const systemMessage = messages.find(msg => msg.role === 'system');
-      const userMessages = messages.filter(msg => msg.role === 'user');
-      const lastUserMessage = userMessages.length > 0 ? userMessages[userMessages.length - 1] : null;
-
-      if (systemMessage) {
-        console.log("AIModelPlanner API Call: System Prompt:", systemMessage.content);
-      } else {
-        console.warn("AIModelPlanner API Call: No system prompt found in messages.");
-      }
-      if (lastUserMessage) {
-        console.log("AIModelPlanner API Call: Main User Prompt:", lastUserMessage.content);
-      } else {
-        console.warn("AIModelPlanner API Call: No user prompt found in messages.");
-      }
-    } else {
-      console.warn("AIModelPlanner API Call: Messages array is empty or undefined.");
-    }
+    // Condensed logging
+    const systemMessageContent = messages.find(msg => msg.role === 'system')?.content?.substring(0, 100) + "...";
+    const lastUserMessageContent = messages.filter(msg => msg.role === 'user').pop()?.content?.substring(0, 100) + "...";
+    console.log(`AIModelPlanner API Call: Model: ${model}, Stream: ${stream}`);
+    console.log("AIModelPlanner API Call: System Prompt (start):", systemMessageContent || "N/A");
+    console.log("AIModelPlanner API Call: Last User Prompt (start):", lastUserMessageContent || "N/A");
   }
 
   try {
+    const body = {
+      model: model,
+      messages: messages,
+      temperature: temperature
+    };
+    if (stream) {
+      body.stream = true;
+    }
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${AI_MODEL_PLANNER_OPENAI_API_KEY}`
       },
-      body: JSON.stringify({
-        model: model,
-        messages: messages,
-        temperature: temperature
-      })
+      body: JSON.stringify(body)
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
+      const errorData = await response.json().catch(() => ({ message: "Failed to parse error JSON." }));
       console.error("AIModelPlanner - OpenAI API error response:", errorData);
-      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+      throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorData.message || JSON.stringify(errorData)}`);
     }
 
-    const data = await response.json();
-    return data.choices[0].message.content;
+    if (stream) {
+      console.log("AIModelPlanner - OpenAI API response received (stream)");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          console.log("AIModelPlanner - Stream finished.");
+          break;
+        }
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+        const parsedLines = lines
+          .map((line) => line.replace(/^data: /, "").trim())
+          .filter((line) => line !== "" && line !== "[DONE]")
+          .map((line) => {
+            try {
+              return JSON.parse(line);
+            } catch (e) {
+              console.warn("AIModelPlanner - Could not parse JSON line from stream:", line, e);
+              return null;
+            }
+          })
+          .filter(line => line !== null);
+
+        for (const parsedLine of parsedLines) {
+          yield parsedLine;
+        }
+      }
+    } else {
+      // Non-streaming path (kept for potential compatibility, though planner chat will use stream)
+      const data = await response.json();
+      console.log("AIModelPlanner - OpenAI API response received (non-stream)");
+      if (data.choices && data.choices[0] && data.choices[0].message) {
+        return data.choices[0].message.content;
+      } else {
+        console.error("AIModelPlanner - Invalid non-stream response structure:", data);
+        throw new Error("Invalid response structure from OpenAI (non-stream).");
+      }
+    }
   } catch (error) {
     console.error("Error calling OpenAI API in AIModelPlanner:", error);
-    throw error;
+    if (!stream) throw error; // Re-throw for non-streaming errors
+    // For streams, error breaks the generator.
   }
 }
 
 
 // Function to process a prompt for the AI Model Planner
-async function processAIModelPlannerPromptInternal({ userInput, systemPrompt, model, temperature, history = [] }) {
+async function* processAIModelPlannerPromptInternal({ userInput, systemPrompt, model, temperature, history = [], stream = false }) {
     const messages = [
         { role: "system", content: systemPrompt }
     ];
@@ -153,26 +188,43 @@ async function processAIModelPlannerPromptInternal({ userInput, systemPrompt, mo
     messages.push({ role: "user", content: userInput });
 
     try {
-        const responseContent = await callOpenAIForModelPlanner(messages, model, temperature);
-        // The prompt asks for JSON output in the final step.
-        // For intermediate steps, it might be text. We need to handle both.
-        try {
-            // Try to parse as JSON. If it works, and it's the final step format, return as object.
-            const parsedJson = JSON.parse(responseContent);
-            // If it's an object (likely the final JSON output), return it directly
-            if (typeof parsedJson === 'object' && parsedJson !== null) {
-                return parsedJson; 
+        // Pass the stream option to callOpenAIForModelPlanner
+        const streamResponse = callOpenAIForModelPlanner(messages, { model, temperature, stream });
+        
+        if (stream) {
+            // If streaming, yield all chunks from the response stream
+            for await (const chunk of streamResponse) {
+                yield chunk;
             }
-            // If it parsed to something else (e.g. a string that happened to be valid JSON), treat as text.
-            return responseContent.split('\n').filter(line => line.trim());
+        } else {
+            // If not streaming, get the full response content (original behavior for non-stream callers)
+            // This part assumes callOpenAIForModelPlanner returns content directly when not streaming.
+            const responseContent = await streamResponse; // This will await the promise for non-streaming path
+            // The prompt asks for JSON output in the final step.
+            // For intermediate steps, it might be text. We need to handle both.
+            try {
+                const parsedJson = JSON.parse(responseContent);
+                if (typeof parsedJson === 'object' && parsedJson !== null) {
+                    yield parsedJson; // Yield the single parsed object
+                    return;
+                }
+                yield responseContent.split('\n').filter(line => line.trim());
+                return;
 
-        } catch (e) {
-            // If JSON parsing fails, it's likely a text response.
-            return responseContent.split('\n').filter(line => line.trim());
+            } catch (e) {
+                yield responseContent.split('\n').filter(line => line.trim());
+                return;
+            }
         }
     } catch (error) {
-        console.error("Error in processAIModelPlannerPrompt:", error);
-        throw error; 
+        console.error("Error in processAIModelPlannerPromptInternal:", error);
+        // For streams, the error should propagate from callOpenAIForModelPlanner
+        // For non-streams, rethrow or yield an error structure
+        if (stream) {
+             // Error already logged by callOpenAIForModelPlanner, generator will break
+        } else {
+            throw error; 
+        }
     }
 }
 
@@ -316,33 +368,64 @@ function setClientLoadingStatePlanner(isLoading) {
 }
 
 // Core conversation logic, now private to this module
-async function _handleAIModelPlannerConversation(userInput) {
+async function* _handleAIModelPlannerConversation(userInput, options = {}) {
+    const { stream = false } = options;
     const systemPrompt = await getAIModelPlanningSystemPrompt();
     if (!systemPrompt) throw new Error("Failed to load AI Model Planning system prompt.");
 
     const isFollowUp = modelPlannerConversationHistory.length > 0;
-    const model = "gpt-4.1";
-    const temperature = 0.7;
+    const model = "gpt-4.1"; // Or get from options if you want to make it configurable here
+    const temperature = 0.7;   // Or get from options
 
-    const response = await processAIModelPlannerPromptInternal({
+    // Pass the stream option down to processAIModelPlannerPromptInternal
+    const streamResponse = processAIModelPlannerPromptInternal({
         userInput: userInput,
         systemPrompt: systemPrompt,
         model: model,
         temperature: temperature,
-        history: isFollowUp ? modelPlannerConversationHistory : []
+        history: isFollowUp ? modelPlannerConversationHistory : [],
+        stream: stream // Pass the stream flag
     });
 
-    let assistantResponseContent = "";
-    if (typeof response === 'object') assistantResponseContent = JSON.stringify(response);
-    else if (Array.isArray(response)) assistantResponseContent = response.join("\n");
-    else assistantResponseContent = String(response);
-
-    if (isFollowUp) {
-        modelPlannerConversationHistory.push(["human", userInput], ["assistant", assistantResponseContent]);
+    if (stream) {
+        let fullAssistantResponseContent = "";
+        for await (const chunk of streamResponse) {
+            yield chunk; // Yield the raw chunk for UI streaming
+            if (chunk.choices && chunk.choices[0]?.delta?.content) {
+                fullAssistantResponseContent += chunk.choices[0].delta.content;
+            }
+        }
+        // After stream, update history with the fully accumulated content
+        // Note: The original _handleAIModelPlannerConversation returned the response object/array directly.
+        // For streaming, the primary output is the stream itself. The full content is for history.
+        // The caller (plannerHandleSend) will now be responsible for final parsing if it was JSON.
+        if (isFollowUp) {
+            modelPlannerConversationHistory.push(["human", userInput], ["assistant", fullAssistantResponseContent]);
+        } else {
+            modelPlannerConversationHistory = [["human", userInput], ["assistant", fullAssistantResponseContent]];
+        }
+        // We don't explicitly return fullAssistantResponseContent here because the generator yields chunks.
+        // The caller will accumulate it if needed (which plannerHandleSend will do).
     } else {
-        modelPlannerConversationHistory = [["human", userInput], ["assistant", assistantResponseContent]];
+        // Non-streaming: Get the single yielded item (which is the full response)
+        let fullResponse;
+        for await (const item of streamResponse) { // Will iterate once for non-streaming
+            fullResponse = item;
+            break;
+        }
+        
+        let assistantResponseContent = "";
+        if (typeof fullResponse === 'object') assistantResponseContent = JSON.stringify(fullResponse);
+        else if (Array.isArray(fullResponse)) assistantResponseContent = fullResponse.join("\n");
+        else assistantResponseContent = String(fullResponse);
+
+        if (isFollowUp) {
+            modelPlannerConversationHistory.push(["human", userInput], ["assistant", assistantResponseContent]);
+        } else {
+            modelPlannerConversationHistory = [["human", userInput], ["assistant", assistantResponseContent]];
+        }
+        yield fullResponse; // Yield the full response once for non-streaming callers
     }
-    return response; // Return the direct response (object or array)
 }
 
 async function _executePlannerCodes(modelCodesString) {
@@ -476,31 +559,73 @@ export async function plannerHandleSend() {
     userInputElement.value = '';
     setClientLoadingStatePlanner(true);
 
+    // Create assistant message elements for streaming
+    const chatLogClient = document.getElementById('chat-log-client');
+    const welcomeMessageClient = document.getElementById('welcome-message-client');
+    if (welcomeMessageClient) welcomeMessageClient.style.display = 'none';
+
+    const assistantMessageDiv = document.createElement('div');
+    assistantMessageDiv.className = 'chat-message assistant-message';
+    const assistantMessageContent = document.createElement('p');
+    assistantMessageContent.className = 'message-content';
+    assistantMessageContent.textContent = ''; // Start empty
+    assistantMessageDiv.appendChild(assistantMessageContent);
+    if (chatLogClient) {
+        chatLogClient.appendChild(assistantMessageDiv);
+        chatLogClient.scrollTop = chatLogClient.scrollHeight;
+    } else {
+        console.error("AIModelPlanner: Client chat log element not found for streaming message.");
+    }
+
+    let fullAssistantTextResponse = "";
+
     try {
-        const resultResponse = await _handleAIModelPlannerConversation(userInput);
-        lastPlannerResponseForClient = resultResponse; 
+        // Call _handleAIModelPlannerConversation with stream option
+        const stream = _handleAIModelPlannerConversation(userInput, { stream: true });
 
+        for await (const chunk of stream) {
+            if (chunk.choices && chunk.choices[0]?.delta?.content) {
+                const content = chunk.choices[0].delta.content;
+                fullAssistantTextResponse += content;
+                assistantMessageContent.textContent += content;
+                if (chatLogClient) chatLogClient.scrollTop = chatLogClient.scrollHeight;
+            }
+        }
+        
+        // At this point, fullAssistantTextResponse contains the complete text from the LLM.
+        // The conversation history has been updated inside _handleAIModelPlannerConversation's streaming path.
+
+        lastPlannerResponseForClient = fullAssistantTextResponse; // Store the raw text or try to parse if always JSON
+
+        // Now, attempt to parse the fullAssistantTextResponse as JSON for further processing
+        // This mirrors the previous logic but operates on the accumulated streamed text.
         let jsonObjectToProcess = null;
-
-        if (typeof resultResponse === 'string') {
+        if (fullAssistantTextResponse) {
             try {
-                const parsedResponse = JSON.parse(resultResponse);
+                const parsedResponse = JSON.parse(fullAssistantTextResponse);
                 if (typeof parsedResponse === 'object' && parsedResponse !== null && !Array.isArray(parsedResponse)) {
                     jsonObjectToProcess = parsedResponse;
-                    console.log("test passed (JSON string successfully parsed to an object for tab processing)");
+                    lastPlannerResponseForClient = parsedResponse; // Update to store parsed object
+                    console.log("AIModelPlanner: Streamed text successfully parsed to an object for tab processing.");
                 }
             } catch (e) {
-                // Not a JSON string, or parsing did not result in a suitable object
+                // Not a JSON string, or parsing did not result in a suitable object.
+                // The UI already has the full text. lastPlannerResponseForClient remains the text.
+                console.log("AIModelPlanner: Streamed text was not a parsable JSON object. Displaying as text.");
             }
-        } else if (typeof resultResponse === 'object' && resultResponse !== null && !Array.isArray(resultResponse)) {
-            jsonObjectToProcess = resultResponse;
-            console.log("test passed (response is already a suitable JSON object for tab processing)");
         }
+        
+        // If UI was updated with text and it turned out to be JSON object for processing, 
+        // we might want to clear/replace the text content with a message like "Processing JSON..."
+        // or just let the text remain. For now, text remains.
+        // If it wasn't JSON, the text is already correctly displayed.
 
         if (jsonObjectToProcess) {
             let ModelCodes = ""; 
             console.log("AIModelPlanner: Starting to process JSON object for ModelCodes generation.");
-            displayInClientChatLogPlanner("Generating model structure from AI response...", false);
+            // Update UI to indicate processing of JSON (optional)
+            // assistantMessageContent.textContent = "Processing received plan..."; 
+            // displayInClientChatLogPlanner("Generating model structure from AI response...", false); //This would add a new bubble
 
             for (const tabLabel in jsonObjectToProcess) {
                 if (Object.prototype.hasOwnProperty.call(jsonObjectToProcess, tabLabel)) {
@@ -509,12 +634,9 @@ export async function plannerHandleSend() {
                         console.log(`AIModelPlanner: Skipping excluded tab - "${tabLabel}"`);
                         continue; 
                     }
-
                     ModelCodes += `<TAB; label1="${tabLabel}";>\n`; 
-
                     const tabDescription = jsonObjectToProcess[tabLabel];
                     let tabDescriptionString = "";
-
                     if (typeof tabDescription === 'string') {
                         tabDescriptionString = tabDescription;
                     } else if (typeof tabDescription === 'object' && tabDescription !== null) {
@@ -522,13 +644,13 @@ export async function plannerHandleSend() {
                     } else {
                         tabDescriptionString = String(tabDescription);
                     }
-                    
                     if (tabDescriptionString.trim() !== "") {
                         console.log(`AIModelPlanner: Submitting description for tab "${tabLabel}" to getAICallsProcessedResponse...`);
-                        displayInClientChatLogPlanner(`Processing details for tab: ${tabLabel}...`, false);
+                        // Update UI for this sub-task (optional)
+                        // assistantMessageContent.textContent = `Processing details for tab: ${tabLabel}...`;
+                        displayInClientChatLogPlanner(`Processing details for tab: ${tabLabel}...`, false); // Adds new bubble
                         try {
                             const aiResponseForTabArray = await getAICallsProcessedResponse(tabDescriptionString);
-                            
                             let formattedAiResponse = "";
                             if (typeof aiResponseForTabArray === 'object' && aiResponseForTabArray !== null && !Array.isArray(aiResponseForTabArray)) {
                                 formattedAiResponse = JSON.stringify(aiResponseForTabArray, null, 2); 
@@ -537,10 +659,9 @@ export async function plannerHandleSend() {
                             } else {
                                 formattedAiResponse = String(aiResponseForTabArray);
                             }
-                            
                             ModelCodes += formattedAiResponse + "\n\n"; 
                             console.log(`AIModelPlanner: Received and appended AI response for tab "${tabLabel}"`);
-                            displayInClientChatLogPlanner(`Completed details for tab: ${tabLabel}.`, false);
+                            displayInClientChatLogPlanner(`Completed details for tab: ${tabLabel}.`, false); // Adds new bubble
                         } catch (tabError) {
                             console.error(`AIModelPlanner: Error processing description for tab "${tabLabel}" via getAICallsProcessedResponse:`, tabError);
                             ModelCodes += `// Error processing tab ${tabLabel}: ${tabError.message}\n\n`;
@@ -552,21 +673,24 @@ export async function plannerHandleSend() {
                 }
             }
             console.log("Generated ModelCodes (final):\n" + ModelCodes); 
-            
             if (ModelCodes.trim().length > 0) {
                 displayInClientChatLogPlanner("Model structure generated. Now applying to workbook...", false);
-                await _executePlannerCodes(ModelCodes); // Call the new private function
+                await _executePlannerCodes(ModelCodes); 
             } else {
                 console.log("AIModelPlanner: ModelCodes string is empty. Skipping _executePlannerCodes call.");
                 displayInClientChatLogPlanner("No code content generated to apply to workbook.", false);
             }
         } else {
-            displayInClientChatLogPlanner(resultResponse, false);
+            // If it wasn't a JSON object for processing, the text is already displayed via streaming.
+            // No further action needed here for UI unless fullAssistantTextResponse was empty.
+            if (!fullAssistantTextResponse) {
+                 assistantMessageContent.textContent = "Received an empty response.";
+            }
         }
 
     } catch (error) {
         console.error("Error in AIModelPlanner conversation:", error);
-        displayInClientChatLogPlanner(`Error: ${error.message}`, false);
+        assistantMessageContent.textContent = `Error: ${error.message}`;
     } finally {
         setClientLoadingStatePlanner(false);
     }

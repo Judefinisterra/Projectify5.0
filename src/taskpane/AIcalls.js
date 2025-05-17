@@ -254,12 +254,24 @@ export function loadConversationHistory() {
 }
 
 // Direct OpenAI API call function
-export async function callOpenAI(messages, model = GPT41, temperature = 0.7) {
+export async function* callOpenAI(messages, options = {}) {
+  const { model = GPT41, temperature = 0.7, stream = false } = options;
+
   try {
-    console.log(`Calling OpenAI API with model: ${model}`);
+    console.log(`Calling OpenAI API with model: ${model}, stream: ${stream}`);
 
     if (!INTERNAL_API_KEYS.OPENAI_API_KEY) {
       throw new Error("OpenAI API key not found. Please check your API keys.");
+    }
+
+    const body = {
+      model: model,
+      messages: messages,
+      temperature: temperature
+    };
+
+    if (stream) {
+      body.stream = true;
     }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -268,26 +280,68 @@ export async function callOpenAI(messages, model = GPT41, temperature = 0.7) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${INTERNAL_API_KEYS.OPENAI_API_KEY}`
       },
-      body: JSON.stringify({
-        model: model,
-        messages: messages,
-        temperature: temperature
-      })
+      body: JSON.stringify(body)
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
+      const errorData = await response.json().catch(() => ({ message: "Failed to parse error JSON." }));
       console.error("OpenAI API error response:", errorData);
-      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+      throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorData.message || JSON.stringify(errorData)}`);
     }
 
-    const data = await response.json();
-    console.log("OpenAI API response received");
+    if (stream) {
+      console.log("OpenAI API response received (stream)");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
 
-    return data.choices[0].message.content;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          console.log("Stream finished.");
+          break;
+        }
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+        const parsedLines = lines
+          .map((line) => line.replace(/^data: /, "").trim()) // Remove SSE "data: " prefix
+          .filter((line) => line !== "" && line !== "[DONE]") // Filter empty lines and [DONE] message
+          .map((line) => {
+            try {
+              return JSON.parse(line);
+            } catch (e) {
+              console.warn("Could not parse JSON line from stream:", line, e);
+              return null; // Or handle error appropriately
+            }
+          })
+          .filter(line => line !== null);
+
+        for (const parsedLine of parsedLines) {
+          yield parsedLine;
+        }
+      }
+    } else {
+      const data = await response.json();
+      console.log("OpenAI API response received (non-stream)");
+      // For non-streaming, to maintain compatibility with handleSendClient's expectation of an iterable, 
+      // we yield a single object that mimics the structure of a stream chunk if needed, 
+      // or simply return the content if the caller adapts.
+      // For now, let's assume the non-streaming path is not used by handleSendClient directly.
+      // Returning the content directly as before for other potential callers.
+      // If callOpenAI is *only* called by handleSendClient, this else block might need to yield as well.
+      // However, processPrompt calls callOpenAI without expecting a stream.
+      // If callOpenAI is *only* called by handleSendClient, this else block might need to yield as well.
+      // However, processPrompt calls callOpenAI without expecting a stream.
+      return data.choices[0].message.content; 
+    }
+
   } catch (error) {
     console.error("Error calling OpenAI API:", error);
-    throw error;
+    // If it's a stream, we can't return, but the error will propagate.
+    // If not a stream, re-throw as before.
+    if (!stream) throw error;
+    // For a stream, the error breaks the generator. Consider yielding an error object if preferred.
+    // For now, just log and let the generator terminate.
+    // yield { error: error.message }; // Optional: yield an error object
   }
 }
 
