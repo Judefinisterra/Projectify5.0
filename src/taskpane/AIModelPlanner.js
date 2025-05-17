@@ -350,16 +350,31 @@ export async function plannerHandleSend() {
         const resultResponse = await _handleAIModelPlannerConversation(userInput);
         lastPlannerResponseForClient = resultResponse; // Store for other buttons
 
-        // Check if the response is JSON
+        let jsonObjectToProcess = null;
+
         if (typeof resultResponse === 'string') {
             try {
-                JSON.parse(resultResponse);
-                console.log("test passed");
+                const parsedResponse = JSON.parse(resultResponse);
+                if (typeof parsedResponse === 'object' && parsedResponse !== null && !Array.isArray(parsedResponse)) {
+                    jsonObjectToProcess = parsedResponse;
+                    console.log("test passed (JSON string successfully parsed to an object)");
+                }
             } catch (e) {
-                // Not a JSON string
+                // Not a JSON string, or parsing did not result in a suitable object
             }
         } else if (typeof resultResponse === 'object' && resultResponse !== null && !Array.isArray(resultResponse)) {
-            console.log("test passed");
+            jsonObjectToProcess = resultResponse;
+            console.log("test passed (response is already a suitable JSON object)");
+        }
+
+        if (jsonObjectToProcess) {
+            let ModelCodes = "";
+            for (const tabLabel in jsonObjectToProcess) {
+                if (Object.prototype.hasOwnProperty.call(jsonObjectToProcess, tabLabel)) {
+                    ModelCodes += `<TAB; label1="${tabLabel}";>\n`;
+                }
+            }
+            console.log("Generated ModelCodes:\n", ModelCodes);
         }
 
         displayInClientChatLogPlanner(resultResponse, false);
