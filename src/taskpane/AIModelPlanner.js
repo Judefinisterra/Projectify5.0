@@ -11,6 +11,7 @@ let lastPlannerResponseForClient = null; // To store the last response for clien
 const DEBUG_PLANNER = true; // For planner-specific debugging
 
 import { getAICallsProcessedResponse } from './AIcalls.js'; // <<< ADDED IMPORT
+import { processModelCodesForPlanner } from './taskpane.js'; // <<< UPDATED IMPORT
 
 // Helper function to get API keys (placeholder, adapt as needed based on your structure)
 // This might need to be coordinated with how API keys are managed in your main taskpane.js
@@ -350,7 +351,7 @@ export async function plannerHandleSend() {
 
     try {
         const resultResponse = await _handleAIModelPlannerConversation(userInput);
-        lastPlannerResponseForClient = resultResponse; // Store for other buttons
+        lastPlannerResponseForClient = resultResponse; 
 
         let jsonObjectToProcess = null;
 
@@ -372,9 +373,16 @@ export async function plannerHandleSend() {
         if (jsonObjectToProcess) {
             let ModelCodes = ""; 
             console.log("AIModelPlanner: Starting to process JSON object for ModelCodes generation.");
+            displayInClientChatLogPlanner("Generating model structure from AI response...", false);
 
             for (const tabLabel in jsonObjectToProcess) {
                 if (Object.prototype.hasOwnProperty.call(jsonObjectToProcess, tabLabel)) {
+                    const lowerCaseTabLabel = tabLabel.toLowerCase();
+                    if (lowerCaseTabLabel === "misc." || lowerCaseTabLabel === "financials" || lowerCaseTabLabel === "misc. tab" || lowerCaseTabLabel === "financials tab") {
+                        console.log(`AIModelPlanner: Skipping excluded tab - "${tabLabel}"`);
+                        continue; 
+                    }
+
                     ModelCodes += `<TAB; label1="${tabLabel}";>\n`; 
 
                     const tabDescription = jsonObjectToProcess[tabLabel];
@@ -390,6 +398,7 @@ export async function plannerHandleSend() {
                     
                     if (tabDescriptionString.trim() !== "") {
                         console.log(`AIModelPlanner: Submitting description for tab "${tabLabel}" to getAICallsProcessedResponse...`);
+                        displayInClientChatLogPlanner(`Processing details for tab: ${tabLabel}...`, false);
                         try {
                             const aiResponseForTabArray = await getAICallsProcessedResponse(tabDescriptionString);
                             
@@ -404,9 +413,11 @@ export async function plannerHandleSend() {
                             
                             ModelCodes += formattedAiResponse + "\n\n"; 
                             console.log(`AIModelPlanner: Received and appended AI response for tab "${tabLabel}"`);
+                            displayInClientChatLogPlanner(`Completed details for tab: ${tabLabel}.`, false);
                         } catch (tabError) {
                             console.error(`AIModelPlanner: Error processing description for tab "${tabLabel}" via getAICallsProcessedResponse:`, tabError);
                             ModelCodes += `// Error processing tab ${tabLabel}: ${tabError.message}\n\n`;
+                            displayInClientChatLogPlanner(`Error processing details for tab ${tabLabel}: ${tabError.message}`, false);
                         }
                     } else {
                         ModelCodes += `// No description provided for tab ${tabLabel}\n\n`;
@@ -414,9 +425,25 @@ export async function plannerHandleSend() {
                 }
             }
             console.log("Generated ModelCodes (final):\n" + ModelCodes); 
+            
+            if (ModelCodes.trim().length > 0) {
+                displayInClientChatLogPlanner("Model structure generated. Now applying to workbook...", false);
+                try {
+                    // Calculation mode is handled within processModelCodesForPlanner
+                    await processModelCodesForPlanner(ModelCodes);
+                    displayInClientChatLogPlanner("Workbook updated with the generated model structure.", false);
+                } catch (processingError) {
+                    console.error("AIModelPlanner: Error during processModelCodesForPlanner:", processingError);
+                    displayInClientChatLogPlanner(`Error applying model structure: ${processingError.message}`, false);
+                } 
+            } else {
+                console.log("AIModelPlanner: ModelCodes string is empty. Skipping processModelCodesForPlanner call.");
+                displayInClientChatLogPlanner("No code content generated to apply to workbook.", false);
+            }
+        } else {
+            displayInClientChatLogPlanner(resultResponse, false);
         }
 
-        displayInClientChatLogPlanner(resultResponse, false);
     } catch (error) {
         console.error("Error in AIModelPlanner conversation:", error);
         displayInClientChatLogPlanner(`Error: ${error.message}`, false);
