@@ -982,11 +982,11 @@ Office.onReady((info) => {
 
     const writeToExcelClientButton = document.getElementById('write-to-excel-client');
     if (writeToExcelClientButton) {
-        writeToExcelClientButton.onclick = () => alert('Client Mode \"Write to Excel\" is not yet implemented.');
+        // writeToExcelClientButton.onclick = () => alert('Client Mode "Write to Excel" is not yet implemented.');
     }
     const insertToEditorClientButton = document.getElementById('insert-to-editor-client');
     if (insertToEditorClientButton) {
-        insertToEditorClientButton.onclick = () => alert('Client Mode \"Insert to Editor\" is not yet implemented.');
+        // insertToEditorClientButton.onclick = () => alert('Client Mode "Insert to Editor" is not yet implemented.');
     }
     // <<< END ADDED
 
