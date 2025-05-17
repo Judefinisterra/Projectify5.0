@@ -347,6 +347,12 @@ async function _handleAIModelPlannerConversation(userInput) {
 
 async function _executePlannerCodes(modelCodesString) {
     console.log(`[AIModelPlanner._executePlannerCodes] Called.`);
+
+    // Substitute <BR> with <BR; labelRow=""; row1 = "||||||||||||";>
+    if (modelCodesString && typeof modelCodesString === 'string') {
+        modelCodesString = modelCodesString.replace(/<BR>/g, '<BR; labelRow=""; row1 = "||||||||||||";>');
+    }
+
     if (!modelCodesString || modelCodesString.trim().length === 0) {
         console.log("[AIModelPlanner._executePlannerCodes] No model codes to process.");
         displayInClientChatLogPlanner("No code content generated to apply to workbook.", false);

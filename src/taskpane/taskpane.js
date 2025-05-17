@@ -575,6 +575,11 @@ export async function processModelCodesForPlanner(modelCodesString) {
     console.log(`[processModelCodesForPlanner] Called with ModelCodes.`);
     if (DEBUG) console.log("[processModelCodesForPlanner] Input (first 500 chars):", modelCodesString.substring(0,500));
 
+    // Substitute <BR> with <BR; labelRow=""; row1 = "||||||||||||";>
+    if (modelCodesString && typeof modelCodesString === 'string') {
+        modelCodesString = modelCodesString.replace(/<BR>/g, '<BR; labelRow=""; row1 = "||||||||||||";>');
+    }
+
     let runResult = null;
 
     try {
@@ -697,6 +702,12 @@ async function insertSheetsAndRunCodes() {
         return;
     }
     loadedCodeStrings = codesTextarea.value; // Update global variable
+
+    // Substitute <BR> with <BR; labelRow=""; row1 = "||||||||||||";>
+    if (loadedCodeStrings && typeof loadedCodeStrings === 'string') {
+        loadedCodeStrings = loadedCodeStrings.replace(/<BR>/g, '<BR; labelRow=""; row1 = "||||||||||||";>');
+    }
+
     try {
         localStorage.setItem('userCodeStrings', loadedCodeStrings);
         console.log("[Run Codes] Automatically saved codes from textarea to localStorage.");
@@ -709,6 +720,11 @@ async function insertSheetsAndRunCodes() {
     let previousCodes = null;
     let allCodeContentToProcess = ""; 
     let runResult = null; 
+
+    // Substitute <BR> with <BR; labelRow=""; row1 = "||||||||||||";> in codesToRun as well, as it's derived from loadedCodeStrings after potential modification
+    if (codesToRun && typeof codesToRun === 'string') {
+        codesToRun = codesToRun.replace(/<BR>/g, '<BR; labelRow=""; row1 = "||||||||||||";>');
+    }
 
     try {
         let financialsSheetExists = false;
