@@ -597,7 +597,6 @@ export async function processModelCodesForPlanner(modelCodesString) {
             console.log("[processModelCodesForPlanner] Code validation successful.");
         } else {
             console.log("[processModelCodesForPlanner] No codes provided by planner to validate or process. Exiting.");
-            // If no codes, no further action is taken. The function will complete successfully via finally block.
             return; 
         }
 
@@ -638,7 +637,7 @@ export async function processModelCodesForPlanner(modelCodesString) {
             console.log("[processModelCodesForPlanner] runCodes executed. Result:", runResult);
         } else {
             console.log("[processModelCodesForPlanner] Collection is empty after population, skipping runCodes execution.");
-            runResult = { assumptionTabs: [] }; // Ensure runResult is initialized for post-processing
+            runResult = { assumptionTabs: [] };
         }
 
         // 5. Post-processing
@@ -675,9 +674,8 @@ export async function processModelCodesForPlanner(modelCodesString) {
 
     } catch (error) {
         console.error("[processModelCodesForPlanner] Error during processing:", error);
-        throw error; // Re-throw for the caller (AIModelPlanner) to handle and display
+        throw error; 
     } finally {
-        // Always set calculation mode back to automatic
         try {
             await Excel.run(async (context) => {
                 context.application.calculationMode = Excel.CalculationMode.automatic;
@@ -690,10 +688,218 @@ export async function processModelCodesForPlanner(modelCodesString) {
     }
 }
 
-// Original insertSheetsAndRunCodes function remains unchanged here
-// async function insertSheetsAndRunCodes() { ...Existing logic... }
+// Original insertSheetsAndRunCodes function should be here, UNCHANGED.
+// Ensure it's not accidentally deleted or modified by the `// ... existing code ...` placeholder.
+async function insertSheetsAndRunCodes() {
+    const codesTextarea = document.getElementById('codes-textarea');
+    if (!codesTextarea) {
+        showError("Could not find the code input area. Cannot run codes.");
+        return;
+    }
+    loadedCodeStrings = codesTextarea.value; // Update global variable
+    try {
+        localStorage.setItem('userCodeStrings', loadedCodeStrings);
+        console.log("[Run Codes] Automatically saved codes from textarea to localStorage.");
+    } catch (error) {
+        console.error("[Run Codes] Error auto-saving codes to localStorage:", error);
+        showError(`Error automatically saving codes: ${error.message}. Run may not reflect latest changes.`);
+    }
 
-// ... (rest of the file, including Office.onReady, which should still assign the original insertSheetsAndRunCodes to its button) ...
+    let codesToRun = loadedCodeStrings;
+    let previousCodes = null;
+    let allCodeContentToProcess = ""; 
+    let runResult = null; 
+
+    try {
+        let financialsSheetExists = false;
+        await Excel.run(async (context) => {
+            try {
+                const financialsSheet = context.workbook.worksheets.getItem("Financials");
+                financialsSheet.load("name");
+                await context.sync();
+                financialsSheetExists = true;
+            } catch (error) {
+                if (error instanceof OfficeExtension.Error && error.code === Excel.ErrorCodes.itemNotFound) {
+                    financialsSheetExists = false;
+                } else { throw error; } 
+            }
+        });
+
+        await Excel.run(async (context) => {
+            context.application.calculationMode = Excel.CalculationMode.manual;
+            await context.sync();
+        });
+
+        setButtonLoading(true);
+        console.log("Starting code processing...");
+
+        if (!financialsSheetExists) {
+            console.log("[Run Codes] FIRST PASS: Financials sheet not found.");
+            allCodeContentToProcess = codesToRun;
+            if (allCodeContentToProcess.trim().length > 0) {
+                const validationErrors = await validateCodeStringsForRun(allCodeContentToProcess.split(/\r?\n/).filter(line => line.trim() !== ''));
+                if (validationErrors && validationErrors.length > 0) {
+                    const errorMsg = "Initial validation failed. Please fix the errors before running:\n" + validationErrors.join("\n");
+                    console.error("Code validation failed:", validationErrors);
+                    showError("Code validation failed. See chat for details.");
+                    appendMessage(errorMsg);
+                    setButtonLoading(false);
+                    return;
+                }
+                console.log("Initial code validation successful.");
+            } else {
+                console.log("[Run Codes] No codes to validate on first pass.");
+            }
+            const worksheetsResponse = await fetch('https://localhost:3002/assets/Worksheets_4.3.25 v1.xlsx');
+            if (!worksheetsResponse.ok) throw new Error(`Worksheets load failed: ${worksheetsResponse.statusText}`);
+            const worksheetsArrayBuffer = await worksheetsResponse.arrayBuffer();
+            const worksheetsUint8Array = new Uint8Array(worksheetsArrayBuffer);
+            let worksheetsBinaryString = '';
+            const chunkSize = 8192;
+            for (let i = 0; i < worksheetsUint8Array.length; i += chunkSize) {
+                const chunk = worksheetsUint8Array.slice(i, Math.min(i + chunkSize, worksheetsUint8Array.length));
+                worksheetsBinaryString += String.fromCharCode.apply(null, chunk);
+            }
+            const worksheetsBase64String = btoa(worksheetsBinaryString);
+            await handleInsertWorksheetsFromBase64(worksheetsBase64String);
+            console.log("Base sheets inserted.");
+        } else {
+            console.log("[Run Codes] SUBSEQUENT PASS: Financials sheet found.");
+            try {
+                previousCodes = localStorage.getItem('previousRunCodeStrings');
+            } catch (error) {
+                 console.error("[Run Codes] Error loading previous codes for comparison:", error);
+                 console.warn("[Run Codes] Could not load previous codes. Processing ALL current codes as fallback.");
+                 previousCodes = null;
+            }
+            if (previousCodes !== null && previousCodes === codesToRun) {
+                 console.log("[Run Codes] No change in code strings since last run. Nothing to process.");
+                 try { localStorage.setItem('previousRunCodeStrings', codesToRun); } catch(e) { console.error("Err updating prev codes:", e); }
+                 showMessage("No code changes to run.");
+                 setButtonLoading(false);
+                 return;
+            }
+            const currentTabs = getTabBlocks(codesToRun);
+            const previousTabs = getTabBlocks(previousCodes || "");
+            const previousTabMap = new Map(previousTabs.map(block => [block.tag, block.text]));
+            let hasAnyChanges = false;
+            const codeRegex = /<[^>]+>/g;
+            for (const currentTab of currentTabs) {
+                const currentTag = currentTab.tag;
+                const currentText = currentTab.text;
+                const previousText = previousTabMap.get(currentTag);
+                if (previousText === undefined) {
+                    const newTabCodes = currentText.match(codeRegex) || [];
+                    if (newTabCodes.length > 0) {
+                        allCodeContentToProcess += newTabCodes.join("\n") + "\n\n";
+                        hasAnyChanges = true;
+                    }
+                } else {
+                    const currentCodes = currentText.match(codeRegex) || [];
+                    const previousCodesSet = new Set((previousText || "").match(codeRegex) || []);
+                    let tabHasChanges = false;
+                    let codesToAddForThisTab = "";
+                    for (const currentCode of currentCodes) {
+                        if (!previousCodesSet.has(currentCode)) {
+                            codesToAddForThisTab += currentCode + "\n";
+                            hasAnyChanges = true;
+                            tabHasChanges = true;
+                        }
+                    }
+                    if (tabHasChanges) {
+                        allCodeContentToProcess += currentTag + "\n" + codesToAddForThisTab + "\n";
+                    }
+                }
+            }
+            if (hasAnyChanges) {
+                if (allCodeContentToProcess.trim().length > 0) {
+                    const validationErrors = await validateCodeStringsForRun(allCodeContentToProcess.split(/\r?\n/).filter(line => line.trim() !== ''));
+                    if (validationErrors && validationErrors.length > 0) {
+                        const errorMsg = "Validation failed. Please fix the errors before running:\n" + validationErrors.join("\n");
+                        console.error("Code validation failed:", validationErrors);
+                        showError("Code validation failed. See chat for details.");
+                        appendMessage(errorMsg);
+                        setButtonLoading(false);
+                        return;
+                    }
+                    console.log("Code validation successful for new/modified tabs.");
+                } else {
+                    console.log("[Run Codes] Changes detected, but no code content found for validation in new/modified tabs.");
+                }
+                try {
+                    const codesResponse = await fetch('https://localhost:3002/assets/codes.xlsx');
+                    if (!codesResponse.ok) throw new Error(`codes.xlsx load failed: ${codesResponse.statusText}`);
+                    const codesArrayBuffer = await codesResponse.arrayBuffer();
+                    const codesUint8Array = new Uint8Array(codesArrayBuffer);
+                    let codesBinaryString = '';
+                    for (let i = 0; i < codesUint8Array.length; i += 8192) {
+                        codesBinaryString += String.fromCharCode.apply(null, codesUint8Array.slice(i, Math.min(i + 8192, codesUint8Array.length)));
+                    }
+                    await handleInsertWorksheetsFromBase64(btoa(codesBinaryString), ["Codes"]);
+                    console.log("codes.xlsx sheets inserted.");
+                } catch (e) {
+                    console.error("Failed to insert sheets from codes.xlsx:", e);
+                    showError("Failed to insert necessary sheets from codes.xlsx. Aborting.");
+                    setButtonLoading(false);
+                    return;
+                }
+            } else {
+                 console.log("[Run Codes] No changes identified in tabs compared to previous run. Nothing to insert or process.");
+                 try { localStorage.setItem('previousRunCodeStrings', codesToRun); } catch(e) { console.error("Err updating prev codes:", e); }
+                 showMessage("No code changes identified to run.");
+                 setButtonLoading(false);
+                 return;
+            }
+        }
+
+        if (allCodeContentToProcess.trim().length > 0) {
+            const collection = populateCodeCollection(allCodeContentToProcess);
+            if (collection.length > 0) {
+                runResult = await runCodes(collection);
+                console.log("Codes executed:", runResult);
+            } else {
+                 if (!runResult) runResult = { assumptionTabs: [] };
+            }
+        } else {
+             if (!runResult) runResult = { assumptionTabs: [] };
+        }
+        if (runResult && runResult.assumptionTabs && runResult.assumptionTabs.length > 0) {
+            await processAssumptionTabs(runResult.assumptionTabs);
+        } else {
+             console.log("No assumption tabs to process.");
+        }
+        await hideColumnsAndNavigate(runResult?.assumptionTabs || []);
+        await Excel.run(async (context) => {
+            try {
+                context.workbook.worksheets.getItem("Codes").delete();
+            } catch (e) {
+                if (e instanceof OfficeExtension.Error && e.code === Excel.ErrorCodes.itemNotFound) {
+                     console.warn("Codes sheet not found, skipping deletion.");
+                } else { console.error("Error deleting Codes sheet:", e); }
+            }
+            await context.sync();
+        }).catch(error => { console.error("Error during sheet cleanup:", error); });
+        try {
+            localStorage.setItem('previousRunCodeStrings', codesToRun);
+        } catch (error) {
+             console.error("[Run Codes] Failed to update previous run state:", error);
+        }
+        showMessage("Code processing finished successfully!");
+    } catch (error) {
+        console.error("An error occurred during the build process:", error);
+        showError(`Operation failed: ${error.message || error.toString()}`);
+    } finally {
+        try {
+            await Excel.run(async (context) => {
+                context.application.calculationMode = Excel.CalculationMode.automatic;
+                await context.sync();
+            });
+        } catch (finalError) {
+            console.error("Error setting calculation mode to automatic:", finalError);
+        }
+        setButtonLoading(false);
+    }
+}
 
 Office.onReady((info) => {
   if (info.host === Office.HostType.Excel) {

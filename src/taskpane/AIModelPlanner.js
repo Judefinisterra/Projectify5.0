@@ -4,13 +4,24 @@
 // Or that callOpenAI is available globally/imported if AIcalls.js exports it.
 // For now, let's assume a local way to call OpenAI or that it's handled by the main taskpane script.
 
+// Imports needed for _executePlannerCodes
+import { validateCodeStringsForRun } from './Validation.js';
+import { 
+    populateCodeCollection, 
+    runCodes, 
+    processAssumptionTabs, 
+    hideColumnsAndNavigate, 
+    handleInsertWorksheetsFromBase64 
+} from './CodeCollection.js';
+import { getAICallsProcessedResponse } from './AIcalls.js';
+// We don't import from taskpane.js to avoid cycles
+
 let modelPlannerConversationHistory = [];
 let AI_MODEL_PLANNER_OPENAI_API_KEY = "";
 let lastPlannerResponseForClient = null; // To store the last response for client mode buttons
 
 const DEBUG_PLANNER = true; // For planner-specific debugging
 
-import { getAICallsProcessedResponse } from './AIcalls.js'; // <<< ADDED IMPORT
 import { processModelCodesForPlanner } from './taskpane.js'; // <<< UPDATED IMPORT
 
 // Helper function to get API keys (placeholder, adapt as needed based on your structure)
@@ -334,7 +345,117 @@ async function _handleAIModelPlannerConversation(userInput) {
     return response; // Return the direct response (object or array)
 }
 
-// Exported Event Handlers for Client Mode UI
+async function _executePlannerCodes(modelCodesString) {
+    console.log(`[AIModelPlanner._executePlannerCodes] Called.`);
+    if (!modelCodesString || modelCodesString.trim().length === 0) {
+        console.log("[AIModelPlanner._executePlannerCodes] No model codes to process.");
+        displayInClientChatLogPlanner("No code content generated to apply to workbook.", false);
+        return;
+    }
+
+    let runResult = null;
+
+    try {
+        await Excel.run(async (context) => {
+            context.application.calculationMode = Excel.CalculationMode.manual;
+            await context.sync();
+            console.log("[AIModelPlanner._executePlannerCodes] Calculation mode set to manual.");
+        });
+
+        console.log("[AIModelPlanner._executePlannerCodes] Validating ALL codes...");
+        const validationErrors = await validateCodeStringsForRun(modelCodesString.split(/\r?\n/).filter(line => line.trim() !== ''));
+        if (validationErrors && validationErrors.length > 0) {
+            const errorMsg = "Code validation failed for planner-generated codes:\n" + validationErrors.join("\n");
+            console.error("[AIModelPlanner._executePlannerCodes] Code validation failed:", validationErrors);
+            throw new Error(errorMsg);
+        }
+        console.log("[AIModelPlanner._executePlannerCodes] Code validation successful.");
+
+        console.log("[AIModelPlanner._executePlannerCodes] Inserting base sheets from Worksheets_4.3.25 v1.xlsx...");
+        const worksheetsResponse = await fetch('https://localhost:3002/assets/Worksheets_4.3.25 v1.xlsx');
+        if (!worksheetsResponse.ok) throw new Error(`[AIModelPlanner._executePlannerCodes] Worksheets_4.3.25 v1.xlsx load failed: ${worksheetsResponse.statusText}`);
+        const wsArrayBuffer = await worksheetsResponse.arrayBuffer();
+        const wsUint8Array = new Uint8Array(wsArrayBuffer);
+        let wsBinaryString = '';
+        for (let i = 0; i < wsUint8Array.length; i += 8192) {
+            wsBinaryString += String.fromCharCode.apply(null, wsUint8Array.slice(i, Math.min(i + 8192, wsUint8Array.length)));
+        }
+        await handleInsertWorksheetsFromBase64(btoa(wsBinaryString));
+        console.log("[AIModelPlanner._executePlannerCodes] Base sheets (Worksheets_4.3.25 v1.xlsx) inserted.");
+
+        console.log("[AIModelPlanner._executePlannerCodes] Inserting codes.xlsx...");
+        const codesResponse = await fetch('https://localhost:3002/assets/codes.xlsx');
+        if (!codesResponse.ok) throw new Error(`[AIModelPlanner._executePlannerCodes] codes.xlsx load failed: ${codesResponse.statusText}`);
+        const codesArrayBuffer = await codesResponse.arrayBuffer();
+        const codesUint8Array = new Uint8Array(codesArrayBuffer);
+        let codesBinaryString = '';
+        for (let i = 0; i < codesUint8Array.length; i += 8192) {
+            codesBinaryString += String.fromCharCode.apply(null, codesUint8Array.slice(i, Math.min(i + 8192, codesUint8Array.length)));
+        }
+        await handleInsertWorksheetsFromBase64(btoa(codesBinaryString), ["Codes"]); 
+        console.log("[AIModelPlanner._executePlannerCodes] codes.xlsx sheets inserted/updated.");
+    
+        console.log("[AIModelPlanner._executePlannerCodes] Populating collection...");
+        const collection = populateCodeCollection(modelCodesString);
+        console.log(`[AIModelPlanner._executePlannerCodes] Collection populated with ${collection.length} code(s)`);
+
+        if (collection.length > 0) {
+            console.log("[AIModelPlanner._executePlannerCodes] Running codes...");
+            runResult = await runCodes(collection);
+            console.log("[AIModelPlanner._executePlannerCodes] runCodes executed. Result:", runResult);
+        } else {
+            console.log("[AIModelPlanner._executePlannerCodes] Collection is empty after population, skipping runCodes execution.");
+            runResult = { assumptionTabs: [] };
+        }
+
+        console.log("[AIModelPlanner._executePlannerCodes] Starting post-processing steps...");
+        if (runResult && runResult.assumptionTabs && runResult.assumptionTabs.length > 0) {
+            console.log("[AIModelPlanner._executePlannerCodes] Processing assumption tabs...");
+            await processAssumptionTabs(runResult.assumptionTabs);
+        } else {
+            console.log("[AIModelPlanner._executePlannerCodes] No assumption tabs to process from runResult.");
+        }
+
+        console.log("[AIModelPlanner._executePlannerCodes] Hiding specific columns and navigating...");
+        await hideColumnsAndNavigate(runResult?.assumptionTabs || []);
+
+        console.log("[AIModelPlanner._executePlannerCodes] Deleting Codes sheet...");
+        await Excel.run(async (context) => {
+            try {
+                context.workbook.worksheets.getItem("Codes").delete();
+                console.log("[AIModelPlanner._executePlannerCodes] Codes sheet deleted.");
+            } catch (e) {
+                if (e instanceof OfficeExtension.Error && e.code === Excel.ErrorCodes.itemNotFound) {
+                    console.warn("[AIModelPlanner._executePlannerCodes] Codes sheet not found during cleanup, skipping deletion.");
+                } else { 
+                    console.error("[AIModelPlanner._executePlannerCodes] Error deleting Codes sheet during cleanup:", e);
+                }
+            }
+            await context.sync();
+        }).catch(error => { 
+            console.error("[AIModelPlanner._executePlannerCodes] Error during Codes sheet cleanup sync:", error);
+        });
+
+        displayInClientChatLogPlanner("Workbook updated with the generated model structure.", false);
+        console.log("[AIModelPlanner._executePlannerCodes] Successfully completed.");
+
+    } catch (error) {
+        console.error("[AIModelPlanner._executePlannerCodes] Error during processing:", error);
+        displayInClientChatLogPlanner(`Error applying model structure: ${error.message}`, false);
+        // No re-throw here, error is displayed in chat by this function's caller (plannerHandleSend)
+    } finally {
+        try {
+            await Excel.run(async (context) => {
+                context.application.calculationMode = Excel.CalculationMode.automatic;
+                await context.sync();
+                console.log("[AIModelPlanner._executePlannerCodes] Calculation mode set to automatic.");
+            });
+        } catch (finalError) {
+            console.error("[AIModelPlanner._executePlannerCodes] Error setting calculation mode to automatic:", finalError);
+        }
+    }
+}
+
 export async function plannerHandleSend() {
     const userInputElement = document.getElementById('user-input-client');
     if (!userInputElement) { console.error("AIModelPlanner: Client user input element not found."); return; }
@@ -428,16 +549,9 @@ export async function plannerHandleSend() {
             
             if (ModelCodes.trim().length > 0) {
                 displayInClientChatLogPlanner("Model structure generated. Now applying to workbook...", false);
-                try {
-                    // Calculation mode is handled within processModelCodesForPlanner
-                    await processModelCodesForPlanner(ModelCodes);
-                    displayInClientChatLogPlanner("Workbook updated with the generated model structure.", false);
-                } catch (processingError) {
-                    console.error("AIModelPlanner: Error during processModelCodesForPlanner:", processingError);
-                    displayInClientChatLogPlanner(`Error applying model structure: ${processingError.message}`, false);
-                } 
+                await _executePlannerCodes(ModelCodes); // Call the new private function
             } else {
-                console.log("AIModelPlanner: ModelCodes string is empty. Skipping processModelCodesForPlanner call.");
+                console.log("AIModelPlanner: ModelCodes string is empty. Skipping _executePlannerCodes call.");
                 displayInClientChatLogPlanner("No code content generated to apply to workbook.", false);
             }
         } else {
