@@ -331,7 +331,8 @@ export async function* callOpenAI(messages, options = {}) {
       // However, processPrompt calls callOpenAI without expecting a stream.
       // If callOpenAI is *only* called by handleSendClient, this else block might need to yield as well.
       // However, processPrompt calls callOpenAI without expecting a stream.
-      return data.choices[0].message.content; 
+      yield data.choices[0].message.content; // Yield the content string once
+      return; // Explicitly end the generator
     }
 
   } catch (error) {
@@ -454,7 +455,15 @@ export async function processPrompt({ userInput, systemPrompt, model, temperatur
     messages.push({ role: "user", content: userInput });
 
     try {
-        const responseContent = await callOpenAI(messages, model, temperature);
+        // Correctly call callOpenAI with an options object
+        const openaiCallOptions = { model: model, temperature: temperature, stream: false };
+        let responseContent = "";
+
+        // Consume the async iterator from callOpenAI
+        // For non-streaming, this loop will run once, getting the single yielded string content.
+        for await (const contentPart of callOpenAI(messages, openaiCallOptions)) {
+            responseContent += contentPart;
+        }
 
         // Try to parse JSON response if applicable, otherwise split lines
         try {
