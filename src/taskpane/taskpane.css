@@ -855,3 +855,87 @@ body {
 
 /* Specific IDs if needed, though class is better */
 /* #back-to-menu-dev-button, #back-to-menu-client-button {} */
+
+/* Client Mode ChatGPT-like Input Bar Styles */
+.client-input-area-wrapper {
+    display: flex;
+    -ms-flex-direction: column; /* IE 10+ */
+    flex-direction: column; /* Stack input bar and reset button */
+    align-items: center; /* Center items horizontally */
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+}
+
+.chatgpt-input-bar {
+    display: flex;
+    align-items: flex-end; /* Align items to bottom, useful for textarea and button */
+    width: 100%;
+    max-width: 700px; /* Max width similar to ChatGPT */
+    padding: 10px 12px;
+    background-color: #ffffff;
+    border: 1px solid #e5e5e5;
+    border-radius: 24px; /* More rounded corners */
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    box-sizing: border-box;
+    margin-bottom: 10px; /* Space between input bar and reset button */
+}
+
+#user-input-client {
+    -ms-flex-positive: 1; /* IE 10+ */
+    flex-grow: 1;
+    border: none;
+    outline: none;
+    padding: 8px 0; /* Adjust padding, no horizontal padding as it's handled by parent */
+    font-size: 1em;
+    resize: none; /* Disable manual resize */
+    background-color: transparent;
+    max-height: 150px; /* Max height before scrolling */
+    overflow-y: auto; /* Add scroll for overflow */
+    line-height: 1.5;
+    margin-right: 8px; /* Space between textarea and button */
+    box-sizing: border-box;
+}
+
+#user-input-client::placeholder {
+    color: #999999;
+}
+
+#send-client {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #202123; /* Dark grey/black background */
+    color: #FFFFFF; /* White arrow */
+    border: none;
+    border-radius: 50%; /* Circular button */
+    width: 36px; /* Fixed width */
+    height: 36px; /* Fixed height */
+    min-width: 36px; /* Ensure min-width doesn't interfere */
+    min-height: 36px; /* Ensure min-height doesn't interfere */
+    padding: 0; /* Reset padding */
+    box-sizing: border-box; /* Ensure padding/border don't affect final size for circle */
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#send-client:hover {
+    background-color: #3a3b3d; /* Slightly lighter grey on hover */
+}
+
+#send-client:disabled {
+    background-color: #555555; /* Darker grey when disabled */
+    color: #aaaaaa; /* Lighter arrow when disabled */
+    cursor: not-allowed;
+}
+
+#send-client .send-icon {
+    width: 20px; /* Adjust icon size */
+    height: 20px;
+}
+
+/* Ensure reset button is styled appropriately if needed, or just takes default ms-Button styles */
+#reset-chat-client {
+    /* You might want to adjust margin or width if it looks off */
+    /* For example: margin-top: 8px; */
+}

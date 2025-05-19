@@ -151,12 +151,16 @@
                     <h1>Ask me anything (Client Mode)</h1>
                 </div>
             </div>
-            <div class="input-area">
-                <input type="text" id="user-input-client" placeholder="Enter your request here...">
-                <button id="send-client" class="ms-Button ms-Button--primary">
-                    <span class="ms-Button-label">Send</span>
-                </button>
-                <div id="loading-animation-client" class="loading-animation" style="display: none;"></div> <!-- Ensure display: none initially -->
+            <div class="client-input-area-wrapper">
+                <div class="chatgpt-input-bar">
+                    <textarea id="user-input-client" placeholder="Send a message..." rows="1"></textarea>
+                    <button id="send-client" class="ms-Button ms-Button--icon">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="send-icon">
+                            <path d="M12 4L12 20M12 4L18 10M12 4L6 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+                <div id="loading-animation-client" class="loading-animation" style="display: none;"></div>
                 <button id="reset-chat-client" class="ms-Button">
                     <span class="ms-Button-label">Reset Chat</span>
                 </button>

@@ -1007,6 +1007,21 @@ Office.onReady((info) => {
         console.error("Could not find button with id='client-mode-button'");
     }
 
+    // >>> ADDED: Auto-resize for client textarea
+    const userInputClientTextarea = document.getElementById('user-input-client');
+    if (userInputClientTextarea) {
+        userInputClientTextarea.addEventListener('input', function() {
+            this.style.height = 'auto'; // Reset height to recalculate
+            let newHeight = this.scrollHeight;
+            const maxHeight = parseInt(window.getComputedStyle(this).maxHeight, 10);
+            if (maxHeight && newHeight > maxHeight) {
+                newHeight = maxHeight;
+            }
+            this.style.height = newHeight + 'px';
+        });
+    }
+    // <<< END ADDED
+
     // Assign the REVISED async function as the handler
     const button = document.getElementById("insert-and-run");
     if (button) {
