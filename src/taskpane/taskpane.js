@@ -1049,6 +1049,14 @@ Office.onReady((info) => {
     const resetChatClientButton = document.getElementById('reset-chat-client');
     if (resetChatClientButton) resetChatClientButton.onclick = resetChatClient;
 
+    // Add event listener for the new icon button
+    const resetChatIconButton = document.getElementById('reset-chat-icon-button');
+    if (resetChatIconButton) {
+        resetChatIconButton.onclick = resetChatClient;
+    } else {
+        console.error("Could not find button with id='reset-chat-icon-button'");
+    }
+
     const writeToExcelClientButton = document.getElementById('write-to-excel-client');
     if (writeToExcelClientButton) {
         // writeToExcelClientButton.onclick = () => alert('Client Mode "Write to Excel" is not yet implemented.');
