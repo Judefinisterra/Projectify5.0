@@ -360,7 +360,7 @@ export async function runCodes(codeCollection) {
                             const lastUsedRow = currentWS.getUsedRange().getLastRow();
                             lastUsedRow.load("rowIndex");
                             await context.sync();
-                            const pasteRow = lastUsedRow.rowIndex + 2; // Adjusted to paste one row lower
+                            const pasteRow = Math.max(lastUsedRow.rowIndex + 2, 10); // Ensure paste starts at row 10 or later
                             console.log("Paste row:", pasteRow);
                             
                             // Search for the code type in column D (index 3)
@@ -2284,7 +2284,7 @@ export async function handleInsertWorksheetsFromBase64(base64String, sheetNames 
  */
 async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
     console.log(`Running applyIndexGrowthCurveJS for sheet: ${worksheet.name}`);
-    const START_ROW = 9; // Row to start searching for INDEXBEGIN
+    const START_ROW = 10; // Row to start searching for INDEXBEGIN
     const BEGIN_MARKER = "INDEXBEGIN";
     const END_MARKER = "INDEXEND";
     const DATA_COL = "C";
