@@ -413,21 +413,32 @@ export async function runCodes(codeCollection) {
                             } else {
                                 console.log(`Found code type ${codeType} in rows ${firstRow} to ${lastRow}`);
                                 
-                                // Try the suggested approach to copy the range with all properties
-                                await Excel.run(async (context) => {
-                                    // Get the source range
-                                    const sourceRange = context.workbook.worksheets.getItem("Codes").getRange(`A${firstRow}:CX${lastRow}`);
-                                    
-                                    // Get the destination range
-                                    const destinationRange = context.workbook.worksheets.getItem(currentWorksheetName).getRange(`A${pasteRow}`);
-                                    
-                                    // Copy the range with all properties
-                                    destinationRange.copyFrom(sourceRange, Excel.RangeCopyType.all);
-                                    
-                                    await context.sync();
-                                });
+                                // Get the source range from codesWS (already available in this context)
+                                const sourceRange = codesWS.getRange(`A${firstRow}:CX${lastRow}`);
                                 
-                                await context.sync();
+                                // Get the destination range in currentWS (already available in this context)
+                                const destinationRange = currentWS.getRange(`A${pasteRow}`);
+                                
+                                // Copy the range with all properties
+                                destinationRange.copyFrom(sourceRange, Excel.RangeCopyType.all);
+                                
+                                await context.sync(); // Sync the copy operation
+
+                                // NEW: Apply bold formatting if specified
+                                if (code.params.bold && String(code.params.bold).toUpperCase() === "TRUE") {
+                                    const numPastedRows = lastRow - firstRow + 1;
+                                    // Ensure endPastedRow is at least pasteRow and calculated correctly
+                                    const endPastedRow = pasteRow + Math.max(0, numPastedRows - 1);
+                                    
+                                    // Assuming CX is a sufficiently wide column, as used in the copy.
+                                    const rangeAddressToBold = `A${pasteRow}:CX${endPastedRow}`;
+                                    
+                                    console.log(`Applying bold formatting to ${rangeAddressToBold} in ${currentWorksheetName} for code ${codeType}`);
+                                    const rangeToBold = currentWS.getRange(rangeAddressToBold);
+                                    rangeToBold.format.font.bold = true;
+                                    await context.sync(); // Sync the bold formatting
+                                    console.log(`Bold formatting applied and synced for ${rangeAddressToBold}`);
+                                }
                                 
                                 // Apply the driver and assumption inputs function to the current worksheet
                                 try {
