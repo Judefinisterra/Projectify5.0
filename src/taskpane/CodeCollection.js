@@ -478,6 +478,40 @@ export async function runCodes(codeCollection) {
                                         console.warn(`Invalid indent value: "${code.params.indent}" for code ${codeType}. Indent must be a positive integer.`);
                                     }
                                 }
+
+                                // NEW: Apply negative formatting if specified
+                                if (code.params.negative && String(code.params.negative).toUpperCase() === "TRUE") {
+                                    const numPastedRows = lastRow - firstRow + 1;
+                                    const endPastedRow = pasteRow + Math.max(0, numPastedRows - 1); // This is the last row of the pasted block
+
+                                    console.log(`Applying negative transformation to formulas in AE${endPastedRow}:CX${endPastedRow} for code ${codeType}`);
+                                    const formulaRange = currentWS.getRange(`AE${endPastedRow}:CX${endPastedRow}`);
+                                    formulaRange.load("formulas");
+                                    await context.sync();
+
+                                    const originalFormulasRow = formulaRange.formulas[0]; // Get the single row of formulas
+                                    const newFormulasRow = [];
+                                    let formulasChanged = false;
+
+                                    for (let i = 0; i < originalFormulasRow.length; i++) {
+                                        const currentCellFormula = originalFormulasRow[i];
+                                        if (typeof currentCellFormula === 'string' && currentCellFormula.startsWith('=')) {
+                                            // Construct the new formula: =-(original_content)
+                                            newFormulasRow.push(`=-(${currentCellFormula.substring(1)})`);
+                                            formulasChanged = true;
+                                        } else {
+                                            newFormulasRow.push(currentCellFormula); // Keep non-formulas or empty strings as is
+                                        }
+                                    }
+
+                                    if (formulasChanged) {
+                                        formulaRange.formulas = [newFormulasRow]; // Set as a 2D array
+                                        await context.sync();
+                                        console.log(`Negative transformation applied and synced for AE${endPastedRow}:CX${endPastedRow}`);
+                                    } else {
+                                        console.log(`No formulas found to transform in AE${endPastedRow}:CX${endPastedRow}`);
+                                    }
+                                }
                                 
                                 // Apply the driver and assumption inputs function to the current worksheet
                                 try {
