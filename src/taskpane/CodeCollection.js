@@ -461,6 +461,24 @@ export async function runCodes(codeCollection) {
                                     console.log(`Top border formatting applied and synced for K${pasteRow}:P${endPastedRow} and S${pasteRow}:CX${endPastedRow}`);
                                 }
                                 
+                                // NEW: Apply indent formatting if specified
+                                if (code.params.indent) {
+                                    const indentValue = parseInt(code.params.indent, 10);
+                                    if (!isNaN(indentValue) && indentValue > 0) {
+                                        const numPastedRows = lastRow - firstRow + 1;
+                                        const endPastedRow = pasteRow + Math.max(0, numPastedRows - 1);
+                                        const indentRangeAddress = `B${pasteRow}:B${endPastedRow}`;
+
+                                        console.log(`Applying indent of ${indentValue} to ${indentRangeAddress} in ${currentWorksheetName} for code ${codeType}`);
+                                        const rangeToIndent = currentWS.getRange(indentRangeAddress);
+                                        rangeToIndent.format.indentLevel = indentValue;
+                                        await context.sync(); // Sync the indent formatting
+                                        console.log(`Indent formatting applied and synced for ${indentRangeAddress}`);
+                                    } else {
+                                        console.warn(`Invalid indent value: "${code.params.indent}" for code ${codeType}. Indent must be a positive integer.`);
+                                    }
+                                }
+                                
                                 // Apply the driver and assumption inputs function to the current worksheet
                                 try {
                                     console.log(`Applying driver and assumption inputs to worksheet: ${currentWorksheetName}`);
