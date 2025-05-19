@@ -439,6 +439,27 @@ export async function runCodes(codeCollection) {
                                     await context.sync(); // Sync the bold formatting
                                     console.log(`Bold formatting applied and synced for ${rangeAddressToBold}`);
                                 }
+
+                                // NEW: Apply top border formatting if specified
+                                if (code.params.topborder && String(code.params.topborder).toUpperCase() === "TRUE") {
+                                    const numPastedRows = lastRow - firstRow + 1;
+                                    const endPastedRow = pasteRow + Math.max(0, numPastedRows - 1);
+
+                                    console.log(`Applying top border to K${pasteRow}:P${endPastedRow} and S${pasteRow}:CX${endPastedRow} in ${currentWorksheetName} for code ${codeType}`);
+
+                                    for (let r = pasteRow; r <= endPastedRow; r++) {
+                                        const rangeKtoP = currentWS.getRange(`K${r}:P${r}`);
+                                        rangeKtoP.format.borders.getItem('EdgeTop').style = 'Continuous';
+                                        rangeKtoP.format.borders.getItem('EdgeTop').weight = 'Thin';
+                                        // Color defaults to Automatic (usually black)
+
+                                        const rangeStoCX = currentWS.getRange(`S${r}:CX${r}`);
+                                        rangeStoCX.format.borders.getItem('EdgeTop').style = 'Continuous';
+                                        rangeStoCX.format.borders.getItem('EdgeTop').weight = 'Thin';
+                                    }
+                                    await context.sync(); // Sync the top border formatting
+                                    console.log(`Top border formatting applied and synced for K${pasteRow}:P${endPastedRow} and S${pasteRow}:CX${endPastedRow}`);
+                                }
                                 
                                 // Apply the driver and assumption inputs function to the current worksheet
                                 try {
