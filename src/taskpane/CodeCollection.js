@@ -44,7 +44,7 @@ export function populateCodeCollection(inputText) {
                 params[`row${rowNum}`] = rowValue;
             }
             
-            // Parse other parameters
+            // Parse other parameters, including the new "format" parameter
             // Use the cleaned paramsString
             const paramMatches = paramsString.matchAll(/(\w+)\s*=\s*"([^"]*)"/g);
             for (const match of paramMatches) {
@@ -510,6 +510,48 @@ export async function runCodes(codeCollection) {
                                         console.log(`Negative transformation applied and synced for AE${endPastedRow}:CX${endPastedRow}`);
                                     } else {
                                         console.log(`No formulas found to transform in AE${endPastedRow}:CX${endPastedRow}`);
+                                    }
+                                }
+                                
+                                // NEW: Apply "format" parameter for number formatting and italics
+                                if (code.params.format) {
+                                    const formatValue = String(code.params.format).toLowerCase();
+                                    const numPastedRows = lastRow - firstRow + 1;
+                                    const endPastedRow = pasteRow + Math.max(0, numPastedRows - 1);
+                                    // Corrected: Apply to K through CX
+                                    const formatRangeAddress = `K${pasteRow}:CX${endPastedRow}`;
+                                    const rangeToFormat = currentWS.getRange(formatRangeAddress);
+                                    let numberFormatString = null;
+                                    let applyItalics = false;
+
+                                    console.log(`Processing "format" parameter: "${formatValue}" for range ${formatRangeAddress}`);
+
+                                    if (formatValue === "dollar") {
+                                        numberFormatString = '_(* $ #,##0_);_(* $ (#,##0);_(* ""$ -""?_);_(@_)';
+                                    } else if (formatValue === "volume") {
+                                        numberFormatString = '_(* #,##0_);_(* (#,##0);_(* " -"?_);_(@_)';
+                                        applyItalics = true;
+                                    } else if (formatValue === "percent") {
+                                        numberFormatString = '_(* #,##0.0%;_(* (#,##0.0)%;_(* " -"?_)';
+                                        applyItalics = true;
+                                    } else if (formatValue === "factor") {
+                                        numberFormatString = '_(* #,##0.0x;_(* (#,##0.0)x;_(* " -"?_)';
+                                        applyItalics = true;
+                                    }
+
+                                    if (numberFormatString) {
+                                        console.log(`Applying number format: "${numberFormatString}" to ${formatRangeAddress}`);
+                                        rangeToFormat.numberFormat = [[numberFormatString]]; 
+                                        if (applyItalics) {
+                                            console.log(`Applying italics to ${formatRangeAddress}`);
+                                            rangeToFormat.format.font.italic = true;
+                                        } else {
+                                            rangeToFormat.format.font.italic = false; // Explicitly set to false
+                                        }
+                                        await context.sync();
+                                        console.log(`"format" parameter processing synced for ${formatRangeAddress}`);
+                                    } else {
+                                        console.log(`"format" parameter value "${formatValue}" is not recognized. No formatting applied.`);
                                     }
                                 }
                                 
