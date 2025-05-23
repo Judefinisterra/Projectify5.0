@@ -554,6 +554,31 @@ export async function runCodes(codeCollection) {
                                         console.log(`"format" parameter value "${formatValue}" is not recognized. No formatting applied.`);
                                     }
                                 }
+
+                                // NEW: Apply "italic" parameter for font style
+                                if (code.params.italic !== undefined) { // Check if the parameter exists
+                                    const italicValue = String(code.params.italic).toLowerCase();
+                                    const numPastedRows = lastRow - firstRow + 1;
+                                    const endPastedRow = pasteRow + Math.max(0, numPastedRows - 1);
+                                    const italicRangeAddress = `B${pasteRow}:CX${endPastedRow}`;
+                                    const rangeToItalicize = currentWS.getRange(italicRangeAddress);
+
+                                    console.log(`Processing "italic" parameter: "${italicValue}" for range ${italicRangeAddress}`);
+
+                                    if (italicValue === "true") {
+                                        console.log(`Applying italics to ${italicRangeAddress}`);
+                                        rangeToItalicize.format.font.italic = true;
+                                        await context.sync();
+                                        console.log(`"italic" parameter (true) processing synced for ${italicRangeAddress}`);
+                                    } else if (italicValue === "false") {
+                                        console.log(`Removing italics from ${italicRangeAddress}`);
+                                        rangeToItalicize.format.font.italic = false;
+                                        await context.sync();
+                                        console.log(`"italic" parameter (false) processing synced for ${italicRangeAddress}`);
+                                    } else {
+                                        console.log(`"italic" parameter value "${italicValue}" is not recognized as boolean. No italicization change applied.`);
+                                    }
+                                }
                                 
                                 // Apply the driver and assumption inputs function to the current worksheet
                                 try {
