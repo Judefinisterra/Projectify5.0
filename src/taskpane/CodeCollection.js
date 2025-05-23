@@ -522,34 +522,45 @@ export async function runCodes(codeCollection) {
                                     const formatRangeAddress = `K${pasteRow}:CX${endPastedRow}`;
                                     const rangeToFormat = currentWS.getRange(formatRangeAddress);
                                     let numberFormatString = null;
-                                    let applyItalics = false;
+                                    // Removed applyItalics variable as direct checks on formatValue are clearer for B:CX range
 
                                     console.log(`Processing "format" parameter: "${formatValue}" for range ${formatRangeAddress}`);
 
-                                    if (formatValue === "dollar") {
+                                    if (formatValue === "dollar" || formatValue === "dollaritalic") {
                                         numberFormatString = '_(* $ #,##0_);_(* $ (#,##0);_(* ""$ -""?_);_(@_)';
                                     } else if (formatValue === "volume") {
                                         numberFormatString = '_(* #,##0_);_(* (#,##0);_(* " -"?_);_(@_)';
-                                        applyItalics = true;
                                     } else if (formatValue === "percent") {
                                         numberFormatString = '_(* #,##0.0%;_(* (#,##0.0)%;_(* " -"?_)';
-                                        applyItalics = true;
                                     } else if (formatValue === "factor") {
                                         numberFormatString = '_(* #,##0.0x;_(* (#,##0.0)x;_(* " -"?_)';
-                                        applyItalics = true;
                                     }
 
                                     if (numberFormatString) {
-                                        console.log(`Applying number format: "${numberFormatString}" to ${formatRangeAddress}`);
-                                        rangeToFormat.numberFormat = [[numberFormatString]]; 
-                                        if (applyItalics) {
-                                            console.log(`Applying italics to ${formatRangeAddress}`);
-                                            rangeToFormat.format.font.italic = true;
+                                        console.log(`Applying number format: "${numberFormatString}" to ${formatRangeAddress}`); // K:CX
+                                        rangeToFormat.numberFormat = [[numberFormatString]]; // K:CX
+                                        
+                                        // Italicization logic based on formatValue for the B:CX range
+                                        const fullItalicRangeAddress = `B${pasteRow}:CX${endPastedRow}`;
+                                        const fullRangeToHandleItalics = currentWS.getRange(fullItalicRangeAddress);
+
+                                        if (formatValue === "dollaritalic" || formatValue === "volume" || formatValue === "percent" || formatValue === "factor") {
+                                            console.log(`Applying italics to ${fullItalicRangeAddress} due to format type (${formatValue})`);
+                                            fullRangeToHandleItalics.format.font.italic = true;
+                                        } else if (formatValue === "dollar") {
+                                            console.log(`Ensuring ${fullItalicRangeAddress} is NOT italicized due to format type (dollar)`);
+                                            fullRangeToHandleItalics.format.font.italic = false;
                                         } else {
-                                            rangeToFormat.format.font.italic = false; // Explicitly set to false
+                                            // For unrecognized formats that still had a numberFormatString (e.g. if logic changes later),
+                                            // or if K:CX needs explicit non-italic default when no B:CX rule applies.
+                                            // However, current logic implies if numberFormatString is set, formatValue is one of the known ones.
+                                            // If K:CX (rangeToFormat) needs specific non-italic handling for other cases, it would go here.
+                                            // For now, this 'else' might not be hit if numberFormatString implies a known formatValue.
+                                            // The primary `italic` parameter handles general italic override later anyway.
+                                            console.log(`Format type ${formatValue} has number format but no specific B:CX italic rule. K:CX italics remain as previously set or default.`);
                                         }
                                         await context.sync();
-                                        console.log(`"format" parameter processing synced for ${formatRangeAddress}`);
+                                        console.log(`"format" parameter processing (number format and B:CX italics) synced for ${formatRangeAddress}`);
                                     } else {
                                         console.log(`"format" parameter value "${formatValue}" is not recognized. No formatting applied.`);
                                     }
