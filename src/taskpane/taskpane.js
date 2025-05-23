@@ -430,13 +430,34 @@ async function handleSendClient() {
         return;
     }
 
+    // >>> ADDED: Hide header and activate conversation layout on first message
+    const clientHeader = document.getElementById('client-mode-header');
+    const clientChatContainer = document.getElementById('client-chat-container');
+    const chatLogClient = document.getElementById('chat-log-client');
+    
+    if (clientHeader && !clientHeader.classList.contains('hidden')) {
+        clientHeader.classList.add('hidden');
+        // After transition, completely hide it
+        setTimeout(() => {
+            clientHeader.style.display = 'none';
+        }, 300);
+    }
+    
+    if (clientChatContainer && !clientChatContainer.classList.contains('conversation-active')) {
+        clientChatContainer.classList.add('conversation-active');
+    }
+    
+    if (chatLogClient) {
+        chatLogClient.style.display = 'block';
+    }
+    // <<< END ADDED
+
     // Append user's message to the chat log
     appendMessage(userInput, true, 'chat-log-client', 'welcome-message-client');
     userInputElement.value = ''; // Clear the input field
     setButtonLoadingClient(true);
 
     // Get the chat log and welcome message elements
-    const chatLogClient = document.getElementById('chat-log-client');
     const welcomeMessageClient = document.getElementById('welcome-message-client');
 
     if (!chatLogClient) {
@@ -541,14 +562,32 @@ function resetChatClient() {
     const chatLogClient = document.getElementById('chat-log-client');
     if (chatLogClient) {
         chatLogClient.innerHTML = '';
+        // >>> ADDED: Hide chat log when resetting
+        chatLogClient.style.display = 'none';
+        // <<< END ADDED
     } else {
         console.error("[resetChatClient] Chat log element 'chat-log-client' not found.");
         return;
     }
     
+    // >>> ADDED: Restore header and initial layout
+    const clientHeader = document.getElementById('client-mode-header');
+    const clientChatContainer = document.getElementById('client-chat-container');
+    
+    if (clientHeader) {
+        clientHeader.style.display = ''; // Show it first
+        clientHeader.classList.remove('hidden'); // Remove hidden class to trigger transition
+    }
+    
+    if (clientChatContainer) {
+        clientChatContainer.classList.remove('conversation-active');
+    }
+    // <<< END ADDED
+    
     const welcomeMessageClient = document.createElement('div');
     welcomeMessageClient.id = 'welcome-message-client';
     welcomeMessageClient.className = 'welcome-message';
+    welcomeMessageClient.style.display = 'none'; // Keep hidden since we're showing the header
     const welcomeTitleClient = document.createElement('h1');
     welcomeTitleClient.textContent = 'Ask me anything (Client Mode)';
     welcomeMessageClient.appendChild(welcomeTitleClient);
@@ -994,6 +1033,19 @@ Office.onReady((info) => {
       if (clientModeView) clientModeView.style.display = 'flex'; // Matches .ms-welcome__main display
       console.log("Client Mode activated");
     }
+
+    // >>> ADDED: Function to show startup menu
+    function showStartupMenu() {
+      if (startupMenu) startupMenu.style.display = 'flex';
+      if (appBody) appBody.style.display = 'none';
+      if (clientModeView) clientModeView.style.display = 'none';
+      
+      // Reset client mode state when going back to menu
+      resetChatClient();
+      
+      console.log("Returned to startup menu");
+    }
+    // <<< END ADDED
 
     // Assign click handlers for startup menu buttons
     if (developerModeButton) {

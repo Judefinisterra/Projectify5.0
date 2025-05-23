@@ -18,14 +18,6 @@ export async function validateCodeStrings(inputCodeStrings) {
 
     console.log("CleanedInput Code Strings:", inputCodeStrings);
 
-    // Track codes by their suffixes
-    const vvCodes = new Set();  // codes ending in -VV
-    const vrCodes = new Set();  // codes ending in -VR
-    const rrCodes = new Set();  // codes ending in -RR
-    const rvCodes = new Set();  // codes ending in -RV
-    const evCodes = new Set();  // codes ending in -EV
-    const erCodes = new Set();  // codes ending in -ER
-
     // Load valid codes from the correct location
     let validCodes = new Set();
     try {
@@ -86,53 +78,28 @@ export async function validateCodeStrings(inputCodeStrings) {
         if (codeMatch) {
             const codeType = codeMatch[1].trim();
             codeTypes.add(codeType);
-
-            // Check for suffixes and store them
-            if (codeType.endsWith('-VV')) vvCodes.add(codeType);
-            if (codeType.endsWith('-VR')) vrCodes.add(codeType);
-            if (codeType.endsWith('-RR')) rrCodes.add(codeType);
-            if (codeType.endsWith('-RV')) rvCodes.add(codeType);
-            if (codeType.endsWith('-EV')) evCodes.add(codeType);
-            if (codeType.endsWith('-ER')) erCodes.add(codeType);
         }
     }
 
-    // Validate suffix relationships
-    // Rule 1: -VV or -VR must have -EV or -RV
-    for (const code of [...vvCodes, ...vrCodes]) {
-        if (evCodes.size === 0 && rvCodes.size === 0) {
-            errors.push(`Code ${code} requires another code with suffix -EV or -RV. Fix by adding another code with the correct suffix or by change to the EV/ER version of the same code.`);
+    // Second pass: detailed validation
+    for (const codeString of inputCodeStrings) {
+        // Skip BR tags completely
+        if (codeString === '<BR>') {
+            continue;
         }
-    }
-
-    // Rule 2: -RR or -RV must have -ER or -VR
-    for (const code of [...rrCodes, ...rvCodes]) {
-        if (erCodes.size === 0 && vrCodes.size === 0) {
-            errors.push(`Code ${code} requires another code with suffix -ER or -VR`);
+        
+        const codeMatch = codeString.match(/<([^;]+);/);
+        if (!codeMatch) {
+            errors.push(`Cannot extract code type from: ${codeString}`);
+            continue;
         }
-    }
 
-// Second pass: detailed validation
-for (const codeString of inputCodeStrings) {
-    // Skip BR tags completely
-    if (codeString === '<BR>') {
-        continue;
-    }
-    
-    const codeMatch = codeString.match(/<([^;]+);/);
-    if (!codeMatch) {
-        errors.push(`Cannot extract code type from: ${codeString}`);
-        continue;
-    }
-
-    const codeType = codeMatch[1].trim();
-    
-    // Validate code exists in description file
-    if (!validCodes.has(codeType)) {
-        errors.push(`Invalid code type: "${codeType}" not found in valid codes list`);
-    }
-
-
+        const codeType = codeMatch[1].trim();
+        
+        // Validate code exists in description file
+        if (!validCodes.has(codeType)) {
+            errors.push(`Invalid code type: "${codeType}" not found in valid codes list`);
+        }
 
         // Validate TAB labels
         if (codeType === 'TAB') {
@@ -226,15 +193,7 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
 
     console.log("[ValidateForRun] CleanedInput Code Strings:", inputCodeStrings);
 
-    // Track codes by their suffixes (Same logic as original)
-    const vvCodes = new Set();
-    const vrCodes = new Set();
-    const rrCodes = new Set();
-    const rvCodes = new Set();
-    const evCodes = new Set();
-    const erCodes = new Set();
-
-    // Load valid codes (Same logic as original)
+    // Load valid codes from the correct location
     let validCodes = new Set();
     try {
         const response = await fetch('../prompts/Codes.txt');
@@ -250,7 +209,7 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
         return errors; // Return array on critical error
     }
 
-    // First pass: collect all row values, code types, and suffixes (Same logic as original)
+    // First pass: collect all row values, code types, and suffixes
     for (const codeString of inputCodeStrings) {
         if (!codeString.startsWith('<') || !codeString.endsWith('>')) {
             errors.push(`Invalid code string format: ${codeString}`);
@@ -283,28 +242,10 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
         if (codeMatch) {
             const codeType = codeMatch[1].trim();
             codeTypes.add(codeType);
-            if (codeType.endsWith('-VV')) vvCodes.add(codeType);
-            if (codeType.endsWith('-VR')) vrCodes.add(codeType);
-            if (codeType.endsWith('-RR')) rrCodes.add(codeType);
-            if (codeType.endsWith('-RV')) rvCodes.add(codeType);
-            if (codeType.endsWith('-EV')) evCodes.add(codeType);
-            if (codeType.endsWith('-ER')) erCodes.add(codeType);
         }
     }
 
-    // Validate suffix relationships (Same logic as original)
-    for (const code of [...vvCodes, ...vrCodes]) {
-        if (evCodes.size === 0 && rvCodes.size === 0) {
-            errors.push(`Code ${code} requires another code with suffix -EV or -RV. Fix by adding another code with the correct suffix or by change to the EV/ER version of the same code.`);
-        }
-    }
-    for (const code of [...rrCodes, ...rvCodes]) {
-        if (erCodes.size === 0 && vrCodes.size === 0) {
-            errors.push(`Code ${code} requires another code with suffix -ER or -VR`);
-        }
-    }
-
-    // Second pass: detailed validation (Same logic as original)
+    // Second pass: detailed validation
     for (const codeString of inputCodeStrings) {
         if (codeString === '<BR>') {
             continue;
@@ -348,7 +289,7 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
         }
     }
 
-    // Third pass: validate driver references (Same logic as original)
+    // Third pass: validate driver references
     for (const codeString of inputCodeStrings) {
         const driverMatches = codeString.match(/driver\d+\s*=\s*"([^"]*)"/g);
         if (driverMatches) {

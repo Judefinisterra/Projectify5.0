@@ -335,10 +335,47 @@ export function resetAIModelPlannerConversation() {
 
 // UI Helper functions specific to AIModelPlanner controlling client chat
 function displayInClientChatLogPlanner(message, isUser) {
-    const chatLog = document.getElementById('chat-log-client');
+    console.log("[displayInClientChatLogPlanner] Called with message:", message.substring(0, 50) + "...");
+    
+    let chatLog = document.getElementById('chat-log-client');
     const welcomeMessage = document.getElementById('welcome-message-client');
-    if (!chatLog) { console.error("AIModelPlanner: Client chat log element not found."); return; }
+    
+    // If chat log doesn't exist, try to find the container and create it
+    if (!chatLog) {
+        console.error("AIModelPlanner: Client chat log element not found. Attempting to create it...");
+        const container = document.getElementById('client-chat-container');
+        if (container) {
+            chatLog = document.createElement('div');
+            chatLog.id = 'chat-log-client';
+            chatLog.className = 'chat-log';
+            chatLog.style.display = 'block';
+            chatLog.style.flexGrow = '1';
+            chatLog.style.overflowY = 'auto';
+            container.appendChild(chatLog);
+            console.log("AIModelPlanner: Created chat log element");
+        } else {
+            console.error("AIModelPlanner: Could not find container to create chat log");
+            return;
+        }
+    }
+    
     if (welcomeMessage) welcomeMessage.style.display = 'none';
+
+    // >>> ADDED: Ensure chat log is visible
+    const chatLogDisplay = window.getComputedStyle(chatLog).display;
+    if (chatLogDisplay === 'none') {
+        console.warn("[displayInClientChatLogPlanner] Chat log was hidden, forcing visibility");
+        chatLog.style.display = 'block';
+        chatLog.style.visibility = 'visible';
+        chatLog.style.opacity = '1';
+        
+        // Also ensure parent container is visible
+        const container = chatLog.parentElement;
+        if (container && container.classList.contains('container')) {
+            container.classList.add('conversation-active');
+        }
+    }
+    // <<< END ADDED
 
     const messageElement = document.createElement('div');
     messageElement.className = `chat-message ${isUser ? 'user-message' : 'assistant-message'}`;
@@ -358,6 +395,7 @@ function displayInClientChatLogPlanner(message, isUser) {
     messageElement.appendChild(contentElement);
     chatLog.appendChild(messageElement);
     chatLog.scrollTop = chatLog.scrollHeight;
+    console.log(`[displayInClientChatLogPlanner] Added ${isUser ? 'user' : 'assistant'} message to chat log. Total messages: ${chatLog.children.length}`);
 }
 
 function setClientLoadingStatePlanner(isLoading) {
@@ -546,6 +584,8 @@ async function _executePlannerCodes(modelCodesString) {
 }
 
 export async function plannerHandleSend() {
+    console.log("[plannerHandleSend] Function called - VERSION 2"); // Debug to ensure new code is running
+    
     const userInputElement = document.getElementById('user-input-client');
     if (!userInputElement) { console.error("AIModelPlanner: Client user input element not found."); return; }
     const userInput = userInputElement.value.trim();
@@ -555,12 +595,67 @@ export async function plannerHandleSend() {
         return;
     }
 
+    // >>> ADDED: Hide header and activate conversation layout on first message
+    const clientHeader = document.getElementById('client-mode-header');
+    const clientChatContainer = document.getElementById('client-chat-container');
+    const chatLogClient = document.getElementById('chat-log-client');
+    
+    console.log("[plannerHandleSend] Initial state - chatLogClient display:", chatLogClient ? window.getComputedStyle(chatLogClient).display : "Element not found");
+    
+    // Debug parent elements
+    if (clientChatContainer) {
+        console.log("[plannerHandleSend] clientChatContainer display:", window.getComputedStyle(clientChatContainer).display);
+    }
+    const clientModeView = document.getElementById('client-mode-view');
+    if (clientModeView) {
+        console.log("[plannerHandleSend] client-mode-view display:", window.getComputedStyle(clientModeView).display);
+    }
+    
+    // Force immediate visibility of chat container
+    if (clientChatContainer) {
+        clientChatContainer.classList.add('conversation-active');
+        console.log("[plannerHandleSend] Added conversation-active class to container");
+        
+        // Force a reflow to ensure the class is applied
+        void clientChatContainer.offsetHeight;
+    }
+    
+    if (clientHeader && !clientHeader.classList.contains('hidden')) {
+        clientHeader.classList.add('hidden');
+        // After transition, completely hide it
+        setTimeout(() => {
+            clientHeader.style.display = 'none';
+        }, 300);
+    }
+    
+    if (chatLogClient) {
+        // Remove all inline styles that might be hiding it
+        chatLogClient.style.cssText = '';
+        // Then explicitly set the needed styles
+        chatLogClient.style.flexGrow = '1';
+        chatLogClient.style.overflowY = 'auto';
+        chatLogClient.style.borderBottom = '1px solid #eee';
+        chatLogClient.style.marginBottom = '10px';
+        chatLogClient.style.display = 'block';
+        chatLogClient.style.visibility = 'visible';
+        chatLogClient.style.opacity = '1';
+        
+        console.log("[plannerHandleSend] Forcefully set all chat log styles");
+        
+        // Force a reflow
+        void chatLogClient.offsetHeight;
+        
+        // Double check the computed style
+        const computedDisplay = window.getComputedStyle(chatLogClient).display;
+        console.log("[plannerHandleSend] After forcing - chatLogClient computed display:", computedDisplay);
+    }
+    // <<< END ADDED
+
     displayInClientChatLogPlanner(userInput, true);
     userInputElement.value = '';
     setClientLoadingStatePlanner(true);
 
     // Create assistant message elements for streaming
-    const chatLogClient = document.getElementById('chat-log-client');
     const welcomeMessageClient = document.getElementById('welcome-message-client');
     if (welcomeMessageClient) welcomeMessageClient.style.display = 'none';
 
@@ -698,22 +793,43 @@ export async function plannerHandleSend() {
 
 export function plannerHandleReset() {
     const chatLog = document.getElementById('chat-log-client');
-    const welcomeMessage = document.getElementById('welcome-message-client');
     if (chatLog) {
         chatLog.innerHTML = '';
-        if (welcomeMessage) {
-            const newWelcome = document.createElement('div');
-            newWelcome.id = 'welcome-message-client';
-            newWelcome.className = 'welcome-message';
-            newWelcome.innerHTML = '<h1>Ask me anything (Client Mode)</h1>';
-            chatLog.appendChild(newWelcome);
-        }
+        // >>> ADDED: Hide chat log when resetting
+        chatLog.style.display = 'none';
+        // <<< END ADDED
     }
+
+    // >>> ADDED: Restore header and initial layout
+    const clientHeader = document.getElementById('client-mode-header');
+    const clientChatContainer = document.getElementById('client-chat-container');
+    
+    if (clientHeader) {
+        clientHeader.style.display = ''; // Show it first
+        clientHeader.classList.remove('hidden'); // Remove hidden class to trigger transition
+    }
+    
+    if (clientChatContainer) {
+        clientChatContainer.classList.remove('conversation-active');
+    }
+    // <<< END ADDED
+
+    const welcomeMessage = document.createElement('div');
+    welcomeMessage.id = 'welcome-message-client';
+    welcomeMessage.className = 'welcome-message';
+    welcomeMessage.style.display = 'none'; // Keep hidden since we're showing the header
+    const welcomeTitle = document.createElement('h1');
+    welcomeTitle.textContent = 'Ask me anything (Client Mode)';
+    welcomeMessage.appendChild(welcomeTitle);
+    if (chatLog) chatLog.appendChild(welcomeMessage);
+
     modelPlannerConversationHistory = [];
     lastPlannerResponseForClient = null;
-    const userInputElement = document.getElementById('user-input-client');
-    if (userInputElement) userInputElement.value = '';
-    console.log("AIModelPlanner: Client chat and history reset.");
+
+    const userInput = document.getElementById('user-input-client');
+    if (userInput) userInput.value = '';
+
+    console.log("AIModelPlanner: Client chat reset completed.");
 }
 
 export function plannerHandleWriteToExcel() {

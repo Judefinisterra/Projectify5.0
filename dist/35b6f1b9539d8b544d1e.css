@@ -842,6 +842,41 @@ body {
     margin-bottom: 20px;
 }
 
+/* Client chat container transitions */
+#client-chat-container {
+    transition: all 0.3s ease;
+}
+
+/* When conversation starts, adjust layout */
+#client-chat-container.conversation-active {
+    height: 90%; /* Expand to use more space */
+}
+
+#client-chat-container.conversation-active #chat-log-client {
+    flex-grow: 1; /* Chat log takes available space */
+    -ms-flex-positive: 1; /* IE 10+ */
+    display: block !important; /* Make visible */
+    visibility: visible !important; /* Ensure visibility */
+    opacity: 1 !important; /* Ensure opacity */
+}
+
+/* Ensure chat messages are visible */
+#client-chat-container.conversation-active .chat-message {
+    display: block;
+}
+
+/* Client mode header transitions */
+#client-mode-header {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#client-mode-header.hidden {
+    opacity: 0;
+    transform: translateY(-20px);
+    pointer-events: none;
+    position: absolute;
+}
+
 /* Back to Menu Button Styles */
 .back-to-menu-button {
     position: absolute;
@@ -865,6 +900,16 @@ body {
     width: 100%;
     padding: 8px;
     box-sizing: border-box;
+}
+
+/* Initial state - input is centered under header */
+#client-chat-container:not(.conversation-active) .client-input-area-wrapper {
+    margin-top: 0; /* No extra margin needed */
+}
+
+/* Active conversation state - input moves to bottom */
+#client-chat-container.conversation-active .client-input-area-wrapper {
+    margin-top: auto; /* Push to bottom */
 }
 
 .chatgpt-input-bar {
@@ -938,4 +983,22 @@ body {
 #reset-chat-client {
     /* You might want to adjust margin or width if it looks off */
     /* For example: margin-top: 8px; */
+}
+
+/* Chat log starts hidden and will expand when conversation starts */
+#chat-log-client {
+    min-height: 0;
+    transition: all 0.3s ease;
+}
+
+/* Hide chat log initially when container doesn't have conversation-active */
+#client-chat-container:not(.conversation-active) #chat-log-client {
+    display: none;
+}
+
+/* Show chat log when conversation is active */
+#client-chat-container.conversation-active #chat-log-client {
+    display: block !important; /* Override the initial hidden state */
+    flex-grow: 1 !important;
+    -ms-flex-positive: 1 !important;
 }
