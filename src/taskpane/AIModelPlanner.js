@@ -785,7 +785,135 @@ export async function plannerHandleSend() {
 
     } catch (error) {
         console.error("Error in AIModelPlanner conversation:", error);
-        assistantMessageContent.textContent = `Error: ${error.message}`;
+        
+        // Check if this is a validation error
+        if (error.message && error.message.includes("Code validation failed")) {
+            console.log("AIModelPlanner: Validation error detected. Attempting automatic resubmission...");
+            
+            // Display validation error to user
+            displayInClientChatLogPlanner(`Validation error detected: ${error.message}\n\nAutomatically resubmitting for correction...`, false);
+            
+            // Check if we haven't exceeded retry attempts (prevent infinite loops)
+            const maxRetries = 2;
+            const currentRetryCount = error.retryCount || 0;
+            
+            if (currentRetryCount >= maxRetries) {
+                console.log("AIModelPlanner: Maximum retry attempts reached. Stopping automatic correction.");
+                displayInClientChatLogPlanner(`Maximum retry attempts (${maxRetries}) reached. Please manually adjust your request.`, false);
+                assistantMessageContent.textContent = `Error: ${error.message}`;
+                return;
+            }
+            
+            // If we have a JSON object that failed validation, resubmit it
+            if (lastPlannerResponseForClient && typeof lastPlannerResponseForClient === 'object') {
+                try {
+                    // Create a new prompt that includes the validation error
+                    const retryPrompt = `The previous model structure had validation errors:\n${error.message}\n\nPlease regenerate the model structure fixing these validation issues. Keep the same tabs but ensure all code strings are valid.`;
+                    
+                    // Clear the assistant message for retry
+                    assistantMessageContent.textContent = "Regenerating with corrections...";
+                    
+                    // Retry the conversation with the error context
+                    const retryStream = _handleAIModelPlannerConversation(retryPrompt, { stream: true });
+                    let retryFullResponse = "";
+                    
+                    for await (const chunk of retryStream) {
+                        if (chunk.choices && chunk.choices[0]?.delta?.content) {
+                            const content = chunk.choices[0].delta.content;
+                            retryFullResponse += content;
+                            assistantMessageContent.textContent = content; // Replace, don't append for cleaner retry
+                            if (chatLogClient) chatLogClient.scrollTop = chatLogClient.scrollHeight;
+                        }
+                    }
+                    
+                    // Try to parse and process the retry response
+                    let retryJsonObject = null;
+                    try {
+                        const parsedRetry = JSON.parse(retryFullResponse);
+                        if (typeof parsedRetry === 'object' && parsedRetry !== null && !Array.isArray(parsedRetry)) {
+                            retryJsonObject = parsedRetry;
+                            lastPlannerResponseForClient = parsedRetry;
+                        }
+                    } catch (e) {
+                        console.log("AIModelPlanner: Retry response was not parsable JSON.");
+                    }
+                    
+                    if (retryJsonObject) {
+                        // Process the corrected JSON
+                        let ModelCodes = "";
+                        for (const tabLabel in retryJsonObject) {
+                            if (Object.prototype.hasOwnProperty.call(retryJsonObject, tabLabel)) {
+                                const lowerCaseTabLabel = tabLabel.toLowerCase();
+                                if (lowerCaseTabLabel === "misc." || lowerCaseTabLabel === "financials" || lowerCaseTabLabel === "misc. tab" || lowerCaseTabLabel === "financials tab") {
+                                    continue;
+                                }
+                                ModelCodes += `<TAB; label1="${tabLabel}";>\n`;
+                                const tabDescription = retryJsonObject[tabLabel];
+                                let tabDescriptionString = "";
+                                if (typeof tabDescription === 'string') {
+                                    tabDescriptionString = tabDescription;
+                                } else if (typeof tabDescription === 'object' && tabDescription !== null) {
+                                    tabDescriptionString = JSON.stringify(tabDescription);
+                                } else {
+                                    tabDescriptionString = String(tabDescription);
+                                }
+                                if (tabDescriptionString.trim() !== "") {
+                                    displayInClientChatLogPlanner(`Processing corrected details for tab: ${tabLabel}...`, false);
+                                    try {
+                                        const aiResponseForTabArray = await getAICallsProcessedResponse(tabDescriptionString);
+                                        let formattedAiResponse = "";
+                                        if (typeof aiResponseForTabArray === 'object' && aiResponseForTabArray !== null && !Array.isArray(aiResponseForTabArray)) {
+                                            formattedAiResponse = JSON.stringify(aiResponseForTabArray, null, 2);
+                                        } else if (Array.isArray(aiResponseForTabArray)) {
+                                            formattedAiResponse = aiResponseForTabArray.join('\n');
+                                        } else {
+                                            formattedAiResponse = String(aiResponseForTabArray);
+                                        }
+                                        ModelCodes += formattedAiResponse + "\n\n";
+                                        displayInClientChatLogPlanner(`Completed corrected details for tab: ${tabLabel}.`, false);
+                                    } catch (tabError) {
+                                        console.error(`AIModelPlanner: Error processing corrected tab "${tabLabel}":`, tabError);
+                                        ModelCodes += `// Error processing tab ${tabLabel}: ${tabError.message}\n\n`;
+                                        displayInClientChatLogPlanner(`Error processing corrected tab ${tabLabel}: ${tabError.message}`, false);
+                                    }
+                                } else {
+                                    ModelCodes += `// No description provided for tab ${tabLabel}\n\n`;
+                                }
+                            }
+                        }
+                        
+                        if (ModelCodes.trim().length > 0) {
+                            displayInClientChatLogPlanner("Corrected model structure generated. Now applying to workbook...", false);
+                            // Pass retry count in case there's another validation error
+                            try {
+                                await _executePlannerCodes(ModelCodes);
+                            } catch (retryValidationError) {
+                                // If it's another validation error, increment retry count
+                                if (retryValidationError.message && retryValidationError.message.includes("Code validation failed")) {
+                                    retryValidationError.retryCount = (currentRetryCount || 0) + 1;
+                                }
+                                throw retryValidationError;
+                            }
+                        } else {
+                            displayInClientChatLogPlanner("No corrected code content generated.", false);
+                        }
+                    } else {
+                        displayInClientChatLogPlanner("Could not generate corrected model structure. Please try rephrasing your request.", false);
+                    }
+                    
+                } catch (retryError) {
+                    console.error("Error during automatic retry:", retryError);
+                    displayInClientChatLogPlanner(`Failed to automatically correct validation errors: ${retryError.message}`, false);
+                }
+            } else {
+                // No JSON object to retry with, just show the error
+                assistantMessageContent.textContent = `Error: ${error.message}`;
+            }
+        } else {
+            // Not a validation error, show as normal
+            assistantMessageContent.textContent = `Error: ${error.message}`;
+        }
+
     } finally {
         setClientLoadingStatePlanner(false);
     }

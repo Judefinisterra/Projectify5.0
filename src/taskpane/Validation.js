@@ -115,8 +115,8 @@ export async function validateCodeStrings(inputCodeStrings) {
                 errors.push(`Tab label too long (max 30 chars): "${label}"`);
             }
             
-            if (/[&,":;]/.test(label)) {
-                errors.push(`Tab label contains illegal characters (&,":;): "${label}"`);
+            if (/[,":;]/.test(label)) {
+                errors.push(`Tab label contains illegal characters (,":;): "${label}"`);
             }
             
             if (tabLabels.has(label)) {
@@ -266,12 +266,15 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
                 continue;
             }
             const label = labelMatch[1];
+            
             if (label.length > 30) {
                 errors.push(`Tab label too long (max 30 chars): "${label}"`);
             }
-            if (/[&,":;]/.test(label)) {
-                errors.push(`Tab label contains illegal characters (&,":;): "${label}"`);
+            
+            if (/[,":;]/.test(label)) {
+                errors.push(`Tab label contains illegal characters (,":;): "${label}"`);
             }
+            
             if (tabLabels.has(label)) {
                 errors.push(`Duplicate tab label: "${label}"`);
             }
