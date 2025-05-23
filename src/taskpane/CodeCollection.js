@@ -2315,6 +2315,61 @@ export async function hideColumnsAndNavigate(assumptionTabNames) { // Renamed an
                 // Do not throw here, allow the function to finish
             }
 
+            // --- Delete sheets that begin with "Codes" or "Calcs" ---
+            console.log("Deleting sheets that begin with 'Codes' or 'Calcs'...");
+            try {
+                // Get all worksheets again to ensure we have the latest list
+                const allWorksheets = context.workbook.worksheets;
+                allWorksheets.load("items/name");
+                await context.sync();
+                
+                const sheetsToDelete = [];
+                
+                // Identify sheets to delete
+                for (const worksheet of allWorksheets.items) {
+                    const sheetName = worksheet.name;
+                    if (sheetName.startsWith("Codes") || sheetName.startsWith("Calcs")) {
+                        sheetsToDelete.push(sheetName);
+                    }
+                }
+                
+                // Delete identified sheets
+                if (sheetsToDelete.length > 0) {
+                    console.log(`Found ${sheetsToDelete.length} sheet(s) to delete: ${sheetsToDelete.join(', ')}`);
+                    
+                    for (const sheetName of sheetsToDelete) {
+                        try {
+                            const sheetToDelete = context.workbook.worksheets.getItem(sheetName);
+                            sheetToDelete.delete();
+                            console.log(`  Queued deletion of sheet: ${sheetName}`);
+                        } catch (deleteError) {
+                            console.error(`  Error queuing deletion of sheet ${sheetName}: ${deleteError.message}`);
+                            // Continue with other deletions even if one fails
+                        }
+                    }
+                    
+                    // Sync all deletions
+                    try {
+                        await context.sync();
+                        console.log(`Successfully deleted ${sheetsToDelete.length} sheet(s).`);
+                    } catch (syncError) {
+                        console.error(`Error syncing sheet deletions: ${syncError.message}`, {
+                            code: syncError.code,
+                            debugInfo: syncError.debugInfo ? JSON.stringify(syncError.debugInfo) : 'N/A'
+                        });
+                        // Continue even if sync fails
+                    }
+                } else {
+                    console.log("No sheets found starting with 'Codes' or 'Calcs' to delete.");
+                }
+            } catch (deletionError) {
+                console.error(`Error during sheet deletion process: ${deletionError.message}`, {
+                    code: deletionError.code,
+                    debugInfo: deletionError.debugInfo ? JSON.stringify(deletionError.debugInfo) : 'N/A'
+                });
+                // Do not throw here, allow the function to finish
+            }
+
             console.log("Finished hideColumnsAndNavigate function.");
 
         }); // End Excel.run
