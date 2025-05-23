@@ -2296,24 +2296,7 @@ export async function hideColumnsAndNavigate(assumptionTabNames) { // Renamed an
             }
             // No final sync needed for this loop as it happens inside
 
-            // --- Navigate to Financials sheet and select cell J9 ---
-            // (This ensures Financials is the final active sheet)
-            try {
-                console.log("Navigating to Financials sheet and selecting J9...");
-                const financialsSheet = context.workbook.worksheets.getItem("Financials");
-                // This activate/select sequence overrides the previous active sheet.
-                financialsSheet.activate(); 
-                const rangeJ9 = financialsSheet.getRange("J9"); // Get J9
-                rangeJ9.select(); // Select J9
-                await context.sync(); // Sync the final activate/select
-                console.log("Successfully navigated to Financials!J9.");
-            } catch (navError) {
-                console.error(`Error navigating to Financials sheet J9: ${navError.message}`, {
-                    code: navError.code,
-                    debugInfo: navError.debugInfo ? JSON.stringify(navError.debugInfo) : 'N/A'
-                });
-                // Do not throw here, allow the function to finish
-            }
+            
 
             // --- Delete sheets that begin with "Codes" or "Calcs" ---
             console.log("Deleting sheets that begin with 'Codes' or 'Calcs'...");
@@ -2366,6 +2349,127 @@ export async function hideColumnsAndNavigate(assumptionTabNames) { // Renamed an
                 console.error(`Error during sheet deletion process: ${deletionError.message}`, {
                     code: deletionError.code,
                     debugInfo: deletionError.debugInfo ? JSON.stringify(deletionError.debugInfo) : 'N/A'
+                });
+                // Do not throw here, allow the function to finish
+            }
+
+            // --- Reorder tabs according to the model plan ---
+            console.log("Reordering tabs according to model plan...");
+            try {
+                // Define the desired tab order
+                // First is always Financials, followed by assumption tabs in their creation order,
+                // then any other existing sheets (like Misc., Actuals Data, etc.)
+                const priorityOrder = ["Financials", ...assumptionTabNames];
+                
+                // Get all worksheets one more time to ensure we have the latest list after deletions
+                const finalWorksheets = context.workbook.worksheets;
+                finalWorksheets.load("items/name");
+                await context.sync();
+                
+                // Create a list of all sheet names
+                const allSheetNames = finalWorksheets.items.map(ws => ws.name);
+                
+                // Separate sheets into priority order and others
+                const orderedSheets = [];
+                const otherSheets = [];
+                
+                // Add sheets in priority order first
+                for (const priorityName of priorityOrder) {
+                    if (allSheetNames.includes(priorityName)) {
+                        orderedSheets.push(priorityName);
+                    }
+                }
+                
+                // Add remaining sheets that aren't in priority order
+                for (const sheetName of allSheetNames) {
+                    if (!orderedSheets.includes(sheetName)) {
+                        otherSheets.push(sheetName);
+                    }
+                }
+                
+                // Combine the lists
+                const finalOrder = [...orderedSheets, ...otherSheets];
+                console.log(`Final tab order: ${finalOrder.join(', ')}`);
+                
+                // Reorder sheets by setting their positions
+                for (let i = 0; i < finalOrder.length; i++) {
+                    try {
+                        const worksheet = context.workbook.worksheets.getItem(finalOrder[i]);
+                        worksheet.position = i;
+                        console.log(`  Set ${finalOrder[i]} to position ${i}`);
+                    } catch (positionError) {
+                        console.error(`  Error setting position for sheet ${finalOrder[i]}: ${positionError.message}`);
+                        // Continue with other sheets even if one fails
+                    }
+                }
+                
+                // Sync all position changes
+                try {
+                    await context.sync();
+                    console.log("Successfully reordered all tabs.");
+                } catch (syncError) {
+                    console.error(`Error syncing tab reordering: ${syncError.message}`, {
+                        code: syncError.code,
+                        debugInfo: syncError.debugInfo ? JSON.stringify(syncError.debugInfo) : 'N/A'
+                    });
+                    // Continue even if sync fails
+                }
+                
+            } catch (reorderError) {
+                console.error(`Error during tab reordering process: ${reorderError.message}`, {
+                    code: reorderError.code,
+                    debugInfo: reorderError.debugInfo ? JSON.stringify(reorderError.debugInfo) : 'N/A'
+                });
+                // Do not throw here, allow the function to finish
+            }
+
+            // --- Navigate to Financials sheet and select cell J10 with view reset ---
+            // (This ensures Financials is the final active sheet with proper view)
+            try {
+                console.log("Navigating to Financials sheet and selecting J10 with view reset...");
+                const financialsSheet = context.workbook.worksheets.getItem("Financials");
+                
+                // Activate the Financials sheet
+                financialsSheet.activate();
+                
+                // Get J10 range
+                const rangeJ10 = financialsSheet.getRange("J10");
+                
+                // Select J10
+                rangeJ10.select();
+                
+                // Reset the view to top of sheet (like CTRL+Home)
+                try {
+                    // First, select A1 to scroll to top-left
+                    const rangeA1 = financialsSheet.getRange("A1");
+                    rangeA1.select();
+                    
+                    // Sync to ensure the scroll happens
+                    await context.sync();
+                    
+                    // Now select J10 as the final selection
+                    rangeJ10.select();
+                    
+                    // Optional: Reset zoom to 100%
+                    try {
+                        const activeWindow = context.workbook.getActiveCell().getWorksheet().getActiveView();
+                        if (activeWindow) {
+                            activeWindow.zoomLevel = 100;
+                        }
+                    } catch (zoomError) {
+                        console.log("Could not reset zoom level (requires Excel API 1.7+):", zoomError.message);
+                    }
+                } catch (viewError) {
+                    console.log("Could not fully reset view:", viewError.message);
+                    // Continue anyway - selecting J10 is the most important part
+                }
+                
+                await context.sync(); // Sync the final state
+                console.log("Successfully navigated to Financials!J10 and reset view to top.");
+            } catch (navError) {
+                console.error(`Error navigating to Financials sheet J10: ${navError.message}`, {
+                    code: navError.code,
+                    debugInfo: navError.debugInfo ? JSON.stringify(navError.debugInfo) : 'N/A'
                 });
                 // Do not throw here, allow the function to finish
             }
