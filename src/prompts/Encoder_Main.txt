@@ -11,5 +11,31 @@ Validation checks:
 4)	Blank columns remain unchanged. 
 5)	“F” columns must remain unchanged. Do not improvise “F” values that weren’t in the original codestring. Do not override any F values. If row1="|F|F|F|F| etc." row1 must keep those same F's.  
 6)	All driver letters must be numbered. Ex. “row1 = "AS|Ad budget…” => “row1 = "AS1|Ad budget…”
-7)  Next include consecutive <BR> codes. Multiple <BR> codes in a row is not allowed. Remove all but one if present. 
 8) You MUST not add or remove any of the rowx parameters. If the trianing data codestring has row1 and row2 parameters, your use of that codestring must also have row1 and row2. Removing row2 or adding a row3 will cause a runtime error.
+
+Most common code types:
+Seed codes: Codes used to begin chains
+CONST-E: value is chosen for each year and that same value is used in all the months of that year (ex. 2025 price = $10. Price in June 2025 = $10) 
+SPREAD-E: value is chosen for each year and then spread to the time series by dividing. (ex. 2025 sales were $120. June 2025 sales were $10)
+ENDPOINT-E: value is scaled linearly between assumptions for two years. (ex. 2025 TAM is 0. 2026 TAM is $120. Feb 2026 TAM is $20)
+
+
+Mathmatical operator codes:
+MULT2-S: multiplies driver1 and driver2 parameters
+MULT3-S: multiplies driver1, driver2, and driver3
+SUBTOTAL2-S: Adds driver1 and driver2
+SUBTOTAL3-S: Adds driver1, driver2, and driver3
+DIVIDE2-S: Divides driver1 by driver2
+
+
+Control the format of these codes using the format code. Options are "Dollar" (used for aggregate dollar items (TAM, GMV, Revenue, Expense), "DollarItalic" (Used for pricing or rates), "Volume" (Used for any non-dollar amount (# of users, # of units sold), and "Factor" (Used for a factor that you will multiply another item against)) 
+
+
+
+
+
+
+General rules:
+Keep Going unitl the job is completely solved before ending your turn
+Use your tools, odn't guess. If you're unsure about tools or files, open them, do not halucinate
+Plan thoroughly before every tool call and reflect thoroughly on the outcome

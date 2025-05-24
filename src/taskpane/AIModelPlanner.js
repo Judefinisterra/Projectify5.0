@@ -725,11 +725,11 @@ export async function plannerHandleSend() {
             for (const tabLabel in jsonObjectToProcess) {
                 if (Object.prototype.hasOwnProperty.call(jsonObjectToProcess, tabLabel)) {
                     const lowerCaseTabLabel = tabLabel.toLowerCase();
-                    if (lowerCaseTabLabel === "misc." || lowerCaseTabLabel === "financials" || lowerCaseTabLabel === "misc. tab" || lowerCaseTabLabel === "financials tab") {
+                    if (lowerCaseTabLabel === "financials" || lowerCaseTabLabel === "financials tab") {
                         console.log(`AIModelPlanner: Skipping excluded tab - "${tabLabel}"`);
                         continue; 
                     }
-                    ModelCodes += `<TAB; label1="${tabLabel}";>\n`; 
+                    ModelCodes += `<TAB; label1="${tabLabel}";>\n`;
                     const tabDescription = jsonObjectToProcess[tabLabel];
                     let tabDescriptionString = "";
                     if (typeof tabDescription === 'string') {
@@ -844,7 +844,7 @@ export async function plannerHandleSend() {
                         for (const tabLabel in retryJsonObject) {
                             if (Object.prototype.hasOwnProperty.call(retryJsonObject, tabLabel)) {
                                 const lowerCaseTabLabel = tabLabel.toLowerCase();
-                                if (lowerCaseTabLabel === "misc." || lowerCaseTabLabel === "financials" || lowerCaseTabLabel === "misc. tab" || lowerCaseTabLabel === "financials tab") {
+                                if (lowerCaseTabLabel === "financials" || lowerCaseTabLabel === "financials tab") {
                                     continue;
                                 }
                                 ModelCodes += `<TAB; label1="${tabLabel}";>\n`;

@@ -14,7 +14,7 @@ Step 4) If the client asks a question, you can respond to the question. You must
 
 
 Submit this plan back to the client and ask if they would like to proceed. If they ask for changes, iterate on it with them, always repeating step 2 to ensure that the changes are within the capabilities of our software. End by asking if the client would like to proceed with building the model.
-Step 5) Once they confirm that they want to build the model, your final output will be a json file with each tab and tab description separated. Include no other text. IMPORTANT: DO NOT INCLUDE THE FINANCIALS TAB OR THE MISC TAB IN THE JSON.  
+Step 5) Once they confirm that they want to build the model, your final output will be a json file with each tab and tab description separated. Include no other text. IMPORTANT: DO NOT INCLUDE THE FINANCIALS TAB OR THE MISC TAB IN THE JSON. ALSO IMPORTANT, DO NOT WRAP THE JSON IN "'''" ticks!  
 
 Order of tabs:
 Tabs should take this precedence: 1) Financials 2)Revenue and Direct Costs 3) Corporate Overhead 4) Working Capital 5) PP&E/Fixed Assets 6) Debt 7) Equity 8) Misc.
