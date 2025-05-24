@@ -872,6 +872,18 @@ body {
     margin-bottom: 20px;
 }
 
+/* Protected top area for back button and other top UI elements */
+.client-top-protected-area {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px; /* Protected height for top buttons */
+    z-index: 200; /* Higher than back button */
+    pointer-events: none; /* Allow clicks to pass through except for child elements */
+    background-color: transparent;
+}
+
 /* Client chat container transitions */
 #client-chat-container {
     transition: all 0.3s ease;
@@ -887,26 +899,30 @@ body {
     align-items: center;
     width: 100%; /* Full width */
     max-width: none; /* Remove max-width restriction */
-    padding: 20px;
+    padding: 70px 20px 20px 20px; /* Add top padding to avoid overlap with protected area */
     box-sizing: border-box;
     background-color: transparent; /* Transparent to show parent background */
+    min-height: 100vh; /* Ensure full height */
 }
 
 /* When conversation hasn't started, center the header and input together */
 #client-chat-container:not(.conversation-active) {
     -ms-flex-pack: center; /* IE 10 - center content vertically */
     justify-content: center;
-    height: 100%; /* Use full height */
+    height: 100vh; /* Use full height */
+    padding-top: 70px; /* Maintain top padding even when centered */
 }
 
 /* When conversation starts, expand to full height */
 #client-chat-container.conversation-active {
-    height: 100%; /* Full height */
+    height: auto; /* Auto height to accommodate content */
+    min-height: 100vh; /* Minimum full height */
     -ms-flex-pack: start; /* IE 10 - align to top when active */
     justify-content: flex-start;
     background-color: transparent; /* Keep transparent */
     border-radius: 0; /* Remove border radius */
     box-shadow: none; /* Remove shadow */
+    padding-top: 70px; /* Maintain top padding for protected area */
 }
 
 #client-chat-container.conversation-active #chat-log-client {
@@ -935,9 +951,9 @@ body {
     width: 100%;
 }
 
-/* Back to menu button should not interfere with centering */
+/* Back to menu button should remain in protected area */
 .back-to-menu-button {
-    position: absolute;
+    position: fixed; /* Changed to fixed positioning */
     top: 15px;
     left: 15px;
     background-color: transparent;
@@ -947,7 +963,8 @@ body {
     font-size: 14px;
     cursor: pointer;
     transition: all 0.2s ease;
-    z-index: 100;
+    z-index: 300; /* Higher z-index to stay above protected area */
+    pointer-events: auto; /* Ensure button is clickable */
 }
 
 .back-to-menu-button:hover {
