@@ -138,7 +138,7 @@
     </main>
 
     <!-- Client Mode View -->
-    <div id="client-mode-view" class="ms-welcome__main" style="display: none; justify-content: center; align-items: center; height: 100vh; position: relative; flex-direction: column;">
+    <div id="client-mode-view" class="ms-welcome__main" style="display: none;">
         <button id="back-to-menu-client-button" class="ms-Button back-to-menu-button">
             <span class="ms-Button-label">Back to Menu</span>
         </button>
@@ -148,13 +148,13 @@
             </svg>
         </button>
         
-        <!-- Initial state: header visible, input underneath -->
-        <h1 id="client-mode-header" class="ms-fontSize-32 ms-fontWeight-light ms-fontColor-neutralPrimary" style="margin-bottom: 20px;">What do you want to model?</h1>
-        
         <!-- Container for the whole conversation interface -->
-        <div id="client-chat-container" class="container" style="width: 90%; max-width: 800px; height: 70%; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column;">
+        <div id="client-chat-container" class="container">
+            <!-- Header is now inside the container -->
+            <h1 id="client-mode-header" class="ms-fontSize-32 ms-fontWeight-light ms-fontColor-neutralPrimary">What do you want to model?</h1>
+            
             <!-- Chat log starts hidden and will expand when conversation starts -->
-            <div id="chat-log-client" class="chat-log" style="flex-grow: 0; overflow-y: auto; border-bottom: 1px solid #eee; margin-bottom: 10px;">
+            <div id="chat-log-client" class="chat-log">
                 <div id="welcome-message-client" class="welcome-message" style="display: none;">
                     <h1>Ask me anything (Client Mode)</h1>
                 </div>
