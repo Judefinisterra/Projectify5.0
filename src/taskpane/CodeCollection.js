@@ -1141,22 +1141,30 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         }
 
                         const valueToWrite = splitArray[x];
+                        const colLetter = columnSequence[x];
+                        const cellToWrite = currentWorksheet.getRange(`${colLetter}${currentRowNum}`);
+                        
                         // VBA check: If splitArray(x) <> "" And splitArray(x) <> "F" Then
                         // 'F' likely means "Formula", so we don't overwrite if the value is 'F'.
                         if (valueToWrite && valueToWrite.toUpperCase() !== 'F') {
-                            const colLetter = columnSequence[x];
-                            const cellToWrite = currentWorksheet.getRange(`${colLetter}${currentRowNum}`);
                             // Attempt to infer data type (basic number check)
                             const numValue = Number(valueToWrite);
                             if (!isNaN(numValue) && valueToWrite.trim() !== '') {
                                 cellToWrite.values = [[numValue]];
                             } else {
-                                // Preserve existing value if empty string, otherwise write text
+                                // Write text value if not empty
                                 if (valueToWrite.trim() !== '') {
                                     cellToWrite.values = [[valueToWrite]];
+                                } else {
+                                    // Clear the cell if the value is empty/blank
+                                    cellToWrite.clear(Excel.ClearApplyTo.contents);
                                 }
                             }
                             // console.log(`  Wrote '${valueToWrite}' to ${colLetter}${currentRowNum}`);
+                        } else if (valueToWrite === '' || valueToWrite === null || valueToWrite === undefined) {
+                            // Clear the cell if the value is explicitly empty (blank between ||| separators)
+                            cellToWrite.clear(Excel.ClearApplyTo.contents);
+                            // console.log(`  Cleared contents of ${colLetter}${currentRowNum} due to blank value`);
                         }
                     }
                 }
