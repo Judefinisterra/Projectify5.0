@@ -23,9 +23,11 @@
     padding: 20px;
     padding-bottom: 30px;
     padding-top: 100px;
-    display: -webkit-flex;
+    display: -webkit-box;
+    display: -ms-flexbox;
     display: flex;
     -webkit-flex-direction: column;
+    -ms-flex-direction: column;
     flex-direction: column;
     align-items: center;
  }
@@ -47,12 +49,13 @@
     display: -ms-flexbox; /* IE 10 */
     flex-direction: column;
     -ms-flex-direction: column; /* IE 10 */
-    flex: 1 1 50%; /* Take up 50% of height, allow shrinking/growing */
-    -ms-flex: 1 1 50%; /* IE 10 */
-    min-height: 0; /* Prevent flex items from overflowing */
-    overflow: hidden; /* Hide overflow */
-    padding: 10px 20px; /* Restore padding */
-    background-color: #f7fbf7;
+    -ms-flex-positive: 1; /* IE 10 */
+    flex-grow: 1; /* Take available space */
+    margin-bottom: 20px; /* Space between chat and code sections */
+    min-height: 300px; /* Ensure minimum height */
+    background-color: transparent; /* Transparent background */
+    border: none; /* Remove border */
+    border-radius: 0; /* Remove border radius */
  }
 
  /* Bottom code section */
@@ -61,21 +64,24 @@
     display: -ms-flexbox; /* IE 10 */
     flex-direction: column;
     -ms-flex-direction: column; /* IE 10 */
-    flex: 1 1 50%; /* Take up 50% of height, allow shrinking/growing */
-    -ms-flex: 1 1 50%; /* IE 10 */
-    min-height: 0; /* Prevent flex items from overflowing */
-    overflow: hidden; /* Hide overflow */
-    padding: 10px 20px; /* Add padding */
-    border-top: 1px solid #ccc;
-    background-color: #f0f0f0; /* Slightly different background */
+    -ms-flex-positive: 1; /* IE 10 */
+    flex-grow: 1; /* Take available space */
+    min-height: 200px; /* Ensure minimum height */
+    background-color: transparent; /* Transparent background */
+    border: none; /* Remove border */
+    border-radius: 0; /* Remove border radius */
  }
 
  /* Adjust chat log to scroll within its container */
  .chat-log {
-    flex: 1; /* Take remaining space in chat section */
-    -ms-flex: 1; /* IE 10 */
-    overflow-y: auto;
-    padding: 10px;
+    -ms-flex-positive: 1; /* IE 10 */
+    flex-grow: 1; /* Take remaining space */
+    overflow-y: auto; /* Enable vertical scrolling */
+    padding: 20px;
+    background-color: transparent; /* Transparent background */
+    border: none; /* Remove border */
+    border-radius: 0; /* Remove border radius */
+    margin-bottom: 10px; /* Space before input area */
     display: flex;
     display: -ms-flexbox; /* IE 10 */
     flex-direction: column;
@@ -131,15 +137,11 @@
     -ms-flex-positive: 1; /* IE 10 */
     width: 100%;
     border: 1px solid #ccc;
-    border-radius: 4px;
-    padding: 10px;
-    font-family: monospace;
-    font-size: 13px;
+    padding: 8px;
     box-sizing: border-box;
-    margin-bottom: 10px;
-    min-height: 100px; /* Adjust min-height */
-    white-space: pre;
-    overflow: auto; /* Changed from overflow-x to auto for both scrolls */
+    font-family: 'Courier New', monospace;
+    font-size: 12px;
+    resize: vertical;
  }
 
  .code-button-container {
@@ -205,12 +207,12 @@
  }
  
 .ms-Button.ms-Button--hero .ms-Button-label {
-  color: #0078d7;
+  color: #107c10;
 }
 
 .ms-Button.ms-Button--hero:hover .ms-Button-label,
 .ms-Button.ms-Button--hero:focus .ms-Button-label{
-  color: #005a9e;
+  color: #0f6b0f;
   cursor: pointer;
 }
 
@@ -337,15 +339,15 @@ b {
 }
 
 .user-message {
-    background-color: #f7fbf7;
-    border: 1px solid #e6f2e6;
+    background-color: #e8f5e8; /* Light green for user messages */
+    border: 1px solid #c3e6c3; /* Light green border */
     align-self: flex-end;
     -ms-flex-item-align: end; /* IE 10 */
 }
 
 .assistant-message {
-    background-color: #ffffff;
-    border: 1px solid #e6f2e6;
+    background-color: #f5f5f5; /* Light gray for assistant messages */
+    border: 1px solid #e0e0e0; /* Light gray border */
     align-self: flex-start;
     -ms-flex-item-align: start; /* IE 10 */
 }
@@ -386,7 +388,7 @@ b {
 }
 
 .test-results h3 {
-    color: #0078d7;
+    color: #107c10;
     margin-top: 0;
     margin-bottom: 15px;
     border-bottom: 1px solid #e6f2e6;
@@ -440,6 +442,15 @@ body {
 
 #app-body {
     /* Add styles for the main app container if needed */
+    background-color: #f3f2f1; /* Match body background */
+    height: 100vh;
+    display: flex;
+    display: -ms-flexbox; /* IE 10 */
+    flex-direction: column;
+    -ms-flex-direction: column; /* IE 10 */
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
 }
 
 /* Welcome Message */
@@ -481,7 +492,7 @@ body {
 }
 
 .user-message {
-    background-color: #c7e0f4; /* themePrimary */
+    background-color: #e8f5e8; /* Light green for user messages */
     color: #000000; /* black */
     margin-left: auto;
     text-align: right;
@@ -537,7 +548,8 @@ body {
 
 #user-input:focus {
     outline: none;
-    border-color: #0078d4; /* themePrimary */
+    border-color: #107c10;
+    box-shadow: 0 0 0 2px rgba(16, 124, 16, 0.2);
 }
 
 .input-row .ms-Button {
@@ -593,10 +605,12 @@ body {
 .search-replace-group {
     display: flex;
     gap: 5px;
+    -ms-flex-positive: 1; /* IE 10 */
     flex-grow: 1;
 }
 
 .search-replace-group input {
+    -ms-flex-positive: 1; /* IE 10 */
     flex-grow: 1;
     padding: 5px;
     border: 1px solid #c8c6c4;
@@ -634,6 +648,7 @@ body {
     font-size: 12px;
     color: #605e5c; /* neutralSecondary */
     margin-left: 10px;
+    -ms-flex-positive: 1; /* IE 10 */
     flex-grow: 1; /* Allow it to take space */
     text-align: right;
 }
@@ -653,7 +668,7 @@ body {
 
 #codes-textarea:focus {
     outline: none;
-    border-color: #0078d4; /* themePrimary */
+    border-color: #107c10;
 }
 
 /* Dynamic Suggestions Container */
@@ -678,7 +693,7 @@ body {
 }
 
 .suggestion-highlight {
-    background-color: #c7e0f4; /* Highlight color, adjust as needed */
+    background-color: #c7e6c7; /* Light green highlight color */
     font-weight: bold;
 }
 
@@ -738,6 +753,7 @@ body {
 .param-entry {
     margin-bottom: 10px;
     display: flex;
+    -ms-flex-direction: column; /* IE 10 */
     flex-direction: column; /* Stack label and input vertically */
 }
 
@@ -788,6 +804,7 @@ body {
     padding: 5px 8px;
     border: 1px solid #c8c6c4;
     border-radius: 2px;
+    -ms-flex-positive: 1; /* IE 10 */
     flex-grow: 1;
     min-width: 100px; /* Prevent inputs from becoming too small */
 }
@@ -830,42 +847,93 @@ body {
 /* Client Mode View Styles */
 #client-mode-view {
     display: none; /* Initially hidden */
+    -ms-flexbox-direction: column; /* IE 10 */
+    -webkit-flex-direction: column;
     -ms-flex-direction: column; /* IE 10 */
     flex-direction: column;
+    -ms-flex-pack: center; /* IE 10 - vertical centering */
     justify-content: center;
+    -ms-flex-align: center; /* IE 10 - horizontal centering */
     align-items: center;
     height: 100vh;
     text-align: center;
+    position: relative;
+    background-color: #f3f2f1; /* Match body background */
+}
+
+/* When client mode view is shown, ensure flex display */
+#client-mode-view[style*="display: flex"],
+#client-mode-view[style*="display:flex"] {
+    display: -ms-flexbox !important; /* IE 10 */
+    display: flex !important;
 }
 
 #client-mode-view h1 {
     margin-bottom: 20px;
 }
 
+/* Protected top area for back button and other top UI elements */
+.client-top-protected-area {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px; /* Protected height for top buttons */
+    z-index: 200; /* Higher than back button */
+    pointer-events: none; /* Allow clicks to pass through except for child elements */
+    background-color: transparent;
+}
+
 /* Client chat container transitions */
 #client-chat-container {
     transition: all 0.3s ease;
+    display: -ms-flexbox; /* IE 10 */
+    display: flex;
+    -ms-flexbox-direction: column; /* IE 10 */
+    -webkit-flex-direction: column;
+    -ms-flex-direction: column; /* IE 10 */
+    flex-direction: column;
+    -ms-flex-pack: start; /* IE 10 - align content to top */
+    justify-content: flex-start;
+    -ms-flex-align: center; /* IE 10 */
+    align-items: center;
+    width: 100%; /* Full width */
+    max-width: none; /* Remove max-width restriction */
+    padding: 70px 20px 20px 20px; /* Add top padding to avoid overlap with protected area */
+    box-sizing: border-box;
+    background-color: transparent; /* Transparent to show parent background */
+    min-height: 100vh; /* Ensure full height */
 }
 
-/* When conversation starts, adjust layout */
+/* When conversation hasn't started, center the header and input together */
+#client-chat-container:not(.conversation-active) {
+    -ms-flex-pack: center; /* IE 10 - center content vertically */
+    justify-content: center;
+    height: 100vh; /* Use full height */
+    padding-top: 70px; /* Maintain top padding even when centered */
+}
+
+/* When conversation starts, expand to full height */
 #client-chat-container.conversation-active {
-    height: 90%; /* Expand to use more space */
+    height: auto; /* Auto height to accommodate content */
+    min-height: 100vh; /* Minimum full height */
+    -ms-flex-pack: start; /* IE 10 - align to top when active */
+    justify-content: flex-start;
+    background-color: transparent; /* Keep transparent */
+    border-radius: 0; /* Remove border radius */
+    box-shadow: none; /* Remove shadow */
+    padding-top: 70px; /* Maintain top padding for protected area */
 }
 
 #client-chat-container.conversation-active #chat-log-client {
-    flex-grow: 1; /* Chat log takes available space */
-    -ms-flex-positive: 1; /* IE 10+ */
-    display: block !important; /* Make visible */
-    visibility: visible !important; /* Ensure visibility */
-    opacity: 1 !important; /* Ensure opacity */
-}
-
-/* Ensure chat messages are visible */
-#client-chat-container.conversation-active .chat-message {
+    -ms-flex-positive: 1; /* IE 10 */
+    flex-grow: 1;
     display: block;
+    margin-bottom: 20px;
+    min-height: 0; /* Important for Firefox flexbox */
 }
 
-/* Client mode header transitions */
+/* Hide the header when conversation is active */
 #client-mode-header {
     transition: opacity 0.3s ease, transform 0.3s ease;
 }
@@ -873,43 +941,61 @@ body {
 #client-mode-header.hidden {
     opacity: 0;
     transform: translateY(-20px);
-    pointer-events: none;
     position: absolute;
+    pointer-events: none;
 }
 
-/* Back to Menu Button Styles */
+/* Position header inside the container when not in conversation */
+#client-chat-container:not(.conversation-active) #client-mode-header {
+    margin-bottom: 30px;
+    width: 100%;
+}
+
+/* Back to menu button should remain in protected area */
 .back-to-menu-button {
-    position: absolute;
+    position: fixed; /* Changed to fixed positioning */
     top: 15px;
     left: 15px;
-    z-index: 1000; /* Ensure it's above other content */
-    padding: 5px 10px; /* Smaller padding */
-    min-width: auto; /* Allow button to be smaller */
-    font-size: 12px; /* Smaller font */
+    background-color: transparent;
+    border: 1px solid #107c10; /* Green border */
+    color: #107c10; /* Green text */
+    padding: 5px 15px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    z-index: 300; /* Higher z-index to stay above protected area */
+    pointer-events: auto; /* Ensure button is clickable */
 }
 
-/* Specific IDs if needed, though class is better */
-/* #back-to-menu-dev-button, #back-to-menu-client-button {} */
+.back-to-menu-button:hover {
+    background-color: #e8f5e8; /* Light green on hover */
+    border-color: #0f6b0f; /* Darker green border on hover */
+    color: #0f6b0f; /* Darker green text on hover */
+}
 
-/* Client Mode ChatGPT-like Input Bar Styles */
+/* Client input area wrapper - maintain position at bottom of container */
 .client-input-area-wrapper {
-    display: flex;
-    -ms-flex-direction: column; /* IE 10+ */
-    flex-direction: column; /* Stack input bar and reset button */
-    align-items: center; /* Center items horizontally */
     width: 100%;
-    padding: 8px;
-    box-sizing: border-box;
+    background-color: transparent;
+    display: -ms-flexbox; /* IE 10 */
+    display: flex;
+    -ms-flexbox-direction: column; /* IE 10 */
+    -webkit-flex-direction: column;
+    -ms-flex-direction: column; /* IE 10 */
+    flex-direction: column;
+    -ms-flex-align: center; /* IE 10 */
+    align-items: center;
+    margin-top: auto; /* Push to bottom of flex container */
 }
 
-/* Initial state - input is centered under header */
 #client-chat-container:not(.conversation-active) .client-input-area-wrapper {
-    margin-top: 0; /* No extra margin needed */
+    margin-top: 0; /* No margin when centered */
+    width: 100%;
+    max-width: 700px; /* Reasonable width for input */
 }
 
-/* Active conversation state - input moves to bottom */
 #client-chat-container.conversation-active .client-input-area-wrapper {
-    margin-top: auto; /* Push to bottom */
+    margin-top: auto; /* Stay at bottom during conversation */
 }
 
 .chatgpt-input-bar {
@@ -919,11 +1005,16 @@ body {
     max-width: 700px; /* Max width similar to ChatGPT */
     padding: 10px 12px;
     background-color: #ffffff;
-    border: 1px solid #e5e5e5;
+    border: 1px solid #e0e0e0; /* Neutral border */
     border-radius: 24px; /* More rounded corners */
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08); /* Neutral shadow */
     box-sizing: border-box;
     margin-bottom: 10px; /* Space between input bar and reset button */
+}
+
+.chatgpt-input-bar:focus-within {
+    border-color: #d0d0d0; /* Slightly darker neutral border when focused */
+    box-shadow: 0 2px 6px rgba(0,0,0,0.12); /* Slightly stronger neutral shadow when focused */
 }
 
 #user-input-client {
@@ -942,6 +1033,10 @@ body {
     box-sizing: border-box;
 }
 
+#user-input-client:focus {
+    outline: none; /* Remove default outline since parent handles focus styling */
+}
+
 #user-input-client::placeholder {
     color: #999999;
 }
@@ -950,7 +1045,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background-color: #202123; /* Dark grey/black background */
+    background-color: #202123; /* Dark gray/black background */
     color: #FFFFFF; /* White arrow */
     border: none;
     border-radius: 50%; /* Circular button */
@@ -965,11 +1060,11 @@ body {
 }
 
 #send-client:hover {
-    background-color: #3a3b3d; /* Slightly lighter grey on hover */
+    background-color: #3a3b3d; /* Lighter gray on hover */
 }
 
 #send-client:disabled {
-    background-color: #555555; /* Darker grey when disabled */
+    background-color: #555555; /* Darker gray when disabled */
     color: #aaaaaa; /* Lighter arrow when disabled */
     cursor: not-allowed;
 }
@@ -979,26 +1074,91 @@ body {
     height: 20px;
 }
 
-/* Ensure reset button is styled appropriately if needed, or just takes default ms-Button styles */
-#reset-chat-client {
-    /* You might want to adjust margin or width if it looks off */
-    /* For example: margin-top: 8px; */
-}
-
 /* Chat log starts hidden and will expand when conversation starts */
 #chat-log-client {
-    min-height: 0;
-    transition: all 0.3s ease;
+    overflow-y: auto;
+    padding: 20px;
+    box-sizing: border-box;
+    background-color: transparent; /* Transparent background */
+    border-radius: 0; /* Remove border radius */
+    border: none; /* Remove border */
+    width: 100%; /* Full width */
+    max-width: 800px; /* Limit width for readability */
 }
 
 /* Hide chat log initially when container doesn't have conversation-active */
 #client-chat-container:not(.conversation-active) #chat-log-client {
     display: none;
+    -ms-flex-positive: 0; /* IE 10 */
+    flex-grow: 0;
 }
 
 /* Show chat log when conversation is active */
 #client-chat-container.conversation-active #chat-log-client {
-    display: block !important; /* Override the initial hidden state */
-    flex-grow: 1 !important;
-    -ms-flex-positive: 1 !important;
+    display: block;
+    -ms-flex-positive: 1; /* IE 10 */
+    flex-grow: 1;
+}
+
+/* Update chat messages to have light green color scheme */
+.chat-message.user-message {
+    background-color: #e8f5e8; /* Light green for user messages */
+    margin-left: auto;
+    margin-right: 0;
+    max-width: 70%;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    border: 1px solid #c3e6c3; /* Light green border */
+}
+
+.chat-message.assistant-message {
+    background-color: #f5f5f5; /* Light gray for assistant messages */
+    margin-right: auto;
+    margin-left: 0;
+    max-width: 70%;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-bottom: 10px;
+    border: 1px solid #e0e0e0; /* Light gray border */
+}
+
+/* Update the client input wrapper for full width */
+#client-chat-container:not(.conversation-active) .client-input-area-wrapper {
+    margin-top: 0; /* No margin when centered */
+    width: 100%;
+    max-width: 700px; /* Reasonable width for input */
+}
+
+/* Container styles for full width */
+.container {
+    width: 100%;
+    height: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    display: -ms-flexbox; /* IE 10 */
+    flex-direction: column;
+    -ms-flex-direction: column; /* IE 10 */
+    background-color: transparent;
+}
+
+/* Update input area styling */
+.input-area {
+    display: flex;
+    display: -ms-flexbox; /* IE 10 */
+    flex-wrap: wrap;
+    gap: 5px;
+    padding: 10px 0;
+    background-color: transparent;
+    border: none;
+}
+
+/* Update code area styling */
+.code-area {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: rgba(255, 255, 255, 0.5); /* Slight white overlay for contrast */
+    border: 1px solid #e0e0e0; /* Subtle border */
+    border-radius: 4px;
 }
