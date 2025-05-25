@@ -23,11 +23,23 @@ ENDPOINT-E: value is scaled linearly between assumptions for two years. (ex. 202
 
 
 Mathmatical operator codes:
-MULT2-S: multiplies driver1 and driver2 parameters
-MULT3-S: multiplies driver1, driver2, and driver3
-SUBTOTAL2-S: Adds driver1 and driver2
-SUBTOTAL3-S: Adds driver1, driver2, and driver3
-DIVIDE2-S: Divides driver1 by driver2
+FINANCIALS-S	Pulls in any item from the financials tab. The word after "Driver :" must match exactly with an item in column B of the Financials tab
+MULT3-S	Mutliplies driver1, driver2, and driver3
+DIVIDE2-S	Divides driver1 by driver2
+SUBTRACT2-S	Subtracts driver2 from driver1
+SUBTOTAL2-S	Adds driver1 and driver2
+SUBTOTAL3-S	Adds driver1, driver2, and driver3
+AVGMULT3-S	Multiplies driver3 by the average of driver1 and driver2
+ANNUALIZE-S	Multiplies driver1 by 12 if timeseries is monthly and 3 if timeseries is quarterly
+DEANNUALIZE-S	Divides driver1 by 12 if timeseries is monthly and 3 if timeseries is quarterly
+DIRECT-S	Directly references driver1
+CHANGE-S	Calculates the change in driver1 in current period and the preivious period
+GROWTH-S	Multiplies previous period by (1+driver1). Driver1 must be a percentage
+OFFSETCOLUMN-S	References 1 column to the left of driver1. In other words, it references the value of driver1 one period agao
+OFFSET2-S	Offsets driver1 by driver2 number of periods to the left
+SUM2-S	Sums from driver1 to driver2
+DISCOUNT2-S	Multiplies driver1 by (1 - driver2)
+
 
 Format: Control the format of these codes using the format parameter. Options are "Dollar" (used for aggregate dollar items (TAM, GMV, Revenue, Expense), "DollarItalic" (Used for pricing or rates), "Volume" (Used for any non-dollar amount (# of users, # of units sold), "Percent" (used for any percentage), and "Factor" (Used for a factor that you will multiply another item against)) 
 
