@@ -425,19 +425,31 @@ export async function runCodes(codeCollection) {
                                 await context.sync(); // Sync the copy operation
 
                                 // NEW: Apply bold formatting if specified
-                                if (code.params.bold && String(code.params.bold).toUpperCase() === "TRUE") {
+                                if (code.params.bold !== undefined) { // Check if the parameter exists
+                                    const boldValue = String(code.params.bold).toLowerCase();
                                     const numPastedRows = lastRow - firstRow + 1;
                                     // Ensure endPastedRow is at least pasteRow and calculated correctly
                                     const endPastedRow = pasteRow + Math.max(0, numPastedRows - 1);
                                     
                                     // Assuming CX is a sufficiently wide column, as used in the copy.
                                     const rangeAddressToBold = `A${pasteRow}:CX${endPastedRow}`;
-                                    
-                                    console.log(`Applying bold formatting to ${rangeAddressToBold} in ${currentWorksheetName} for code ${codeType}`);
                                     const rangeToBold = currentWS.getRange(rangeAddressToBold);
-                                    rangeToBold.format.font.bold = true;
-                                    await context.sync(); // Sync the bold formatting
-                                    console.log(`Bold formatting applied and synced for ${rangeAddressToBold}`);
+                                    
+                                    console.log(`Processing "bold" parameter: "${boldValue}" for range ${rangeAddressToBold}`);
+
+                                    if (boldValue === "true") {
+                                        console.log(`Applying bold formatting to ${rangeAddressToBold} in ${currentWorksheetName} for code ${codeType}`);
+                                        rangeToBold.format.font.bold = true;
+                                        await context.sync(); // Sync the bold formatting
+                                        console.log(`Bold formatting applied and synced for ${rangeAddressToBold}`);
+                                    } else if (boldValue === "false") {
+                                        console.log(`Removing bold formatting from ${rangeAddressToBold} in ${currentWorksheetName} for code ${codeType}`);
+                                        rangeToBold.format.font.bold = false;
+                                        await context.sync(); // Sync the bold formatting removal
+                                        console.log(`Bold formatting removed and synced for ${rangeAddressToBold}`);
+                                    } else {
+                                        console.log(`"bold" parameter value "${boldValue}" is not recognized as boolean. No bold formatting change applied.`);
+                                    }
                                 }
 
                                 // NEW: Apply top border formatting if specified
