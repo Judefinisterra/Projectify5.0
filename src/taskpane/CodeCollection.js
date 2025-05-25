@@ -590,6 +590,46 @@ export async function runCodes(codeCollection) {
                                         console.log(`"italic" parameter value "${italicValue}" is not recognized as boolean. No italicization change applied.`);
                                     }
                                 }
+
+                                // NEW: Apply "sumif" parameter for custom SUMIF/AVERAGEIF formulas in columns J-P
+                                if (code.params.sumif !== undefined) {
+                                    const sumifValue = String(code.params.sumif).toLowerCase();
+                                    const numPastedRows = lastRow - firstRow + 1;
+                                    const endPastedRow = pasteRow + Math.max(0, numPastedRows - 1);
+                                    const sumifRangeAddress = `J${pasteRow}:P${endPastedRow}`;
+                                    const rangeToModify = currentWS.getRange(sumifRangeAddress);
+
+                                    console.log(`Processing "sumif" parameter: "${sumifValue}" for range ${sumifRangeAddress}`);
+
+                                    let formulaTemplate = null;
+                                    if (sumifValue === "year") {
+                                        formulaTemplate = "=SUMIF($3:$3, INDIRECT(ADDRESS(2,COLUMN(),2)), INDIRECT(ROW() & \":\" & ROW()))";
+                                    } else if (sumifValue === "yearend") {
+                                        formulaTemplate = "=SUMIF($4:$4, INDIRECT(ADDRESS(2,COLUMN(),2)), INDIRECT(ROW() & \":\" & ROW()))";
+                                    } else if (sumifValue === "average") {
+                                        formulaTemplate = "=AVERAGEIF($3:$3, INDIRECT(ADDRESS(2,COLUMN(),2)), INDIRECT(ROW() & \":\" & ROW()))";
+                                    }
+
+                                    if (formulaTemplate) {
+                                        console.log(`Applying ${sumifValue} formula template to ${sumifRangeAddress}: ${formulaTemplate}`);
+                                        
+                                        // Create a 2D array of formulas for the range
+                                        const formulaArray = [];
+                                        for (let r = 0; r < numPastedRows; r++) {
+                                            const rowFormulas = [];
+                                            for (let c = 0; c < 7; c++) { // J through P is 7 columns
+                                                rowFormulas.push(formulaTemplate);
+                                            }
+                                            formulaArray.push(rowFormulas);
+                                        }
+                                        
+                                        rangeToModify.formulas = formulaArray;
+                                        await context.sync();
+                                        console.log(`"sumif" parameter (${sumifValue}) processing synced for ${sumifRangeAddress}`);
+                                    } else {
+                                        console.log(`"sumif" parameter value "${sumifValue}" is not recognized. Valid values are: year, yearend, average. No formula changes applied.`);
+                                    }
+                                }
                                 
                                 // Apply the driver and assumption inputs function to the current worksheet
                                 try {
