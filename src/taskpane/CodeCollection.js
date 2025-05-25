@@ -652,17 +652,43 @@ export async function runCodes(codeCollection) {
                                     if (formulaTemplate) {
                                         console.log(`Applying ${sumifValue} formula template to ${sumifRangeAddress}: ${formulaTemplate}`);
                                         
-                                        // Create a 2D array of formulas for the range
-                                        const formulaArray = [];
-                                        for (let r = 0; r < numPastedRows; r++) {
-                                            const rowFormulas = [];
-                                            for (let c = 0; c < 7; c++) { // J through P is 7 columns
-                                                rowFormulas.push(formulaTemplate);
+                                        if (sumifValue === "offsetyear") {
+                                            // Special handling for offsetyear: set column J to 0, apply formula to K-P
+                                            const columnJRange = currentWS.getRange(`J${pasteRow}:J${endPastedRow}`);
+                                            const columnKPRange = currentWS.getRange(`K${pasteRow}:P${endPastedRow}`);
+                                            
+                                            // Set column J to 0
+                                            const zeroArray = [];
+                                            for (let r = 0; r < numPastedRows; r++) {
+                                                zeroArray.push([0]);
                                             }
-                                            formulaArray.push(rowFormulas);
+                                            columnJRange.values = zeroArray;
+                                            
+                                            // Apply formula to columns K-P (6 columns)
+                                            const formulaArray = [];
+                                            for (let r = 0; r < numPastedRows; r++) {
+                                                const rowFormulas = [];
+                                                for (let c = 0; c < 6; c++) { // K through P is 6 columns
+                                                    rowFormulas.push(formulaTemplate);
+                                                }
+                                                formulaArray.push(rowFormulas);
+                                            }
+                                            columnKPRange.formulas = formulaArray;
+                                            
+                                            console.log(`Set column J to 0 and applied ${sumifValue} formula to K${pasteRow}:P${endPastedRow}`);
+                                        } else {
+                                            // Standard handling for other sumif types: apply formula to entire J-P range
+                                            const formulaArray = [];
+                                            for (let r = 0; r < numPastedRows; r++) {
+                                                const rowFormulas = [];
+                                                for (let c = 0; c < 7; c++) { // J through P is 7 columns
+                                                    rowFormulas.push(formulaTemplate);
+                                                }
+                                                formulaArray.push(rowFormulas);
+                                            }
+                                            rangeToModify.formulas = formulaArray;
                                         }
                                         
-                                        rangeToModify.formulas = formulaArray;
                                         await context.sync();
                                         console.log(`"sumif" parameter (${sumifValue}) processing synced for ${sumifRangeAddress}`);
                                     } else {
