@@ -457,12 +457,12 @@ export async function runCodes(codeCollection) {
                                     const numPastedRows = lastRow - firstRow + 1;
                                     const endPastedRow = pasteRow + Math.max(0, numPastedRows - 1);
 
-                                    console.log(`Applying top border to K${pasteRow}:P${endPastedRow} and S${pasteRow}:CX${endPastedRow} in ${currentWorksheetName} for code ${codeType}`);
+                                    console.log(`Applying top border to J${pasteRow}:P${endPastedRow} and S${pasteRow}:CX${endPastedRow} in ${currentWorksheetName} for code ${codeType}`);
 
                                     for (let r = pasteRow; r <= endPastedRow; r++) {
-                                        const rangeKtoP = currentWS.getRange(`K${r}:P${r}`);
-                                        rangeKtoP.format.borders.getItem('EdgeTop').style = 'Continuous';
-                                        rangeKtoP.format.borders.getItem('EdgeTop').weight = 'Thin';
+                                        const rangeJtoP = currentWS.getRange(`J${r}:P${r}`);
+                                        rangeJtoP.format.borders.getItem('EdgeTop').style = 'Continuous';
+                                        rangeJtoP.format.borders.getItem('EdgeTop').weight = 'Thin';
                                         // Color defaults to Automatic (usually black)
 
                                         const rangeStoCX = currentWS.getRange(`S${r}:CX${r}`);
@@ -470,7 +470,7 @@ export async function runCodes(codeCollection) {
                                         rangeStoCX.format.borders.getItem('EdgeTop').weight = 'Thin';
                                     }
                                     await context.sync(); // Sync the top border formatting
-                                    console.log(`Top border formatting applied and synced for K${pasteRow}:P${endPastedRow} and S${pasteRow}:CX${endPastedRow}`);
+                                    console.log(`Top border formatting applied and synced for J${pasteRow}:P${endPastedRow} and S${pasteRow}:CX${endPastedRow}`);
                                 }
                                 
                                 // NEW: Apply indent formatting if specified

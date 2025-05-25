@@ -525,7 +525,7 @@ export async function structureDatabasequeries(clientprompt) {
                       queryPrompt: queryString,
                       similarityThreshold: .2,
                       indexName: 'call2trainingdata',
-                      numResults: 3
+                      numResults: 10
                   }),
                   call2Context: await queryVectorDB({
                       queryPrompt: queryString,
@@ -757,7 +757,7 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
         queryPrompt: clientprompt,
         similarityThreshold: .4,
         indexName: 'call2trainingdata',
-        numResults: 3
+        numResults: 10
     });
 
     const call2context = await queryVectorDB({

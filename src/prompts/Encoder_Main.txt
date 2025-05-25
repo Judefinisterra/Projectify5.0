@@ -43,7 +43,7 @@ DISCOUNT2-S	Multiplies driver1 by (1 - driver2)
 
 
 
-Format: Control the format of these codes using the format parameter. Options are "Dollar" (used for aggregate dollar items (TAM, GMV, Revenue, Expense), "DollarItalic" (Used for pricing or rates), "Volume" (Used for any non-dollar amount (# of users, # of units sold), "Percent" (used for any percentage), and "Factor" (Used for a factor that you will multiply another item against)) 
+Format: Control the format of these codes using the format parameter. Options are "Dollar" (used for aggregate dollar items (TAM, GMV, Revenue, Expense), "DollarItalic" (Used for pricing or rates), "Volume" (Used for any non-dollar amount (# of users, # of units sold), "Percent" (used for any percentage), and "Factor" (Used for a factor that you will multiply another item against)). When two aggregate calcs are added in succession, add a BR code to break them up.  
 
 Formatting best practices: In general, aggregate values (# of users, sales, etc.) should have indent="1" and rates, price, etc. should have indent="2". The final item in a calculation should have bold="True", indent="1", and Topborder="True"
 
