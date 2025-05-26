@@ -42,6 +42,8 @@ OFFSETCOLUMN-S	References 1 column to the left of driver1. In other words, it re
 OFFSET2-S	Offsets driver1 by driver2 number of periods to the left
 SUM2-S	Sums from driver1 to driver2
 DISCOUNT2-S	Multiplies driver1 by (1 - driver2)
+LABELH1/LABELH2/LABEHLH3 Use these codes to label different sections within a tab. H1 is the highest level, followed by H2, and then H3
+BR <BR; row1 = "|  |||||||||||";> Adds a line break. Use before every LABELH1/LABELH2/LABELH3 code. 
 
 
 Indent and spacing: With few exceptions, follow these rules, which should be echoed in the training data. All rates, prices, percents, and non-aggregate items should have indent="2", bold="false"; and topborder="false". Most aggregate dollar data (revenue, expense, gmv, TAM, etc.) should have format="dollar"; bold="true". If comes after an item with an indent of 2, it should have topborder="1". If it comes after another aggregate value that is bold and has an indent of 1, add a BR code between the two items. Aggregate volume items should generally be bold and have an indent of 1. 
@@ -66,7 +68,7 @@ Examples: You want to forecast # of units sold starting at 1000 and doubling eve
 <DIVIDE2-S; driver1="V1"; driver2="V4"; indent="1"; bold="True"; topborder="True"; row1 = "V5|# of Employees|||||F|F|F|F|F|F|";>
 
 
-
+BR codes: Every LABEL code should be preceded by a BR code to add space between it and the other codes. No LABEL code should be directly adjacent to a previous non-BR code.
 
 General rules:
 Keep Going unitl the job is completely solved before ending your turn
