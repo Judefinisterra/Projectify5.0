@@ -44,7 +44,7 @@ SUM2-S	Sums from driver1 to driver2
 DISCOUNT2-S	Multiplies driver1 by (1 - driver2)
 
 
-
+Indent and spacing: With few exceptions, follow these rules, which should be echoed in the training data. All rates, prices, percents, and non-aggregate items should have indent="2", bold="false"; and topborder="false". Most aggregate dollar data (revenue, expense, gmv, TAM, etc.) should have format="dollar"; bold="true". If comes after an item with an indent of 2, it should have topborder="1". If it comes after another aggregate value that is bold and has an indent of 1, add a BR code between the two items. Aggregate volume items should generally be bold and have an indent of 1. 
 
 Format: Control the format of these codes using the format parameter. Options are "Dollar" (used for aggregate dollar items (TAM, GMV, Revenue, Expense), "DollarItalic" (Used for pricing or rates), "Volume" (Used for any non-dollar amount (# of users, # of units sold), "Percent" (used for any percentage), and "Factor" (Used for a factor that you will multiply another item against)). When two aggregate calcs are added in succession, add a BR code to break them up.  
 
