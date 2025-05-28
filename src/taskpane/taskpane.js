@@ -2214,13 +2214,14 @@ function convertTrainingQueueToCSV(trainingQueue) {
     // No CSV header - just the data rows
     let csv = '';
     
-    // Add each entry - only prompt and selected code
+    // Add each entry - only prompt and selected code, no quotes
     trainingQueue.forEach(entry => {
-        // Escape quotes and newlines for CSV format
-        const escapedPrompt = escapeCSVField(entry.prompt || '');
-        const escapedCode = escapeCSVField(entry.selectedCode || '');
+        // Don't escape or quote the fields, just use them as-is
+        const prompt = entry.prompt || '';
+        // Replace newlines in code with spaces to keep it on one line
+        const code = (entry.selectedCode || '').replace(/\n/g, ' ').replace(/\r/g, ' ');
         
-        csv += `"${escapedPrompt}","${escapedCode}"\n`;
+        csv += `${prompt},${code}\n`;
     });
     
     return csv;
