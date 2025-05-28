@@ -162,6 +162,12 @@ let conversationHistoryClient = [];
 let lastResponseClient = null;
 // <<< END ADDED
 
+// Add this variable to store the last response
+let lastResponse = null;
+
+// Add this variable to store the last user input for training data
+let lastUserInput = null;
+
 // Add this function at the top level
 function showMessage(message) {
     const messageDiv = document.createElement('div');
@@ -242,9 +248,6 @@ function setButtonLoadingClient(isLoading) {
     }
 }
 // <<< END ADDED
-
-// Add this variable to store the last response
-let lastResponse = null;
 
 // Add this function to write to Excel
 async function writeToExcel() {
@@ -335,6 +338,9 @@ async function handleSend() {
         showError('Please enter a request');
         return;
     }
+
+    // Store the user input for training data before clearing
+    lastUserInput = userInput;
 
     // Check if this is a response to a previous message
     isResponse = conversationHistory.length > 0;
@@ -463,6 +469,9 @@ async function handleSendClient() {
         alert('Please enter a request (Client Mode)'); 
         return;
     }
+
+    // Store the user input for training data before clearing
+    lastUserInput = userInput;
 
     // >>> ADDED: Hide header and activate conversation layout on first message
     const clientHeader = document.getElementById('client-mode-header');
@@ -594,47 +603,34 @@ function resetChat() {
 // >>> ADDED: resetChat for Client Mode
 function resetChatClient() {
     const chatLogClient = document.getElementById('chat-log-client');
+    const welcomeMessageClient = document.getElementById('welcome-message-client');
+    const clientModeHeader = document.getElementById('client-mode-header');
+    const clientChatContainer = document.getElementById('client-chat-container');
+    const userInputClient = document.getElementById('user-input-client');
+
     if (chatLogClient) {
         chatLogClient.innerHTML = '';
-        // >>> ADDED: Hide chat log when resetting
-        chatLogClient.style.display = 'none';
-        // <<< END ADDED
-    } else {
-        console.error("[resetChatClient] Chat log element 'chat-log-client' not found.");
-        return;
+        if (welcomeMessageClient) {
+            chatLogClient.appendChild(welcomeMessageClient);
+            welcomeMessageClient.style.display = 'none';
+        }
     }
-    
-    // >>> ADDED: Restore header and initial layout
-    const clientHeader = document.getElementById('client-mode-header');
-    const clientChatContainer = document.getElementById('client-chat-container');
-    
-    if (clientHeader) {
-        clientHeader.style.display = ''; // Show it first
-        clientHeader.classList.remove('hidden'); // Remove hidden class to trigger transition
+
+    if (clientModeHeader) {
+        clientModeHeader.classList.remove('hidden');
     }
-    
+
     if (clientChatContainer) {
         clientChatContainer.classList.remove('conversation-active');
     }
-    // <<< END ADDED
-    
-    const welcomeMessageClient = document.createElement('div');
-    welcomeMessageClient.id = 'welcome-message-client';
-    welcomeMessageClient.className = 'welcome-message';
-    welcomeMessageClient.style.display = 'none'; // Keep hidden since we're showing the header
-    const welcomeTitleClient = document.createElement('h1');
-    welcomeTitleClient.textContent = 'Ask me anything (Client Mode)';
-    welcomeMessageClient.appendChild(welcomeTitleClient);
-    chatLogClient.appendChild(welcomeMessageClient);
-    
-    conversationHistoryClient = [];
-    lastResponseClient = null;
-    
-    const userInputClient = document.getElementById('user-input-client');
+
     if (userInputClient) {
         userInputClient.value = '';
     }
-    console.log("Client chat reset completed");
+
+    // Reset conversation history for client mode
+    // Note: This might need to be adjusted based on how client mode history is managed
+    console.log("Client mode chat reset.");
 }
 // <<< END ADDED
 
@@ -1127,6 +1123,14 @@ Office.onReady((info) => {
 
     const resetButton = document.getElementById('reset-chat');
     if (resetButton) resetButton.onclick = resetChat;
+
+    // Add to Training Data Queue button
+    const addToTrainingQueueButton = document.getElementById('add-to-training-queue');
+    if (addToTrainingQueueButton) {
+        addToTrainingQueueButton.onclick = addToTrainingDataQueue;
+    } else {
+        console.error("Could not find button with id='add-to-training-queue'");
+    }
 
     // >>> ADDED: Setup for Client Mode Chat Buttons
     const sendClientButton = document.getElementById('send-client');
@@ -2087,6 +2091,196 @@ async function insertResponseToEditor() {
         showError(`Failed to insert response: ${error.message}`);
     }
 }
+
+// Function to get selected text from the code editor
+function getSelectedTextFromEditor() {
+    const codesTextarea = document.getElementById('codes-textarea');
+    if (!codesTextarea) {
+        return '';
+    }
+    
+    const start = codesTextarea.selectionStart;
+    const end = codesTextarea.selectionEnd;
+    
+    if (start === end) {
+        // No text selected, return empty string
+        return '';
+    }
+    
+    return codesTextarea.value.substring(start, end);
+}
+
+// Function to add data to training queue
+async function addToTrainingDataQueue() {
+    try {
+        // Get the user input from the stored last input (since input field gets cleared after send)
+        const userInputElement = document.getElementById('user-input');
+        const currentInputValue = userInputElement ? userInputElement.value.trim() : '';
+        
+        // Use current input if available, otherwise use the last stored input
+        const userPrompt = currentInputValue || lastUserInput || '';
+        
+        // Debug logging
+        console.log("[addToTrainingDataQueue] userInputElement found:", !!userInputElement);
+        console.log("[addToTrainingDataQueue] currentInputValue:", `"${currentInputValue}"`);
+        console.log("[addToTrainingDataQueue] lastUserInput:", `"${lastUserInput}"`);
+        console.log("[addToTrainingDataQueue] final userPrompt value:", `"${userPrompt}"`);
+        console.log("[addToTrainingDataQueue] userPrompt length:", userPrompt.length);
+        
+        // Get selected text from code editor
+        const selectedCode = getSelectedTextFromEditor();
+        console.log("[addToTrainingDataQueue] selectedCode length:", selectedCode.length);
+        console.log("[addToTrainingDataQueue] selectedCode preview:", selectedCode.substring(0, 100) + "...");
+        
+        // Validate inputs - require at least one
+        if (!userPrompt && !selectedCode) {
+            showError("Please enter a prompt in the message box or select text in the code editor. No recent prompt found to use.");
+            return;
+        }
+        
+        // Show user what will be saved
+        if (userPrompt) {
+            console.log("[addToTrainingDataQueue] Will save prompt:", `"${userPrompt}"`);
+        } else {
+            console.log("[addToTrainingDataQueue] No prompt to save, only selected code");
+        }
+        
+        // Create simplified training data entry (no timestamp or boolean flags)
+        const trainingEntry = {
+            prompt: userPrompt,
+            selectedCode: selectedCode
+        };
+        
+        console.log("[addToTrainingDataQueue] Created training entry:", trainingEntry);
+        
+        // Load existing training queue and add new entry
+        let trainingQueue = [];
+        try {
+            const existingQueue = localStorage.getItem('trainingDataQueue');
+            if (existingQueue) {
+                const parsed = JSON.parse(existingQueue);
+                // Only use existing data if it's in the new format (no timestamp, hasPrompt, etc.)
+                if (parsed.length > 0 && !parsed[0].timestamp && parsed[0].hasPrompt === undefined) {
+                    trainingQueue = parsed;
+                    console.log("[addToTrainingDataQueue] Loaded existing queue with", trainingQueue.length, "entries");
+                } else {
+                    console.log("[addToTrainingDataQueue] Found old format data, starting fresh");
+                    trainingQueue = [];
+                }
+            } else {
+                console.log("[addToTrainingDataQueue] No existing queue found, starting fresh");
+            }
+        } catch (error) {
+            console.warn("Error loading existing training queue:", error);
+            trainingQueue = [];
+        }
+        
+        // Add new entry to queue
+        trainingQueue.push(trainingEntry);
+        console.log("[addToTrainingDataQueue] Queue now has", trainingQueue.length, "entries");
+        
+        // Save back to localStorage
+        localStorage.setItem('trainingDataQueue', JSON.stringify(trainingQueue));
+        
+        // Create CSV content
+        const csvContent = convertTrainingQueueToCSV(trainingQueue);
+        console.log("[addToTrainingDataQueue] Generated CSV content:", csvContent);
+        
+        // Save CSV file (using browser download)
+        downloadCSVFile(csvContent, `training_data_queue_${new Date().toISOString().split('T')[0]}.csv`);
+        
+        // Show success message
+        showMessage(`Training data added to queue! Entry ${trainingQueue.length} saved. CSV file downloaded.`);
+        
+        // Optionally clear the input after successful save
+        if (userInputElement) {
+            userInputElement.value = '';
+        }
+        
+        console.log("Training data entry added:", trainingEntry);
+        
+    } catch (error) {
+        console.error("Error adding to training data queue:", error);
+        showError(`Error saving training data: ${error.message}`);
+    }
+}
+
+// Function to convert training queue to CSV format
+function convertTrainingQueueToCSV(trainingQueue) {
+    if (!trainingQueue || trainingQueue.length === 0) {
+        return ''; // No header, return empty string if no data
+    }
+    
+    // No CSV header - just the data rows
+    let csv = '';
+    
+    // Add each entry - only prompt and selected code
+    trainingQueue.forEach(entry => {
+        // Escape quotes and newlines for CSV format
+        const escapedPrompt = escapeCSVField(entry.prompt || '');
+        const escapedCode = escapeCSVField(entry.selectedCode || '');
+        
+        csv += `"${escapedPrompt}","${escapedCode}"\n`;
+    });
+    
+    return csv;
+}
+
+// Function to escape CSV fields
+function escapeCSVField(field) {
+    if (typeof field !== 'string') {
+        field = String(field);
+    }
+    // Replace quotes with double quotes and handle newlines
+    return field.replace(/"/g, '""').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+}
+
+// Function to download CSV file
+function downloadCSVFile(csvContent, filename) {
+    try {
+        // Create blob with CSV content
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        
+        // Create download link
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        
+        // Add to document, click, and remove
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up the URL object
+        URL.revokeObjectURL(url);
+        
+        console.log(`CSV file "${filename}" download initiated`);
+        
+    } catch (error) {
+        console.error("Error downloading CSV file:", error);
+        // Fallback: log the CSV content to console
+        console.log("CSV Content (download failed):", csvContent);
+        showError("Could not download CSV file, but data was saved to localStorage. Check console for CSV content.");
+    }
+}
+
+// Function to clear old training data (for debugging)
+function clearTrainingDataQueue() {
+    try {
+        localStorage.removeItem('trainingDataQueue');
+        console.log("Training data queue cleared from localStorage");
+        showMessage("Training data queue cleared successfully!");
+    } catch (error) {
+        console.error("Error clearing training data queue:", error);
+        showError(`Error clearing training data: ${error.message}`);
+    }
+}
+
+// Make it globally accessible for debugging
+window.clearTrainingDataQueue = clearTrainingDataQueue;
 
 
 
