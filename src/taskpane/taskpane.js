@@ -2187,7 +2187,7 @@ async function addToTrainingDataQueue() {
         console.log("[addToTrainingDataQueue] Generated CSV content:", csvContent);
         
         // Save CSV file (using browser download)
-        downloadCSVFile(csvContent, `training_data_queue_${new Date().toISOString().split('T')[0]}.csv`);
+        downloadCSVFile(csvContent, `training_data_queue.csv`);
         
         // Show success message
         showMessage(`Training data added to queue! Entry ${trainingQueue.length} saved. CSV file downloaded.`);
