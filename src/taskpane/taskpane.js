@@ -346,11 +346,34 @@ async function handleSend() {
     document.getElementById('user-input').value = '';
 
     setButtonLoading(true);
+    
+    // Create a progress message element that we can update
+    const chatLog = document.getElementById('chat-log');
+    const progressMessageDiv = document.createElement('div');
+    progressMessageDiv.className = 'chat-message assistant-message';
+    const progressMessageContent = document.createElement('p');
+    progressMessageContent.className = 'message-content';
+    progressMessageContent.textContent = 'Analyzing your request...';
+    progressMessageDiv.appendChild(progressMessageContent);
+    chatLog.appendChild(progressMessageDiv);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    
     try {
-        // Process the text through the main function
+        // Process the text through the main function with progress callback
         console.log("Starting structureDatabasequeries");
-        const dbResults = await structureDatabasequeries(userInput);
+        
+        // Define progress callback to update the progress message
+        const progressCallback = (message) => {
+            progressMessageContent.textContent = message;
+            chatLog.scrollTop = chatLog.scrollHeight;
+        };
+        
+        const dbResults = await structureDatabasequeries(userInput, progressCallback);
         console.log("Database queries completed");
+        
+        // Update progress message to show next step
+        progressMessageContent.textContent = 'Processing AI response...';
+        chatLog.scrollTop = chatLog.scrollHeight;
         
         if (!dbResults || !Array.isArray(dbResults)) {
             console.error("Invalid database results:", dbResults);
@@ -388,12 +411,19 @@ async function handleSend() {
             throw new Error("Failed to get valid response array from conversation result");
         }
 
+        // Update progress message to show validation step
+        progressMessageContent.textContent = 'Validating response...';
+        chatLog.scrollTop = chatLog.scrollHeight;
+
         // Run validation and correction if needed (using the extracted array)
         console.log("Starting validation");
         const validationResults = await validateCodeStrings(responseArray);
         console.log("Validation completed:", validationResults);
 
         if (validationResults && validationResults.length > 0) {
+            progressMessageContent.textContent = 'Correcting validation errors...';
+            chatLog.scrollTop = chatLog.scrollHeight;
+            
             console.log("Starting validation correction");
             // Pass the extracted array to validationCorrection
             responseArray = await validationCorrection(userInput, responseArray, validationResults);
@@ -403,13 +433,17 @@ async function handleSend() {
         // Store the final response array for Excel writing
         lastResponse = responseArray;
 
-        // Add assistant message to chat (using the extracted array)
+        // Remove the progress message and add the final assistant message
+        chatLog.removeChild(progressMessageDiv);
         appendMessage(responseArray.join('\n'));
         
     } catch (error) {
         console.error("Error in handleSend:", error);
         showError(error.message);
-        // Add error message to chat
+        // Remove progress message and add error message to chat
+        if (chatLog.contains(progressMessageDiv)) {
+            chatLog.removeChild(progressMessageDiv);
+        }
         appendMessage(`Error: ${error.message}`);
     } finally {
         setButtonLoading(false);

@@ -486,7 +486,7 @@ export async function processPrompt({ userInput, systemPrompt, model, temperatur
 }
 
 // Function: Structure database queries
-export async function structureDatabasequeries(clientprompt) {
+export async function structureDatabasequeries(clientprompt, progressCallback = null) {
   if (DEBUG) console.log("Processing structured database queries:", clientprompt);
 
   try {
@@ -512,11 +512,33 @@ export async function structureDatabasequeries(clientprompt) {
           throw new Error("Failed to get valid query strings from structuring prompt");
       }
 
-      if (DEBUG) console.log("Got query strings:", queryStrings);
+      if (DEBUG) {
+          console.log("=== PROMPT PARSING RESULTS ===");
+          console.log(`Original prompt: "${clientprompt}"`);
+          console.log(`Parsed into ${queryStrings.length} chunks:`);
+          queryStrings.forEach((chunk, index) => {
+              console.log(`  Chunk ${index + 1}: "${chunk}"`);
+          });
+          console.log("=== END PARSING RESULTS ===");
+      }
+
       const results = [];
 
-      for (const queryString of queryStrings) {
-          if (DEBUG) console.log("Processing query:", queryString);
+      for (let i = 0; i < queryStrings.length; i++) {
+          const queryString = queryStrings[i];
+          const chunkNumber = i + 1;
+          
+          // Call progress callback if provided
+          if (progressCallback) {
+              progressCallback(`Processing chunk ${chunkNumber} of ${queryStrings.length}: "${queryString.substring(0, 50)}${queryString.length > 50 ? '...' : ''}"`);
+          }
+          
+          if (DEBUG) {
+              console.log(`=== PROCESSING CHUNK ${chunkNumber}/${queryStrings.length} ===`);
+              console.log(`Query: "${queryString}"`);
+              console.log("Querying vector databases...");
+          }
+          
           try {
               // Make sure queryVectorDB uses the internal API keys
               const queryResults = {
@@ -548,10 +570,26 @@ export async function structureDatabasequeries(clientprompt) {
               };
 
               results.push(queryResults);
-              if (DEBUG) console.log("Successfully processed query:", queryString);
+              
+              if (DEBUG) {
+                  console.log(`Chunk ${chunkNumber} results summary:`);
+                  console.log(`  - Training data: ${queryResults.trainingData.length} items`);
+                  console.log(`  - Call2 context: ${queryResults.call2Context.length} items`);
+                  console.log(`  - Call1 context: ${queryResults.call1Context.length} items`);
+                  console.log(`  - Code options: ${queryResults.codeOptions.length} items`);
+                  console.log(`=== END CHUNK ${chunkNumber} ===`);
+              }
+              
+              // Call progress callback for completion of this chunk
+              if (progressCallback) {
+                  progressCallback(`Completed chunk ${chunkNumber} of ${queryStrings.length}`);
+              }
           } catch (error) {
               console.error(`Error processing query "${queryString}":`, error);
               // Continue with next query instead of failing completely
+              if (progressCallback) {
+                  progressCallback(`Error in chunk ${chunkNumber}: ${error.message}`);
+              }
           }
       }
 
@@ -564,6 +602,12 @@ export async function structureDatabasequeries(clientprompt) {
            console.warn("Structuring prompt returned no query strings.");
            // Throwing error as subsequent steps likely depend on results
            throw new Error("Structuring prompt did not return any queries to process.");
+      }
+
+      if (DEBUG) {
+          console.log("=== FINAL SUMMARY ===");
+          console.log(`Successfully processed ${results.length} out of ${queryStrings.length} chunks`);
+          console.log("=== END SUMMARY ===");
       }
 
       return results;
@@ -1251,13 +1295,13 @@ Office.onReady(async (info) => {
 });
 
 // NEW FUNCTION to process text input like handleSend but without UI and main history side effects
-export async function getAICallsProcessedResponse(userInputString) {
+export async function getAICallsProcessedResponse(userInputString, progressCallback = null) {
     if (DEBUG) console.log("[getAICallsProcessedResponse] Processing input:", userInputString.substring(0, 100) + "...");
 
     try {
         // 1. Structure database queries
         if (DEBUG) console.log("[getAICallsProcessedResponse] Calling structureDatabasequeries...");
-        const dbResults = await structureDatabasequeries(userInputString);
+        const dbResults = await structureDatabasequeries(userInputString, progressCallback);
         if (DEBUG) console.log("[getAICallsProcessedResponse] structureDatabasequeries completed. Results:", dbResults);
 
         if (!dbResults || !Array.isArray(dbResults)) {
