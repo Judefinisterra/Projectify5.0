@@ -1966,10 +1966,16 @@ Office.onReady((info) => {
     }
     // --- End of Code Suggestion Logic ---
 
+    // >>> ADDED: Setup for the Clear Training Data Queue button
+    const clearTrainingDataQueButtonHTML = document.getElementById('clear-training-data-que-button');
+    if (clearTrainingDataQueButtonHTML) {
+        clearTrainingDataQueButtonHTML.onclick = clearTrainingDataQueue; // Use the local function
+    } else {
+        console.error("Could not find button with id='clear-training-data-que-button' for developer mode.");
+    }
+    // <<< END ADDED
 
     // ... (rest of your Office.onReady, e.g., Promise.all)
-
-    // Make sure initialization runs after setting up modal logic
   }
 });
 
