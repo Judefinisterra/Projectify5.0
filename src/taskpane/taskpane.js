@@ -2227,7 +2227,7 @@ function convertTrainingQueueToCSV(trainingQueue) {
         // Replace newlines in code with spaces to keep it on one line
         const code = (entry.selectedCode || '').replace(/\n/g, ' ').replace(/\r/g, ' ');
         
-        csv += `${prompt},${code}\n`;
+        csv += `${prompt},${code}@\n`; // Added @ symbol before newline
     });
     
     return csv;
