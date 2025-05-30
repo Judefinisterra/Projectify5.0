@@ -2126,32 +2126,68 @@ async function addToTrainingDataQueue() {
         // Use current input if available, otherwise use the last stored input
         const userPrompt = currentInputValue || lastUserInput || '';
         
-        // Debug logging
+        // Debug logging for userPrompt
         console.log("[addToTrainingDataQueue] userInputElement found:", !!userInputElement);
         console.log("[addToTrainingDataQueue] currentInputValue:", `"${currentInputValue}"`);
         console.log("[addToTrainingDataQueue] lastUserInput:", `"${lastUserInput}"`);
         console.log("[addToTrainingDataQueue] final userPrompt value:", `"${userPrompt}"`);
         console.log("[addToTrainingDataQueue] userPrompt length:", userPrompt.length);
         
-        // Get selected text from code editor
-        const selectedCode = getSelectedTextFromEditor();
-        console.log("[addToTrainingDataQueue] selectedCode length:", selectedCode.length);
-        console.log("[addToTrainingDataQueue] selectedCode preview:", selectedCode.substring(0, 100) + "...");
+        // New logic for determining selectedCode
+        const codesTextarea = document.getElementById('codes-textarea');
+        if (!codesTextarea) {
+            showError("Code editor textarea not found.");
+            return;
+        }
+        const editorContent = codesTextarea.value;
+        let selectedCode = ''; // Initialize selectedCode
+
+        const tabRegex = /<TAB/g;
+        let match;
+        let tabIndices = [];
+        while ((match = tabRegex.exec(editorContent)) !== null) {
+            tabIndices.push(match.index);
+        }
+        const tabCount = tabIndices.length;
+
+        console.log(`[addToTrainingDataQueue] Detected ${tabCount} <TAB> instances.`);
+
+        if (tabCount === 1) {
+            console.log("[addToTrainingDataQueue] Single <TAB> detected. Capturing from its start to end of editor content.");
+            selectedCode = editorContent.substring(tabIndices[0]);
+        } else if (tabCount > 1) {
+            console.log("[addToTrainingDataQueue] Multiple <TAB> codes detected. Checking for highlighted text.");
+            selectedCode = getSelectedTextFromEditor(); // This function gets highlighted text
+            if (!selectedCode) {
+                showError("Multiple <TAB> codes found. Please highlight the specific code you want to add to the training data.");
+                console.log("[addToTrainingDataQueue] Multiple <TAB> codes and no selection. Aborting.");
+                return; // Stop processing
+            }
+            console.log("[addToTrainingDataQueue] Using highlighted selection with multiple <TAB> codes.");
+        } else { // tabCount === 0
+            console.log("[addToTrainingDataQueue] No <TAB> codes detected. Using highlighted text if any.");
+            selectedCode = getSelectedTextFromEditor();
+        }
         
-        // Validate inputs - require at least one
+        console.log("[addToTrainingDataQueue] selectedCode length:", selectedCode.length);
+        console.log("[addToTrainingDataQueue] selectedCode preview:", selectedCode.substring(0, 200) + "..."); // Increased preview length
+        
+        // Validate inputs - require at least one (userPrompt or selectedCode)
         if (!userPrompt && !selectedCode) {
-            showError("Please enter a prompt in the message box or select text in the code editor. No recent prompt found to use.");
+            showError("Please enter a prompt in the message box or select/provide code in the code editor. No data to save.");
             return;
         }
         
-        // Show user what will be saved
+        // Show user what will be saved (more detailed log)
         if (userPrompt) {
             console.log("[addToTrainingDataQueue] Will save prompt:", `"${userPrompt}"`);
+        }
+        if (selectedCode) {
+            console.log("[addToTrainingDataQueue] Will save selectedCode (first 200 chars):", `"${selectedCode.substring(0,200)}..."`);
         } else {
-            console.log("[addToTrainingDataQueue] No prompt to save, only selected code");
+            console.log("[addToTrainingDataQueue] No selectedCode to save for this entry.");
         }
         
-        // Create simplified training data entry (no timestamp or boolean flags)
         const trainingEntry = {
             prompt: userPrompt,
             selectedCode: selectedCode
@@ -2288,6 +2324,7 @@ function clearTrainingDataQueue() {
 
 // Make it globally accessible for debugging
 window.clearTrainingDataQueue = clearTrainingDataQueue;
+
 
 
 
