@@ -878,14 +878,29 @@ async function insertSheetsAndRunCodes() {
             if (allCodeContentToProcess.trim().length > 0) {
                 const validationErrors = await validateCodeStringsForRun(allCodeContentToProcess.split(/\r?\n/).filter(line => line.trim() !== ''));
                 if (validationErrors && validationErrors.length > 0) {
-                    const errorMsg = "Initial validation failed. Please fix the errors before running:\n" + validationErrors.join("\n");
-                    console.error("Code validation failed:", validationErrors);
-                    showError("Code validation failed. See chat for details.");
-                    appendMessage(errorMsg);
-                    setButtonLoading(false);
-                    return;
+                    // Separate logic errors (LERR) from format errors (FERR)
+                    const logicErrors = validationErrors.filter(err => err.includes('[LERR'));
+                    const formatErrors = validationErrors.filter(err => err.includes('[FERR'));
+                    
+                    if (logicErrors.length > 0) {
+                        // Logic errors are critical - stop the process
+                        const errorMsg = "Logic validation failed. Please fix these errors before running:\n" + logicErrors.join("\n");
+                        console.error("Logic validation failed:", logicErrors);
+                        showError("Logic validation failed. See chat for details.");
+                        appendMessage(errorMsg);
+                        setButtonLoading(false);
+                        return;
+                    }
+                    
+                    if (formatErrors.length > 0) {
+                        // Format errors are warnings - show them but continue
+                        const warningMsg = "Format validation warnings:\n" + formatErrors.join("\n");
+                        console.warn("Format validation warnings:", formatErrors);
+                        showMessage("Format validation warnings detected. See chat for details.");
+                        appendMessage(warningMsg);
+                    }
                 }
-                console.log("Initial code validation successful.");
+                console.log("Initial code validation completed.");
             } else {
                 console.log("[Run Codes] No codes to validate on first pass.");
             }
@@ -954,14 +969,29 @@ async function insertSheetsAndRunCodes() {
                 if (allCodeContentToProcess.trim().length > 0) {
                     const validationErrors = await validateCodeStringsForRun(allCodeContentToProcess.split(/\r?\n/).filter(line => line.trim() !== ''));
                     if (validationErrors && validationErrors.length > 0) {
-                        const errorMsg = "Validation failed. Please fix the errors before running:\n" + validationErrors.join("\n");
-                        console.error("Code validation failed:", validationErrors);
-                        showError("Code validation failed. See chat for details.");
-                        appendMessage(errorMsg);
-                        setButtonLoading(false);
-                        return;
+                        // Separate logic errors (LERR) from format errors (FERR)
+                        const logicErrors = validationErrors.filter(err => err.includes('[LERR'));
+                        const formatErrors = validationErrors.filter(err => err.includes('[FERR'));
+                        
+                        if (logicErrors.length > 0) {
+                            // Logic errors are critical - stop the process
+                            const errorMsg = "Logic validation failed. Please fix these errors before running:\n" + logicErrors.join("\n");
+                            console.error("Logic validation failed:", logicErrors);
+                            showError("Logic validation failed. See chat for details.");
+                            appendMessage(errorMsg);
+                            setButtonLoading(false);
+                            return;
+                        }
+                        
+                        if (formatErrors.length > 0) {
+                            // Format errors are warnings - show them but continue
+                            const warningMsg = "Format validation warnings:\n" + formatErrors.join("\n");
+                            console.warn("Format validation warnings:", formatErrors);
+                            showMessage("Format validation warnings detected. See chat for details.");
+                            appendMessage(warningMsg);
+                        }
                     }
-                    console.log("Code validation successful for new/modified tabs.");
+                    console.log("Code validation completed for new/modified tabs.");
                 } else {
                     console.log("[Run Codes] Changes detected, but no code content found for validation in new/modified tabs.");
                 }

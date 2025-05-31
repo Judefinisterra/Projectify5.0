@@ -55,6 +55,8 @@ export async function validateCodeStrings(inputCodeStrings) {
     }
 
     // First pass: collect all row values, code types, and suffixes
+    const financialStatementItems = new Map(); // Track financial statement items (column B) by their location
+    
     for (let i = 0; i < inputCodeStrings.length; i++) {
         const codeString = inputCodeStrings[i];
         const currentTabForCode = codeToTab.get(i);
@@ -79,6 +81,25 @@ export async function validateCodeStrings(inputCodeStrings) {
                 const parts = rowContent.split('|');
                 if (parts.length > 0) {
                     const driver = parts[0].trim();
+                    
+                    // Check for financial statement items
+                    if (parts.length >= 3) {
+                        const columnB = parts[1].trim();
+                        const columnC = parts[2].trim();
+                        
+                        // Check if column 3 starts with IS, BS, or CF
+                        if (columnC && (columnC.startsWith('IS') || columnC.startsWith('BS') || columnC.startsWith('CF'))) {
+                            if (columnB) {
+                                // Track this financial statement item
+                                if (financialStatementItems.has(columnB)) {
+                                    const existing = financialStatementItems.get(columnB);
+                                    existing.push({ codeString, rowName, driver });
+                                } else {
+                                    financialStatementItems.set(columnB, [{ codeString, rowName, driver }]);
+                                }
+                            }
+                        }
+                    }
                     
                     // Track row drivers per tab
                     if (driver && !driver.startsWith('*') && tabRowDrivers.has(currentTabForCode)) {
@@ -146,6 +167,33 @@ export async function validateCodeStrings(inputCodeStrings) {
                 });
             }
         });
+    });
+
+    // Check for duplicate financial statement items
+    financialStatementItems.forEach((occurrences, itemName) => {
+        if (occurrences.length > 1) {
+            // Get unique tabs for better error reporting
+            const tabSet = new Set();
+            occurrences.forEach(loc => {
+                const tabIndex = inputCodeStrings.indexOf(loc.codeString);
+                const tab = codeToTab.get(tabIndex);
+                if (tab !== 'default') {
+                    const labelMatch = tab.match(/label\d+="([^"]*)"/);
+                    tabSet.add(labelMatch ? labelMatch[1] : 'Unnamed Tab');
+                } else {
+                    tabSet.add('Before any TAB');
+                }
+            });
+            
+            const tabList = Array.from(tabSet).join(', ');
+            
+            errors.push(`[LERR012] Duplicate financial statement item "${itemName}" found in ${occurrences.length} locations across tabs: ${tabList}`);
+            
+            // Add details about each occurrence
+            occurrences.forEach(loc => {
+                errors.push(`  - In ${loc.codeString.substring(0, 100)}... at ${loc.rowName} (driver: ${loc.driver || 'none'})`);
+            });
+        }
     });
 
     // Format Validation Section
@@ -532,6 +580,8 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
     }
 
     // First pass: collect all row values, code types, and suffixes
+    const financialStatementItems = new Map(); // Track financial statement items (column B) by their location
+    
     for (let i = 0; i < inputCodeStrings.length; i++) {
         const codeString = inputCodeStrings[i];
         const currentTabForCode = codeToTab.get(i);
@@ -552,6 +602,25 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
                 const parts = rowContent.split('|');
                 if (parts.length > 0) {
                     const driver = parts[0].trim();
+                    
+                    // Check for financial statement items
+                    if (parts.length >= 3) {
+                        const columnB = parts[1].trim();
+                        const columnC = parts[2].trim();
+                        
+                        // Check if column 3 starts with IS, BS, or CF
+                        if (columnC && (columnC.startsWith('IS') || columnC.startsWith('BS') || columnC.startsWith('CF'))) {
+                            if (columnB) {
+                                // Track this financial statement item
+                                if (financialStatementItems.has(columnB)) {
+                                    const existing = financialStatementItems.get(columnB);
+                                    existing.push({ codeString, rowName, driver });
+                                } else {
+                                    financialStatementItems.set(columnB, [{ codeString, rowName, driver }]);
+                                }
+                            }
+                        }
+                    }
                     
                     // Track row drivers per tab
                     if (driver && !driver.startsWith('*') && tabRowDrivers.has(currentTabForCode)) {
@@ -612,6 +681,33 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
                 });
             }
         });
+    });
+
+    // Check for duplicate financial statement items
+    financialStatementItems.forEach((occurrences, itemName) => {
+        if (occurrences.length > 1) {
+            // Get unique tabs for better error reporting
+            const tabSet = new Set();
+            occurrences.forEach(loc => {
+                const tabIndex = inputCodeStrings.indexOf(loc.codeString);
+                const tab = codeToTab.get(tabIndex);
+                if (tab !== 'default') {
+                    const labelMatch = tab.match(/label\d+="([^"]*)"/);
+                    tabSet.add(labelMatch ? labelMatch[1] : 'Unnamed Tab');
+                } else {
+                    tabSet.add('Before any TAB');
+                }
+            });
+            
+            const tabList = Array.from(tabSet).join(', ');
+            
+            errors.push(`[LERR012] Duplicate financial statement item "${itemName}" found in ${occurrences.length} locations across tabs: ${tabList}`);
+            
+            // Add details about each occurrence
+            occurrences.forEach(loc => {
+                errors.push(`  - In ${loc.codeString.substring(0, 100)}... at ${loc.rowName} (driver: ${loc.driver || 'none'})`);
+            });
+        }
     });
 
     // Format Validation Section

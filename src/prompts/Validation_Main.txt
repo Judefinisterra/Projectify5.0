@@ -29,6 +29,7 @@ LERR008 - Tab label contains illegal characters. Tab label contains comma, quote
 LERR009 - Duplicate tab label. Solution: Change one of the tab labels.
 LERR010 - Invalid row format Row is missing required fields (less than 2 pipe-separated values). Solution: Add missing | symbols. 
 LERR011 - Driver value not found. A driver reference points to a row ID that doesn't exist. Solution: Change driver value to driver that does exist in the other codestrings. 
+LERR012 - Duplicate financial statement item. Two or more rows have the same value in column B when column C starts with IS, BS, or CF. Financial statement items must be unique across all tabs. Solution: Change the column B value to make it unique.
 
 Format Errors (FERR) - Secondary priority to logic errors. Do your best but it is possible that some edge cases could violate formatting validation legitimately:
 FERR001 - Missing required format parameters Specified codes missing topborder, format, bold, or indent parameters. Solution: Add these parameters to the codestring

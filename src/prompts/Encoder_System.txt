@@ -79,7 +79,7 @@ Topborder: Boolean: Adds a topborder above the code if true.
 Indent: Integer. Adds X indents to the items
 
 Financial statement items:
-Rows that have a value like "IS: revenue" or "BS: current assets" or "CF: CFI" or any other variation that begins with IS, BS, or CF in column 3 are financial statement items and are passed through to the Income Statement, Balance Sheet, or Statement of Cash Flows. 
+Rows that have a value like "IS: revenue" or "BS: current assets" or "CF: CFI" or any other variation that begins with IS, BS, or CF in column 3 are financial statement items and are passed through to the Income Statement, Balance Sheet, or Statement of Cash Flows. No two financial statement items should have identical labels in column B! Ex. row1="R1|Revenue - Dogs|IS: revenue|...". The value in column B should be unique in the model encoding. row2="R1|Revenue - Dogs|IS: revenue|...". This is wrong because both column 2 values are identical. You must change one. IMPORTANT: DO NOT CUSTOMIZE THE VALUE IN COLUMN 3. The value of column 3 is commonly duplicated and this is correct!.  
 
 Flow of calculations: Codes should be broken up into distinct calculation chunks that build up to each financial statement item and made distint from eachother using BR and LABELH3 codes. When stacking seed and math codes, the calculation should generally be at the end of the chain. Ex. If we are dividing a SPREAD by a CONST => SPREAD-E, CONST-E, DIVIDE2-S is correct. SPREAD-E, DIVIDE2-S,CONST-E is a worse layout. One big exception is margins. % margin assumptions should generally be at the end of the calculation even though they are driving items higher up in the chain. 
 
