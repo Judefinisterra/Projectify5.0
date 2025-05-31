@@ -57,6 +57,26 @@ export async function validateCodeStrings(inputCodeStrings) {
     // First pass: collect all row values, code types, and suffixes
     const financialStatementItems = new Map(); // Track financial statement items (column B) by their location
     
+    // Define valid financial statement codes
+    const validFinancialCodes = new Set([
+        'IS: revenue',
+        'IS: direct costs',
+        'IS: corporate overhead',
+        'IS: D&A',
+        'IS: interest',
+        'IS: Other Income',
+        'IS: Net Income',
+        'BS: current assets',
+        'BS: fixed assets',
+        'BS: current liabilities',
+        'BS: LT Liabilities',
+        'BS: equity',
+        'CF: WC',
+        'CF: Non-cash',
+        'CF: CFI',
+        'CF: CFF'
+    ]);
+    
     for (let i = 0; i < inputCodeStrings.length; i++) {
         const codeString = inputCodeStrings[i];
         const currentTabForCode = codeToTab.get(i);
@@ -88,9 +108,14 @@ export async function validateCodeStrings(inputCodeStrings) {
                         const columnC = parts[2].trim();
                         
                         // Check if column 3 starts with IS, BS, or CF
-                        if (columnC && (columnC.startsWith('IS') || columnC.startsWith('BS') || columnC.startsWith('CF'))) {
+                        if (columnC && (columnC.startsWith('IS:') || columnC.startsWith('BS:') || columnC.startsWith('CF:'))) {
+                            // Validate against approved financial codes
+                            if (!validFinancialCodes.has(columnC)) {
+                                errors.push(`[LERR013] Invalid financial statement code "${columnC}" in ${codeString} at ${rowName}. Must be one of the approved codes.`);
+                            }
+                            
                             if (columnB) {
-                                // Track this financial statement item
+                                // Track this financial statement item for duplicate checking
                                 if (financialStatementItems.has(columnB)) {
                                     const existing = financialStatementItems.get(columnB);
                                     existing.push({ codeString, rowName, driver });
@@ -582,6 +607,26 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
     // First pass: collect all row values, code types, and suffixes
     const financialStatementItems = new Map(); // Track financial statement items (column B) by their location
     
+    // Define valid financial statement codes
+    const validFinancialCodes = new Set([
+        'IS: revenue',
+        'IS: direct costs',
+        'IS: corporate overhead',
+        'IS: D&A',
+        'IS: interest',
+        'IS: Other Income',
+        'IS: Net Income',
+        'BS: current assets',
+        'BS: fixed assets',
+        'BS: current liabilities',
+        'BS: LT Liabilities',
+        'BS: equity',
+        'CF: WC',
+        'CF: Non-cash',
+        'CF: CFI',
+        'CF: CFF'
+    ]);
+    
     for (let i = 0; i < inputCodeStrings.length; i++) {
         const codeString = inputCodeStrings[i];
         const currentTabForCode = codeToTab.get(i);
@@ -609,9 +654,14 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
                         const columnC = parts[2].trim();
                         
                         // Check if column 3 starts with IS, BS, or CF
-                        if (columnC && (columnC.startsWith('IS') || columnC.startsWith('BS') || columnC.startsWith('CF'))) {
+                        if (columnC && (columnC.startsWith('IS:') || columnC.startsWith('BS:') || columnC.startsWith('CF:'))) {
+                            // Validate against approved financial codes
+                            if (!validFinancialCodes.has(columnC)) {
+                                errors.push(`[LERR013] Invalid financial statement code "${columnC}" in ${codeString} at ${rowName}. Must be one of the approved codes.`);
+                            }
+                            
                             if (columnB) {
-                                // Track this financial statement item
+                                // Track this financial statement item for duplicate checking
                                 if (financialStatementItems.has(columnB)) {
                                     const existing = financialStatementItems.get(columnB);
                                     existing.push({ codeString, rowName, driver });
