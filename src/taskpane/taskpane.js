@@ -421,19 +421,45 @@ async function handleSend() {
         progressMessageContent.textContent = 'Validating response...';
         chatLog.scrollTop = chatLog.scrollHeight;
 
-        // Run validation and correction if needed (using the extracted array)
-        console.log("Starting validation");
-        const validationResults = await validateCodeStrings(responseArray);
-        console.log("Validation completed:", validationResults);
+        // First validation pass
+        console.log("Starting first validation pass");
+        let validationResults = await validateCodeStrings(responseArray);
+        console.log("First validation completed:", validationResults);
 
         if (validationResults && validationResults.length > 0) {
-            progressMessageContent.textContent = 'Correcting validation errors...';
+            progressMessageContent.textContent = 'Correcting validation errors (Pass 1)...';
             chatLog.scrollTop = chatLog.scrollHeight;
             
-            console.log("Starting validation correction");
+            console.log("Starting first validation correction");
             // Pass the extracted array to validationCorrection
             responseArray = await validationCorrection(userInput, responseArray, validationResults);
-            console.log("Validation correction completed");
+            console.log("First validation correction completed");
+            
+            // Second validation pass
+            progressMessageContent.textContent = 'Re-validating response...';
+            chatLog.scrollTop = chatLog.scrollHeight;
+            
+            console.log("Starting second validation pass");
+            validationResults = await validateCodeStrings(responseArray);
+            console.log("Second validation completed:", validationResults);
+            
+            if (validationResults && validationResults.length > 0) {
+                progressMessageContent.textContent = 'Correcting remaining errors (Pass 2)...';
+                chatLog.scrollTop = chatLog.scrollHeight;
+                
+                console.log("Starting second validation correction");
+                responseArray = await validationCorrection(userInput, responseArray, validationResults);
+                console.log("Second validation correction completed");
+                
+                // Final validation check (no correction, just logging)
+                console.log("Running final validation check");
+                const finalValidationResults = await validateCodeStrings(responseArray);
+                if (finalValidationResults && finalValidationResults.length > 0) {
+                    console.warn("Validation errors remain after two correction attempts:", finalValidationResults);
+                    // Optionally add a warning message to the user
+                    showMessage("Some validation warnings remain. The model will proceed with best effort.");
+                }
+            }
         }
 
         // Store the final response array for Excel writing

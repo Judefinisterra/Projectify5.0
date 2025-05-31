@@ -120,6 +120,7 @@ BR codes: Every LABEL code should be preceded by a BR code to add space between 
 
 
 General rules:
+Ranges: When the user gives a range for an input, take the midpoint as the input. Ex. Prices range from $150-$250. Use $200. 
 Keep Going unitl the job is completely solved before ending your turn
 Use your tools, odn't guess. If you're unsure about tools or files, open them, do not halucinate
 Plan thoroughly before every tool call and reflect thoroughly on the outcome
