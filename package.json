@@ -11,6 +11,7 @@
     "build:dev": "webpack --mode development",
     "dev": "npm run dev-server",
     "dev-server": "webpack serve --mode development --port 3002",
+    "file-server": "node src/server/fileServer.js",
     "lint": "office-addin-lint check",
     "lint:fix": "office-addin-lint fix",
     "prestart": "npm run build",
@@ -24,7 +25,9 @@
   },
   "dependencies": {
     "core-js": "^3.36.0",
-    "regenerator-runtime": "^0.14.1"
+    "regenerator-runtime": "^0.14.1",
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",

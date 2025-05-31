@@ -1,0 +1,9 @@
+# Last Enhanced Prompt
+
+This file will contain the latest enhanced prompt that was sent to the AI model.
+
+The prompt will be automatically saved here each time getAICallsProcessedResponse() is called.
+
+---
+
+No prompts have been processed yet.

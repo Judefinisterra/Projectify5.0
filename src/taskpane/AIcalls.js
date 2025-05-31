@@ -524,6 +524,52 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
 
       const results = [];
 
+      // >>> ADDED: Direct query using entire client prompt to training data database
+      if (progressCallback) {
+          progressCallback("Querying training data with full prompt...");
+      }
+      
+      if (DEBUG) {
+          console.log("=== PROCESSING FULL PROMPT QUERY ===");
+          console.log(`Full prompt query: "${clientprompt}"`);
+          console.log("Querying call2trainingdata database with full prompt...");
+      }
+      
+      try {
+          const fullPromptTrainingData = await queryVectorDB({
+              queryPrompt: clientprompt,
+              similarityThreshold: .2,
+              indexName: 'call2trainingdata',
+              numResults: 15 // Slightly higher number since this is the full prompt
+          });
+
+          // Add the full prompt query as a separate result
+          const fullPromptResult = {
+              query: clientprompt + " (FULL PROMPT)",
+              trainingData: fullPromptTrainingData,
+              call2Context: [], // Empty for full prompt query
+              call1Context: [], // Empty for full prompt query  
+              codeOptions: [] // Empty for full prompt query
+          };
+
+          results.push(fullPromptResult);
+          
+          if (DEBUG) {
+              console.log("Full prompt query results summary:");
+              console.log(`  - Training data: ${fullPromptTrainingData.length} items`);
+              console.log("=== END FULL PROMPT QUERY ===");
+          }
+          
+          if (progressCallback) {
+              progressCallback("Completed full prompt training data query");
+          }
+      } catch (error) {
+          console.error(`Error processing full prompt query "${clientprompt}":`, error);
+          if (progressCallback) {
+              progressCallback(`Error in full prompt query: ${error.message}`);
+          }
+      }
+
       for (let i = 0; i < queryStrings.length; i++) {
           const queryString = queryStrings[i];
           const chunkNumber = i + 1;
@@ -606,7 +652,7 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
 
       if (DEBUG) {
           console.log("=== FINAL SUMMARY ===");
-          console.log(`Successfully processed ${results.length} out of ${queryStrings.length} chunks`);
+          console.log(`Successfully processed ${results.length} total queries (including full prompt query)`);
           console.log("=== END SUMMARY ===");
       }
 
@@ -1356,12 +1402,52 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
             if (DEBUG) console.log("[getAICallsProcessedResponse] Validation correction completed. Corrected response:", responseArray);
         }
 
+        // >>> ADDED: Save the complete enhanced prompt that was sent to AI to lastprompt.txt
+        await saveEnhancedPrompt(combinedInputForAI);
+
         return responseArray;
 
     } catch (error) {
         console.error("[getAICallsProcessedResponse] Error during processing:", error);
         // Return an error message array, consistent with other function returns
         return [`Error processing tab description: ${error.message}`];
+    }
+}
+
+// >>> ADDED: Function to save the complete prompt sent to AI to lastprompt.txt
+async function saveEnhancedPrompt(fullPrompt) {
+    try {
+        console.log("Saving complete AI prompt to lastprompt.txt...");
+        
+        // Try to save to server via POST request
+        const response = await fetch('https://localhost:3003/save-prompt', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                filename: 'src/prompts/lastprompt.txt',
+                content: fullPrompt
+            })
+        });
+
+        if (response.ok) {
+            console.log("Complete AI prompt saved successfully to lastprompt.txt");
+        } else {
+            console.warn("Failed to save prompt to server:", response.statusText);
+            // Fallback: save to localStorage
+            localStorage.setItem('lastPrompt', fullPrompt);
+            console.log("Complete AI prompt saved to localStorage as fallback");
+        }
+    } catch (error) {
+        console.error("Error saving prompt:", error);
+        // Fallback: save to localStorage
+        try {
+            localStorage.setItem('lastPrompt', fullPrompt);
+            console.log("Complete AI prompt saved to localStorage as fallback");
+        } catch (storageError) {
+            console.error("Failed to save to localStorage:", storageError);
+        }
     }
 }
 

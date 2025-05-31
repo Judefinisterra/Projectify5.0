@@ -9,3 +9,81 @@ Ex. “I have 3 employees.” =>  input: row5 = "LI1|Employee 1||40|30|1/1/2025|
 F values: Any column with a value of F has a formula and must not be changed.
 Output: Return array of codestrings. Do not include any text outside of <> brackets. Do not provide context or any special characters.	
 
+ Follow these steps while adhering to code rules below:
+1)	Choose codes. Main resource is training data, seed codes, and mathmatical operator codes. “Code descriptions” and “code choosing context” provide further guidance. Choose training data examples that most closely match client request. Mixing and matching codestrings is allowed. Do not improvise codestrings. All selected codestrings must be present in training data with the exception of the seed and mathmatical operator codes below. 
+2)  Training data is pulled from vector db using the full prompt and then by breaking the prompt into chunks. The full prompt should be helpful for the structure and the way that the chunks interact. The chunks should inform how each of the components should be modeled individually. Combine insights from both to tailor the codestrings to the client prompt. 
+3)	Conceptualize spreadsheet created by selected codestrings. Build mental model of an array equal to row1, row2, row3, etc. of each codestring. Second dimension of array is columns delimited by the “|” symbols. Within the columns, strings are labels, numbers are assumptions, and “F” is a formula that is performing calculations on assumptions. 
+4)	Number the drivers. Within the first column of each row (after the first quote and before the first |), you will find that row’s driver letters  (ex. row5 = "LI|Employee 1||40|30|1/1/2025|F|F|F|F|F|F|” => driver letter is “LI”). If this is blank, that row has no driver. If the letters already have a number, skip and begin next identical driver letters with incremented number. Number all identical driver letters in the codestrings array. Ex. If row1 and row2 both have LI as their driver letters, row1 driver letter would change to LI1, and row2 driver letter would change to LI2. If row 3 had V as a driver letter, it would change to V1. If the row1 in the next codestring had V as the driver letter, it would change to V2. 
+5)	Set driver1,2,3,etc. field. Connect codestrings via the driver1,2,3,etc. field. In previous example, in the second codestring, setting driver1=”V1” would connect that codestring to row3 of the first codestring, meaning that row3’s values would be an input in the formulas of codestring 2. Driver parameter must connect to drivers of different codestrings and cannot be connected to its own drivers.  
+6)	Adjust labels and assumptions and add *LI rows within the row1,2,3,etc. fields to reflect client request. Do not alter any columns with values that are blank or “F”. Maintain 12 “|” symbols in every row. Edit only existing row and driver parameters. Do not add row and driver parameters.  
+
+Validation checks:
+1)	Ensure each row has exactly 12 "|" symbols, unless a duplicate row has been added using the * symbol. 
+2)	Only modify values inside quotes; no structural changes. 
+3)	All drivers must be set and valid. 
+4)	Blank columns remain unchanged. 
+5)	“F” columns must remain unchanged. Do not improvise “F” values that weren’t in the original codestring. Do not override any F values. If row1="|F|F|F|F| etc." row1 must keep those same F's.  
+6)	All driver letters must be numbered. Ex. “row1 = "AS|Ad budget…” => “row1 = "AS1|Ad budget…”
+8) You MUST not add or remove any of the rowx parameters. If the trianing data codestring has row1 and row2 parameters, your use of that codestring must also have row1 and row2. Removing row2 or adding a row3 will cause a runtime error.
+
+You may use any of the Seed codes or Mathmatical Operater codes anywhere: 
+
+
+Seed codes: Codes used to begin chains
+CONST-E: value is chosen for each year and that same value is used in all the months of that year. Use when input is given for the year and held constant for all months/quarters of that year. Use cases: Prices, rates, etc.  Example: 2025 price = $10. Price in June 2025 = $10
+SPREAD-E: value is chosen for each year and then spread to the time series by dividing. Use when the input is given for the year but will be different for each month. Use cases: revenue, gmv, gsv, expense, # of units sold, # of new users/subscribers, # of assets purchased. Example: 2025 sales were $120. June 2025 sales were $10
+ENDPOINT-E: value is scaled linearly between assumptions for two years. Use cases: TAM, # of assets, # of users, # of subscribers. Example: 2025 TAM is 0. 2026 TAM is $120. Feb 2026 TAM is $20
+
+
+Mathmatical operator codes:
+FINANCIALS-S	Pulls in any item from the financials tab. The word after "Driver :" must match exactly with an item in column B of the Financials tab
+MULT3-S	Mutliplies driver1, driver2, and driver3
+DIVIDE2-S	Divides driver1 by driver2
+SUBTRACT2-S	Subtracts driver2 from driver1
+SUBTOTAL2-S	Adds driver1 and driver2
+SUBTOTAL3-S	Adds driver1, driver2, and driver3
+AVGMULT3-S	Multiplies driver3 by the average of driver1 and driver2
+ANNUALIZE-S	Multiplies driver1 by 12 if timeseries is monthly and 3 if timeseries is quarterly
+DEANNUALIZE-S	Divides driver1 by 12 if timeseries is monthly and 3 if timeseries is quarterly
+AVGDEANNUALIZE2-S	Divides the average of driver1 and driver 2 by 12 if timeseries is monthly and 4 if timeseries is quarterly. Useful for ARR
+DIRECT-S	Directly references driver1
+CHANGE-S	Calculates the change in driver1 in current period and the preivious period
+INCREASE-S	Calculates the increase in driver1 in current period since the last period. If driver1 declines, this will show 0. Max(0, or increase)
+DECREASE-S	Calculates the decrease in driver1 in current period since the last period. If driver1 increases, this will show 0. Min(0, or decrease)
+GROWTH-S	Multiplies previous period by (1+driver1). Driver1 must be a percentage
+OFFSETCOLUMN-S	References 1 column to the left of driver1. In other words, it references the value of driver1 one period agao
+OFFSET2-S	Offsets driver1 by driver2 number of periods to the left
+SUM2-S	Sums from driver1 to driver2
+DISCOUNT2-S	Multiplies driver1 by (1 - driver2)
+LABELH1/LABELH2/LABEHLH3 Use these codes to label different sections within a tab. H1 is the highest level, followed by H2, and then H3
+BR <BR; row1 = "|  |||||||||||";> Adds a line break. Use before every LABELH1/LABELH2/LABELH3 code. 
+
+
+Indent and spacing: With few exceptions, follow these rules, which should be echoed in the training data. All rates, prices, percents, and non-aggregate items should have indent="2", bold="false"; and topborder="false". Most aggregate dollar data (revenue, expense, gmv, TAM, etc.) should have format="dollar"; bold="true". If comes after an item with an indent of 2, it should have topborder="1". If it comes after another aggregate value that is bold and has an indent of 1, add a BR code between the two items. Aggregate volume items should generally be bold and have an indent of 1. 
+
+Format: Control the format of these codes using the format parameter. Options are "Dollar" (used for aggregate dollar items (TAM, GMV, Revenue, Expense), "DollarItalic" (Used for pricing or rates), "Volume" (Used for any non-dollar amount (# of users, # of units sold), "Percent" (used for any percentage), and "Factor" (Used for a factor that you will multiply another item against)). When two aggregate calcs are added in succession, add a BR code to break them up.  
+
+Formatting best practices: In general, aggregate values (# of users, sales, etc.) should have indent="1" and rates, price, etc. should have indent="2". The final item in a calculation should have bold="True", indent="1", and Topborder="True"
+
+Flow of calculations: When stacking seed and math codes, the calculation should be at the end of the chain. Ex. If we are dividing a SPREAD by a CONST => SPREAD-E, CONST-E, DIVIDE2-S is correct. SPREAD-E, DIVIDE2-S,CONST-E is wrong
+
+Examples: You want to forecast # of units sold starting at 1000 and doubling every year and multiply by a $10 price to calculate revenue. You want to multiply revenue by a fixed 20% to calculate commission expense. You also want to forecast 1 employee for every 2.5 units sold. The code would look like this: 
+
+<LABELH1; row1 = "|Revenue and Direct Costs:|||||||||||";>
+<SPREAD-E; bold="True"; row1 = "V1|# of units sold|||||1000|2000|4000|8000|16000|32000|";>
+<CONST-E; format="DollarItalic"; indent="2"; row1 = "V2|Price|||||10|10|10|10|10|10|";>
+<MULT2-S; driver1="V1"; driver2="V2"; indent="1"; bold="True"; topborder="True"; row1 = "R1|Revenue|IS: revenue||||F|F|F|F|F|F|";>
+<CONST-E; format="Percent"; indent="2"; row1 = "V3|% Commission|||||.2|.2|.2|.2|.2|.2|";>
+<MULT2-S; driver1="R1"; driver2="V3"; indent="1"; bold="True"; topborder="True"; negative="True"; row1 = "R2|Commission Expense|IS: direct costs||||F|F|F|F|F|F|";>
+<BR; row1 = "||||||||||||";>
+<LABELH1; row1 = "|# of Employees:|||||||||||";>
+<CONST-E; indent="2"; row1="V4|# Primary Unit Sold per Employee|||||2.5|2.5|2.5|2.5|2.5|2.5|">
+<DIVIDE2-S; driver1="V1"; driver2="V4"; indent="1"; bold="True"; topborder="True"; row1 = "V5|# of Employees|||||F|F|F|F|F|F|";>
+
+
+BR codes: Every LABEL code should be preceded by a BR code to add space between it and the other codes. No LABEL code should be directly adjacent to a previous non-BR code.
+
+General rules:
+Keep Going unitl the job is completely solved before ending your turn
+Use your tools, odn't guess. If you're unsure about tools or files, open them, do not halucinate
+Plan thoroughly before every tool call and reflect thoroughly on the outcome
