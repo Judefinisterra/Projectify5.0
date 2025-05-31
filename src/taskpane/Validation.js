@@ -9,6 +9,7 @@ export async function validateCodeStrings(inputCodeStrings) {
     const tabLabels = new Set();
     const rowValues = new Set();
     const codeTypes = new Set();
+    const tabRowDrivers = new Map(); // Track row drivers per TAB
     
     // Clean up input strings by removing anything outside angle brackets
     inputCodeStrings = inputCodeStrings.map(str => {
@@ -34,8 +35,30 @@ export async function validateCodeStrings(inputCodeStrings) {
         return errors;
     }
 
+    // Determine which tab each code belongs to
+    let currentTab = 'default'; // For codes before any TAB
+    const codeToTab = new Map();
+    
+    // Initialize the default tab
+    tabRowDrivers.set('default', new Map());
+    
+    for (let i = 0; i < inputCodeStrings.length; i++) {
+        const codeString = inputCodeStrings[i];
+        const codeMatch = codeString.match(/<([^;]+);/);
+        
+        if (codeMatch && codeMatch[1].trim() === 'TAB') {
+            currentTab = codeString; // Use the TAB code string as the tab identifier
+            tabRowDrivers.set(currentTab, new Map());
+        }
+        
+        codeToTab.set(i, currentTab);
+    }
+
     // First pass: collect all row values, code types, and suffixes
-    for (const codeString of inputCodeStrings) {
+    for (let i = 0; i < inputCodeStrings.length; i++) {
+        const codeString = inputCodeStrings[i];
+        const currentTabForCode = codeToTab.get(i);
+        
         if (!codeString.startsWith('<') || !codeString.endsWith('>')) {
             errors.push(`Invalid code string format: ${codeString}`);
             continue;
@@ -49,10 +72,28 @@ export async function validateCodeStrings(inputCodeStrings) {
         const rowMatches = codeString.match(/row\d+\s*=\s*"([^"]*)"/g);
         if (rowMatches) {
             rowMatches.forEach(match => {
-                const rowContent = match.match(/row\d+\s*=\s*"([^"]*)"/)[1];
+                const rowParam = match.match(/(row\d+)\s*=\s*"([^"]*)"/);
+                const rowName = rowParam[1];
+                const rowContent = rowParam[2];
                 // Handle spaces before/after the pipe delimiter
                 const parts = rowContent.split('|');
                 if (parts.length > 0) {
+                    const driver = parts[0].trim();
+                    
+                    // Track row drivers per tab
+                    if (driver && !driver.startsWith('*') && tabRowDrivers.has(currentTabForCode)) {
+                        const driversInThisTab = tabRowDrivers.get(currentTabForCode);
+                        if (driversInThisTab.has(driver)) {
+                            const existing = driversInThisTab.get(driver);
+                            existing.occurrences.push({ codeString, rowName });
+                        } else {
+                            driversInThisTab.set(driver, {
+                                firstOccurrence: { codeString, rowName },
+                                occurrences: [{ codeString, rowName }]
+                            });
+                        }
+                    }
+                    
                     // Extract all potential row IDs including those after asterisks
                     parts.forEach(part => {
                         const trimmedPart = part.trim();
@@ -80,6 +121,32 @@ export async function validateCodeStrings(inputCodeStrings) {
             codeTypes.add(codeType);
         }
     }
+
+    // Check for duplicate row drivers within each tab
+    tabRowDrivers.forEach((driversInTab, tabCode) => {
+        driversInTab.forEach((driverInfo, driver) => {
+            if (driverInfo.occurrences.length > 1) {
+                const tabLabel = tabCode === 'default' ? 'before any TAB' : 
+                    (() => {
+                        const labelMatch = tabCode.match(/label\d+="([^"]*)"/);
+                        return labelMatch ? `TAB "${labelMatch[1]}"` : 'TAB (no label)';
+                    })();
+                
+                const locations = driverInfo.occurrences.map(loc => {
+                    const codeMatch = loc.codeString.match(/<([^;]+);/);
+                    const codeType = codeMatch ? codeMatch[1] : 'Unknown';
+                    return `${codeType} code (${loc.rowName})`;
+                }).join(' and ');
+                
+                errors.push(`Duplicate row driver "${driver}" found within ${tabLabel}: ${locations}`);
+                
+                // Add details about each occurrence
+                driverInfo.occurrences.forEach(loc => {
+                    errors.push(`  - In ${loc.codeString.substring(0, 100)}... at ${loc.rowName}`);
+                });
+            }
+        });
+    });
 
     // Second pass: detailed validation
     for (const codeString of inputCodeStrings) {
@@ -123,18 +190,53 @@ export async function validateCodeStrings(inputCodeStrings) {
                 errors.push(`Duplicate tab label: "${label}"`);
             }
             tabLabels.add(label);
+            
+            // Initialize driver tracking for this TAB
+            if (!tabRowDrivers.has(codeString)) {
+                tabRowDrivers.set(codeString, new Map());
+            }
         }
 
-        // Validate row format
-        const rowMatches = codeString.match(/row\d+="([^"]*)"/g);
-        if (rowMatches) {
-            rowMatches.forEach(match => {
-                const rowContent = match.match(/row\d+="([^"]*)"/)[1];
-                const parts = rowContent.split('|');
-                if (parts.length < 2) {
-                    errors.push(`Invalid row format (missing required fields): "${rowContent}"`);
-                }
-            });
+        // Validate row format and check for duplicate drivers within TAB
+        if (codeType === 'TAB') {
+            const rowMatches = codeString.match(/row\d+="([^"]*)"/g);
+            if (rowMatches) {
+                const driversInThisTab = tabRowDrivers.get(codeString);
+                
+                rowMatches.forEach(match => {
+                    const rowParam = match.match(/(row\d+)="([^"]*)"/);
+                    const rowName = rowParam[1];
+                    const rowContent = rowParam[2];
+                    const parts = rowContent.split('|');
+                    
+                    if (parts.length < 2) {
+                        errors.push(`Invalid row format (missing required fields): "${rowContent}"`);
+                    } else {
+                        // Extract the driver (first part before |)
+                        const driver = parts[0].trim();
+                        
+                        // Check if this driver already exists in this TAB
+                        if (driversInThisTab.has(driver)) {
+                            const existingRow = driversInThisTab.get(driver);
+                            errors.push(`Duplicate row driver "${driver}" found in ${codeString} - appears in both ${existingRow} and ${rowName}`);
+                        } else {
+                            driversInThisTab.set(driver, rowName);
+                        }
+                    }
+                });
+            }
+        } else {
+            // For non-TAB codes, just validate row format
+            const rowMatches = codeString.match(/row\d+="([^"]*)"/g);
+            if (rowMatches) {
+                rowMatches.forEach(match => {
+                    const rowContent = match.match(/row\d+="([^"]*)"/)[1];
+                    const parts = rowContent.split('|');
+                    if (parts.length < 2) {
+                        errors.push(`Invalid row format (missing required fields): "${rowContent}"`);
+                    }
+                });
+            }
         }
     } // <-- This is the end of the second pass loop
 
@@ -184,6 +286,7 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
     const tabLabels = new Set();
     const rowValues = new Set();
     const codeTypes = new Set();
+    const tabRowDrivers = new Map(); // Track row drivers per TAB
     
     // Clean up input strings by removing anything outside angle brackets
     inputCodeStrings = inputCodeStrings.map(str => {
@@ -209,8 +312,30 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
         return errors; // Return array on critical error
     }
 
+    // Determine which tab each code belongs to
+    let currentTab = 'default'; // For codes before any TAB
+    const codeToTab = new Map();
+    
+    // Initialize the default tab
+    tabRowDrivers.set('default', new Map());
+    
+    for (let i = 0; i < inputCodeStrings.length; i++) {
+        const codeString = inputCodeStrings[i];
+        const codeMatch = codeString.match(/<([^;]+);/);
+        
+        if (codeMatch && codeMatch[1].trim() === 'TAB') {
+            currentTab = codeString; // Use the TAB code string as the tab identifier
+            tabRowDrivers.set(currentTab, new Map());
+        }
+        
+        codeToTab.set(i, currentTab);
+    }
+
     // First pass: collect all row values, code types, and suffixes
-    for (const codeString of inputCodeStrings) {
+    for (let i = 0; i < inputCodeStrings.length; i++) {
+        const codeString = inputCodeStrings[i];
+        const currentTabForCode = codeToTab.get(i);
+        
         if (!codeString.startsWith('<') || !codeString.endsWith('>')) {
             errors.push(`Invalid code string format: ${codeString}`);
             continue;
@@ -221,9 +346,27 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
         const rowMatches = codeString.match(/row\d+\s*=\s*"([^"]*)"/g);
         if (rowMatches) {
             rowMatches.forEach(match => {
-                const rowContent = match.match(/row\d+\s*=\s*"([^"]*)"/)[1];
+                const rowParam = match.match(/(row\d+)\s*=\s*"([^"]*)"/);
+                const rowName = rowParam[1];
+                const rowContent = rowParam[2];
                 const parts = rowContent.split('|');
                 if (parts.length > 0) {
+                    const driver = parts[0].trim();
+                    
+                    // Track row drivers per tab
+                    if (driver && !driver.startsWith('*') && tabRowDrivers.has(currentTabForCode)) {
+                        const driversInThisTab = tabRowDrivers.get(currentTabForCode);
+                        if (driversInThisTab.has(driver)) {
+                            const existing = driversInThisTab.get(driver);
+                            existing.occurrences.push({ codeString, rowName });
+                        } else {
+                            driversInThisTab.set(driver, {
+                                firstOccurrence: { codeString, rowName },
+                                occurrences: [{ codeString, rowName }]
+                            });
+                        }
+                    }
+                    
                     parts.forEach(part => {
                         const trimmedPart = part.trim();
                         if (trimmedPart.startsWith('*')) {
@@ -244,6 +387,32 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
             codeTypes.add(codeType);
         }
     }
+
+    // Check for duplicate row drivers within each tab
+    tabRowDrivers.forEach((driversInTab, tabCode) => {
+        driversInTab.forEach((driverInfo, driver) => {
+            if (driverInfo.occurrences.length > 1) {
+                const tabLabel = tabCode === 'default' ? 'before any TAB' : 
+                    (() => {
+                        const labelMatch = tabCode.match(/label\d+="([^"]*)"/);
+                        return labelMatch ? `TAB "${labelMatch[1]}"` : 'TAB (no label)';
+                    })();
+                
+                const locations = driverInfo.occurrences.map(loc => {
+                    const codeMatch = loc.codeString.match(/<([^;]+);/);
+                    const codeType = codeMatch ? codeMatch[1] : 'Unknown';
+                    return `${codeType} code (${loc.rowName})`;
+                }).join(' and ');
+                
+                errors.push(`Duplicate row driver "${driver}" found within ${tabLabel}: ${locations}`);
+                
+                // Add details about each occurrence
+                driverInfo.occurrences.forEach(loc => {
+                    errors.push(`  - In ${loc.codeString.substring(0, 100)}... at ${loc.rowName}`);
+                });
+            }
+        });
+    });
 
     // Second pass: detailed validation
     for (const codeString of inputCodeStrings) {
@@ -279,16 +448,53 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
                 errors.push(`Duplicate tab label: "${label}"`);
             }
             tabLabels.add(label);
+            
+            // Initialize driver tracking for this TAB
+            if (!tabRowDrivers.has(codeString)) {
+                tabRowDrivers.set(codeString, new Map());
+            }
         }
-        const rowMatches = codeString.match(/row\d+="([^"]*)"/g);
-        if (rowMatches) {
-            rowMatches.forEach(match => {
-                const rowContent = match.match(/row\d+="([^"]*)"/)[1];
-                const parts = rowContent.split('|');
-                if (parts.length < 2) {
-                    errors.push(`Invalid row format (missing required fields): "${rowContent}"`);
-                }
-            });
+        
+        // Validate row format and check for duplicate drivers within TAB
+        if (codeType === 'TAB') {
+            const rowMatches = codeString.match(/row\d+="([^"]*)"/g);
+            if (rowMatches) {
+                const driversInThisTab = tabRowDrivers.get(codeString);
+                
+                rowMatches.forEach(match => {
+                    const rowParam = match.match(/(row\d+)="([^"]*)"/);
+                    const rowName = rowParam[1];
+                    const rowContent = rowParam[2];
+                    const parts = rowContent.split('|');
+                    
+                    if (parts.length < 2) {
+                        errors.push(`Invalid row format (missing required fields): "${rowContent}"`);
+                    } else {
+                        // Extract the driver (first part before |)
+                        const driver = parts[0].trim();
+                        
+                        // Check if this driver already exists in this TAB
+                        if (driversInThisTab.has(driver)) {
+                            const existingRow = driversInThisTab.get(driver);
+                            errors.push(`Duplicate row driver "${driver}" found in ${codeString} - appears in both ${existingRow} and ${rowName}`);
+                        } else {
+                            driversInThisTab.set(driver, rowName);
+                        }
+                    }
+                });
+            }
+        } else {
+            // For non-TAB codes, just validate row format
+            const rowMatches = codeString.match(/row\d+="([^"]*)"/g);
+            if (rowMatches) {
+                rowMatches.forEach(match => {
+                    const rowContent = match.match(/row\d+="([^"]*)"/)[1];
+                    const parts = rowContent.split('|');
+                    if (parts.length < 2) {
+                        errors.push(`Invalid row format (missing required fields): "${rowContent}"`);
+                    }
+                });
+            }
         }
     }
 

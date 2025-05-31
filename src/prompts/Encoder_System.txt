@@ -69,7 +69,8 @@ Dollar: use for all non-rate dollar denominated items. Use case: TAM, GMV, Reven
 DollarItalic: Use for dollar denominated rates. Use case: Price/Unit, $ revenue/month, $ expense/quarter, cost/unit, etc.  
 Volume: Default. Use for ALL items that aren't dollar, percent, or factor. Use cases: # of users, # of units sold, # of assets, # of dogs/year, Days sales outstanding
 Percent: Use for all percentages. 
-Factor: Use rarely. Only use for multiples. Use case: Exit multiple (EBITDA)
+Factor: Use rarely. Only use for multiples. Use case: Exit multiple (EBITDA).
+The format parameter must be set for every seed and mathmaticaloperator code listed in this system prompt!
 
 Other formatting params:
 Bold: boolean. Turns all cells in code bold if true and unbold if false
@@ -113,7 +114,6 @@ Examples: You want to forecast # of units sold starting at 1000 and doubling eve
 
 BR codes: Every LABEL code should be preceded by a BR code to add space between it and the other codes. No LABEL code should be directly adjacent to a previous non-BR code.
 
-FINAL CHECK: Make sure that the driver letter and number combinations in column one of every row are unique. There can NEVER be multiple identical driver and number combinations. Ex. <code 1;  row1 = "R1|Revenue|||||0.03|0.03|0.03|0.03|0.03|0.03|"><code 2; row1= row1 = "|Payroll and Benefits Assumptions:|||||||||||"; row2 = "R1|Expense|||||0.03|0.03|0.03|0.03|0.03|0.03|"> => There are 2 R1 codes. One of them must be changed. Be sure to also change any driver1,2,3 that references the changed row.  
 
 
 
