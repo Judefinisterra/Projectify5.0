@@ -224,6 +224,43 @@ export async function validateCodeStrings(inputCodeStrings) {
             }
         }
         
+        // Check MULT, SUBTRACT, SUM, SUBTOTAL codes must have indent="1" and bold="true"
+        if (codeType.startsWith('MULT') || codeType.startsWith('SUBTRACT') || 
+            codeType.startsWith('SUM') || codeType.startsWith('SUBTOTAL')) {
+            
+            // Check indent="1"
+            const hasIndent1 = /indent\s*=\s*["']?1["']?/i.test(codeString);
+            const indentMatch = codeString.match(/indent\s*=\s*["']?(\d+)["']?/i);
+            const indentValue = indentMatch ? indentMatch[1] : null;
+            
+            // Check bold="true"
+            const hasBoldTrue = /bold\s*=\s*["']?true["']?/i.test(codeString);
+            const boldMatch = codeString.match(/bold\s*=\s*["']?(true|false)["']?/i);
+            const boldValue = boldMatch ? boldMatch[1].toLowerCase() : null;
+            
+            const issues = [];
+            
+            if (!hasIndent1) {
+                if (indentValue) {
+                    issues.push(`has indent="${indentValue}" instead of indent="1"`);
+                } else {
+                    issues.push('missing indent="1"');
+                }
+            }
+            
+            if (!hasBoldTrue) {
+                if (boldValue === 'false') {
+                    issues.push('has bold="false" instead of bold="true"');
+                } else {
+                    issues.push('missing bold="true"');
+                }
+            }
+            
+            if (issues.length > 0) {
+                errors.push(`[FERR008] Format validation: ${codeType} code must have indent="1" and bold="true" - ${codeString} ${issues.join(' and ')}`);
+            }
+        }
+        
         // Rules 2, 3, 4: Check adjacency rules
         if (i > 0) {
             const prevCodeString = inputCodeStrings[i - 1];
@@ -601,6 +638,43 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
                         errors.push(`[FERR003] Format validation: LABELH3 must be followed by a code with indent="2". Use LABELH2 instead - ${codeString} followed by ${nextNonBRCode}`);
                     }
                 }
+            }
+        }
+        
+        // Check MULT, SUBTRACT, SUM, SUBTOTAL codes must have indent="1" and bold="true"
+        if (codeType.startsWith('MULT') || codeType.startsWith('SUBTRACT') || 
+            codeType.startsWith('SUM') || codeType.startsWith('SUBTOTAL')) {
+            
+            // Check indent="1"
+            const hasIndent1 = /indent\s*=\s*["']?1["']?/i.test(codeString);
+            const indentMatch = codeString.match(/indent\s*=\s*["']?(\d+)["']?/i);
+            const indentValue = indentMatch ? indentMatch[1] : null;
+            
+            // Check bold="true"
+            const hasBoldTrue = /bold\s*=\s*["']?true["']?/i.test(codeString);
+            const boldMatch = codeString.match(/bold\s*=\s*["']?(true|false)["']?/i);
+            const boldValue = boldMatch ? boldMatch[1].toLowerCase() : null;
+            
+            const issues = [];
+            
+            if (!hasIndent1) {
+                if (indentValue) {
+                    issues.push(`has indent="${indentValue}" instead of indent="1"`);
+                } else {
+                    issues.push('missing indent="1"');
+                }
+            }
+            
+            if (!hasBoldTrue) {
+                if (boldValue === 'false') {
+                    issues.push('has bold="false" instead of bold="true"');
+                } else {
+                    issues.push('missing bold="true"');
+                }
+            }
+            
+            if (issues.length > 0) {
+                errors.push(`[FERR008] Format validation: ${codeType} code must have indent="1" and bold="true" - ${codeString} ${issues.join(' and ')}`);
             }
         }
         

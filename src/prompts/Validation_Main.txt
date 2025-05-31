@@ -38,3 +38,4 @@ FERR004 - Adjacent codes both have topborder="true"/ Two consecutive codes both 
 FERR005 - Adjacent codes both have bold="true". Two consecutive codes both have bold set to true. Solution: Add a BR code between the two codes. 
 FERR006 - Adjacent codes both have indent="1". Two consecutive codes both have indent set to 1. Add a BR code in between the two codes. 
 FERR007 - BR code followed by code with indent="2". A BR code is immediately followed by a code with indent="2". Solution: Add LABELH3 above the indent=2 code.
+FERR008 - MULT, SUBTRACT, SUM, or SUBTOTAL codes must have indent="1" and bold="true". Any code starting with MULT, SUBTRACT, SUM, or SUBTOTAL must have both indent="1" and bold="true" parameters. Solution: Set indent="1" and bold="true" for these codes.
