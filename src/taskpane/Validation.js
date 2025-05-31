@@ -148,6 +148,80 @@ export async function validateCodeStrings(inputCodeStrings) {
         });
     });
 
+    // Format Validation Section
+    const formatRequiredCodes = new Set([
+        'FINANCIALS-S', 'MULT3-S', 'DIVIDE2-S', 'SUBTRACT2-S', 'SUBTOTAL2-S', 
+        'SUBTOTAL3-S', 'AVGMULT3-S', 'ANNUALIZE-S', 'DEANNUALIZE-S', 
+        'AVGDEANNUALIZE2-S', 'DIRECT-S', 'CHANGE-S', 'INCREASE-S', 'DECREASE-S', 
+        'GROWTH-S', 'OFFSETCOLUMN-S', 'OFFSET2-S', 'SUM2-S', 'DISCOUNT2-S', 
+        'CONST-E', 'SPREAD-E', 'ENDPOINT-E', 'GROWTH-E'
+    ]);
+
+    // Check format parameters and adjacency rules
+    for (let i = 0; i < inputCodeStrings.length; i++) {
+        const codeString = inputCodeStrings[i];
+        const codeMatch = codeString.match(/<([^;]+);/);
+        
+        if (!codeMatch) continue;
+        
+        const codeType = codeMatch[1].trim();
+        
+        // Rule 1: Check required format parameters
+        if (formatRequiredCodes.has(codeType)) {
+            const hasTopBorder = /topborder\s*=/.test(codeString.toLowerCase());
+            const hasFormat = /format\s*=/.test(codeString.toLowerCase());
+            const hasBold = /bold\s*=/.test(codeString.toLowerCase());
+            const hasIndent = /indent\s*=/.test(codeString.toLowerCase());
+            
+            const missingParams = [];
+            if (!hasTopBorder) missingParams.push('topborder');
+            if (!hasFormat) missingParams.push('format');
+            if (!hasBold) missingParams.push('bold');
+            if (!hasIndent) missingParams.push('indent');
+            
+            if (missingParams.length > 0) {
+                errors.push(`Format validation: ${codeType} code missing required parameters: ${missingParams.join(', ')} - ${codeString}`);
+            }
+        }
+        
+        // Rules 2, 3, 4: Check adjacency rules
+        if (i > 0) {
+            const prevCodeString = inputCodeStrings[i - 1];
+            const prevCodeMatch = prevCodeString.match(/<([^;]+);/);
+            const prevCodeType = prevCodeMatch ? prevCodeMatch[1].trim() : '';
+            
+            // Rule 2: Check adjacent topborder or bold
+            const currTopBorder = /topborder\s*=\s*["']?true["']?/i.test(codeString);
+            const prevTopBorder = /topborder\s*=\s*["']?true["']?/i.test(prevCodeString);
+            const currBold = /bold\s*=\s*["']?true["']?/i.test(codeString);
+            const prevBold = /bold\s*=\s*["']?true["']?/i.test(prevCodeString);
+            
+            if (currTopBorder && prevTopBorder) {
+                errors.push(`Format validation: Adjacent codes both have topborder="true" - ${prevCodeString} followed by ${codeString}`);
+            }
+            
+            if (currBold && prevBold) {
+                errors.push(`Format validation: Adjacent codes both have bold="true" - ${prevCodeString} followed by ${codeString}`);
+            }
+            
+            // Rule 3: Check adjacent indent="1"
+            const currIndent1 = /indent\s*=\s*["']?1["']?/i.test(codeString);
+            const prevIndent1 = /indent\s*=\s*["']?1["']?/i.test(prevCodeString);
+            
+            if (currIndent1 && prevIndent1) {
+                errors.push(`Format validation: Adjacent codes both have indent="1" - ${prevCodeString} followed by ${codeString}`);
+            }
+            
+            // Rule 4: BR followed by indent="2"
+            if (prevCodeType === 'BR') {
+                const currIndent2 = /indent\s*=\s*["']?2["']?/i.test(codeString);
+                if (currIndent2) {
+                    errors.push(`Format validation: BR code followed by code with indent="2" - ${prevCodeString} followed by ${codeString}`);
+                }
+            }
+        }
+    }
+
     // Second pass: detailed validation
     for (const codeString of inputCodeStrings) {
         // Skip BR tags completely
@@ -413,6 +487,80 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
             }
         });
     });
+
+    // Format Validation Section
+    const formatRequiredCodes = new Set([
+        'FINANCIALS-S', 'MULT3-S', 'DIVIDE2-S', 'SUBTRACT2-S', 'SUBTOTAL2-S', 
+        'SUBTOTAL3-S', 'AVGMULT3-S', 'ANNUALIZE-S', 'DEANNUALIZE-S', 
+        'AVGDEANNUALIZE2-S', 'DIRECT-S', 'CHANGE-S', 'INCREASE-S', 'DECREASE-S', 
+        'GROWTH-S', 'OFFSETCOLUMN-S', 'OFFSET2-S', 'SUM2-S', 'DISCOUNT2-S', 
+        'CONST-E', 'SPREAD-E', 'ENDPOINT-E', 'GROWTH-E'
+    ]);
+
+    // Check format parameters and adjacency rules
+    for (let i = 0; i < inputCodeStrings.length; i++) {
+        const codeString = inputCodeStrings[i];
+        const codeMatch = codeString.match(/<([^;]+);/);
+        
+        if (!codeMatch) continue;
+        
+        const codeType = codeMatch[1].trim();
+        
+        // Rule 1: Check required format parameters
+        if (formatRequiredCodes.has(codeType)) {
+            const hasTopBorder = /topborder\s*=/.test(codeString.toLowerCase());
+            const hasFormat = /format\s*=/.test(codeString.toLowerCase());
+            const hasBold = /bold\s*=/.test(codeString.toLowerCase());
+            const hasIndent = /indent\s*=/.test(codeString.toLowerCase());
+            
+            const missingParams = [];
+            if (!hasTopBorder) missingParams.push('topborder');
+            if (!hasFormat) missingParams.push('format');
+            if (!hasBold) missingParams.push('bold');
+            if (!hasIndent) missingParams.push('indent');
+            
+            if (missingParams.length > 0) {
+                errors.push(`Format validation: ${codeType} code missing required parameters: ${missingParams.join(', ')} - ${codeString}`);
+            }
+        }
+        
+        // Rules 2, 3, 4: Check adjacency rules
+        if (i > 0) {
+            const prevCodeString = inputCodeStrings[i - 1];
+            const prevCodeMatch = prevCodeString.match(/<([^;]+);/);
+            const prevCodeType = prevCodeMatch ? prevCodeMatch[1].trim() : '';
+            
+            // Rule 2: Check adjacent topborder or bold
+            const currTopBorder = /topborder\s*=\s*["']?true["']?/i.test(codeString);
+            const prevTopBorder = /topborder\s*=\s*["']?true["']?/i.test(prevCodeString);
+            const currBold = /bold\s*=\s*["']?true["']?/i.test(codeString);
+            const prevBold = /bold\s*=\s*["']?true["']?/i.test(prevCodeString);
+            
+            if (currTopBorder && prevTopBorder) {
+                errors.push(`Format validation: Adjacent codes both have topborder="true" - ${prevCodeString} followed by ${codeString}`);
+            }
+            
+            if (currBold && prevBold) {
+                errors.push(`Format validation: Adjacent codes both have bold="true" - ${prevCodeString} followed by ${codeString}`);
+            }
+            
+            // Rule 3: Check adjacent indent="1"
+            const currIndent1 = /indent\s*=\s*["']?1["']?/i.test(codeString);
+            const prevIndent1 = /indent\s*=\s*["']?1["']?/i.test(prevCodeString);
+            
+            if (currIndent1 && prevIndent1) {
+                errors.push(`Format validation: Adjacent codes both have indent="1" - ${prevCodeString} followed by ${codeString}`);
+            }
+            
+            // Rule 4: BR followed by indent="2"
+            if (prevCodeType === 'BR') {
+                const currIndent2 = /indent\s*=\s*["']?2["']?/i.test(codeString);
+                if (currIndent2) {
+                    errors.push(`Format validation: BR code followed by code with indent="2" - ${prevCodeString} followed by ${codeString}`);
+                }
+            }
+        }
+    }
 
     // Second pass: detailed validation
     for (const codeString of inputCodeStrings) {
