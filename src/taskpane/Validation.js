@@ -261,6 +261,55 @@ export async function validateCodeStrings(inputCodeStrings) {
             }
         }
         
+        // Check rows with column 2 beginning with "Total"
+        const rowMatch = codeString.match(/row\d+\s*=\s*"([^"]*)"/);
+        if (rowMatch) {
+            const rowContent = rowMatch[1];
+            const parts = rowContent.split('|');
+            if (parts.length >= 2) {
+                const column2 = parts[1].trim();
+                if (column2.startsWith('Total')) {
+                    // Check if previous code is BR
+                    const prevIsBR = i > 0 && inputCodeStrings[i - 1].match(/<BR[>;]/);
+                    
+                    // Check required parameters
+                    const hasBoldTrue = /bold\s*=\s*["']?true["']?/i.test(codeString);
+                    const hasIndent1 = /indent\s*=\s*["']?1["']?/i.test(codeString);
+                    const hasTopBorderTrue = /topborder\s*=\s*["']?true["']?/i.test(codeString);
+                    
+                    const issues = [];
+                    
+                    // Both cases need bold="true" and indent="1"
+                    if (!hasBoldTrue) {
+                        issues.push('missing or incorrect bold="true"');
+                    }
+                    if (!hasIndent1) {
+                        issues.push('missing or incorrect indent="1"');
+                    }
+                    
+                    // Check topborder based on whether it follows BR
+                    if (prevIsBR) {
+                        // Should NOT have topborder="True" after BR
+                        if (hasTopBorderTrue) {
+                            issues.push('should not have topborder="True" when following BR code');
+                        }
+                    } else {
+                        // Should have topborder="True" when not after BR
+                        if (!hasTopBorderTrue) {
+                            issues.push('missing topborder="True" (required when not following BR code)');
+                        }
+                    }
+                    
+                    if (issues.length > 0) {
+                        const expectedParams = prevIsBR 
+                            ? 'bold="true" and indent="1"' 
+                            : 'bold="true", indent="1", and topborder="True"';
+                        errors.push(`[FERR009] Format validation: Row with column 2 beginning with "Total" must have ${expectedParams} - ${codeString} ${issues.join(', ')}`);
+                    }
+                }
+            }
+        }
+        
         // Rules 2, 3, 4: Check adjacency rules
         if (i > 0) {
             const prevCodeString = inputCodeStrings[i - 1];
@@ -675,6 +724,55 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
             
             if (issues.length > 0) {
                 errors.push(`[FERR008] Format validation: ${codeType} code must have indent="1" and bold="true" - ${codeString} ${issues.join(' and ')}`);
+            }
+        }
+        
+        // Check rows with column 2 beginning with "Total"
+        const rowMatch = codeString.match(/row\d+\s*=\s*"([^"]*)"/);
+        if (rowMatch) {
+            const rowContent = rowMatch[1];
+            const parts = rowContent.split('|');
+            if (parts.length >= 2) {
+                const column2 = parts[1].trim();
+                if (column2.startsWith('Total')) {
+                    // Check if previous code is BR
+                    const prevIsBR = i > 0 && inputCodeStrings[i - 1].match(/<BR[>;]/);
+                    
+                    // Check required parameters
+                    const hasBoldTrue = /bold\s*=\s*["']?true["']?/i.test(codeString);
+                    const hasIndent1 = /indent\s*=\s*["']?1["']?/i.test(codeString);
+                    const hasTopBorderTrue = /topborder\s*=\s*["']?true["']?/i.test(codeString);
+                    
+                    const issues = [];
+                    
+                    // Both cases need bold="true" and indent="1"
+                    if (!hasBoldTrue) {
+                        issues.push('missing or incorrect bold="true"');
+                    }
+                    if (!hasIndent1) {
+                        issues.push('missing or incorrect indent="1"');
+                    }
+                    
+                    // Check topborder based on whether it follows BR
+                    if (prevIsBR) {
+                        // Should NOT have topborder="True" after BR
+                        if (hasTopBorderTrue) {
+                            issues.push('should not have topborder="True" when following BR code');
+                        }
+                    } else {
+                        // Should have topborder="True" when not after BR
+                        if (!hasTopBorderTrue) {
+                            issues.push('missing topborder="True" (required when not following BR code)');
+                        }
+                    }
+                    
+                    if (issues.length > 0) {
+                        const expectedParams = prevIsBR 
+                            ? 'bold="true" and indent="1"' 
+                            : 'bold="true", indent="1", and topborder="True"';
+                        errors.push(`[FERR009] Format validation: Row with column 2 beginning with "Total" must have ${expectedParams} - ${codeString} ${issues.join(', ')}`);
+                    }
+                }
             }
         }
         
