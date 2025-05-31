@@ -530,8 +530,8 @@ export async function runCodes(codeCollection) {
                                     const formatValue = String(code.params.format).toLowerCase();
                                     const numPastedRows = lastRow - firstRow + 1;
                                     const endPastedRow = pasteRow + Math.max(0, numPastedRows - 1);
-                                    // Corrected: Apply to K through CX
-                                    const formatRangeAddress = `K${pasteRow}:CX${endPastedRow}`;
+                                    // Apply to J through CX (including column J now)
+                                    const formatRangeAddress = `J${pasteRow}:CX${endPastedRow}`;
                                     const rangeToFormat = currentWS.getRange(formatRangeAddress);
                                     let numberFormatString = null;
                                     // Removed applyItalics variable as direct checks on formatValue are clearer for B:CX range
@@ -539,7 +539,7 @@ export async function runCodes(codeCollection) {
                                     console.log(`Processing "format" parameter: "${formatValue}" for range ${formatRangeAddress}`);
 
                                     if (formatValue === "dollar" || formatValue === "dollaritalic") {
-                                        numberFormatString = '_(* $ #,##0_);_(* $ (#,##0);_(* ""$ -""?_);_(@_)';
+                                        numberFormatString = '_(* $ #,##0_);_(* $ (#,##0);_(* "$" -""?_);_(@_)';
                                     } else if (formatValue === "volume") {
                                         numberFormatString = '_(* #,##0_);_(* (#,##0);_(* " -"?_);_(@_)';
                                     } else if (formatValue === "percent") {
@@ -549,8 +549,8 @@ export async function runCodes(codeCollection) {
                                     }
 
                                     if (numberFormatString) {
-                                        console.log(`Applying number format: "${numberFormatString}" to ${formatRangeAddress}`); // K:CX
-                                        rangeToFormat.numberFormat = [[numberFormatString]]; // K:CX
+                                        console.log(`Applying number format: "${numberFormatString}" to ${formatRangeAddress}`); // J:CX
+                                        rangeToFormat.numberFormat = [[numberFormatString]]; // J:CX
                                         
                                         // Italicization logic based on formatValue for the B:CX range
                                         const fullItalicRangeAddress = `B${pasteRow}:CX${endPastedRow}`;
