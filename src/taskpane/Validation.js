@@ -31,7 +31,7 @@ export async function validateCodeStrings(inputCodeStrings) {
             .map(line => line.trim())
             .filter(line => line.length > 0));
     } catch (error) {
-        errors.push(`Error reading Codes.txt file: ${error.message}`);
+        errors.push(`[LERR001] Error reading Codes.txt file: ${error.message}`);
         return errors;
     }
 
@@ -60,7 +60,7 @@ export async function validateCodeStrings(inputCodeStrings) {
         const currentTabForCode = codeToTab.get(i);
         
         if (!codeString.startsWith('<') || !codeString.endsWith('>')) {
-            errors.push(`Invalid code string format: ${codeString}`);
+            errors.push(`[LERR002] Invalid code string format: ${codeString}`);
             continue;
         }
         // Extract and store row IDs
@@ -138,7 +138,7 @@ export async function validateCodeStrings(inputCodeStrings) {
                     return `${codeType} code (${loc.rowName})`;
                 }).join(' and ');
                 
-                errors.push(`Duplicate row driver "${driver}" found within ${tabLabel}: ${locations}`);
+                errors.push(`[LERR003] Duplicate row driver "${driver}" found within ${tabLabel}: ${locations}`);
                 
                 // Add details about each occurrence
                 driverInfo.occurrences.forEach(loc => {
@@ -180,7 +180,47 @@ export async function validateCodeStrings(inputCodeStrings) {
             if (!hasIndent) missingParams.push('indent');
             
             if (missingParams.length > 0) {
-                errors.push(`Format validation: ${codeType} code missing required parameters: ${missingParams.join(', ')} - ${codeString}`);
+                errors.push(`[FERR001] Format validation: ${codeType} code missing required parameters: ${missingParams.join(', ')} - ${codeString}`);
+            }
+        }
+        
+        // Check LABELH1/H2/H3 column 2 must end with colon
+        if (codeType === 'LABELH1' || codeType === 'LABELH2' || codeType === 'LABELH3') {
+            const rowMatch = codeString.match(/row1\s*=\s*"([^"]*)"/);
+            if (rowMatch) {
+                const rowContent = rowMatch[1];
+                const parts = rowContent.split('|');
+                if (parts.length >= 2) {
+                    const column2 = parts[1].trim();
+                    if (column2 && !column2.endsWith(':')) {
+                        errors.push(`[FERR002] Format validation: ${codeType} code column 2 must end with colon - ${codeString} should have "${column2}:" in column 2`);
+                    }
+                }
+            }
+        }
+        
+        // Check LABELH3 must be followed by indent="2"
+        if (codeType === 'LABELH3' && i < inputCodeStrings.length - 1) {
+            const nextCodeString = inputCodeStrings[i + 1];
+            const nextCodeMatch = nextCodeString.match(/<([^;]+);/);
+            
+            if (nextCodeMatch) {
+                const nextCodeType = nextCodeMatch[1].trim();
+                // Skip BR codes when checking the next code
+                let nextNonBRIndex = i + 1;
+                while (nextNonBRIndex < inputCodeStrings.length && 
+                       inputCodeStrings[nextNonBRIndex].match(/<BR[>;]/)) {
+                    nextNonBRIndex++;
+                }
+                
+                if (nextNonBRIndex < inputCodeStrings.length) {
+                    const nextNonBRCode = inputCodeStrings[nextNonBRIndex];
+                    const hasIndent2 = /indent\s*=\s*["']?2["']?/i.test(nextNonBRCode);
+                    
+                    if (!hasIndent2) {
+                        errors.push(`[FERR003] Format validation: LABELH3 must be followed by a code with indent="2". Use LABELH2 instead - ${codeString} followed by ${nextNonBRCode}`);
+                    }
+                }
             }
         }
         
@@ -197,11 +237,11 @@ export async function validateCodeStrings(inputCodeStrings) {
             const prevBold = /bold\s*=\s*["']?true["']?/i.test(prevCodeString);
             
             if (currTopBorder && prevTopBorder) {
-                errors.push(`Format validation: Adjacent codes both have topborder="true" - ${prevCodeString} followed by ${codeString}`);
+                errors.push(`[FERR004] Format validation: Adjacent codes both have topborder="true" - ${prevCodeString} followed by ${codeString}`);
             }
             
             if (currBold && prevBold) {
-                errors.push(`Format validation: Adjacent codes both have bold="true" - ${prevCodeString} followed by ${codeString}`);
+                errors.push(`[FERR005] Format validation: Adjacent codes both have bold="true" - ${prevCodeString} followed by ${codeString}`);
             }
             
             // Rule 3: Check adjacent indent="1"
@@ -209,14 +249,14 @@ export async function validateCodeStrings(inputCodeStrings) {
             const prevIndent1 = /indent\s*=\s*["']?1["']?/i.test(prevCodeString);
             
             if (currIndent1 && prevIndent1) {
-                errors.push(`Format validation: Adjacent codes both have indent="1" - ${prevCodeString} followed by ${codeString}`);
+                errors.push(`[FERR006] Format validation: Adjacent codes both have indent="1" - ${prevCodeString} followed by ${codeString}`);
             }
             
             // Rule 4: BR followed by indent="2"
             if (prevCodeType === 'BR') {
                 const currIndent2 = /indent\s*=\s*["']?2["']?/i.test(codeString);
                 if (currIndent2) {
-                    errors.push(`Format validation: BR code followed by code with indent="2" - ${prevCodeString} followed by ${codeString}`);
+                    errors.push(`[FERR007] Format validation: BR code followed by code with indent="2" - ${prevCodeString} followed by ${codeString}`);
                 }
             }
         }
@@ -231,7 +271,7 @@ export async function validateCodeStrings(inputCodeStrings) {
         
         const codeMatch = codeString.match(/<([^;]+);/);
         if (!codeMatch) {
-            errors.push(`Cannot extract code type from: ${codeString}`);
+            errors.push(`[LERR004] Cannot extract code type from: ${codeString}`);
             continue;
         }
 
@@ -239,29 +279,29 @@ export async function validateCodeStrings(inputCodeStrings) {
         
         // Validate code exists in description file
         if (!validCodes.has(codeType)) {
-            errors.push(`Invalid code type: "${codeType}" not found in valid codes list`);
+            errors.push(`[LERR005] Invalid code type: "${codeType}" not found in valid codes list`);
         }
 
         // Validate TAB labels
         if (codeType === 'TAB') {
             const labelMatch = codeString.match(/label\d+="([^"]*)"/);
             if (!labelMatch) {
-                errors.push('TAB code missing label parameter');
+                errors.push('[LERR006] TAB code missing label parameter');
                 continue;
             }
 
             const label = labelMatch[1];
             
             if (label.length > 30) {
-                errors.push(`Tab label too long (max 30 chars): "${label}"`);
+                errors.push(`[LERR007] Tab label too long (max 30 chars): "${label}"`);
             }
             
             if (/[,":;]/.test(label)) {
-                errors.push(`Tab label contains illegal characters (,":;): "${label}"`);
+                errors.push(`[LERR008] Tab label contains illegal characters (,":;): "${label}"`);
             }
             
             if (tabLabels.has(label)) {
-                errors.push(`Duplicate tab label: "${label}"`);
+                errors.push(`[LERR009] Duplicate tab label: "${label}"`);
             }
             tabLabels.add(label);
             
@@ -284,7 +324,7 @@ export async function validateCodeStrings(inputCodeStrings) {
                     const parts = rowContent.split('|');
                     
                     if (parts.length < 2) {
-                        errors.push(`Invalid row format (missing required fields): "${rowContent}"`);
+                        errors.push(`[LERR010] Invalid row format (missing required fields): "${rowContent}"`);
                     } else {
                         // Extract the driver (first part before |)
                         const driver = parts[0].trim();
@@ -321,7 +361,7 @@ export async function validateCodeStrings(inputCodeStrings) {
             driverMatches.forEach(match => {
                 const driverValue = match.match(/driver\d+\s*=\s*"([^"]*)"/)[1].trim();
                 if (!rowValues.has(driverValue)) {
-                    errors.push(`Driver value "${driverValue}" not found in any row`);
+                    errors.push(`[LERR011] Driver value "${driverValue}" not found in any row`);
                 }
             });
         }
@@ -382,7 +422,7 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
             .map(line => line.trim())
             .filter(line => line.length > 0));
     } catch (error) {
-        errors.push(`Error reading Codes.txt file: ${error.message}`);
+        errors.push(`[LERR001] Error reading Codes.txt file: ${error.message}`);
         return errors; // Return array on critical error
     }
 
@@ -411,7 +451,7 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
         const currentTabForCode = codeToTab.get(i);
         
         if (!codeString.startsWith('<') || !codeString.endsWith('>')) {
-            errors.push(`Invalid code string format: ${codeString}`);
+            errors.push(`[LERR002] Invalid code string format: ${codeString}`);
             continue;
         }
         if (codeString.startsWith('<BR>')) {
@@ -478,7 +518,7 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
                     return `${codeType} code (${loc.rowName})`;
                 }).join(' and ');
                 
-                errors.push(`Duplicate row driver "${driver}" found within ${tabLabel}: ${locations}`);
+                errors.push(`[LERR003] Duplicate row driver "${driver}" found within ${tabLabel}: ${locations}`);
                 
                 // Add details about each occurrence
                 driverInfo.occurrences.forEach(loc => {
@@ -520,7 +560,47 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
             if (!hasIndent) missingParams.push('indent');
             
             if (missingParams.length > 0) {
-                errors.push(`Format validation: ${codeType} code missing required parameters: ${missingParams.join(', ')} - ${codeString}`);
+                errors.push(`[FERR001] Format validation: ${codeType} code missing required parameters: ${missingParams.join(', ')} - ${codeString}`);
+            }
+        }
+        
+        // Check LABELH1/H2/H3 column 2 must end with colon
+        if (codeType === 'LABELH1' || codeType === 'LABELH2' || codeType === 'LABELH3') {
+            const rowMatch = codeString.match(/row1\s*=\s*"([^"]*)"/);
+            if (rowMatch) {
+                const rowContent = rowMatch[1];
+                const parts = rowContent.split('|');
+                if (parts.length >= 2) {
+                    const column2 = parts[1].trim();
+                    if (column2 && !column2.endsWith(':')) {
+                        errors.push(`[FERR002] Format validation: ${codeType} code column 2 must end with colon - ${codeString} should have "${column2}:" in column 2`);
+                    }
+                }
+            }
+        }
+        
+        // Check LABELH3 must be followed by indent="2"
+        if (codeType === 'LABELH3' && i < inputCodeStrings.length - 1) {
+            const nextCodeString = inputCodeStrings[i + 1];
+            const nextCodeMatch = nextCodeString.match(/<([^;]+);/);
+            
+            if (nextCodeMatch) {
+                const nextCodeType = nextCodeMatch[1].trim();
+                // Skip BR codes when checking the next code
+                let nextNonBRIndex = i + 1;
+                while (nextNonBRIndex < inputCodeStrings.length && 
+                       inputCodeStrings[nextNonBRIndex].match(/<BR[>;]/)) {
+                    nextNonBRIndex++;
+                }
+                
+                if (nextNonBRIndex < inputCodeStrings.length) {
+                    const nextNonBRCode = inputCodeStrings[nextNonBRIndex];
+                    const hasIndent2 = /indent\s*=\s*["']?2["']?/i.test(nextNonBRCode);
+                    
+                    if (!hasIndent2) {
+                        errors.push(`[FERR003] Format validation: LABELH3 must be followed by a code with indent="2". Use LABELH2 instead - ${codeString} followed by ${nextNonBRCode}`);
+                    }
+                }
             }
         }
         
@@ -537,11 +617,11 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
             const prevBold = /bold\s*=\s*["']?true["']?/i.test(prevCodeString);
             
             if (currTopBorder && prevTopBorder) {
-                errors.push(`Format validation: Adjacent codes both have topborder="true" - ${prevCodeString} followed by ${codeString}`);
+                errors.push(`[FERR004] Format validation: Adjacent codes both have topborder="true" - ${prevCodeString} followed by ${codeString}`);
             }
             
             if (currBold && prevBold) {
-                errors.push(`Format validation: Adjacent codes both have bold="true" - ${prevCodeString} followed by ${codeString}`);
+                errors.push(`[FERR005] Format validation: Adjacent codes both have bold="true" - ${prevCodeString} followed by ${codeString}`);
             }
             
             // Rule 3: Check adjacent indent="1"
@@ -549,14 +629,14 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
             const prevIndent1 = /indent\s*=\s*["']?1["']?/i.test(prevCodeString);
             
             if (currIndent1 && prevIndent1) {
-                errors.push(`Format validation: Adjacent codes both have indent="1" - ${prevCodeString} followed by ${codeString}`);
+                errors.push(`[FERR006] Format validation: Adjacent codes both have indent="1" - ${prevCodeString} followed by ${codeString}`);
             }
             
             // Rule 4: BR followed by indent="2"
             if (prevCodeType === 'BR') {
                 const currIndent2 = /indent\s*=\s*["']?2["']?/i.test(codeString);
                 if (currIndent2) {
-                    errors.push(`Format validation: BR code followed by code with indent="2" - ${prevCodeString} followed by ${codeString}`);
+                    errors.push(`[FERR007] Format validation: BR code followed by code with indent="2" - ${prevCodeString} followed by ${codeString}`);
                 }
             }
         }
@@ -616,7 +696,7 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
                     const parts = rowContent.split('|');
                     
                     if (parts.length < 2) {
-                        errors.push(`Invalid row format (missing required fields): "${rowContent}"`);
+                        errors.push(`[LERR010] Invalid row format (missing required fields): "${rowContent}"`);
                     } else {
                         // Extract the driver (first part before |)
                         const driver = parts[0].trim();
@@ -653,7 +733,7 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
             driverMatches.forEach(match => {
                 const driverValue = match.match(/driver\d+\s*=\s*"([^"]*)"/)[1].trim();
                 if (!rowValues.has(driverValue)) {
-                    errors.push(`Driver value "${driverValue}" not found in any row`);
+                    errors.push(`[LERR011] Driver value "${driverValue}" not found in any row`);
                 }
             });
         }
