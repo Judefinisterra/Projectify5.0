@@ -32,10 +32,9 @@ You may use any of the Seed codes or Mathmatical Operater codes anywhere:
 Seed codes: Codes used to begin chains
 CONST-E: value is chosen for each year and that same value is used in all the months of that year. Use when input is given for the year and held constant for all months/quarters of that year. Use cases: Prices, rates, etc.  Example: 2025 price = $10. Price in June 2025 = $10
 SPREAD-E: value is chosen for each year and then spread to the time series by dividing. Use when the input is given for the year but will be different for each month. Use cases: revenue, gmv, gsv, expense, # of units sold, # of new users/subscribers, # of assets purchased. Example: 2025 sales were $120. June 2025 sales were $10
-ENDPOINT-E: value is scaled linearly between assumptions for two years. Use cases: TAM, # of assets, # of users, # of subscribers. Example: 2025 TAM is 0. 2026 TAM is $120. Feb 2026 TAM is $20
+ENDPOINT-E: value is scaled linearly between assumptions for two years. Use cases: TAM, # of assets, # of users, # of subscribers. Exampl
 
-
-Mathmatical operator codes:
+Mathmatical operator codes. All of these codes must have format, topborder, indent, and bold parameters set!:
 FINANCIALS-S	Pulls in any item from the financials tab. The word after "Driver :" must match exactly with an item in column B of the Financials tab. 
 MULT3-S	Mutliplies driver1, driver2, and driver3
 DIVIDE2-S	Divides driver1 by driver2
@@ -55,6 +54,8 @@ OFFSETCOLUMN-S	References 1 column to the left of driver1. In other words, it re
 OFFSET2-S	Offsets driver1 by driver2 number of periods to the left
 SUM2-S	Sums from driver1 to driver2
 DISCOUNT2-S	Multiplies driver1 by (1 - driver2)
+
+Organizational codes:
 LABELH1/LABELH2/LABEHLH3 Use these codes to label different sections within a tab. H1 is the highest level, followed by H2, and then H3
 BR <BR; row1 = "|  |||||||||||";> Adds a line break. Use before every LABELH1/LABELH2/LABELH3 code. 
 
@@ -96,7 +97,8 @@ Labeling, Indent, topborder, and bold rules:
 9) A safe option is to use the following format for each chunk: LABELH3, CODE1 with indent="2", Calc using CODE1 with indent="1", topborder="true", bold="true"
 10) Use BR codes frequently to break things up.
 11) Calculation chains should either begin with LABELH3 or with a code with an indent of 1There should NEVER be a code with an indent of 2 that begins immediately after a BR code. Add a LABELH3 code above it to fix. 
-
+12) Any item that has "Total" in the name and isn't a rate should usually have bold=true, indent=1, and either topborder=true or be preceded by a BR code. Ex. Total # of subscribers. 
+13) Rule 12 should also generally be applied to any of the mult, subtotal, and substract codes. 
 
 Examples: You want to forecast # of units sold starting at 1000 and doubling every year and multiply by a $10 price to calculate revenue. You want to multiply revenue by a fixed 20% to calculate commission expense. You also want to forecast 1 employee for every 2.5 units sold. The code would look like this: 
 

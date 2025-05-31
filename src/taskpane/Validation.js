@@ -279,29 +279,29 @@ export async function validateCodeStrings(inputCodeStrings) {
         
         // Validate code exists in description file
         if (!validCodes.has(codeType)) {
-            errors.push(`[LERR005] Invalid code type: "${codeType}" not found in valid codes list`);
+            errors.push(`[LERR005] Invalid code type: "${codeType}" not found in valid codes list - ${codeString}`);
         }
 
         // Validate TAB labels
         if (codeType === 'TAB') {
             const labelMatch = codeString.match(/label\d+="([^"]*)"/);
             if (!labelMatch) {
-                errors.push('[LERR006] TAB code missing label parameter');
+                errors.push(`[LERR006] TAB code missing label parameter - ${codeString}`);
                 continue;
             }
 
             const label = labelMatch[1];
             
             if (label.length > 30) {
-                errors.push(`[LERR007] Tab label too long (max 30 chars): "${label}"`);
+                errors.push(`[LERR007] Tab label too long (max 30 chars): "${label}" - ${codeString}`);
             }
             
             if (/[,":;]/.test(label)) {
-                errors.push(`[LERR008] Tab label contains illegal characters (,":;): "${label}"`);
+                errors.push(`[LERR008] Tab label contains illegal characters (,":;): "${label}" - ${codeString}`);
             }
             
             if (tabLabels.has(label)) {
-                errors.push(`[LERR009] Duplicate tab label: "${label}"`);
+                errors.push(`[LERR009] Duplicate tab label: "${label}" - ${codeString}`);
             }
             tabLabels.add(label);
             
@@ -324,7 +324,7 @@ export async function validateCodeStrings(inputCodeStrings) {
                     const parts = rowContent.split('|');
                     
                     if (parts.length < 2) {
-                        errors.push(`[LERR010] Invalid row format (missing required fields): "${rowContent}"`);
+                        errors.push(`[LERR010] Invalid row format (missing required fields): "${rowContent}" in ${codeString}`);
                     } else {
                         // Extract the driver (first part before |)
                         const driver = parts[0].trim();
@@ -332,7 +332,7 @@ export async function validateCodeStrings(inputCodeStrings) {
                         // Check if this driver already exists in this TAB
                         if (driversInThisTab.has(driver)) {
                             const existingRow = driversInThisTab.get(driver);
-                            errors.push(`Duplicate row driver "${driver}" found in ${codeString} - appears in both ${existingRow} and ${rowName}`);
+                            errors.push(`[LERR003] Duplicate row driver "${driver}" found in ${codeString} - appears in both ${existingRow} and ${rowName}`);
                         } else {
                             driversInThisTab.set(driver, rowName);
                         }
@@ -347,7 +347,7 @@ export async function validateCodeStrings(inputCodeStrings) {
                     const rowContent = match.match(/row\d+="([^"]*)"/)[1];
                     const parts = rowContent.split('|');
                     if (parts.length < 2) {
-                        errors.push(`Invalid row format (missing required fields): "${rowContent}"`);
+                        errors.push(`[LERR010] Invalid row format (missing required fields): "${rowContent}" in ${codeString}`);
                     }
                 });
             }
@@ -361,7 +361,7 @@ export async function validateCodeStrings(inputCodeStrings) {
             driverMatches.forEach(match => {
                 const driverValue = match.match(/driver\d+\s*=\s*"([^"]*)"/)[1].trim();
                 if (!rowValues.has(driverValue)) {
-                    errors.push(`[LERR011] Driver value "${driverValue}" not found in any row`);
+                    errors.push(`[LERR011] Driver value "${driverValue}" not found in any row - in ${codeString}`);
                 }
             });
         }
@@ -649,31 +649,31 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
         }
         const codeMatch = codeString.match(/<([^;]+);/);
         if (!codeMatch) {
-            errors.push(`Cannot extract code type from: ${codeString}`);
+            errors.push(`[LERR004] Cannot extract code type from: ${codeString}`);
             continue;
         }
         const codeType = codeMatch[1].trim();
         if (!validCodes.has(codeType)) {
-            errors.push(`Invalid code type: "${codeType}" not found in valid codes list`);
+            errors.push(`[LERR005] Invalid code type: "${codeType}" not found in valid codes list - ${codeString}`);
         }
         if (codeType === 'TAB') {
             const labelMatch = codeString.match(/label\d+="([^"]*)"/);
             if (!labelMatch) {
-                errors.push('TAB code missing label parameter');
+                errors.push(`[LERR006] TAB code missing label parameter - ${codeString}`);
                 continue;
             }
             const label = labelMatch[1];
             
             if (label.length > 30) {
-                errors.push(`Tab label too long (max 30 chars): "${label}"`);
+                errors.push(`[LERR007] Tab label too long (max 30 chars): "${label}" - ${codeString}`);
             }
             
             if (/[,":;]/.test(label)) {
-                errors.push(`Tab label contains illegal characters (,":;): "${label}"`);
+                errors.push(`[LERR008] Tab label contains illegal characters (,":;): "${label}" - ${codeString}`);
             }
             
             if (tabLabels.has(label)) {
-                errors.push(`Duplicate tab label: "${label}"`);
+                errors.push(`[LERR009] Duplicate tab label: "${label}" - ${codeString}`);
             }
             tabLabels.add(label);
             
@@ -696,7 +696,7 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
                     const parts = rowContent.split('|');
                     
                     if (parts.length < 2) {
-                        errors.push(`[LERR010] Invalid row format (missing required fields): "${rowContent}"`);
+                        errors.push(`[LERR010] Invalid row format (missing required fields): "${rowContent}" in ${codeString}`);
                     } else {
                         // Extract the driver (first part before |)
                         const driver = parts[0].trim();
@@ -704,7 +704,7 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
                         // Check if this driver already exists in this TAB
                         if (driversInThisTab.has(driver)) {
                             const existingRow = driversInThisTab.get(driver);
-                            errors.push(`Duplicate row driver "${driver}" found in ${codeString} - appears in both ${existingRow} and ${rowName}`);
+                            errors.push(`[LERR003] Duplicate row driver "${driver}" found in ${codeString} - appears in both ${existingRow} and ${rowName}`);
                         } else {
                             driversInThisTab.set(driver, rowName);
                         }
@@ -719,7 +719,7 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
                     const rowContent = match.match(/row\d+="([^"]*)"/)[1];
                     const parts = rowContent.split('|');
                     if (parts.length < 2) {
-                        errors.push(`Invalid row format (missing required fields): "${rowContent}"`);
+                        errors.push(`[LERR010] Invalid row format (missing required fields): "${rowContent}" in ${codeString}`);
                     }
                 });
             }
@@ -733,7 +733,7 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
             driverMatches.forEach(match => {
                 const driverValue = match.match(/driver\d+\s*=\s*"([^"]*)"/)[1].trim();
                 if (!rowValues.has(driverValue)) {
-                    errors.push(`[LERR011] Driver value "${driverValue}" not found in any row`);
+                    errors.push(`[LERR011] Driver value "${driverValue}" not found in any row - in ${codeString}`);
                 }
             });
         }

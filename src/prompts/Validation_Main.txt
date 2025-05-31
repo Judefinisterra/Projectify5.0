@@ -16,8 +16,6 @@ Validation checks:
 7)  Next include consecutive <BR> codes. Multiple <BR> codes in a row is not allowed. Remove all but one if present. 
 
 
-Format validation checks:
-1) Add format, topborder, indent, and bold parameters
 
 Logic Errors (LERR) - High priority. These MUST be corrected:
 
