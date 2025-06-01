@@ -2133,6 +2133,11 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      const finalLastRow = await deleteGreenRows(currentWorksheet, START_ROW - 1, updatedLastRow); // Get the new last row AFTER deletions
                      console.log(`After deleting green rows, last row is now: ${finalLastRow}`);
  
+                     // 7.5 Process FORMULA-S rows - Convert driver references to cell references
+                     console.log(`Processing FORMULA-S rows in ${worksheetName}...`);
+                     await processFormulaSRows(currentWorksheet, START_ROW, finalLastRow);
+                     console.log(`Finished processing FORMULA-S rows`);
+ 
                      // 8. Autofill AE9:AE<lastRow> -> CX<lastRow> on Assumption Tab - Use finalLastRow
                      console.log(`Autofilling ${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow} to ${AUTOFILL_END_COLUMN} on ${worksheetName}`);
                      const sourceRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow}`);
@@ -2317,324 +2322,6 @@ function columnLetterToIndex(letter) {
         index = index * 26 + (letter.charCodeAt(i) - 'A'.charCodeAt(0) + 1);
     }
     return index - 1; // Adjust to 0-based
-}
-
-/**
- * Hides Columns C-I, Rows 2-8, and specific Actuals columns on specified sheets,
- * then navigates to cell A1 of the Financials sheet.
- * @param {string[]} assumptionTabNames - Array of assumption tab names created by runCodes.
- * @returns {Promise<void>}
- */
-export async function hideColumnsAndNavigate(assumptionTabNames) { // Renamed and added parameter
-    // Define Actuals columns
-    const ACTUALS_START_COL = "S";
-    const ACTUALS_END_COL = "AD";
-
-    try {
-        const targetSheetNames = [...assumptionTabNames, "Financials"]; // Combine assumption tabs and Financials
-        console.log(`Attempting to hide specific rows/columns on sheets [${targetSheetNames.join(', ')}] and navigate...`);
-
-        await Excel.run(async (context) => {
-            // Get all worksheets
-            const worksheets = context.workbook.worksheets;
-            // Load only names needed for matching
-            worksheets.load("items/name");
-            await context.sync();
-
-            console.log(`Found ${worksheets.items.length} worksheets. Targeting ${targetSheetNames.length} specific sheets.`);
-            let hideAttempted = false;
-
-            // Calculate actuals end column for assumption tabs
-            const actualsEndIndex = columnLetterToIndex(ACTUALS_END_COL);
-            const actualsEndMinusOneCol = actualsEndIndex > 0 ? columnIndexToLetter(actualsEndIndex - 1) : ACTUALS_START_COL; // Handle edge case
-
-            // --- Queue hiding operations for target sheets ---
-            for (const worksheet of worksheets.items) {
-                const sheetName = worksheet.name;
-                if (targetSheetNames.includes(sheetName)) { // Check if sheet is in our target list
-                    console.log(`Queueing hide operations for: ${sheetName}`);
-                    try {
-                        // Hide Rows 2:8 (Applies to both)
-                        const rows28 = worksheet.getRange("2:8");
-                        rows28.rowHidden = true;
-
-                        // Conditional Column Hiding
-                        if (sheetName === "Financials") {
-                            console.log(`  -> Hiding Columns C:I for Financials`);
-                            const colsCI = worksheet.getRange("C:I");
-                            colsCI.columnHidden = true;
-                        } else {
-                            // Hide Columns C:E for Assumption Tabs
-                            console.log(`  -> Hiding Columns C:E for ${sheetName}`);
-                            const colsCE = worksheet.getRange("C:E");
-                            colsCE.columnHidden = true;
-                        }
-
-                        // Hide Actuals Columns based on sheet type
-                        if (sheetName === "Financials") {
-                            console.log(`  -> Hiding Actuals range ${ACTUALS_START_COL}:${ACTUALS_END_COL}`);
-                            const actualsRangeFin = worksheet.getRange(`${ACTUALS_START_COL}:${ACTUALS_END_COL}`);
-                            actualsRangeFin.columnHidden = true;
-                        } else if (assumptionTabNames.includes(sheetName)) {
-                             console.log(`  -> Hiding Actuals range ${ACTUALS_START_COL}:${actualsEndMinusOneCol}`);
-                             const actualsRangeAssum = worksheet.getRange(`${ACTUALS_START_COL}:${actualsEndMinusOneCol}`);
-                             actualsRangeAssum.columnHidden = true;
-                        }
-
-                        hideAttempted = true; // Mark that at least one hide was queued
-                    } catch (error) {
-                        // Log unexpected errors during the queuing attempt
-                        console.error(`  Error queuing hide operations for ${sheetName}: ${error.message}`, {
-                            code: error.code,
-                            debugInfo: error.debugInfo ? JSON.stringify(error.debugInfo) : 'N/A'
-                        });
-                    }
-                }
-            }
-
-            // --- Sync all queued hide operations ---
-            if (hideAttempted) {
-                console.log(`Attempting to sync hide columns/rows operations...`);
-                try {
-                    await context.sync();
-                    console.log("Successfully synced hide columns/rows operations.");
-                } catch (syncError) {
-                    console.error(`Error syncing hide columns/rows operations: ${syncError.message}`, {
-                        code: syncError.code,
-                        debugInfo: syncError.debugInfo ? JSON.stringify(syncError.debugInfo) : 'N/A'
-                    });
-                     // Report failure but continue to navigation attempt
-                }
-            } else {
-                 console.log("No target sheets found or no hide operations were queued.");
-            }
-
-            // --- Activate and Select A1 on each assumption tab (mimic Ctrl+Home) ---
-            console.log("Activating and selecting A1 on assumption tabs...");
-            // Note: This requires syncing inside the loop for the activate/select effect per sheet
-            for (const sheetName of assumptionTabNames) {
-                try {
-                    console.log(`  Activating and selecting A1 for: ${sheetName}`);
-                    const worksheet = context.workbook.worksheets.getItem(sheetName);
-                    worksheet.activate(); // Activate the sheet first
-                    const rangeA1 = worksheet.getRange("A1");
-                    rangeA1.select(); // Then select A1
-                    await context.sync(); // Sync *immediately* to apply activation and selection for this sheet
-                    console.log(`  Synced A1 view reset for ${sheetName}.`);
-                } catch (error) {
-                     console.error(`  Error resetting view for ${sheetName}: ${error.message}`);
-                     // Optionally continue to the next sheet even if one fails
-                }
-            }
-            // No final sync needed for this loop as it happens inside
-
-            // --- Activate and Select J9 on each assumption tab ---
-            console.log("Activating and selecting J9 on assumption tabs...");
-            // Note: This requires syncing inside the loop for the activate/select effect per sheet
-            for (const sheetName of assumptionTabNames) {
-                try {
-                    console.log(`  Activating and selecting J9 for: ${sheetName}`);
-                    const worksheet = context.workbook.worksheets.getItem(sheetName);
-                    worksheet.activate(); // Activate the sheet first
-                    const rangeJ9 = worksheet.getRange("J9"); // Get J9
-                    rangeJ9.select(); // Then select J9
-                    await context.sync(); // Sync *immediately* to apply activation and selection for this sheet
-                    console.log(`  Synced J9 view reset for ${sheetName}.`);
-                } catch (error) {
-                     console.error(`  Error resetting view to J9 for ${sheetName}: ${error.message}`);
-                     // Optionally continue to the next sheet even if one fails
-                }
-            }
-            // No final sync needed for this loop as it happens inside
-
-            
-
-            // --- Delete sheets that begin with "Codes" or "Calcs" ---
-            console.log("Deleting sheets that begin with 'Codes' or 'Calcs'...");
-            console.log("[SHEET OPERATION] Scanning for sheets to delete (those beginning with 'Codes' or 'Calcs')");
-            try {
-                // Get all worksheets again to ensure we have the latest list
-                const allWorksheets = context.workbook.worksheets;
-                allWorksheets.load("items/name");
-                await context.sync();
-                
-                const sheetsToDelete = [];
-                
-                // Identify sheets to delete
-                for (const worksheet of allWorksheets.items) {
-                    const sheetName = worksheet.name;
-                    if (sheetName.startsWith("Codes") || sheetName.startsWith("Calcs")) {
-                        sheetsToDelete.push(sheetName);
-                    }
-                }
-                
-                // Delete identified sheets
-                if (sheetsToDelete.length > 0) {
-                    console.log(`Found ${sheetsToDelete.length} sheet(s) to delete: ${sheetsToDelete.join(', ')}`);
-                    
-                    for (const sheetName of sheetsToDelete) {
-                        try {
-                            const sheetToDelete = context.workbook.worksheets.getItem(sheetName);
-                            console.log(`[SHEET OPERATION] Deleting sheet '${sheetName}'`);
-                            sheetToDelete.delete();
-                            console.log(`  Queued deletion of sheet: ${sheetName}`);
-                        } catch (deleteError) {
-                            console.error(`  Error queuing deletion of sheet ${sheetName}: ${deleteError.message}`);
-                            // Continue with other deletions even if one fails
-                        }
-                    }
-                    
-                    // Sync all deletions
-                    try {
-                        await context.sync();
-                        console.log(`Successfully deleted ${sheetsToDelete.length} sheet(s).`);
-                    } catch (syncError) {
-                        console.error(`Error syncing sheet deletions: ${syncError.message}`, {
-                            code: syncError.code,
-                            debugInfo: syncError.debugInfo ? JSON.stringify(syncError.debugInfo) : 'N/A'
-                        });
-                        // Continue even if sync fails
-                    }
-                } else {
-                    console.log("No sheets found starting with 'Codes' or 'Calcs' to delete.");
-                }
-            } catch (deletionError) {
-                console.error(`Error during sheet deletion process: ${deletionError.message}`, {
-                    code: deletionError.code,
-                    debugInfo: deletionError.debugInfo ? JSON.stringify(deletionError.debugInfo) : 'N/A'
-                });
-                // Do not throw here, allow the function to finish
-            }
-
-            // --- Reorder tabs according to the model plan ---
-            console.log("Reordering tabs according to model plan...");
-            try {
-                // Define the desired tab order
-                // First is always Financials, followed by assumption tabs in their creation order,
-                // then any other existing sheets (like Misc., Actuals Data, etc.)
-                const priorityOrder = ["Financials", ...assumptionTabNames];
-                
-                // Get all worksheets one more time to ensure we have the latest list after deletions
-                const finalWorksheets = context.workbook.worksheets;
-                finalWorksheets.load("items/name");
-                await context.sync();
-                
-                // Create a list of all sheet names
-                const allSheetNames = finalWorksheets.items.map(ws => ws.name);
-                
-                // Separate sheets into priority order and others
-                const orderedSheets = [];
-                const otherSheets = [];
-                
-                // Add sheets in priority order first
-                for (const priorityName of priorityOrder) {
-                    if (allSheetNames.includes(priorityName)) {
-                        orderedSheets.push(priorityName);
-                    }
-                }
-                
-                // Add remaining sheets that aren't in priority order
-                for (const sheetName of allSheetNames) {
-                    if (!orderedSheets.includes(sheetName)) {
-                        otherSheets.push(sheetName);
-                    }
-                }
-                
-                // Combine the lists
-                const finalOrder = [...orderedSheets, ...otherSheets];
-                console.log(`Final tab order: ${finalOrder.join(', ')}`);
-                
-                // Reorder sheets by setting their positions
-                for (let i = 0; i < finalOrder.length; i++) {
-                    try {
-                        const worksheet = context.workbook.worksheets.getItem(finalOrder[i]);
-                        worksheet.position = i;
-                        console.log(`  Set ${finalOrder[i]} to position ${i}`);
-                    } catch (positionError) {
-                        console.error(`  Error setting position for sheet ${finalOrder[i]}: ${positionError.message}`);
-                        // Continue with other sheets even if one fails
-                    }
-                }
-                
-                // Sync all position changes
-                try {
-                    await context.sync();
-                    console.log("Successfully reordered all tabs.");
-                } catch (syncError) {
-                    console.error(`Error syncing tab reordering: ${syncError.message}`, {
-                        code: syncError.code,
-                        debugInfo: syncError.debugInfo ? JSON.stringify(syncError.debugInfo) : 'N/A'
-                    });
-                    // Continue even if sync fails
-                }
-                
-            } catch (reorderError) {
-                console.error(`Error during tab reordering process: ${reorderError.message}`, {
-                    code: reorderError.code,
-                    debugInfo: reorderError.debugInfo ? JSON.stringify(reorderError.debugInfo) : 'N/A'
-                });
-                // Do not throw here, allow the function to finish
-            }
-
-            // --- Navigate to Financials sheet and select cell J10 with view reset ---
-            // (This ensures Financials is the final active sheet with proper view)
-            try {
-                console.log("Navigating to Financials sheet and selecting J10 with view reset...");
-                const financialsSheet = context.workbook.worksheets.getItem("Financials");
-                
-                // Activate the Financials sheet
-                financialsSheet.activate();
-                
-                // Get J10 range
-                const rangeJ10 = financialsSheet.getRange("J10");
-                
-                // Select J10
-                rangeJ10.select();
-                
-                // Reset the view to top of sheet (like CTRL+Home)
-                try {
-                    // First, select A1 to scroll to top-left
-                    const rangeA1 = financialsSheet.getRange("A1");
-                    rangeA1.select();
-                    
-                    // Sync to ensure the scroll happens
-                    await context.sync();
-                    
-                    // Now select J10 as the final selection
-                    rangeJ10.select();
-                    
-                    // Optional: Reset zoom to 100%
-                    try {
-                        const activeWindow = context.workbook.getActiveCell().getWorksheet().getActiveView();
-                        if (activeWindow) {
-                            activeWindow.zoomLevel = 100;
-                        }
-                    } catch (zoomError) {
-                        console.log("Could not reset zoom level (requires Excel API 1.7+):", zoomError.message);
-                    }
-                } catch (viewError) {
-                    console.log("Could not fully reset view:", viewError.message);
-                    // Continue anyway - selecting J10 is the most important part
-                }
-                
-                await context.sync(); // Sync the final state
-                console.log("Successfully navigated to Financials!J10 and reset view to top.");
-            } catch (navError) {
-                console.error(`Error navigating to Financials sheet J10: ${navError.message}`, {
-                    code: navError.code,
-                    debugInfo: navError.debugInfo ? JSON.stringify(navError.debugInfo) : 'N/A'
-                });
-                // Do not throw here, allow the function to finish
-            }
-
-            console.log("Finished hideColumnsAndNavigate function.");
-
-        }); // End Excel.run
-    } catch (error) {
-        // Catch errors from the Excel.run call itself
-        console.error("Critical error in hideColumnsAndNavigate:", error);
-        throw error; // Re-throw critical errors
-    }
 }
 
 /**
@@ -3217,5 +2904,432 @@ async function applyFixedEFormula(worksheet, pasteRow, lastRow, firstRow, code) 
     } catch (error) {
         console.error(`Error applying ${code.type} formula: ${error.message}`, error);
         throw error;
+    }
+}
+
+/**
+ * Processes FORMULA-S rows by converting driver references in column AE to Excel formulas
+ * @param {Excel.Worksheet} worksheet - The worksheet to process
+ * @param {number} startRow - The starting row to search from
+ * @param {number} lastRow - The last row to search to
+ * @returns {Promise<void>}
+ */
+async function processFormulaSRows(worksheet, startRow, lastRow) {
+    console.log(`Processing FORMULA-S rows in ${worksheet.name} from row ${startRow} to ${lastRow}`);
+    
+    try {
+        // Load values from column D to find FORMULA-S rows
+        const searchRangeAddress = `D${startRow}:D${lastRow}`;
+        const searchRange = worksheet.getRange(searchRangeAddress);
+        searchRange.load("values");
+        await worksheet.context.sync();
+        
+        // Find all rows with FORMULA-S in column D
+        const formulaSRows = [];
+        const searchValues = searchRange.values;
+        
+        for (let i = 0; i < searchValues.length; i++) {
+            if (searchValues[i][0] === "FORMULA-S") {
+                formulaSRows.push(startRow + i);
+            }
+        }
+        
+        if (formulaSRows.length === 0) {
+            console.log("No FORMULA-S rows found");
+            return;
+        }
+        
+        console.log(`Found ${formulaSRows.length} FORMULA-S rows at: ${formulaSRows.join(", ")}`);
+        
+        // Load column A values to create a driver lookup map
+        const colARangeAddress = `A${startRow}:A${lastRow}`;
+        const colARange = worksheet.getRange(colARangeAddress);
+        colARange.load("values");
+        await worksheet.context.sync();
+        
+        const colAValues = colARange.values;
+        const driverMap = new Map();
+        
+        // Build driver map: driver name -> row number
+        for (let i = 0; i < colAValues.length; i++) {
+            const value = colAValues[i][0];
+            if (value !== null && value !== "") {
+                const rowNum = startRow + i;
+                driverMap.set(String(value), rowNum);
+                console.log(`  Driver map: ${value} -> row ${rowNum}`);
+            }
+        }
+        
+        // Process each FORMULA-S row
+        for (const rowNum of formulaSRows) {
+            // Get the current value in column AE
+            const aeCell = worksheet.getRange(`AE${rowNum}`);
+            aeCell.load("values");
+            await worksheet.context.sync();
+            
+            const originalValue = aeCell.values[0][0];
+            if (!originalValue || originalValue === "") {
+                console.log(`  Row ${rowNum}: No value in AE, skipping`);
+                continue;
+            }
+            
+            console.log(`  Row ${rowNum}: Processing formula string: "${originalValue}"`);
+            
+            // Convert the string to a formula
+            let formula = String(originalValue);
+            
+            // Sort drivers by length (descending) to avoid partial replacements
+            // e.g., replace V10 before V1 to avoid V10 becoming AE<row>0
+            const driverKeys = Array.from(driverMap.keys()).sort((a, b) => b.length - a.length);
+            
+            // Replace each driver with its corresponding cell reference
+            for (const driver of driverKeys) {
+                const driverRow = driverMap.get(driver);
+                // Use word boundaries to ensure we're replacing whole driver names
+                const regex = new RegExp(`\\b${driver}\\b`, 'g');
+                const replacement = `AE${driverRow}`;
+                
+                if (formula.match(regex)) {
+                    console.log(`    Replacing ${driver} with ${replacement}`);
+                    formula = formula.replace(regex, replacement);
+                }
+            }
+            
+            // Ensure the formula starts with '='
+            if (!formula.startsWith('=')) {
+                formula = '=' + formula;
+            }
+            
+            console.log(`  Row ${rowNum}: Final formula: ${formula}`);
+            
+            // Set the formula in the cell
+            aeCell.formulas = [[formula]];
+        }
+        
+        // Sync all formula changes
+        await worksheet.context.sync();
+        console.log(`Successfully processed ${formulaSRows.length} FORMULA-S rows`);
+        
+    } catch (error) {
+        console.error(`Error in processFormulaSRows: ${error.message}`, error);
+        throw error;
+    }
+}
+
+/**
+ * Hides Columns C-I, Rows 2-8, and specific Actuals columns on specified sheets,
+ * then navigates to cell A1 of the Financials sheet.
+ * @param {string[]} assumptionTabNames - Array of assumption tab names created by runCodes.
+ * @returns {Promise<void>}
+ */
+export async function hideColumnsAndNavigate(assumptionTabNames) { // Renamed and added parameter
+    // Define Actuals columns
+    const ACTUALS_START_COL = "S";
+    const ACTUALS_END_COL = "AD";
+
+    try {
+        const targetSheetNames = [...assumptionTabNames, "Financials"]; // Combine assumption tabs and Financials
+        console.log(`Attempting to hide specific rows/columns on sheets [${targetSheetNames.join(', ')}] and navigate...`);
+
+        await Excel.run(async (context) => {
+            // Get all worksheets
+            const worksheets = context.workbook.worksheets;
+            // Load only names needed for matching
+            worksheets.load("items/name");
+            await context.sync();
+
+            console.log(`Found ${worksheets.items.length} worksheets. Targeting ${targetSheetNames.length} specific sheets.`);
+            let hideAttempted = false;
+
+            // Calculate actuals end column for assumption tabs
+            const actualsEndIndex = columnLetterToIndex(ACTUALS_END_COL);
+            const actualsEndMinusOneCol = actualsEndIndex > 0 ? columnIndexToLetter(actualsEndIndex - 1) : ACTUALS_START_COL; // Handle edge case
+
+            // --- Queue hiding operations for target sheets ---
+            for (const worksheet of worksheets.items) {
+                const sheetName = worksheet.name;
+                if (targetSheetNames.includes(sheetName)) { // Check if sheet is in our target list
+                    console.log(`Queueing hide operations for: ${sheetName}`);
+                    try {
+                        // Hide Rows 2:8 (Applies to both)
+                        const rows28 = worksheet.getRange("2:8");
+                        rows28.rowHidden = true;
+
+                        // Conditional Column Hiding
+                        if (sheetName === "Financials") {
+                            console.log(`  -> Hiding Columns C:I for Financials`);
+                            const colsCI = worksheet.getRange("C:I");
+                            colsCI.columnHidden = true;
+                        } else {
+                            // Hide Columns C:E for Assumption Tabs
+                            console.log(`  -> Hiding Columns C:E for ${sheetName}`);
+                            const colsCE = worksheet.getRange("C:E");
+                            colsCE.columnHidden = true;
+                        }
+
+                        // Hide Actuals Columns based on sheet type
+                        if (sheetName === "Financials") {
+                            console.log(`  -> Hiding Actuals range ${ACTUALS_START_COL}:${ACTUALS_END_COL}`);
+                            const actualsRangeFin = worksheet.getRange(`${ACTUALS_START_COL}:${ACTUALS_END_COL}`);
+                            actualsRangeFin.columnHidden = true;
+                        } else if (assumptionTabNames.includes(sheetName)) {
+                             console.log(`  -> Hiding Actuals range ${ACTUALS_START_COL}:${actualsEndMinusOneCol}`);
+                             const actualsRangeAssum = worksheet.getRange(`${ACTUALS_START_COL}:${actualsEndMinusOneCol}`);
+                             actualsRangeAssum.columnHidden = true;
+                        }
+
+                        hideAttempted = true; // Mark that at least one hide was queued
+                    } catch (error) {
+                        // Log unexpected errors during the queuing attempt
+                        console.error(`  Error queuing hide operations for ${sheetName}: ${error.message}`, {
+                            code: error.code,
+                            debugInfo: error.debugInfo ? JSON.stringify(error.debugInfo) : 'N/A'
+                        });
+                    }
+                }
+            }
+
+            // --- Sync all queued hide operations ---
+            if (hideAttempted) {
+                console.log(`Attempting to sync hide columns/rows operations...`);
+                try {
+                    await context.sync();
+                    console.log("Successfully synced hide columns/rows operations.");
+                } catch (syncError) {
+                    console.error(`Error syncing hide columns/rows operations: ${syncError.message}`, {
+                        code: syncError.code,
+                        debugInfo: syncError.debugInfo ? JSON.stringify(syncError.debugInfo) : 'N/A'
+                    });
+                     // Report failure but continue to navigation attempt
+                }
+            } else {
+                 console.log("No target sheets found or no hide operations were queued.");
+            }
+
+            // --- Activate and Select A1 on each assumption tab (mimic Ctrl+Home) ---
+            console.log("Activating and selecting A1 on assumption tabs...");
+            // Note: This requires syncing inside the loop for the activate/select effect per sheet
+            for (const sheetName of assumptionTabNames) {
+                try {
+                    console.log(`  Activating and selecting A1 for: ${sheetName}`);
+                    const worksheet = context.workbook.worksheets.getItem(sheetName);
+                    worksheet.activate(); // Activate the sheet first
+                    const rangeA1 = worksheet.getRange("A1");
+                    rangeA1.select(); // Then select A1
+                    await context.sync(); // Sync *immediately* to apply activation and selection for this sheet
+                    console.log(`  Synced A1 view reset for ${sheetName}.`);
+                } catch (error) {
+                     console.error(`  Error resetting view for ${sheetName}: ${error.message}`);
+                     // Optionally continue to the next sheet even if one fails
+                }
+            }
+            // No final sync needed for this loop as it happens inside
+
+            // --- Activate and Select J9 on each assumption tab ---
+            console.log("Activating and selecting J9 on assumption tabs...");
+            // Note: This requires syncing inside the loop for the activate/select effect per sheet
+            for (const sheetName of assumptionTabNames) {
+                try {
+                    console.log(`  Activating and selecting J9 for: ${sheetName}`);
+                    const worksheet = context.workbook.worksheets.getItem(sheetName);
+                    worksheet.activate(); // Activate the sheet first
+                    const rangeJ9 = worksheet.getRange("J9"); // Get J9
+                    rangeJ9.select(); // Then select J9
+                    await context.sync(); // Sync *immediately* to apply activation and selection for this sheet
+                    console.log(`  Synced J9 view reset for ${sheetName}.`);
+                } catch (error) {
+                     console.error(`  Error resetting view to J9 for ${sheetName}: ${error.message}`);
+                     // Optionally continue to the next sheet even if one fails
+                }
+            }
+            // No final sync needed for this loop as it happens inside
+
+            
+
+            // --- Delete sheets that begin with "Codes" or "Calcs" ---
+            console.log("Deleting sheets that begin with 'Codes' or 'Calcs'...");
+            console.log("[SHEET OPERATION] Scanning for sheets to delete (those beginning with 'Codes' or 'Calcs')");
+            try {
+                // Get all worksheets again to ensure we have the latest list
+                const allWorksheets = context.workbook.worksheets;
+                allWorksheets.load("items/name");
+                await context.sync();
+                
+                const sheetsToDelete = [];
+                
+                // Identify sheets to delete
+                for (const worksheet of allWorksheets.items) {
+                    const sheetName = worksheet.name;
+                    if (sheetName.startsWith("Codes") || sheetName.startsWith("Calcs")) {
+                        sheetsToDelete.push(sheetName);
+                    }
+                }
+                
+                // Delete identified sheets
+                if (sheetsToDelete.length > 0) {
+                    console.log(`Found ${sheetsToDelete.length} sheet(s) to delete: ${sheetsToDelete.join(', ')}`);
+                    
+                    for (const sheetName of sheetsToDelete) {
+                        try {
+                            const sheetToDelete = context.workbook.worksheets.getItem(sheetName);
+                            console.log(`[SHEET OPERATION] Deleting sheet '${sheetName}'`);
+                            sheetToDelete.delete();
+                            console.log(`  Queued deletion of sheet: ${sheetName}`);
+                        } catch (deleteError) {
+                            console.error(`  Error queuing deletion of sheet ${sheetName}: ${deleteError.message}`);
+                            // Continue with other deletions even if one fails
+                        }
+                    }
+                    
+                    // Sync all deletions
+                    try {
+                        await context.sync();
+                        console.log(`Successfully deleted ${sheetsToDelete.length} sheet(s).`);
+                    } catch (syncError) {
+                        console.error(`Error syncing sheet deletions: ${syncError.message}`, {
+                            code: syncError.code,
+                            debugInfo: syncError.debugInfo ? JSON.stringify(syncError.debugInfo) : 'N/A'
+                        });
+                        // Continue even if sync fails
+                    }
+                } else {
+                    console.log("No sheets found starting with 'Codes' or 'Calcs' to delete.");
+                }
+            } catch (deletionError) {
+                console.error(`Error during sheet deletion process: ${deletionError.message}`, {
+                    code: deletionError.code,
+                    debugInfo: deletionError.debugInfo ? JSON.stringify(deletionError.debugInfo) : 'N/A'
+                });
+                // Do not throw here, allow the function to finish
+            }
+
+            // --- Reorder tabs according to the model plan ---
+            console.log("Reordering tabs according to model plan...");
+            try {
+                // Define the desired tab order
+                // First is always Financials, followed by assumption tabs in their creation order,
+                // then any other existing sheets (like Misc., Actuals Data, etc.)
+                const priorityOrder = ["Financials", ...assumptionTabNames];
+                
+                // Get all worksheets one more time to ensure we have the latest list after deletions
+                const finalWorksheets = context.workbook.worksheets;
+                finalWorksheets.load("items/name");
+                await context.sync();
+                
+                // Create a list of all sheet names
+                const allSheetNames = finalWorksheets.items.map(ws => ws.name);
+                
+                // Separate sheets into priority order and others
+                const orderedSheets = [];
+                const otherSheets = [];
+                
+                // Add sheets in priority order first
+                for (const priorityName of priorityOrder) {
+                    if (allSheetNames.includes(priorityName)) {
+                        orderedSheets.push(priorityName);
+                    }
+                }
+                
+                // Add remaining sheets that aren't in priority order
+                for (const sheetName of allSheetNames) {
+                    if (!orderedSheets.includes(sheetName)) {
+                        otherSheets.push(sheetName);
+                    }
+                }
+                
+                // Combine the lists
+                const finalOrder = [...orderedSheets, ...otherSheets];
+                console.log(`Final tab order: ${finalOrder.join(', ')}`);
+                
+                // Reorder sheets by setting their positions
+                for (let i = 0; i < finalOrder.length; i++) {
+                    try {
+                        const worksheet = context.workbook.worksheets.getItem(finalOrder[i]);
+                        worksheet.position = i;
+                        console.log(`  Set ${finalOrder[i]} to position ${i}`);
+                    } catch (positionError) {
+                        console.error(`  Error setting position for sheet ${finalOrder[i]}: ${positionError.message}`);
+                        // Continue with other sheets even if one fails
+                    }
+                }
+                
+                // Sync all position changes
+                try {
+                    await context.sync();
+                    console.log("Successfully reordered all tabs.");
+                } catch (syncError) {
+                    console.error(`Error syncing tab reordering: ${syncError.message}`, {
+                        code: syncError.code,
+                        debugInfo: syncError.debugInfo ? JSON.stringify(syncError.debugInfo) : 'N/A'
+                    });
+                    // Continue even if sync fails
+                }
+                
+            } catch (reorderError) {
+                console.error(`Error during tab reordering process: ${reorderError.message}`, {
+                    code: reorderError.code,
+                    debugInfo: reorderError.debugInfo ? JSON.stringify(reorderError.debugInfo) : 'N/A'
+                });
+                // Do not throw here, allow the function to finish
+            }
+
+            // --- Navigate to Financials sheet and select cell J10 with view reset ---
+            // (This ensures Financials is the final active sheet with proper view)
+            try {
+                console.log("Navigating to Financials sheet and selecting J10 with view reset...");
+                const financialsSheet = context.workbook.worksheets.getItem("Financials");
+                
+                // Activate the Financials sheet
+                financialsSheet.activate();
+                
+                // Get J10 range
+                const rangeJ10 = financialsSheet.getRange("J10");
+                
+                // Select J10
+                rangeJ10.select();
+                
+                // Reset the view to top of sheet (like CTRL+Home)
+                try {
+                    // First, select A1 to scroll to top-left
+                    const rangeA1 = financialsSheet.getRange("A1");
+                    rangeA1.select();
+                    
+                    // Sync to ensure the scroll happens
+                    await context.sync();
+                    
+                    // Now select J10 as the final selection
+                    rangeJ10.select();
+                    
+                    // Optional: Reset zoom to 100%
+                    try {
+                        const activeWindow = context.workbook.getActiveCell().getWorksheet().getActiveView();
+                        if (activeWindow) {
+                            activeWindow.zoomLevel = 100;
+                        }
+                    } catch (zoomError) {
+                        console.log("Could not reset zoom level (requires Excel API 1.7+):", zoomError.message);
+                    }
+                } catch (viewError) {
+                    console.log("Could not fully reset view:", viewError.message);
+                    // Continue anyway - selecting J10 is the most important part
+                }
+                
+                await context.sync(); // Sync the final state
+                console.log("Successfully navigated to Financials!J10 and reset view to top.");
+            } catch (navError) {
+                console.error(`Error navigating to Financials sheet J10: ${navError.message}`, {
+                    code: navError.code,
+                    debugInfo: navError.debugInfo ? JSON.stringify(navError.debugInfo) : 'N/A'
+                });
+                // Do not throw here, allow the function to finish
+            }
+
+            console.log("Finished hideColumnsAndNavigate function.");
+
+        }); // End Excel.run
+    } catch (error) {
+        // Catch errors from the Excel.run call itself
+        console.error("Critical error in hideColumnsAndNavigate:", error);
+        throw error; // Re-throw critical errors
     }
 }
