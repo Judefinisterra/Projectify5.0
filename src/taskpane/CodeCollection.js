@@ -1207,6 +1207,17 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                             // console.log(`  Cleared contents of ${colLetter}${currentRowNum} due to blank value`);
                         }
                     }
+                    
+                    // NEW: Apply customformula parameter to column AE for row1
+                    if (g === 1 && yy === 0 && code.params.customformula && code.params.customformula !== "0") {
+                        try {
+                            console.log(`  Applying customformula to AE${currentRowNum}: ${code.params.customformula}`);
+                            const customFormulaCell = currentWorksheet.getRange(`AE${currentRowNum}`);
+                            customFormulaCell.values = [[code.params.customformula]];
+                        } catch (customFormulaError) {
+                            console.error(`  Error applying customformula: ${customFormulaError.message}`);
+                        }
+                    }
                 }
                 await context.sync(); // Sync after populating each 'g' group
 
