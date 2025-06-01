@@ -2978,22 +2978,23 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             // Convert the string to a formula
             let formula = String(originalValue);
             
-            // Sort drivers by length (descending) to avoid partial replacements
-            // e.g., replace V10 before V1 to avoid V10 becoming AE<row>0
-            const driverKeys = Array.from(driverMap.keys()).sort((a, b) => b.length - a.length);
+            // Replace all rowdriver{driverName} patterns with cell references
+            // Use regex to find all rowdriver{...} patterns
+            const rowdriverPattern = /rowdriver\{([^}]+)\}/g;
+            let hasReplacements = false;
             
-            // Replace each driver with its corresponding cell reference
-            for (const driver of driverKeys) {
-                const driverRow = driverMap.get(driver);
-                // Use word boundaries to ensure we're replacing whole driver names
-                const regex = new RegExp(`\\b${driver}\\b`, 'g');
-                const replacement = `AE${driverRow}`;
-                
-                if (formula.match(regex)) {
-                    console.log(`    Replacing ${driver} with ${replacement}`);
-                    formula = formula.replace(regex, replacement);
+            formula = formula.replace(rowdriverPattern, (match, driverName) => {
+                const driverRow = driverMap.get(driverName);
+                if (driverRow) {
+                    hasReplacements = true;
+                    const replacement = `AE${driverRow}`;
+                    console.log(`    Replacing rowdriver{${driverName}} with ${replacement}`);
+                    return replacement;
+                } else {
+                    console.warn(`    Driver '${driverName}' not found in column A, keeping as is`);
+                    return match; // Keep the original if driver not found
                 }
-            }
+            });
             
             // Ensure the formula starts with '='
             if (!formula.startsWith('=')) {
