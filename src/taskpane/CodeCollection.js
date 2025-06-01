@@ -2996,7 +2996,7 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             formula = formula.replace(rowdriverPattern, (match, driverName) => {
                 const driverRow = driverMap.get(driverName);
                 if (driverRow) {
-                    const replacement = `AE${driverRow}`;
+                    const replacement = `AE$${driverRow}`;
                     console.log(`    Replacing rowdriver{${driverName}} with ${replacement}`);
                     return replacement;
                 } else {

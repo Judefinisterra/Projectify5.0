@@ -1,4 +1,4 @@
- Follow these steps while adhering to code rules below:
+Follow these steps while adhering to code rules below:
 1)	Choose codes. Main resource is training data, seed codes, and mathmatical operator codes. “Code descriptions” and “code choosing context” provide further guidance. Choose training data examples that most closely match client request. Mixing and matching codestrings is allowed. Do not improvise codestrings. All selected codestrings must be present in training data with the exception of the seed and mathmatical operator codes below. 
 2)	Conceptualize spreadsheet created by selected codestrings. Build mental model of an array equal to row1, row2, row3, etc. of each codestring. Second dimension of array is columns delimited by the “|” symbols. Within the columns, strings are labels, numbers are assumptions, and “F” is a formula that is performing calculations on assumptions. 
 3)	Number the drivers. Within the first column of each row (after the first quote and before the first |), you will find that row’s driver letters  (ex. row5 = "LI|Employee 1||40|30|1/1/2025|F|F|F|F|F|F|” => driver letter is “LI”). If this is blank, that row has no driver. If the letters already have a number, skip and begin next identical driver letters with incremented number. Number all identical driver letters in the codestrings array. Ex. If row1 and row2 both have LI as their driver letters, row1 driver letter would change to LI1, and row2 driver letter would change to LI2. If row 3 had V as a driver letter, it would change to V1. If the row1 in the next codestring had V as the driver letter, it would change to V2. 
@@ -22,8 +22,18 @@ SPREAD-E: value is chosen for each year and then spread to the time series by di
 ENDPOINT-E: value is scaled linearly between assumptions for two years. (ex. 2025 TAM is 0. 2026 TAM is $120. Feb 2026 TAM is $20)
 
 
-Mathmatical operator codes:
+Custom codes:
 FINANCIALS-S	Pulls in any item from the financials tab. The word after "Driver :" must match exactly with an item in column B of the Financials tab
+FIXED-E: Builds formulas using 
+FORMULA-S: Allows you to write your own formula using the customformula parameter. Directly reference rowdrivers and columndrivers and use any of Excel's functions. 
+Example 1. Row 20 has a value of V1 in column A and row 25 has a value of R1 in column A. <FORMULA-S; customformula="sum(rowdriver{V1}:rowdriver{R1})" ; row1 = "A1|Item||||2|F|F|F|F|F|F|";> . The formula used in calculations for the FORMULA-S codestring, using the formula in column AE as an example but duplicated for the columns that come after AE, will be =sum(AE$20,AE$25). Additionally, you can use columndrivers{} which refer to a given set of columns on the same row. The columns numbers refer to number in the column dividers here: row1 = "||4|3|2|1|F|F|F|F|F|F|". So if row1 = "A1|Item||||2|F|F|F|F|F|F|" and customformula = “columndriver{1}” the formula in would be =$AEI. 
+
+
+Other  codes:
+LABELH1/LABELH2/LABEHLH3 Use these codes to label different sections within a tab. H1 is the highest level, followed by H2, and then H3
+BR <BR; row1 = "|  |||||||||||";> Adds a line break. Use before every LABELH1/LABELH2/LABELH3 code. 
+
+Standardized math operator codes: 
 MULT3-S	Mutliplies driver1, driver2, and driver3
 DIVIDE2-S	Divides driver1 by driver2
 SUBTRACT2-S	Subtracts driver2 from driver1
@@ -42,9 +52,6 @@ OFFSETCOLUMN-S	References 1 column to the left of driver1. In other words, it re
 OFFSET2-S	Offsets driver1 by driver2 number of periods to the left
 SUM2-S	Sums from driver1 to driver2
 DISCOUNT2-S	Multiplies driver1 by (1 - driver2)
-LABELH1/LABELH2/LABEHLH3 Use these codes to label different sections within a tab. H1 is the highest level, followed by H2, and then H3
-BR <BR; row1 = "|  |||||||||||";> Adds a line break. Use before every LABELH1/LABELH2/LABELH3 code. 
-
 
 Indent and spacing: With few exceptions, follow these rules, which should be echoed in the training data. All rates, prices, percents, and non-aggregate items should have indent="2", bold="false"; and topborder="false". Most aggregate dollar data (revenue, expense, gmv, TAM, etc.) should have format="dollar"; bold="true". If comes after an item with an indent of 2, it should have topborder="1". If it comes after another aggregate value that is bold and has an indent of 1, add a BR code between the two items. Aggregate volume items should generally be bold and have an indent of 1. 
 
