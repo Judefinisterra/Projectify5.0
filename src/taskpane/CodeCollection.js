@@ -2960,6 +2960,19 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             }
         }
         
+        // Define column mapping for columndriver: 1=I, 2=H, 3=G, etc.
+        const columnMapping = {
+            '1': 'I',
+            '2': 'H',
+            '3': 'G',
+            '4': 'F',
+            '5': 'E',
+            '6': 'D',
+            '7': 'C',
+            '8': 'B',
+            '9': 'A'
+        };
+        
         // Process each FORMULA-S row
         for (const rowNum of formulaSRows) {
             // Get the current value in column AE
@@ -2979,20 +2992,30 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             let formula = String(originalValue);
             
             // Replace all rowdriver{driverName} patterns with cell references
-            // Use regex to find all rowdriver{...} patterns
             const rowdriverPattern = /rowdriver\{([^}]+)\}/g;
-            let hasReplacements = false;
-            
             formula = formula.replace(rowdriverPattern, (match, driverName) => {
                 const driverRow = driverMap.get(driverName);
                 if (driverRow) {
-                    hasReplacements = true;
                     const replacement = `AE${driverRow}`;
                     console.log(`    Replacing rowdriver{${driverName}} with ${replacement}`);
                     return replacement;
                 } else {
                     console.warn(`    Driver '${driverName}' not found in column A, keeping as is`);
                     return match; // Keep the original if driver not found
+                }
+            });
+            
+            // Replace all columndriver{number} patterns with column references
+            const columndriverPattern = /columndriver\{([^}]+)\}/g;
+            formula = formula.replace(columndriverPattern, (match, columnNum) => {
+                const column = columnMapping[columnNum];
+                if (column) {
+                    const replacement = `$${column}${rowNum}`;
+                    console.log(`    Replacing columndriver{${columnNum}} with ${replacement}`);
+                    return replacement;
+                } else {
+                    console.warn(`    Column number '${columnNum}' not valid (must be 1-9), keeping as is`);
+                    return match; // Keep the original if column number not valid
                 }
             });
             
