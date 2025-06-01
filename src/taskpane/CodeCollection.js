@@ -700,6 +700,22 @@ export async function runCodes(codeCollection) {
                                     }
                                 }
                                 
+                                // NEW: Apply FIXED-E formula parameter
+                                if (codeType === "FIXED-E" && code.params.formula) {
+                                    try {
+                                        console.log(`Applying FIXED-E formula for code ${codeType}`);
+                                        await applyFixedEFormula(currentWS, pasteRow, lastRow, firstRow, code);
+                                        console.log(`Successfully applied FIXED-E formula`);
+                                    } catch (error) {
+                                        console.error(`Error applying FIXED-E formula: ${error.message}`);
+                                        result.errors.push({
+                                            codeIndex: i,
+                                            codeType: codeType,
+                                            error: `Error applying FIXED-E formula: ${error.message}`
+                                        });
+                                    }
+                                }
+                                
                                 result.processedCodes++;
                             }
                         } catch (error) {
@@ -2952,3 +2968,105 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
      // Note: This function runs within the context of the calling Excel.run in processAssumptionTabs.
      // Syncs are added within the function for critical steps like after insertion.
  }
+
+/**
+ * Parses and converts FIXED-E formula syntax to Excel formula
+ * @param {string} formulaString - The formula string from the code parameter (e.g., "DOLANN(C3)*BEG(C2)*END(C1)")
+ * @param {number} targetRow - The row number where the formula will be placed
+ * @returns {string} - The converted Excel formula
+ */
+function parseFixedEFormula(formulaString, targetRow) {
+    // Column mapping: C1 = I, C2 = H, C3 = G, C4 = F, C5 = E, C6 = D, C7 = C, C8 = B, C9 = A
+    const columnMapping = {
+        'C1': 'I',
+        'C2': 'H', 
+        'C3': 'G',
+        'C4': 'F',
+        'C5': 'E',
+        'C6': 'D',
+        'C7': 'C',
+        'C8': 'B',
+        'C9': 'A'
+    };
+    
+    let result = formulaString;
+    
+    // Replace DOLANN(Cx) with $<column><row>/AE$7
+    result = result.replace(/DOLANN\(C(\d+)\)/g, (match, colNum) => {
+        const colLetter = columnMapping[`C${colNum}`];
+        if (!colLetter) {
+            console.warn(`Invalid column reference in DOLANN: C${colNum}`);
+            return match; // Return unchanged if invalid
+        }
+        return `$${colLetter}${targetRow}/AE$7`;
+    });
+    
+    // Replace BEG(Cx) with (EOMONTH($<column><row>,0)<=AE$2)
+    result = result.replace(/BEG\(C(\d+)\)/g, (match, colNum) => {
+        const colLetter = columnMapping[`C${colNum}`];
+        if (!colLetter) {
+            console.warn(`Invalid column reference in BEG: C${colNum}`);
+            return match; // Return unchanged if invalid
+        }
+        return `(EOMONTH($${colLetter}${targetRow},0)<=AE$2)`;
+    });
+    
+    // Replace END(Cx) with (EOMONTH($<column><row>,0)>AE$2)
+    result = result.replace(/END\(C(\d+)\)/g, (match, colNum) => {
+        const colLetter = columnMapping[`C${colNum}`];
+        if (!colLetter) {
+            console.warn(`Invalid column reference in END: C${colNum}`);
+            return match; // Return unchanged if invalid
+        }
+        return `(EOMONTH($${colLetter}${targetRow},0)>AE$2)`;
+    });
+    
+    // Ensure the formula starts with '='
+    if (!result.startsWith('=')) {
+        result = '=' + result;
+    }
+    
+    return result;
+}
+
+/**
+ * Applies FIXED-E formula to column AE when code type is FIXED-E and formula parameter exists
+ * @param {Excel.Worksheet} worksheet - The worksheet to apply the formula to
+ * @param {number} pasteRow - The starting row where the code was pasted
+ * @param {number} lastRow - The last row from the Codes worksheet
+ * @param {number} firstRow - The first row from the Codes worksheet  
+ * @param {Object} code - The code object with type and parameters
+ * @returns {Promise<void>}
+ */
+async function applyFixedEFormula(worksheet, pasteRow, lastRow, firstRow, code) {
+    if (code.type !== "FIXED-E" || !code.params.formula) {
+        return; // Only process FIXED-E codes with formula parameter
+    }
+    
+    try {
+        const formulaParam = code.params.formula;
+        const numPastedRows = lastRow - firstRow + 1;
+        
+        console.log(`Applying FIXED-E formula to column AE for ${numPastedRows} rows starting at row ${pasteRow}`);
+        console.log(`Formula parameter: ${formulaParam}`);
+        
+        // Process each row
+        for (let i = 0; i < numPastedRows; i++) {
+            const currentRow = pasteRow + i;
+            const excelFormula = parseFixedEFormula(formulaParam, currentRow);
+            
+            console.log(`Row ${currentRow}: Converted formula: ${excelFormula}`);
+            
+            // Apply the formula to column AE
+            const targetCell = worksheet.getRange(`AE${currentRow}`);
+            targetCell.formulas = [[excelFormula]];
+        }
+        
+        await worksheet.context.sync();
+        console.log(`Successfully applied FIXED-E formulas to column AE`);
+        
+    } catch (error) {
+        console.error(`Error applying FIXED-E formula: ${error.message}`, error);
+        throw error;
+    }
+}
