@@ -253,7 +253,7 @@ export async function validateCodeStrings(inputCodeStrings) {
             if (!hasIndent) missingParams.push('indent');
             
             if (missingParams.length > 0) {
-                errors.push(`[FERR001] Format validation: ${codeType} code missing required parameters: ${missingParams.join(', ')} - ${codeString}`);
+                // errors.push(`[FERR001] Format validation: ${codeType} code missing required parameters: ${missingParams.join(', ')} - ${codeString}`);
             }
         }
         
@@ -779,22 +779,22 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
         const codeType = codeMatch[1].trim();
         
         // Rule 1: Check required format parameters
-        if (formatRequiredCodes.has(codeType)) {
-            const hasTopBorder = /topborder\s*=/.test(codeString.toLowerCase());
-            const hasFormat = /format\s*=/.test(codeString.toLowerCase());
-            const hasBold = /bold\s*=/.test(codeString.toLowerCase());
-            const hasIndent = /indent\s*=/.test(codeString.toLowerCase());
+        // if (formatRequiredCodes.has(codeType)) {
+        //     const hasTopBorder = /topborder\s*=/.test(codeString.toLowerCase());
+        //     const hasFormat = /format\s*=/.test(codeString.toLowerCase());
+        //     const hasBold = /bold\s*=/.test(codeString.toLowerCase());
+        //     const hasIndent = /indent\s*=/.test(codeString.toLowerCase());
             
-            const missingParams = [];
-            if (!hasTopBorder) missingParams.push('topborder');
-            if (!hasFormat) missingParams.push('format');
-            if (!hasBold) missingParams.push('bold');
-            if (!hasIndent) missingParams.push('indent');
+        //     // const missingParams = [];
+        //     // if (!hasTopBorder) missingParams.push('topborder');
+        //     // if (!hasFormat) missingParams.push('format');
+        //     // if (!hasBold) missingParams.push('bold');
+        //     // if (!hasIndent) missingParams.push('indent');
             
-            if (missingParams.length > 0) {
-                errors.push(`[FERR001] Format validation: ${codeType} code missing required parameters: ${missingParams.join(', ')} - ${codeString}`);
-            }
-        }
+        //     if (missingParams.length > 0) {
+        //         // errors.push(`[FERR001] Format validation: ${codeType} code missing required parameters: ${missingParams.join(', ')} - ${codeString}`);
+        //     }
+        // }
         
         // Check LABELH1/H2/H3 column 2 must end with colon
         if (codeType === 'LABELH1' || codeType === 'LABELH2' || codeType === 'LABELH3') {
