@@ -887,7 +887,7 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
         temperature: 1,
         history: currentHistory // Pass the existing history
     });
-
+  
     // Update history (create new array, don't modify inplace)
     const updatedHistory = [
         ...currentHistory,
