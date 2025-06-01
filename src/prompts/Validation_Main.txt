@@ -19,7 +19,7 @@ Validation checks:
 
 Logic Errors (LERR) - High priority. These MUST be corrected:
 
-LERR002 - Invalid code string format. Code string doesn't start with < or end with >. Solution: add missing brackets. 
+LERR002 - Invalid code string format. Code string doesn't start with < or end with >. Solution: 1) add missing brackets. 2) Sometimes, this is caused by carriage breaks within a codestring. Remove the cariage breaks within the codestring to clear the error. 
 LERR003 - Duplicate row driver within tab. Two or more rows in the same tab have identical drivers (first value before |). Iterate the numbering on the duplicate row drivers and make sure to adjust and driver1,2,3,etc. params that point to the changed row drivers. 
 LERR004 - Cannot extract code type. Unable to parse the code type from the code string. Solution: Replace code with code that is present in the training data or system prompt. 
 LERR005 - Invalid code type. Code type not found in the valid codes list (Codes.txt) Solution: Replace code with code that is present in the training data or system prompt. 

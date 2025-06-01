@@ -200,11 +200,13 @@ export async function runCodes(codeCollection) {
                                     const sourceCalcsWS = context.workbook.worksheets.getItem("Calcs");
                                     await context.sync(); // Ensure it's loaded if found
                                     console.log("Using Calcs worksheet as template.");
+                                    console.log(`[SHEET OPERATION] Copying sheet 'Calcs' to create new sheet for tab '${tabName}'`);
                                     newSheet = sourceCalcsWS.copy();
                                     sourceSheetName = "Calcs";
                                 } catch (calcsError) {
                                     // If Calcs doesn't exist, use Financials as the template
                                     console.warn("Calcs worksheet not found. Using Financials as template.");
+                                    console.log(`[SHEET OPERATION] Copying sheet 'Financials' to create new sheet for tab '${tabName}'`);
                                     newSheet = financialsSheet.copy();
                                     sourceSheetName = "Financials";
                                     // Sync needed *after* copy to reference the new sheet object reliably
@@ -283,6 +285,7 @@ export async function runCodes(codeCollection) {
                                 console.log(`newSheet created by copying ${sourceSheetName} worksheet`);
 
                                 // Rename it
+                                console.log(`[SHEET OPERATION] Renaming copied sheet to '${tabName}'`);
                                 newSheet.name = tabName;
                                 console.log("newSheet renamed to", tabName);
 
@@ -307,6 +310,7 @@ export async function runCodes(codeCollection) {
 
                             else {
                                 console.log("Worksheet already exists:", tabName);
+                                console.log(`[SHEET OPERATION] No sheet creation needed - tab '${tabName}' already exists`);
                                 assumptionTabs.push({
                                     name: tabName,
                                     worksheet: existingSheet
@@ -2389,6 +2393,7 @@ export async function hideColumnsAndNavigate(assumptionTabNames) { // Renamed an
 
             // --- Delete sheets that begin with "Codes" or "Calcs" ---
             console.log("Deleting sheets that begin with 'Codes' or 'Calcs'...");
+            console.log("[SHEET OPERATION] Scanning for sheets to delete (those beginning with 'Codes' or 'Calcs')");
             try {
                 // Get all worksheets again to ensure we have the latest list
                 const allWorksheets = context.workbook.worksheets;
@@ -2412,6 +2417,7 @@ export async function hideColumnsAndNavigate(assumptionTabNames) { // Renamed an
                     for (const sheetName of sheetsToDelete) {
                         try {
                             const sheetToDelete = context.workbook.worksheets.getItem(sheetName);
+                            console.log(`[SHEET OPERATION] Deleting sheet '${sheetName}'`);
                             sheetToDelete.delete();
                             console.log(`  Queued deletion of sheet: ${sheetName}`);
                         } catch (deleteError) {
@@ -2669,12 +2675,14 @@ export async function handleInsertWorksheetsFromBase64(base64String, sheetNames 
             
             // Insert the worksheets with error handling
             try {
+                console.log(`[SHEET OPERATION] Inserting worksheets from base64 string. Sheet names: ${sheetNames ? sheetNames.join(', ') : 'All sheets from source file'}`);
                 await workbook.insertWorksheetsFromBase64(base64String, {
                     sheetNames: sheetNames
                 });
                 
                 await context.sync();
                 console.log("Worksheets inserted successfully");
+                console.log(`[SHEET OPERATION] Successfully inserted worksheets: ${sheetNames ? sheetNames.join(', ') : 'All sheets from source file'}`);
             } catch (error) {
                 console.error("Error during worksheet insertion:", error);
                 throw new Error(`Failed to insert worksheets: ${error.message}`);

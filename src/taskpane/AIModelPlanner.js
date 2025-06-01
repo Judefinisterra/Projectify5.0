@@ -13,7 +13,7 @@ import {
     hideColumnsAndNavigate, 
     handleInsertWorksheetsFromBase64 
 } from './CodeCollection.js';
-import { getAICallsProcessedResponse } from './AIcalls.js';
+import { getAICallsProcessedResponse, validationCorrection } from './AIcalls.js';
 // We don't import from taskpane.js to avoid cycles
 
 let modelPlannerConversationHistory = [];
@@ -72,6 +72,77 @@ async function getAIModelPlanningSystemPrompt() {
   console.error(`AIModelPlanner: Failed to load prompt ${promptKey}.txt from all attempted paths.`);
   // Fallback prompt
   return "You are a helpful assistant for financial model planning. [Error: System prompt AIModelPlanning_System.txt could not be loaded]"; 
+}
+
+// NEW HELPER FUNCTION FOR PER-TAB VALIDATION
+async function validateAndCorrectTabCode(tabLabel, tabCode, maxRetries = 2) {
+    console.log(`[validateAndCorrectTabCode] Validating code for tab: ${tabLabel}`);
+    
+    for (let retryCount = 0; retryCount <= maxRetries; retryCount++) {
+        // Add the <BR> substitution for validation
+        let processedTabCode = tabCode;
+        if (processedTabCode && typeof processedTabCode === 'string') {
+            processedTabCode = processedTabCode.replace(/<BR>/g, '<BR; labelRow=""; row1 = "||||||||||||";>');
+        }
+        
+        // Validate the tab code
+        const codeLines = processedTabCode.split(/\r?\n/).filter(line => line.trim() !== '');
+        const validationErrors = await validateCodeStringsForRun(codeLines);
+        
+        if (!validationErrors || validationErrors.length === 0) {
+            console.log(`[validateAndCorrectTabCode] Tab "${tabLabel}" validation successful${retryCount > 0 ? ` after ${retryCount} attempt(s)` : ''}`);
+            return { success: true, code: tabCode, retryCount };
+        }
+        
+        // If we have validation errors and haven't exceeded max retries
+        if (retryCount < maxRetries) {
+            console.log(`[validateAndCorrectTabCode] Tab "${tabLabel}" validation failed (attempt ${retryCount + 1}/${maxRetries + 1}). Attempting correction...`);
+            displayInClientChatLogPlanner(`Validation errors detected for tab ${tabLabel} (attempt ${retryCount + 1}/${maxRetries + 1}). Attempting automatic correction...`, false);
+            
+            try {
+                // Use validationCorrection for consistency with main validation flow
+                const tabContext = `Tab: ${tabLabel}\nCode:\n<TAB; label1="${tabLabel}";>\n${tabCode}`;
+                const correctedResponse = await validationCorrection(
+                    tabContext, // clientprompt - context about what this tab code is for
+                    [tabCode], // initialResponse - the code as an array (validationCorrection expects array format)
+                    validationErrors // validationResults - the errors found
+                );
+                
+                let correctedCode = "";
+                if (Array.isArray(correctedResponse)) {
+                    correctedCode = correctedResponse.join('\n');
+                } else if (typeof correctedResponse === 'object' && correctedResponse !== null && !Array.isArray(correctedResponse)) {
+                    correctedCode = JSON.stringify(correctedResponse, null, 2);
+                } else {
+                    correctedCode = String(correctedResponse);
+                }
+                
+                // Remove the tab header if the AI included it in the response
+                correctedCode = correctedCode.replace(/^<TAB;[^>]+>\s*/i, '');
+                
+                console.log(`[validateAndCorrectTabCode] Received corrected code for tab "${tabLabel}", will retry validation`);
+                tabCode = correctedCode; // Update for next iteration
+                
+            } catch (correctionError) {
+                console.error(`[validateAndCorrectTabCode] Error during tab validation correction for "${tabLabel}":`, correctionError);
+                displayInClientChatLogPlanner(`Failed to automatically correct validation errors for tab ${tabLabel}: ${correctionError.message}`, false);
+                // Continue to next retry or fail
+            }
+        } else {
+            // Max retries reached
+            console.error(`[validateAndCorrectTabCode] Tab "${tabLabel}" validation failed after ${maxRetries + 1} attempts`);
+            displayInClientChatLogPlanner(`Tab ${tabLabel}: Maximum validation correction attempts (${maxRetries + 1}) reached. Errors: ${validationErrors.join(", ")}`, false);
+            return { 
+                success: false, 
+                code: tabCode, 
+                errors: validationErrors,
+                retryCount: maxRetries
+            };
+        }
+    }
+    
+    // Should never reach here, but just in case
+    return { success: false, code: tabCode, errors: ['Unknown error'], retryCount: maxRetries };
 }
 
 // Direct OpenAI API call function (simplified version, adapt if AIcalls.js exports its own)
@@ -502,16 +573,19 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
                 displayInClientChatLogPlanner(`Validation errors detected (attempt ${retryCount + 1}/${MAX_RETRIES}). Attempting automatic correction...`, false);
                 
                 try {
-                    // Call the AI to fix validation errors
-                    const correctionPrompt = `The following model codes have validation errors. Please fix them and return ONLY the corrected code strings, nothing else:\n\nValidation Errors:\n${validationErrors.join("\n")}\n\nOriginal Code:\n${modelCodesString}`;
+                    // Call the AI to fix validation errors using validationCorrection
+                    const modelContext = "Complete model code strings for all tabs";
+                    const correctedCodes = await validationCorrection(
+                        modelContext, // clientprompt - context about what this code is for
+                        modelCodesString.split(/\r?\n/).filter(line => line.trim() !== ''), // initialResponse as array
+                        validationErrors // validationResults - the errors found
+                    );
                     
-                    const correctedCodes = await getAICallsProcessedResponse(correctionPrompt);
                     let correctedModelCodes = "";
-                    
-                    if (typeof correctedCodes === 'object' && correctedCodes !== null && !Array.isArray(correctedCodes)) {
-                        correctedModelCodes = JSON.stringify(correctedCodes, null, 2);
-                    } else if (Array.isArray(correctedCodes)) {
+                    if (Array.isArray(correctedCodes)) {
                         correctedModelCodes = correctedCodes.join('\n');
+                    } else if (typeof correctedCodes === 'object' && correctedCodes !== null && !Array.isArray(correctedCodes)) {
+                        correctedModelCodes = JSON.stringify(correctedCodes, null, 2);
                     } else {
                         correctedModelCodes = String(correctedCodes);
                     }
@@ -537,6 +611,11 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
             throw error;
         }
         console.log("[AIModelPlanner._executePlannerCodes] Code validation successful.");
+
+        // LOG THE ENTIRE VALIDATED CODESTRINGS BEFORE BUILDING THE MODEL
+        console.log("[AIModelPlanner._executePlannerCodes] === COMPLETE VALIDATED CODESTRINGS ===");
+        console.log(modelCodesString);
+        console.log("[AIModelPlanner._executePlannerCodes] === END OF CODESTRINGS ===");
 
         console.log("[AIModelPlanner._executePlannerCodes] Inserting base sheets from Worksheets_4.3.25 v1.xlsx...");
         const worksheetsResponse = await fetch('https://localhost:3002/assets/Worksheets_4.3.25 v1.xlsx');
@@ -799,9 +878,24 @@ export async function plannerHandleSend() {
                             } else {
                                 formattedAiResponse = String(aiResponseForTabArray);
                             }
-                            ModelCodes += formattedAiResponse + "\n\n"; 
-                            console.log(`AIModelPlanner: Received and appended AI response for tab "${tabLabel}"`);
-                            displayInClientChatLogPlanner(`Completed details for tab: ${tabLabel}.`, false); // Adds new bubble
+                            
+                            // VALIDATE TAB CODE BEFORE ADDING TO ModelCodes
+                            console.log(`AIModelPlanner: Validating generated code for tab "${tabLabel}"...`);
+                            const validationResult = await validateAndCorrectTabCode(tabLabel, formattedAiResponse, 2); // 2 retries = 3 total attempts
+                            
+                            if (validationResult.success) {
+                                ModelCodes += validationResult.code + "\n\n";
+                                console.log(`AIModelPlanner: Tab "${tabLabel}" code validated and appended to ModelCodes`);
+                                displayInClientChatLogPlanner(`Completed and validated details for tab: ${tabLabel}.`, false);
+                            } else {
+                                // Tab validation failed after all retries
+                                console.error(`AIModelPlanner: Tab "${tabLabel}" validation failed. Including code with errors commented.`);
+                                ModelCodes += `// WARNING: Tab ${tabLabel} has validation errors after ${validationResult.retryCount + 1} correction attempts\n`;
+                                ModelCodes += `// Errors: ${validationResult.errors.join("; ")}\n`;
+                                ModelCodes += `// Original code included below for reference:\n`;
+                                ModelCodes += validationResult.code.split('\n').map(line => `// ${line}`).join('\n') + "\n\n";
+                                displayInClientChatLogPlanner(`Warning: Tab ${tabLabel} has validation errors. Code included as comments.`, false);
+                            }
                         } catch (tabError) {
                             console.error(`AIModelPlanner: Error processing description for tab "${tabLabel}" via getAICallsProcessedResponse:`, tabError);
                             ModelCodes += `// Error processing tab ${tabLabel}: ${tabError.message}\n\n`;
