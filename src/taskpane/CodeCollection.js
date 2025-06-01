@@ -618,12 +618,15 @@ export async function runCodes(codeCollection) {
                                     currentWorksheet.load('name');
                                     await context.sync();
                                     
-                                    await driverAndAssumptionInputs(
+                                    const rowInfo = await driverAndAssumptionInputs(
                                         currentWorksheet,
                                         pasteRow,
                                         code
                                     );
                                     console.log(`Successfully applied driver and assumption inputs to worksheet: ${currentWorksheetName}`);
+                                    
+                                    // Store the actual row information for use by FIXED-E/FIXED-S
+                                    code.actualRowInfo = rowInfo;
                                 } catch (error) {
                                     console.error(`Error applying driver and assumption inputs: ${error.message}`);
                                     result.errors.push({
@@ -706,7 +709,22 @@ export async function runCodes(codeCollection) {
                                 if ((codeType === "FIXED-E" || codeType === "FIXED-S") && code.params.formula) {
                                     try {
                                         console.log(`Applying ${codeType} formula for code ${codeType}`);
-                                        await applyFixedEFormula(currentWS, pasteRow, lastRow, firstRow, code);
+                                        
+                                        // Use actual row information if available, otherwise fall back to original values
+                                        let actualPasteRow = pasteRow;
+                                        let actualLastRow = lastRow;
+                                        let actualFirstRow = firstRow;
+                                        
+                                        if (code.actualRowInfo) {
+                                            // Calculate the actual rows based on the populated information
+                                            actualPasteRow = code.actualRowInfo.firstRow;
+                                            const numRowsPopulated = code.actualRowInfo.totalRows;
+                                            actualLastRow = actualPasteRow + numRowsPopulated - 1;
+                                            actualFirstRow = actualPasteRow;
+                                            console.log(`Using actual row info: firstRow=${actualPasteRow}, lastRow=${actualLastRow}, totalRows=${numRowsPopulated}`);
+                                        }
+                                        
+                                        await applyFixedEFormula(currentWS, actualPasteRow, actualLastRow, actualFirstRow, code);
                                         console.log(`Successfully applied ${codeType} formula`);
                                     } catch (error) {
                                         console.error(`Error applying ${codeType} formula: ${error.message}`);
@@ -1200,6 +1218,17 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
             } // End for g loop
 
             console.log(`Completed processing driver and assumption inputs for code ${codeValue} in worksheet ${worksheetName}`);
+            
+            // Return information about the actual rows populated
+            const actualFirstRow = searchRow;
+            const actualLastRow = currentCheckRowForInserts - 1; // The last row populated
+            const totalRowsPopulated = actualLastRow - actualFirstRow + 1;
+            
+            return {
+                firstRow: actualFirstRow,
+                lastRow: actualLastRow,
+                totalRows: totalRowsPopulated
+            };
         }); // End main Excel.run
     } catch (error) {
         console.error(`Error in driverAndAssumptionInputs MAIN CATCH for code '${code.type}' in worksheet '${worksheet?.name || 'unknown'}': ${error.message}`, error);
