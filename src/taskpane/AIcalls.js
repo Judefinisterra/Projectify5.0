@@ -27,9 +27,9 @@ import { API_KEYS as configApiKeys } from '../../config.js'; // Assuming config.
 // Mock fs module for browser environment (if needed within AIcalls)
 const fs = {
     writeFileSync: (path, content) => {
-        console.log(`Mock writeFileSync called with path: ${path}`);
-        // In browser, we'll just log the content instead of writing to file
-        console.log(`Content would be written to ${path}:`, content.substring(0, 100) + '...');
+        // console.log(`Mock writeFileSync called with path: ${path}`);
+        // // In browser, we'll just log the content instead of writing to file
+        // console.log(`Content would be written to ${path}:`, content.substring(0, 100) + '...');
     }
 };
 
@@ -255,10 +255,36 @@ export function loadConversationHistory() {
 
 // Direct OpenAI API call function
 export async function* callOpenAI(messages, options = {}) {
-  const { model = GPT41, temperature = 0.7, stream = false } = options;
+  const { model = GPT41, temperature = 0.7, stream = false, caller = "Unknown" } = options;
 
   try {
     console.log(`Calling OpenAI API with model: ${model}, stream: ${stream}`);
+    
+    // >>> ADDED: Comprehensive logging of all messages sent to OpenAI
+    console.log("\n╔════════════════════════════════════════════════════════════════╗");
+    console.log("║                    OPENAI API CALL                             ║");
+    console.log("╠════════════════════════════════════════════════════════════════╣");
+    console.log(`║ CALLER: ${caller.padEnd(54)} ║`);
+    console.log(`║ FILE: AIcalls.js                                               ║`);
+    console.log(`║ FUNCTION: callOpenAI()                                         ║`);
+    console.log("╚════════════════════════════════════════════════════════════════╝");
+    console.log(`Model: ${model}`);
+    console.log(`Temperature: ${temperature}`);
+    console.log(`Stream: ${stream}`);
+    console.log(`Total Messages: ${messages.length}`);
+    console.log("────────────────────────────────────────────────────────────────");
+    
+    messages.forEach((message, index) => {
+      console.log(`\n[Message ${index + 1}] Role: ${message.role.toUpperCase()}`);
+      console.log("────────────────────────────────────────────────────────────────");
+      console.log(message.content);
+      console.log("────────────────────────────────────────────────────────────────");
+    });
+    
+    console.log("\n╔════════════════════════════════════════════════════════════════╗");
+    console.log("║                  END OF OPENAI API CALL                        ║");
+    console.log("╚════════════════════════════════════════════════════════════════╝\n");
+    // <<< END ADDED
 
     if (!INTERNAL_API_KEYS.OPENAI_API_KEY) {
       throw new Error("OpenAI API key not found. Please check your API keys.");
@@ -350,6 +376,20 @@ export async function* callOpenAI(messages, options = {}) {
 export async function createEmbedding(text) {
   try {
     console.log("Creating embedding for text");
+    
+    // >>> ADDED: Log embedding creation details
+    console.log("\n╔════════════════════════════════════════════════════════════════╗");
+    console.log("║                createEmbedding() CALLED                        ║");
+    console.log("╠════════════════════════════════════════════════════════════════╣");
+    console.log("║ FILE: AIcalls.js                                               ║");
+    console.log("║ FUNCTION: createEmbedding()                                    ║");
+    console.log("║ PURPOSE: Creating text embeddings for vector DB search         ║");
+    console.log("╚════════════════════════════════════════════════════════════════╝");
+    console.log("Full text being embedded:");
+    console.log("────────────────────────────────────────────────────────────────");
+    console.log(text);
+    console.log("────────────────────────────────────────────────────────────────\n");
+    // <<< END ADDED
 
     if (!INTERNAL_API_KEYS.OPENAI_API_KEY) {
       throw new Error("OpenAI API key not found. Please check your API keys.");
@@ -431,8 +471,20 @@ export async function getSystemPromptFromFile(promptKey) {
 };
 
 // Function: OpenAI Call with conversation history support
-export async function processPrompt({ userInput, systemPrompt, model, temperature, history = [] }) {
+export async function processPrompt({ userInput, systemPrompt, model, temperature, history = [], promptFiles = {} }) {
     if (DEBUG) console.log("API Key being used for processPrompt:", INTERNAL_API_KEYS.OPENAI_API_KEY ? `${INTERNAL_API_KEYS.OPENAI_API_KEY.substring(0, 3)}...` : "None");
+
+    // >>> ADDED: Log the function call details with prompt file info
+    console.log("\n╔══════════════════════════════════════╗");
+    console.log("║    processPrompt() CALLED            ║");
+    console.log("╚══════════════════════════════════════╝");
+    console.log(`Model: ${model}`);
+    console.log(`Temperature: ${temperature}`);
+    console.log(`History items: ${history.length}`);
+    if (promptFiles.system) console.log(`System Prompt File: ${promptFiles.system}`);
+    if (promptFiles.main) console.log(`Main Prompt File: ${promptFiles.main}`);
+    console.log("────────────────────────────────────────\n");
+    // <<< END ADDED
 
     const messages = [
         { role: "system", content: systemPrompt }
@@ -455,8 +507,13 @@ export async function processPrompt({ userInput, systemPrompt, model, temperatur
     messages.push({ role: "user", content: userInput });
 
     try {
-        // Correctly call callOpenAI with an options object
-        const openaiCallOptions = { model: model, temperature: temperature, stream: false };
+        // Correctly call callOpenAI with an options object including caller info
+        const openaiCallOptions = { 
+            model: model, 
+            temperature: temperature, 
+            stream: false,
+            caller: `processPrompt() - ${promptFiles.system || 'Unknown System Prompt'}`
+        };
         let responseContent = "";
 
         // Consume the async iterator from callOpenAI
@@ -504,7 +561,8 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
           systemPrompt: systemStructurePrompt,
           model: GPT41,
           temperature: 1,
-          history: [] // Explicitly empty
+          history: [], // Explicitly empty
+          promptFiles: { system: 'Structure_System' }
       });
 
       if (!queryStrings || !Array.isArray(queryStrings)) {
@@ -885,7 +943,8 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
         systemPrompt: systemPrompt,
         model: GPT41,
         temperature: 1,
-        history: currentHistory // Pass the existing history
+        history: currentHistory, // Pass the existing history
+        promptFiles: { system: 'Followup_System', main: 'Encoder_Main' }
     });
   
     // Update history (create new array, don't modify inplace)
@@ -949,7 +1008,8 @@ export async function handleInitialConversation(clientprompt) {
         systemPrompt: systemPrompt,
         model: GPT41,
         temperature: 1,
-        history: [] // No history for initial call
+        history: [], // No history for initial call
+        promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
     });
 
     // Create the initial history
@@ -1100,7 +1160,8 @@ export async function validationCorrection(clientprompt, initialResponse, valida
             systemPrompt: validationSystemPrompt,
             model: GPT41,
             temperature: 0.7, // Lower temperature for correction
-            history: []
+            history: [],
+            promptFiles: { system: 'Validation_System', main: 'Validation_Main' }
         });
 
         // Save the output using the mock fs (as per original logic)
@@ -1386,7 +1447,8 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
             systemPrompt: systemPrompt,
             model: GPT41, // Using the same model as in other parts
             temperature: 1, // Consistent temperature
-            history: [] // Treat each call as independent for this processing
+            history: [], // Treat each call as independent for this processing
+            promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
         });
         if (DEBUG) console.log("[getAICallsProcessedResponse] processPrompt completed. Response:", responseArray);
 
@@ -1403,7 +1465,7 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         }
 
         // >>> ADDED: Save the complete enhanced prompt that was sent to AI to lastprompt.txt
-        await saveEnhancedPrompt(combinedInputForAI);
+        // await saveEnhancedPrompt(combinedInputForAI);
 
         return responseArray;
 
@@ -1414,40 +1476,40 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
     }
 }
 
-// >>> ADDED: Function to save the complete prompt sent to AI to lastprompt.txt
-async function saveEnhancedPrompt(fullPrompt) {
-    try {
-        console.log("Saving complete AI prompt to lastprompt.txt...");
+// // >>> ADDED: Function to save the complete prompt sent to AI to lastprompt.txt
+// async function saveEnhancedPrompt(fullPrompt) {
+//     try {
+//         console.log("Saving complete AI prompt to lastprompt.txt...");
         
-        // Try to save to server via POST request
-        const response = await fetch('https://localhost:3003/save-prompt', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                filename: 'src/prompts/lastprompt.txt',
-                content: fullPrompt
-            })
-        });
+//         // Try to save to server via POST request
+//         const response = await fetch('https://localhost:3003/save-prompt', {
+//             method: 'POST',
+//             headers: {
+//                 'Content-Type': 'application/json'
+//             },
+//             body: JSON.stringify({
+//                 filename: 'src/prompts/lastprompt.txt',
+//                 content: fullPrompt
+//             })
+//         });
 
-        if (response.ok) {
-            console.log("Complete AI prompt saved successfully to lastprompt.txt");
-        } else {
-            console.warn("Failed to save prompt to server:", response.statusText);
-            // Fallback: save to localStorage
-            localStorage.setItem('lastPrompt', fullPrompt);
-            console.log("Complete AI prompt saved to localStorage as fallback");
-        }
-    } catch (error) {
-        console.error("Error saving prompt:", error);
-        // Fallback: save to localStorage
-        try {
-            localStorage.setItem('lastPrompt', fullPrompt);
-            console.log("Complete AI prompt saved to localStorage as fallback");
-        } catch (storageError) {
-            console.error("Failed to save to localStorage:", storageError);
-        }
-    }
-}
+//         if (response.ok) {
+//             console.log("Complete AI prompt saved successfully to lastprompt.txt");
+//         } else {
+//             console.warn("Failed to save prompt to server:", response.statusText);
+//             // Fallback: save to localStorage
+//             localStorage.setItem('lastPrompt', fullPrompt);
+//             console.log("Complete AI prompt saved to localStorage as fallback");
+//         }
+//     } catch (error) {
+//         console.error("Error saving prompt:", error);
+//         // Fallback: save to localStorage
+//         try {
+//             localStorage.setItem('lastPrompt', fullPrompt);
+//             console.log("Complete AI prompt saved to localStorage as fallback");
+//         } catch (storageError) {
+//             console.error("Failed to save to localStorage:", storageError);
+//         }
+//     }
+// }
 

@@ -154,16 +154,35 @@ async function* callOpenAIForModelPlanner(messages, options = {}) {
     throw new Error("OpenAI API key not set for AIModelPlanner.");
   }
 
-  if (DEBUG_PLANNER) {
-    // Condensed logging
-    const systemMessageContent = messages.find(msg => msg.role === 'system')?.content?.substring(0, 100) + "...";
-    const lastUserMessageContent = messages.filter(msg => msg.role === 'user').pop()?.content?.substring(0, 100) + "...";
-    console.log(`AIModelPlanner API Call: Model: ${model}, Stream: ${stream}`);
-    console.log("AIModelPlanner API Call: System Prompt (start):", systemMessageContent || "N/A");
-    console.log("AIModelPlanner API Call: Last User Prompt (start):", lastUserMessageContent || "N/A");
-  }
-
   try {
+    console.log(`AIModelPlanner - Calling OpenAI API with model: ${model}, stream: ${stream}`);
+    
+    // >>> ADDED: Comprehensive logging of all messages sent to OpenAI
+    console.log("\n╔════════════════════════════════════════════════════════════════╗");
+    console.log("║               AI MODEL PLANNER - OPENAI API CALL               ║");
+    console.log("╠════════════════════════════════════════════════════════════════╣");
+    console.log("║ FILE: AIModelPlanner.js                                        ║");
+    console.log("║ FUNCTION: callOpenAIForModelPlanner()                          ║");
+    console.log("║ PURPOSE: AI Model Planning / Client Mode Chat                  ║");
+    console.log("╚════════════════════════════════════════════════════════════════╝");
+    console.log(`Model: ${model}`);
+    console.log(`Temperature: ${temperature}`);
+    console.log(`Stream: ${stream}`);
+    console.log(`Total Messages: ${messages.length}`);
+    console.log("────────────────────────────────────────────────────────────────");
+    
+    messages.forEach((message, index) => {
+      console.log(`\n[Message ${index + 1}] Role: ${message.role.toUpperCase()}`);
+      console.log("────────────────────────────────────────────────────────────────");
+      console.log(message.content);
+      console.log("────────────────────────────────────────────────────────────────");
+    });
+    
+    console.log("\n╔════════════════════════════════════════════════════════════════╗");
+    console.log("║           END OF AI MODEL PLANNER OPENAI API CALL             ║");
+    console.log("╚════════════════════════════════════════════════════════════════╝\n");
+    // <<< END ADDED
+
     const body = {
       model: model,
       messages: messages,
@@ -239,6 +258,20 @@ async function* callOpenAIForModelPlanner(messages, options = {}) {
 
 // Function to process a prompt for the AI Model Planner
 async function* processAIModelPlannerPromptInternal({ userInput, systemPrompt, model, temperature, history = [], stream = false }) {
+    // >>> ADDED: Log the function call details
+    console.log("\n╔══════════════════════════════════════════════════════════════╗");
+    console.log("║        processAIModelPlannerPromptInternal CALLED              ║");
+    console.log("╠════════════════════════════════════════════════════════════════╣");
+    console.log("║ FILE: AIModelPlanner.js                                        ║");
+    console.log("║ PROMPT FILE: AIModelPlanning_System.txt                        ║");
+    console.log("╚══════════════════════════════════════════════════════════════╝");
+    console.log(`Model: ${model}`);
+    console.log(`Temperature: ${temperature}`);
+    console.log(`Stream: ${stream}`);
+    console.log(`History items: ${history.length}`);
+    console.log("────────────────────────────────────────────────────────────────\n");
+    // <<< END ADDED
+
     const messages = [
         { role: "system", content: systemPrompt }
     ];
@@ -406,7 +439,7 @@ export function resetAIModelPlannerConversation() {
 
 // UI Helper functions specific to AIModelPlanner controlling client chat
 function displayInClientChatLogPlanner(message, isUser) {
-    console.log("[displayInClientChatLogPlanner] Called with message:", message.substring(0, 50) + "...");
+    console.log("[displayInClientChatLogPlanner] Called with message:", message);
     
     let chatLog = document.getElementById('chat-log-client');
     const welcomeMessage = document.getElementById('welcome-message-client');
