@@ -830,6 +830,90 @@ export async function isActiveCellGreen() {
     }
 }
 
+/**
+ * Parses and converts FORMULA-S custom formula syntax to Excel formula
+ * Handles special functions: SPREAD, BEG, END, RAISE, ONETIMEDATE, SPREADDATES
+ * @param {string} formulaString - The formula string from the customformula parameter
+ * @param {number} targetRow - The row number where the formula will be placed
+ * @returns {string} - The converted Excel formula
+ */
+function parseFormulaSCustomFormula(formulaString, targetRow) {
+    if (!formulaString || typeof formulaString !== 'string') {
+        return formulaString;
+    }
+    
+    let result = formulaString;
+    
+    // Process SPREAD function: SPREAD(driver) -> driver/AE$7
+    result = result.replace(/SPREAD\(([^)]+)\)/g, (match, driver) => {
+        console.log(`    Converting SPREAD(${driver}) to ${driver}/AE$7`);
+        return `(${driver}/AE$7)`;
+    });
+    
+    // Process BEG function: BEG(driver) -> (EOMONTH(driver,0)<=AE$2)
+    result = result.replace(/BEG\(([^)]+)\)/g, (match, driver) => {
+        console.log(`    Converting BEG(${driver}) to (EOMONTH(${driver},0)<=AE$2)`);
+        return `(EOMONTH(${driver},0)<=AE$2)`;
+    });
+    
+    // Process END function: END(driver) -> (EOMONTH(driver,0)>AE$2)
+    result = result.replace(/END\(([^)]+)\)/g, (match, driver) => {
+        console.log(`    Converting END(${driver}) to (EOMONTH(${driver},0)>AE$2)`);
+        return `(EOMONTH(${driver},0)>AE$2)`;
+    });
+    
+    // Process RAISE function: RAISE(driver) -> (1 + (driver)) ^ (AE$3 - $AE3)
+    result = result.replace(/RAISE\(([^)]+)\)/g, (match, driver) => {
+        console.log(`    Converting RAISE(${driver}) to (1 + (${driver})) ^ (AE$3 - $AE3)`);
+        return `(1 + (${driver})) ^ (AE$3 - $AE3)`;
+    });
+    
+    // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=AE$2)
+    result = result.replace(/ONETIMEDATE\(([^)]+)\)/g, (match, driver) => {
+        console.log(`    Converting ONETIMEDATE(${driver}) to (EOMONTH((${driver}),0)=AE$2)`);
+        return `(EOMONTH((${driver}),0)=AE$2)`;
+    });
+    
+    // Process SPREADDATES function: SPREADDATES(driver1,driver2) -> driver1/(EOMONTH(driver2,0)-(EOMONTH(driver1,0))*(12/AE$2*30)
+    // Note: Need to handle nested parentheses and comma separation
+    result = result.replace(/SPREADDATES\(([^,]+),([^)]+)\)/g, (match, driver1, driver2) => {
+        // Trim whitespace from drivers
+        driver1 = driver1.trim();
+        driver2 = driver2.trim();
+        console.log(`    Converting SPREADDATES(${driver1},${driver2}) to ${driver1}/(EOMONTH(${driver2},0)-(EOMONTH(${driver1},0))*(12/AE$2*30))`);
+        return `${driver1}/(EOMONTH(${driver2},0)-(EOMONTH(${driver1},0))*(12/AE$2*30))`;
+    });
+    
+    // Process columndriver{} references before returning
+    // Define column mapping for columndriver: 1=I, 2=H, 3=G, etc.
+    const columnMapping = {
+        '1': 'I',
+        '2': 'H',
+        '3': 'G',
+        '4': 'F',
+        '5': 'E',
+        '6': 'D',
+        '7': 'C',
+        '8': 'B',
+        '9': 'A'
+    };
+    
+    // Replace all columndriver{number} patterns with column references
+    const columndriverPattern = /columndriver\{([^}]+)\}/g;
+    result = result.replace(columndriverPattern, (match, columnNum) => {
+        const column = columnMapping[columnNum];
+        if (column) {
+            const replacement = `$${column}${targetRow}`;
+            console.log(`    Replacing columndriver{${columnNum}} with ${replacement}`);
+            return replacement;
+        } else {
+            console.warn(`    Column number '${columnNum}' not valid (must be 1-9), keeping as is`);
+            return match; // Keep the original if column number not valid
+        }
+    });
+    
+    return result;
+}
 
 /**
  * Processes driver and assumption inputs for a worksheet based on code parameters,
@@ -1214,6 +1298,38 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                             console.log(`  Applying customformula to AE${currentRowNum}: ${code.params.customformula}`);
                             const customFormulaCell = currentWorksheet.getRange(`AE${currentRowNum}`);
                             customFormulaCell.values = [[code.params.customformula]];
+                        } catch (customFormulaError) {
+                            console.error(`  Error applying customformula: ${customFormulaError.message}`);
+                        }
+                    }
+
+                    // NEW: Apply customformula parameter to column AE for row1
+                    if (g === 1 && yy === 0 && code.params.customformula && code.params.customformula !== "0") {
+                        try {
+                            console.log(`  Applying customformula to AE${currentRowNum}: ${code.params.customformula}`);
+                            
+                            // Parse the formula to convert special functions
+                            const parsedFormula = parseFormulaSCustomFormula(code.params.customformula, currentRowNum);
+                            console.log(`  Parsed formula: ${parsedFormula}`);
+                            
+                            // Ensure the formula starts with '='
+                            let finalFormula = parsedFormula;
+                            if (finalFormula && !finalFormula.startsWith('=')) {
+                                finalFormula = '=' + finalFormula;
+                            }
+                            
+                            const customFormulaCell = currentWorksheet.getRange(`AE${currentRowNum}`);
+                            
+                            // Check if this is FORMULA-S code to determine if we should apply formula or value
+                            if (code.type === "FORMULA-S") {
+                                // For FORMULA-S, set it as a value that will be converted to formula later by processFormulaSRows
+                                customFormulaCell.values = [[code.params.customformula]];
+                                console.log(`  Set customformula as value for FORMULA-S processing`);
+                            } else {
+                                // For other codes, apply as formula directly
+                                customFormulaCell.formulas = [[finalFormula]];
+                                console.log(`  Applied parsed formula: ${finalFormula}`);
+                            }
                         } catch (customFormulaError) {
                             console.error(`  Error applying customformula: ${customFormulaError.message}`);
                         }
@@ -3017,6 +3133,49 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                     console.warn(`    Column number '${columnNum}' not valid (must be 1-9), keeping as is`);
                     return match; // Keep the original if column number not valid
                 }
+            });
+            
+            // Now parse special functions (SPREAD, BEG, END, etc.)
+            console.log(`  Parsing special functions in formula...`);
+            
+            // Process SPREAD function: SPREAD(driver) -> driver/AE$7
+            formula = formula.replace(/SPREAD\(([^)]+)\)/g, (match, driver) => {
+                console.log(`    Converting SPREAD(${driver}) to ${driver}/AE$7`);
+                return `(${driver}/AE$7)`;
+            });
+            
+            // Process BEG function: BEG(driver) -> (EOMONTH(driver,0)<=AE$2)
+            formula = formula.replace(/BEG\(([^)]+)\)/g, (match, driver) => {
+                console.log(`    Converting BEG(${driver}) to (EOMONTH(${driver},0)<=AE$2)`);
+                return `(EOMONTH(${driver},0)<=AE$2)`;
+            });
+            
+            // Process END function: END(driver) -> (EOMONTH(driver,0)>AE$2)
+            formula = formula.replace(/END\(([^)]+)\)/g, (match, driver) => {
+                console.log(`    Converting END(${driver}) to (EOMONTH(${driver},0)>AE$2)`);
+                return `(EOMONTH(${driver},0)>AE$2)`;
+            });
+            
+            // Process RAISE function: RAISE(driver) -> (1 + (driver)) ^ (AE$3 - $AE3)
+            formula = formula.replace(/RAISE\(([^)]+)\)/g, (match, driver) => {
+                console.log(`    Converting RAISE(${driver}) to (1 + (${driver})) ^ (AE$3 - $AE3)`);
+                return `(1 + (${driver})) ^ (AE$3 - $AE3)`;
+            });
+            
+            // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=AE$2)
+            formula = formula.replace(/ONETIMEDATE\(([^)]+)\)/g, (match, driver) => {
+                console.log(`    Converting ONETIMEDATE(${driver}) to (EOMONTH((${driver}),0)=AE$2)`);
+                return `(EOMONTH((${driver}),0)=AE$2)`;
+            });
+            
+            // Process SPREADDATES function: SPREADDATES(driver1,driver2) -> driver1/(EOMONTH(driver2,0)-(EOMONTH(driver1,0))*(12/AE$2*30)
+            // Note: Need to handle nested parentheses and comma separation
+            formula = formula.replace(/SPREADDATES\(([^,]+),([^)]+)\)/g, (match, driver1, driver2) => {
+                // Trim whitespace from drivers
+                driver1 = driver1.trim();
+                driver2 = driver2.trim();
+                console.log(`    Converting SPREADDATES(${driver1},${driver2}) to ${driver1}/(EOMONTH(${driver2},0)-(EOMONTH(${driver1},0))*(12/AE$2*30))`);
+                return `${driver1}/(EOMONTH(${driver2},0)-(EOMONTH(${driver1},0))*(12/AE$2*30))`;
             });
             
             // Ensure the formula starts with '='
