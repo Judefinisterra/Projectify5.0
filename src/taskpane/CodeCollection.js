@@ -897,6 +897,13 @@ function parseFormulaSCustomFormula(formulaString, targetRow) {
         return replacement;
     });
     
+    // Replace beginningmonth with $AE$2
+    result = result.replace(/beginningmonth/g, (match) => {
+        const replacement = '$AE$2';
+        console.log(`    Replacing beginningmonth with ${replacement}`);
+        return replacement;
+    });
+    
     return result;
 }
 
@@ -2989,6 +2996,13 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             formula = formula.replace(/currentmonth/g, (match) => {
                 const replacement = 'AE$2';
                 console.log(`    Replacing currentmonth with ${replacement}`);
+                return replacement;
+            });
+            
+            // Replace beginningmonth with $AE$2
+            formula = formula.replace(/beginningmonth/g, (match) => {
+                const replacement = '$AE$2';
+                console.log(`    Replacing beginningmonth with ${replacement}`);
                 return replacement;
             });
             
