@@ -11,6 +11,17 @@ export async function validateCodeStrings(inputCodeStrings) {
     const codeTypes = new Set();
     const tabRowDrivers = new Map(); // Track row drivers per TAB
     
+    // >>> ADDED: Remove line breaks within angle brackets before processing
+    inputCodeStrings = inputCodeStrings.map(str => {
+        // Replace line breaks within < > brackets
+        return str.replace(/<[^>]*>/g, match => {
+            // Remove all types of line breaks within the match
+            return match.replace(/[\r\n]+/g, ' ');
+        });
+    });
+    console.log("Preprocessed code strings (line breaks removed within <>):", inputCodeStrings);
+    // <<< END ADDED
+    
     // Clean up input strings by removing anything outside angle brackets
     inputCodeStrings = inputCodeStrings.map(str => {
         const match = str.match(/<[^>]+>/);
@@ -240,22 +251,22 @@ export async function validateCodeStrings(inputCodeStrings) {
         const codeType = codeMatch[1].trim();
         
         // Rule 1: Check required format parameters
-        if (formatRequiredCodes.has(codeType)) {
-            const hasTopBorder = /topborder\s*=/.test(codeString.toLowerCase());
-            const hasFormat = /format\s*=/.test(codeString.toLowerCase());
-            const hasBold = /bold\s*=/.test(codeString.toLowerCase());
-            const hasIndent = /indent\s*=/.test(codeString.toLowerCase());
+        // if (formatRequiredCodes.has(codeType)) {
+        //     const hasTopBorder = /topborder\s*=/.test(codeString.toLowerCase());
+        //     const hasFormat = /format\s*=/.test(codeString.toLowerCase());
+        //     const hasBold = /bold\s*=/.test(codeString.toLowerCase());
+        //     const hasIndent = /indent\s*=/.test(codeString.toLowerCase());
             
-            const missingParams = [];
-            if (!hasTopBorder) missingParams.push('topborder');
-            if (!hasFormat) missingParams.push('format');
-            if (!hasBold) missingParams.push('bold');
-            if (!hasIndent) missingParams.push('indent');
+        //     // const missingParams = [];
+        //     // if (!hasTopBorder) missingParams.push('topborder');
+        //     // if (!hasFormat) missingParams.push('format');
+        //     // if (!hasBold) missingParams.push('bold');
+        //     // if (!hasIndent) missingParams.push('indent');
             
-            if (missingParams.length > 0) {
-                // errors.push(`[FERR001] Format validation: ${codeType} code missing required parameters: ${missingParams.join(', ')} - ${codeString}`);
-            }
-        }
+        //     if (missingParams.length > 0) {
+        //         // errors.push(`[FERR001] Format validation: ${codeType} code missing required parameters: ${missingParams.join(', ')} - ${codeString}`);
+        //     }
+        // }
         
         // Check LABELH1/H2/H3 column 2 must end with colon
         if (codeType === 'LABELH1' || codeType === 'LABELH2' || codeType === 'LABELH3') {
@@ -560,6 +571,17 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
     const rowValues = new Set();
     const codeTypes = new Set();
     const tabRowDrivers = new Map(); // Track row drivers per TAB
+    
+    // >>> ADDED: Remove line breaks within angle brackets before processing
+    inputCodeStrings = inputCodeStrings.map(str => {
+        // Replace line breaks within < > brackets
+        return str.replace(/<[^>]*>/g, match => {
+            // Remove all types of line breaks within the match
+            return match.replace(/[\r\n]+/g, ' ');
+        });
+    });
+    console.log("[ValidateForRun] Preprocessed code strings (line breaks removed within <>):", inputCodeStrings);
+    // <<< END ADDED
     
     // Clean up input strings by removing anything outside angle brackets
     inputCodeStrings = inputCodeStrings.map(str => {
