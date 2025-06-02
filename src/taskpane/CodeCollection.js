@@ -883,6 +883,20 @@ function parseFormulaSCustomFormula(formulaString, targetRow) {
         }
     });
     
+    // Replace timeseriesdivisor with AE$7
+    result = result.replace(/timeseriesdivisor/g, (match) => {
+        const replacement = 'AE$7';
+        console.log(`    Replacing timeseriesdivisor with ${replacement}`);
+        return replacement;
+    });
+    
+    // Replace currentmonth with AE$2
+    result = result.replace(/currentmonth/g, (match) => {
+        const replacement = 'AE$2';
+        console.log(`    Replacing currentmonth with ${replacement}`);
+        return replacement;
+    });
+    
     return result;
 }
 
@@ -2962,6 +2976,20 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                     console.warn(`    Column number '${columnNum}' not valid (must be 1-9), keeping as is`);
                     return match; // Keep the original if column number not valid
                 }
+            });
+            
+            // Replace timeseriesdivisor with AE$7
+            formula = formula.replace(/timeseriesdivisor/g, (match) => {
+                const replacement = 'AE$7';
+                console.log(`    Replacing timeseriesdivisor with ${replacement}`);
+                return replacement;
+            });
+            
+            // Replace currentmonth with AE$2
+            formula = formula.replace(/currentmonth/g, (match) => {
+                const replacement = 'AE$2';
+                console.log(`    Replacing currentmonth with ${replacement}`);
+                return replacement;
             });
             
             // Now parse special functions (SPREAD, BEG, END, etc.)
