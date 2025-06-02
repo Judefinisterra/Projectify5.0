@@ -705,36 +705,7 @@ export async function runCodes(codeCollection) {
                                     }
                                 }
                                 
-                                // NEW: Apply FIXED-E or FIXED-S formula parameter
-                                if ((codeType === "FIXED-E" || codeType === "FIXED-S") && code.params.formula) {
-                                    try {
-                                        console.log(`Applying ${codeType} formula for code ${codeType}`);
-                                        
-                                        // Use actual row information if available, otherwise fall back to original values
-                                        let actualPasteRow = pasteRow;
-                                        let actualLastRow = lastRow;
-                                        let actualFirstRow = firstRow;
-                                        
-                                        if (code.actualRowInfo) {
-                                            // Calculate the actual rows based on the populated information
-                                            actualPasteRow = code.actualRowInfo.firstRow;
-                                            const numRowsPopulated = code.actualRowInfo.totalRows;
-                                            actualLastRow = actualPasteRow + numRowsPopulated - 1;
-                                            actualFirstRow = actualPasteRow;
-                                            console.log(`Using actual row info: firstRow=${actualPasteRow}, lastRow=${actualLastRow}, totalRows=${numRowsPopulated}`);
-                                        }
-                                        
-                                        await applyFixedEFormula(currentWS, actualPasteRow, actualLastRow, actualFirstRow, code);
-                                        console.log(`Successfully applied ${codeType} formula`);
-                                    } catch (error) {
-                                        console.error(`Error applying ${codeType} formula: ${error.message}`);
-                                        result.errors.push({
-                                            codeIndex: i,
-                                            codeType: codeType,
-                                            error: `Error applying ${codeType} formula: ${error.message}`
-                                        });
-                                    }
-                                }
+
                                 
                                 result.processedCodes++;
                             }
@@ -2820,65 +2791,6 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
  * @param {number} targetRow - The row number where the formula will be placed
  * @returns {string} - The converted Excel formula
  */
-function parseFixedEFormula(formulaString, targetRow) {
-    // Column mapping: C1 = I, C2 = H, C3 = G, C4 = F, C5 = E, C6 = D, C7 = C, C8 = B, C9 = A
-    const columnMapping = {
-        'C1': 'I',
-        'C2': 'H', 
-        'C3': 'G',
-        'C4': 'F',
-        'C5': 'E',
-        'C6': 'D',
-        'C7': 'C',
-        'C8': 'B',
-        'C9': 'A'
-    };
-    
-    let result = formulaString;
-    
-    // Replace DOLANN(Cx) with $<column><row>/AE$7
-    result = result.replace(/DOLANN\(C(\d+)\)/g, (match, colNum) => {
-        const colLetter = columnMapping[`C${colNum}`];
-        if (!colLetter) {
-            console.warn(`Invalid column reference in DOLANN: C${colNum}`);
-            return match; // Return unchanged if invalid
-        }
-        return `$${colLetter}${targetRow}/AE$7`;
-    });
-    
-    // Replace BEG(Cx) with (EOMONTH($<column><row>,0)<=AE$2)
-    result = result.replace(/BEG\(C(\d+)\)/g, (match, colNum) => {
-        const colLetter = columnMapping[`C${colNum}`];
-        if (!colLetter) {
-            console.warn(`Invalid column reference in BEG: C${colNum}`);
-            return match; // Return unchanged if invalid
-        }
-        return `(EOMONTH($${colLetter}${targetRow},0)<=AE$2)`;
-    });
-    
-    // Replace END(Cx) with (EOMONTH($<column><row>,0)>AE$2)
-    result = result.replace(/END\(C(\d+)\)/g, (match, colNum) => {
-        const colLetter = columnMapping[`C${colNum}`];
-        if (!colLetter) {
-            console.warn(`Invalid column reference in END: C${colNum}`);
-            return match; // Return unchanged if invalid
-        }
-        return `(EOMONTH($${colLetter}${targetRow},0)>AE$2)`;
-    });
-    
-    // Replace RAISE(driver1) with (1 + INDIRECT(AE$(targetRow-1))) ^ (AE$3 - $AE3)
-    result = result.replace(/RAISE\(driver1\)/g, (match) => {
-        const prevRow = targetRow - 1;
-        return `(1 + INDIRECT(AE$${prevRow})) ^ (AE$3 - $AE3)`;
-    });
-    
-    // Ensure the formula starts with '='
-    if (!result.startsWith('=')) {
-        result = '=' + result;
-    }
-    
-    return result;
-}
 
 /**
  * Applies formatting to a column range based on format type
@@ -2939,89 +2851,6 @@ async function applyColumnFormatting(worksheet, column, startRow, endRow, format
  * @param {Object} code - The code object with type and parameters
  * @returns {Promise<void>}
  */
-async function applyFixedEFormula(worksheet, pasteRow, lastRow, firstRow, code) {
-    if ((code.type !== "FIXED-E" && code.type !== "FIXED-S") || !code.params.formula) {
-        return; // Only process FIXED-E or FIXED-S codes with formula parameter
-    }
-    
-    try {
-        const formulaParam = code.params.formula;
-        const numPastedRows = lastRow - firstRow + 1;
-        const endRow = pasteRow + numPastedRows - 1;
-        
-        console.log(`Applying ${code.type} formula to column AE for ${numPastedRows} rows starting at row ${pasteRow}`);
-        console.log(`Formula parameter: ${formulaParam}`);
-        
-        // Parse the formula to identify which columns need formatting
-        const columnFormats = new Map();
-        
-        // Find all DOLANN references and mark those columns for dollaritalic formatting
-        const dolannMatches = formulaParam.matchAll(/DOLANN\(C(\d+)\)/g);
-        for (const match of dolannMatches) {
-            const colNum = match[1];
-            const colLetter = {
-                '1': 'I', '2': 'H', '3': 'G', '4': 'F', '5': 'E',
-                '6': 'D', '7': 'C', '8': 'B', '9': 'A'
-            }[colNum];
-            if (colLetter) {
-                columnFormats.set(colLetter, 'dollaritalic');
-                console.log(`Column ${colLetter} (C${colNum}) will be formatted as dollaritalic (DOLANN)`);
-            }
-        }
-        
-        // Find all BEG references and mark those columns for date formatting
-        const begMatches = formulaParam.matchAll(/BEG\(C(\d+)\)/g);
-        for (const match of begMatches) {
-            const colNum = match[1];
-            const colLetter = {
-                '1': 'I', '2': 'H', '3': 'G', '4': 'F', '5': 'E',
-                '6': 'D', '7': 'C', '8': 'B', '9': 'A'
-            }[colNum];
-            if (colLetter && !columnFormats.has(colLetter)) {
-                columnFormats.set(colLetter, 'date');
-                console.log(`Column ${colLetter} (C${colNum}) will be formatted as date (BEG)`);
-            }
-        }
-        
-        // Find all END references and mark those columns for date formatting
-        const endMatches = formulaParam.matchAll(/END\(C(\d+)\)/g);
-        for (const match of endMatches) {
-            const colNum = match[1];
-            const colLetter = {
-                '1': 'I', '2': 'H', '3': 'G', '4': 'F', '5': 'E',
-                '6': 'D', '7': 'C', '8': 'B', '9': 'A'
-            }[colNum];
-            if (colLetter && !columnFormats.has(colLetter)) {
-                columnFormats.set(colLetter, 'date');
-                console.log(`Column ${colLetter} (C${colNum}) will be formatted as date (END)`);
-            }
-        }
-        
-        // Apply formatting to identified columns
-        for (const [column, formatType] of columnFormats) {
-            await applyColumnFormatting(worksheet, column, pasteRow, endRow, formatType);
-        }
-        
-        // Process each row for the formula in column AE
-        for (let i = 0; i < numPastedRows; i++) {
-            const currentRow = pasteRow + i;
-            const excelFormula = parseFixedEFormula(formulaParam, currentRow);
-            
-            console.log(`Row ${currentRow}: Converted formula: ${excelFormula}`);
-            
-            // Apply the formula to column AE
-            const targetCell = worksheet.getRange(`AE${currentRow}`);
-            targetCell.formulas = [[excelFormula]];
-        }
-        
-        await worksheet.context.sync();
-        console.log(`Successfully applied ${code.type} formulas to column AE and formatted column drivers`);
-        
-    } catch (error) {
-        console.error(`Error applying ${code.type} formula: ${error.message}`, error);
-        throw error;
-    }
-}
 
 /**
  * Processes FORMULA-S rows by converting driver references in column AE to Excel formulas
