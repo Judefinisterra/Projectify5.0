@@ -1309,17 +1309,12 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                     if (g === 1 && yy === 0 && code.params.customformula && code.params.customformula !== "0") {
                         try {
                             console.log(`  Applying customformula to AE${currentRowNum}: ${code.params.customformula}`);
+                            
+                            // Log current value before applying formula
                             const customFormulaCell = currentWorksheet.getRange(`AE${currentRowNum}`);
-                            customFormulaCell.values = [[code.params.customformula]];
-                        } catch (customFormulaError) {
-                            console.error(`  Error applying customformula: ${customFormulaError.message}`);
-                        }
-                    }
-
-                    // NEW: Apply customformula parameter to column AE for row1
-                    if (g === 1 && yy === 0 && code.params.customformula && code.params.customformula !== "0") {
-                        try {
-                            console.log(`  Applying customformula to AE${currentRowNum}: ${code.params.customformula}`);
+                            customFormulaCell.load("values");
+                            await context.sync();
+                            console.log(`  Current value in AE${currentRowNum}: ${customFormulaCell.values[0][0]}`);
                             
                             // Parse the formula to convert special functions
                             const parsedFormula = parseFormulaSCustomFormula(code.params.customformula, currentRowNum);
@@ -1330,8 +1325,6 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                             if (finalFormula && !finalFormula.startsWith('=')) {
                                 finalFormula = '=' + finalFormula;
                             }
-                            
-                            const customFormulaCell = currentWorksheet.getRange(`AE${currentRowNum}`);
                             
                             // Check if this is FORMULA-S code to determine if we should apply formula or value
                             if (code.type === "FORMULA-S") {
@@ -1345,6 +1338,95 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                             }
                         } catch (customFormulaError) {
                             console.error(`  Error applying customformula: ${customFormulaError.message}`);
+                        }
+                    }
+
+                    // NEW: Apply columnformat parameter to specified columns for row1
+                    if (g === 1 && yy === 0 && code.params.columnformat) {
+                        try {
+                            console.log(`  Applying columnformat to row ${currentRowNum}: ${code.params.columnformat}`);
+                            
+                            // Split the format string by backslash
+                            const formats = code.params.columnformat.split('\\');
+                            console.log(`  Format array: [${formats.join(', ')}]`);
+                            
+                            // Define format configurations
+                            const formatConfigs = {
+                                'dollaritalic': {
+                                    numberFormat: '_(* $ #,##0_);_(* $ (#,##0);_(* "$  -"?_);_(@_)',
+                                    italic: true
+                                },
+                                'dollar': {
+                                    numberFormat: '_(* $ #,##0_);_(* $ (#,##0);_(* "$  -"?_);_(@_)',
+                                    italic: false
+                                },
+                                'volume': {
+                                    numberFormat: '_(* #,##0_);_(* (#,##0);_(* "   -"?_);_(@_)',
+                                    italic: true
+                                },
+                                'percent': {
+                                    numberFormat: '_(* #,##0.0%;_(* (#,##0.0)%;_(* "   -"?_)',
+                                    italic: true
+                                },
+                                'date': {
+                                    numberFormat: 'mmm-yy',
+                                    italic: false
+                                }
+                            };
+                            
+                            // Define column mapping (same as for columndriver)
+                            const columnMapping = {
+                                '1': 'I',
+                                '2': 'H',
+                                '3': 'G',
+                                '4': 'F',
+                                '5': 'E',
+                                '6': 'D',
+                                '7': 'C',
+                                '8': 'B',
+                                '9': 'A'
+                            };
+                            
+                            // Apply each format to its corresponding column
+                            for (let i = 0; i < formats.length && i < 9; i++) {
+                                const formatName = formats[i].toLowerCase().trim();
+                                const columnNum = String(i + 1);
+                                const columnLetter = columnMapping[columnNum];
+                                
+                                if (!columnLetter) {
+                                    console.warn(`    Column number ${columnNum} exceeds mapping range, skipping`);
+                                    continue;
+                                }
+                                
+                                const cellAddress = `${columnLetter}${currentRowNum}`;
+                                const formatConfig = formatConfigs[formatName];
+                                
+                                if (!formatConfig) {
+                                    console.warn(`    Format '${formatName}' not recognized for cell ${cellAddress}, skipping`);
+                                    continue;
+                                }
+                                
+                                // Get the cell and load its current value
+                                const targetCell = currentWorksheet.getRange(cellAddress);
+                                targetCell.load(["values", "numberFormat", "format"]);
+                                await context.sync();
+                                
+                                const currentValue = targetCell.values[0][0];
+                                const currentNumberFormat = targetCell.numberFormat[0][0];
+                                console.log(`    Cell ${cellAddress}: Current value = '${currentValue}', Current format = '${currentNumberFormat}'`);
+                                
+                                // Apply the format
+                                targetCell.numberFormat = [[formatConfig.numberFormat]];
+                                targetCell.format.font.italic = formatConfig.italic;
+                                
+                                console.log(`    Applied ${formatName} format to ${cellAddress}: numberFormat = '${formatConfig.numberFormat}', italic = ${formatConfig.italic}`);
+                            }
+                            
+                            await context.sync(); // Sync the format changes
+                            console.log(`  Finished applying columnformat to row ${currentRowNum}`);
+                            
+                        } catch (columnFormatError) {
+                            console.error(`  Error applying columnformat: ${columnFormatError.message}`);
                         }
                     }
                 }
