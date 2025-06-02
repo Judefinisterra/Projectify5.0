@@ -1116,11 +1116,6 @@ export async function validationCorrection(clientprompt, initialResponse, valida
             throw new Error("OpenAI API key not initialized for validation correction.");
         }
 
-        // Load context from localStorage (as per original logic)
-        // Consider passing these as arguments if localStorage access becomes problematic
-        const trainingData = localStorage.getItem('trainingData') || '{"prompt":"","response":""}'; // Provide default structure
-        const promptAnalysisData = JSON.parse(localStorage.getItem('promptAnalysis') || '{}');
-
         // Load validation prompts
         const validationSystemPrompt = await getSystemPromptFromFile('Validation_System');
         const validationMainPrompt = await getSystemPromptFromFile('Validation_Main');
@@ -1133,17 +1128,12 @@ export async function validationCorrection(clientprompt, initialResponse, valida
         const responseString = Array.isArray(initialResponse) ? initialResponse.join("\n") : String(initialResponse);
         const validationResultsString = Array.isArray(validationResults) ? validationResults.join("\n") : String(validationResults);
 
-        // Construct the correction prompt using loaded context
+        // Construct the correction prompt using only essential information
         const correctionPrompt =
             `Main Prompt: ${validationMainPrompt}\n\n` +
             `Original User Input: ${clientprompt}\n\n` +
             `Initial Response (to be corrected): ${responseString}\n\n` +
-            `Validation Errors Found: ${validationResultsString}\n\n` +
-            // Include context from the last analysis if available
-            `Training Data Example: ${trainingData}\n\n` + // Use loaded training data string
-            `Code Options Context: ${promptAnalysisData.codeOptions || "Not available"}\n\n` +
-            `Code Choosing Context: ${promptAnalysisData.call1context || "Not available"}\n\n` +
-            `Code Editing Context: ${promptAnalysisData.call2context || "Not available"}`;
+            `Validation Errors Found: ${validationResultsString}`;
 
 
         if (DEBUG) {

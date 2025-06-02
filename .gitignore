@@ -17,3 +17,9 @@ node_modules/
 # Output files
 output.json 
 dist/taskpane.js 
+dist/taskpane.js.map
+dist/taskpane.css
+dist/taskpane.css.map
+
+# Ignore all files in the dist directory
+dist/
