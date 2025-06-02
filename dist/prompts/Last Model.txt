@@ -1,2 +1,0 @@
-// This file will be automatically populated with model codes when you build a model using the AI Model Planner Client Mode
-// The codes represent the current model structure and can be used for reference or replication
