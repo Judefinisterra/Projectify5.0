@@ -806,14 +806,44 @@ export async function isActiveCellGreen() {
  * Handles special functions: SPREAD, BEG, END, RAISE, ONETIMEDATE, SPREADDATES
  * @param {string} formulaString - The formula string from the customformula parameter
  * @param {number} targetRow - The row number where the formula will be placed
- * @returns {string} - The converted Excel formula
+ * @param {Excel.Worksheet} worksheet - The worksheet object (optional, needed for driver lookups)
+ * @param {Excel.RequestContext} context - The Excel context (optional, needed for driver lookups)
+ * @returns {Promise<string>} - The converted Excel formula
  */
-function parseFormulaSCustomFormula(formulaString, targetRow) {
+async function parseFormulaSCustomFormula(formulaString, targetRow, worksheet = null, context = null) {
     if (!formulaString || typeof formulaString !== 'string') {
         return formulaString;
     }
     
     let result = formulaString;
+    
+    // Build driver map if worksheet is provided (for columndriver{1-V1} syntax)
+    let driverMap = null;
+    if (worksheet && context) {
+        try {
+            // Load column A values to create driver lookup map
+            const colARange = worksheet.getRange("A:A");
+            const usedRange = colARange.getUsedRange(true);
+            usedRange.load("values");
+            await context.sync();
+            
+            driverMap = new Map();
+            const colAValues = usedRange.values;
+            
+            // Build driver map: driver name -> row number
+            for (let i = 0; i < colAValues.length; i++) {
+                const value = colAValues[i][0];
+                if (value !== null && value !== "") {
+                    const rowNum = i + 1; // 1-based row number
+                    driverMap.set(String(value), rowNum);
+                }
+            }
+            console.log(`    Built driver map with ${driverMap.size} entries for columndriver lookups`);
+        } catch (error) {
+            console.warn(`    Could not build driver map: ${error.message}`);
+            driverMap = null;
+        }
+    }
     
     // Process SPREAD function: SPREAD(driver) -> driver/AE$7
     result = result.replace(/SPREAD\(([^)]+)\)/g, (match, driver) => {
@@ -869,18 +899,47 @@ function parseFormulaSCustomFormula(formulaString, targetRow) {
         '9': 'A'
     };
     
-    // Replace all columndriver{number} patterns with column references
+    // Replace all columndriver{number} or columndriver{number-driverName} patterns with column references
     const columndriverPattern = /columndriver\{([^}]+)\}/g;
-    result = result.replace(columndriverPattern, (match, columnNum) => {
-        const column = columnMapping[columnNum];
-        if (column) {
-            const replacement = `$${column}${targetRow}`;
-            console.log(`    Replacing columndriver{${columnNum}} with ${replacement}`);
-            return replacement;
+    result = result.replace(columndriverPattern, (match, content) => {
+        // Check if content contains a dash (e.g., "1-V1")
+        const dashIndex = content.indexOf('-');
+        let columnNum, driverName;
+        
+        if (dashIndex !== -1) {
+            // Split into column number and driver name
+            columnNum = content.substring(0, dashIndex).trim();
+            driverName = content.substring(dashIndex + 1).trim();
         } else {
+            // Just column number, no driver name
+            columnNum = content.trim();
+            driverName = null;
+        }
+        
+        const column = columnMapping[columnNum];
+        if (!column) {
             console.warn(`    Column number '${columnNum}' not valid (must be 1-9), keeping as is`);
             return match; // Keep the original if column number not valid
         }
+        
+        // Determine which row to use
+        let rowToUse = targetRow;
+        if (driverName && driverMap) {
+            const driverRow = driverMap.get(driverName);
+            if (driverRow) {
+                rowToUse = driverRow;
+                console.log(`    Replacing columndriver{${content}} with $${column}${rowToUse} (driver '${driverName}' found at row ${driverRow})`);
+            } else {
+                console.warn(`    Driver '${driverName}' not found in column A, using current row ${targetRow}`);
+            }
+        } else if (driverName && !driverMap) {
+            console.warn(`    Cannot look up driver '${driverName}' - driver map not available, using current row ${targetRow}`);
+        } else {
+            console.log(`    Replacing columndriver{${columnNum}} with $${column}${rowToUse}`);
+        }
+        
+        const replacement = `$${column}${rowToUse}`;
+        return replacement;
     });
     
     // Replace timeseriesdivisor with AE$7
@@ -1317,7 +1376,7 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                             console.log(`  Current value in AE${currentRowNum}: ${customFormulaCell.values[0][0]}`);
                             
                             // Parse the formula to convert special functions
-                            const parsedFormula = parseFormulaSCustomFormula(code.params.customformula, currentRowNum);
+                            const parsedFormula = await parseFormulaSCustomFormula(code.params.customformula, currentRowNum, currentWorksheet, context);
                             console.log(`  Parsed formula: ${parsedFormula}`);
                             
                             // Ensure the formula starts with '='
@@ -3076,16 +3135,43 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             
             // Replace all columndriver{number} patterns with column references
             const columndriverPattern = /columndriver\{([^}]+)\}/g;
-            formula = formula.replace(columndriverPattern, (match, columnNum) => {
-                const column = columnMapping[columnNum];
-                if (column) {
-                    const replacement = `$${column}${rowNum}`;
-                    console.log(`    Replacing columndriver{${columnNum}} with ${replacement}`);
-                    return replacement;
+            formula = formula.replace(columndriverPattern, (match, content) => {
+                // Check if content contains a dash (e.g., "1-V1")
+                const dashIndex = content.indexOf('-');
+                let columnNum, driverName;
+                
+                if (dashIndex !== -1) {
+                    // Split into column number and driver name
+                    columnNum = content.substring(0, dashIndex).trim();
+                    driverName = content.substring(dashIndex + 1).trim();
                 } else {
+                    // Just column number, no driver name
+                    columnNum = content.trim();
+                    driverName = null;
+                }
+                
+                const column = columnMapping[columnNum];
+                if (!column) {
                     console.warn(`    Column number '${columnNum}' not valid (must be 1-9), keeping as is`);
                     return match; // Keep the original if column number not valid
                 }
+                
+                // Determine which row to use
+                let rowToUse = rowNum;
+                if (driverName) {
+                    const driverRow = driverMap.get(driverName);
+                    if (driverRow) {
+                        rowToUse = driverRow;
+                        console.log(`    Replacing columndriver{${content}} with $${column}${rowToUse} (driver '${driverName}' found at row ${driverRow})`);
+                    } else {
+                        console.warn(`    Driver '${driverName}' not found in column A, using current row ${rowNum}`);
+                    }
+                } else {
+                    console.log(`    Replacing columndriver{${columnNum}} with $${column}${rowToUse}`);
+                }
+                
+                const replacement = `$${column}${rowToUse}`;
+                return replacement;
             });
             
             // Replace timeseriesdivisor with AE$7
