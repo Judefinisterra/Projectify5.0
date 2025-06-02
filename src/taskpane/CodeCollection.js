@@ -904,6 +904,27 @@ function parseFormulaSCustomFormula(formulaString, targetRow) {
         return replacement;
     });
     
+    // Replace currentyear with AE$3
+    result = result.replace(/currentyear/g, (match) => {
+        const replacement = 'AE$3';
+        console.log(`    Replacing currentyear with ${replacement}`);
+        return replacement;
+    });
+    
+    // Replace yearend with AE$4
+    result = result.replace(/yearend/g, (match) => {
+        const replacement = 'AE$4';
+        console.log(`    Replacing yearend with ${replacement}`);
+        return replacement;
+    });
+    
+    // Replace beginningyear with $AE$2
+    result = result.replace(/beginningyear/g, (match) => {
+        const replacement = '$AE$2';
+        console.log(`    Replacing beginningyear with ${replacement}`);
+        return replacement;
+    });
+    
     return result;
 }
 
@@ -3003,6 +3024,27 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             formula = formula.replace(/beginningmonth/g, (match) => {
                 const replacement = '$AE$2';
                 console.log(`    Replacing beginningmonth with ${replacement}`);
+                return replacement;
+            });
+            
+            // Replace currentyear with AE$3
+            formula = formula.replace(/currentyear/g, (match) => {
+                const replacement = 'AE$3';
+                console.log(`    Replacing currentyear with ${replacement}`);
+                return replacement;
+            });
+            
+            // Replace yearend with AE$4
+            formula = formula.replace(/yearend/g, (match) => {
+                const replacement = 'AE$4';
+                console.log(`    Replacing yearend with ${replacement}`);
+                return replacement;
+            });
+            
+            // Replace beginningyear with $AE$2
+            formula = formula.replace(/beginningyear/g, (match) => {
+                const replacement = '$AE$3';
+                console.log(`    Replacing beginningyear with ${replacement}`);
                 return replacement;
             });
             
