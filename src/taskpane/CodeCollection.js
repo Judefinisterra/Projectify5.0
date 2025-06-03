@@ -817,7 +817,7 @@ async function parseFormulaSCustomFormula(formulaString, targetRow, worksheet = 
     
     let result = formulaString;
     
-    // Build driver map if worksheet is provided (for columndriver{1-V1} syntax)
+    // Build driver map if worksheet is provided (for cd{1-V1} syntax)
     let driverMap = null;
     if (worksheet && context) {
         try {
@@ -838,7 +838,7 @@ async function parseFormulaSCustomFormula(formulaString, targetRow, worksheet = 
                     driverMap.set(String(value), rowNum);
                 }
             }
-            console.log(`    Built driver map with ${driverMap.size} entries for columndriver lookups`);
+            console.log(`    Built driver map with ${driverMap.size} entries for cd lookups`);
         } catch (error) {
             console.warn(`    Could not build driver map: ${error.message}`);
             driverMap = null;
@@ -885,8 +885,8 @@ async function parseFormulaSCustomFormula(formulaString, targetRow, worksheet = 
         return `${driver1}/(EOMONTH(${driver2},0)-(EOMONTH(${driver1},0))*(12/AE$2*30))`;
     });
     
-    // Process columndriver{} references before returning
-    // Define column mapping for columndriver: 1=I, 2=H, 3=G, etc.
+    // Process cd{} references before returning
+    // Define column mapping for cd: 1=I, 2=H, 3=G, etc.
     const columnMapping = {
         '1': 'I',
         '2': 'H',
@@ -899,9 +899,9 @@ async function parseFormulaSCustomFormula(formulaString, targetRow, worksheet = 
         '9': 'A'
     };
     
-    // Replace all columndriver{number} or columndriver{number-driverName} patterns with column references
-    const columndriverPattern = /columndriver\{([^}]+)\}/g;
-    result = result.replace(columndriverPattern, (match, content) => {
+    // Replace all cd{number} or cd{number-driverName} patterns with column references
+    const cdPattern = /cd\{([^}]+)\}/g;
+    result = result.replace(cdPattern, (match, content) => {
         // Check if content contains a dash (e.g., "1-V1")
         const dashIndex = content.indexOf('-');
         let columnNum, driverName;
@@ -928,14 +928,14 @@ async function parseFormulaSCustomFormula(formulaString, targetRow, worksheet = 
             const driverRow = driverMap.get(driverName);
             if (driverRow) {
                 rowToUse = driverRow;
-                console.log(`    Replacing columndriver{${content}} with $${column}${rowToUse} (driver '${driverName}' found at row ${driverRow})`);
+                console.log(`    Replacing cd{${content}} with $${column}${rowToUse} (driver '${driverName}' found at row ${driverRow})`);
             } else {
                 console.warn(`    Driver '${driverName}' not found in column A, using current row ${targetRow}`);
             }
         } else if (driverName && !driverMap) {
             console.warn(`    Cannot look up driver '${driverName}' - driver map not available, using current row ${targetRow}`);
         } else {
-            console.log(`    Replacing columndriver{${columnNum}} with $${column}${rowToUse}`);
+            console.log(`    Replacing cd{${columnNum}} with $${column}${rowToUse}`);
         }
         
         const replacement = `$${column}${rowToUse}`;
@@ -1433,7 +1433,7 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                                 }
                             };
                             
-                            // Define column mapping (same as for columndriver)
+                            // Define column mapping (same as for cd)
                             const columnMapping = {
                                 '1': 'I',
                                 '2': 'H',
@@ -3088,7 +3088,7 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             }
         }
         
-        // Define column mapping for columndriver: 1=I, 2=H, 3=G, etc.
+        // Define column mapping for cd: 1=I, 2=H, 3=G, etc.
         const columnMapping = {
             '1': 'I',
             '2': 'H',
@@ -3119,13 +3119,13 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             // Convert the string to a formula
             let formula = String(originalValue);
             
-            // Replace all rowdriver{driverName} patterns with cell references
-            const rowdriverPattern = /rowdriver\{([^}]+)\}/g;
-            formula = formula.replace(rowdriverPattern, (match, driverName) => {
+            // Replace all rd{driverName} patterns with cell references
+            const rdPattern = /rd\{([^}]+)\}/g;
+            formula = formula.replace(rdPattern, (match, driverName) => {
                 const driverRow = driverMap.get(driverName);
                 if (driverRow) {
                     const replacement = `AE$${driverRow}`;
-                    console.log(`    Replacing rowdriver{${driverName}} with ${replacement}`);
+                    console.log(`    Replacing rd{${driverName}} with ${replacement}`);
                     return replacement;
                 } else {
                     console.warn(`    Driver '${driverName}' not found in column A, keeping as is`);
@@ -3133,9 +3133,9 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                 }
             });
             
-            // Replace all columndriver{number} patterns with column references
-            const columndriverPattern = /columndriver\{([^}]+)\}/g;
-            formula = formula.replace(columndriverPattern, (match, content) => {
+            // Replace all cd{number} patterns with column references
+            const cdPattern = /cd\{([^}]+)\}/g;
+            formula = formula.replace(cdPattern, (match, content) => {
                 // Check if content contains a dash (e.g., "1-V1")
                 const dashIndex = content.indexOf('-');
                 let columnNum, driverName;
@@ -3162,12 +3162,12 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                     const driverRow = driverMap.get(driverName);
                     if (driverRow) {
                         rowToUse = driverRow;
-                        console.log(`    Replacing columndriver{${content}} with $${column}${rowToUse} (driver '${driverName}' found at row ${driverRow})`);
+                        console.log(`    Replacing cd{${content}} with $${column}${rowToUse} (driver '${driverName}' found at row ${driverRow})`);
                     } else {
                         console.warn(`    Driver '${driverName}' not found in column A, using current row ${rowNum}`);
                     }
                 } else {
-                    console.log(`    Replacing columndriver{${columnNum}} with $${column}${rowToUse}`);
+                    console.log(`    Replacing cd{${columnNum}} with $${column}${rowToUse}`);
                 }
                 
                 const replacement = `$${column}${rowToUse}`;
