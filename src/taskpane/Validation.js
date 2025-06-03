@@ -70,22 +70,22 @@ export async function validateCodeStrings(inputCodeStrings) {
     
     // Define valid financial statement codes
     const validFinancialCodes = new Set([
-        'IS: revenue',
-        'IS: direct costs',
-        'IS: corporate overhead',
-        'IS: D&A',
-        'IS: interest',
-        'IS: Other Income',
-        'IS: Net Income',
-        'BS: current assets',
-        'BS: fixed assets',
-        'BS: current liabilities',
-        'BS: LT Liabilities',
-        'BS: equity',
-        'CF: WC',
-        'CF: Non-cash',
-        'CF: CFI',
-        'CF: CFF'
+        'is: revenue',
+        'is: direct costs',
+        'is: corporate overhead',
+        'is: d&a',
+        'is: interest',
+        'is: other income',
+        'is: net income',
+        'bs: current assets',
+        'bs: fixed assets',
+        'bs: current liabilities',
+        'bs: lt liabilities',
+        'bs: equity',
+        'cf: wc',
+        'cf: non-cash',
+        'cf: cfi',
+        'cf: cff'
     ]);
     
     for (let i = 0; i < inputCodeStrings.length; i++) {
@@ -121,7 +121,7 @@ export async function validateCodeStrings(inputCodeStrings) {
                         // Check if column 3 starts with IS, BS, or CF
                         if (columnC && (columnC.startsWith('IS:') || columnC.startsWith('BS:') || columnC.startsWith('CF:'))) {
                             // Validate against approved financial codes
-                            if (!validFinancialCodes.has(columnC)) {
+                            if (!validFinancialCodes.has(columnC.toLowerCase())) {
                                 errors.push(`[LERR013] Invalid financial statement code "${columnC}" in ${codeString} at ${rowName}. Must be one of the approved codes.`);
                             }
                             
@@ -631,22 +631,22 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
     
     // Define valid financial statement codes
     const validFinancialCodes = new Set([
-        'IS: revenue',
-        'IS: direct costs',
-        'IS: corporate overhead',
-        'IS: D&A',
-        'IS: interest',
-        'IS: Other Income',
-        'IS: Net Income',
-        'BS: current assets',
-        'BS: fixed assets',
-        'BS: current liabilities',
-        'BS: LT Liabilities',
-        'BS: equity',
-        'CF: WC',
-        'CF: Non-cash',
-        'CF: CFI',
-        'CF: CFF'
+        'is: revenue',
+        'is: direct costs',
+        'is: corporate overhead',
+        'is: d&a',
+        'is: interest',
+        'is: other income',
+        'is: net income',
+        'bs: current assets',
+        'bs: fixed assets',
+        'bs: current liabilities',
+        'bs: lt liabilities',
+        'bs: equity',
+        'cf: wc',
+        'cf: non-cash',
+        'cf: cfi',
+        'cf: cff'
     ]);
     
     for (let i = 0; i < inputCodeStrings.length; i++) {
@@ -678,7 +678,7 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
                         // Check if column 3 starts with IS, BS, or CF
                         if (columnC && (columnC.startsWith('IS:') || columnC.startsWith('BS:') || columnC.startsWith('CF:'))) {
                             // Validate against approved financial codes
-                            if (!validFinancialCodes.has(columnC)) {
+                            if (!validFinancialCodes.has(columnC.toLowerCase())) {
                                 errors.push(`[LERR013] Invalid financial statement code "${columnC}" in ${codeString} at ${rowName}. Must be one of the approved codes.`);
                             }
                             
