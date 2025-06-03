@@ -669,7 +669,7 @@ export async function runCodes(codeCollection) {
                                     } else if (sumifValue === "average") {
                                         formulaTemplate = "=AVERAGEIF($3:$3, INDIRECT(ADDRESS(2,COLUMN(),2)), INDIRECT(ROW() & \":\" & ROW()))";
                                     } else if (sumifValue === "offsetyear") {
-                                        formulaTemplate = "=SUMIF($4:$4, INDIRECT(ADDRESS(2,COLUMN()-1,2)), INDIRECT(ROW() & \":\" & ROW()))";
+                                        formulaTemplate = "=INDEX(INDIRECT(ROW() & \":\" & ROW()),1,MATCH(INDIRECT(ADDRESS(2,COLUMN()-1,2)),$4:$4,0)+1)";
                                     }
 
                                     if (formulaTemplate) {
