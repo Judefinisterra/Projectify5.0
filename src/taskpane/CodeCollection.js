@@ -17,16 +17,30 @@ export function populateCodeCollection(inputText) {
         // Initialize an empty code collection
         const codeCollection = [];
         
-        // Split the input text by newlines (handles \n and \r\n)
-        const lines = inputText.split(/\r?\n/);
+        // Extract all code strings using regex pattern /<[^>]+>/g
+        // This allows multiple code strings on the same line
+        const codeStringMatches = inputText.match(/<[^>]+>/g);
         
-        for (const line of lines) {
-            // Skip empty lines
-            if (!line.trim()) continue;
+        if (!codeStringMatches) {
+            console.log("No code strings found in input text");
+            return codeCollection;
+        }
+        
+        console.log(`Found ${codeStringMatches.length} code strings to process`);
+        
+        for (const codeString of codeStringMatches) {
+            // Skip empty code strings
+            if (!codeString.trim()) continue;
+            
+            // Extract content within < >
+            const content = codeString.substring(1, codeString.length - 1);
             
             // Extract the code type and parameters
-            const codeMatch = line.match(/<([^;>]+);(.*?)>/);
-            if (!codeMatch) continue;
+            const codeMatch = content.match(/^([^;>]+);(.*?)$/);
+            if (!codeMatch) {
+                console.warn(`Skipping malformed code string: ${codeString}`);
+                continue;
+            }
             
             const codeType = codeMatch[1].trim();
             // Remove potential leftover newline/carriage return characters from the params string

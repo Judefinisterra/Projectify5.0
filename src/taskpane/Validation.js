@@ -4,12 +4,38 @@
 // import { fileURLToPath } from 'url';
 // import { dirname } from 'path';
 
-export async function validateCodeStrings(inputCodeStrings) {
+export async function validateCodeStrings(inputText) {
     const errors = [];
     const tabLabels = new Set();
     const rowValues = new Set();
     const codeTypes = new Set();
     const tabRowDrivers = new Map(); // Track row drivers per TAB
+    
+    // Extract all code strings using regex pattern /<[^>]+>/g
+    // This allows multiple code strings on the same line
+    let inputCodeStrings = [];
+    if (typeof inputText === 'string') {
+        const codeStringMatches = inputText.match(/<[^>]+>/g);
+        inputCodeStrings = codeStringMatches || [];
+    } else if (Array.isArray(inputText)) {
+        // If already an array, extract code strings from each element
+        inputCodeStrings = [];
+        for (const item of inputText) {
+            if (typeof item === 'string') {
+                const matches = item.match(/<[^>]+>/g);
+                if (matches) {
+                    inputCodeStrings.push(...matches);
+                }
+            }
+        }
+    }
+    
+    if (inputCodeStrings.length === 0) {
+        console.log("No code strings found in input");
+        return errors.join('\n');
+    }
+    
+    console.log(`Found ${inputCodeStrings.length} code strings to validate`);
     
     // >>> ADDED: Remove line breaks within angle brackets before processing
     inputCodeStrings = inputCodeStrings.map(str => {
@@ -208,6 +234,11 @@ export async function validateCodeStrings(inputCodeStrings) {
     // Check for duplicate financial statement items
     financialStatementItems.forEach((occurrences, itemName) => {
         if (occurrences.length > 1) {
+            // Exception: Skip depreciation and amortization items
+            if (/depreciation|amortization/i.test(itemName)) {
+                return; // Skip this error for depreciation/amortization items
+            }
+            
             // Get unique tabs for better error reporting
             const tabSet = new Set();
             occurrences.forEach(loc => {
@@ -565,12 +596,38 @@ export async function runValidation(inputStrings) {
 }
 
 // >>> ADDED: New validation function for Run Codes flow (returns array)
-export async function validateCodeStringsForRun(inputCodeStrings) {
+export async function validateCodeStringsForRun(inputText) {
     const errors = [];
     const tabLabels = new Set();
     const rowValues = new Set();
     const codeTypes = new Set();
     const tabRowDrivers = new Map(); // Track row drivers per TAB
+    
+    // Extract all code strings using regex pattern /<[^>]+>/g
+    // This allows multiple code strings on the same line
+    let inputCodeStrings = [];
+    if (typeof inputText === 'string') {
+        const codeStringMatches = inputText.match(/<[^>]+>/g);
+        inputCodeStrings = codeStringMatches || [];
+    } else if (Array.isArray(inputText)) {
+        // If already an array, extract code strings from each element
+        inputCodeStrings = [];
+        for (const item of inputText) {
+            if (typeof item === 'string') {
+                const matches = item.match(/<[^>]+>/g);
+                if (matches) {
+                    inputCodeStrings.push(...matches);
+                }
+            }
+        }
+    }
+    
+    if (inputCodeStrings.length === 0) {
+        console.log("[ValidateForRun] No code strings found in input");
+        return errors; // Return empty array
+    }
+    
+    console.log(`[ValidateForRun] Found ${inputCodeStrings.length} code strings to validate`);
     
     // >>> ADDED: Remove line breaks within angle brackets before processing
     inputCodeStrings = inputCodeStrings.map(str => {
@@ -758,6 +815,11 @@ export async function validateCodeStringsForRun(inputCodeStrings) {
     // Check for duplicate financial statement items
     financialStatementItems.forEach((occurrences, itemName) => {
         if (occurrences.length > 1) {
+            // Exception: Skip depreciation and amortization items
+            if (/depreciation|amortization/i.test(itemName)) {
+                return; // Skip this error for depreciation/amortization items
+            }
+            
             // Get unique tabs for better error reporting
             const tabSet = new Set();
             occurrences.forEach(loc => {

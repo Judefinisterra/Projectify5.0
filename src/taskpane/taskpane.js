@@ -742,7 +742,7 @@ export async function processModelCodesForPlanner(modelCodesString) {
         // 1. Validate all incoming codes
         if (modelCodesString.trim().length > 0) {
             console.log("[processModelCodesForPlanner] Validating ALL codes...");
-            const validationErrors = await validateCodeStringsForRun(modelCodesString.split(/\r?\n/).filter(line => line.trim() !== ''));
+            const validationErrors = await validateCodeStringsForRun(modelCodesString);
             if (validationErrors && validationErrors.length > 0) {
                 const errorMsg = "Code validation failed for planner-generated codes:\n" + validationErrors.join("\n");
                 console.error("[processModelCodesForPlanner] Code validation failed:", validationErrors);
@@ -902,7 +902,7 @@ async function insertSheetsAndRunCodes() {
             console.log("[Run Codes] FIRST PASS: Financials sheet not found.");
             allCodeContentToProcess = codesToRun;
             if (allCodeContentToProcess.trim().length > 0) {
-                const validationErrors = await validateCodeStringsForRun(allCodeContentToProcess.split(/\r?\n/).filter(line => line.trim() !== ''));
+                const validationErrors = await validateCodeStringsForRun(allCodeContentToProcess);
                 if (validationErrors && validationErrors.length > 0) {
                     // Separate logic errors (LERR) from format errors (FERR)
                     const logicErrors = validationErrors.filter(err => err.includes('[LERR'));
@@ -993,7 +993,7 @@ async function insertSheetsAndRunCodes() {
             }
             if (hasAnyChanges) {
                 if (allCodeContentToProcess.trim().length > 0) {
-                    const validationErrors = await validateCodeStringsForRun(allCodeContentToProcess.split(/\r?\n/).filter(line => line.trim() !== ''));
+                    const validationErrors = await validateCodeStringsForRun(allCodeContentToProcess);
                     if (validationErrors && validationErrors.length > 0) {
                         // Separate logic errors (LERR) from format errors (FERR)
                         const logicErrors = validationErrors.filter(err => err.includes('[LERR'));
@@ -2189,6 +2189,21 @@ function removeTABCodes(text) {
     return cleanedText;
 }
 
+// Function to remove commas from text
+function removeCommas(text) {
+    if (!text || typeof text !== 'string') {
+        return text;
+    }
+    
+    const cleanedText = text.replace(/,/g, '');
+    
+    console.log("[removeCommas] Original text length:", text.length);
+    console.log("[removeCommas] Cleaned text length:", cleanedText.length);
+    console.log("[removeCommas] Commas removed:", text.length - cleanedText.length > 0);
+    
+    return cleanedText;
+}
+
 // Function to add data to training queue
 async function addToTrainingDataQueue() {
     try {
@@ -2254,19 +2269,28 @@ async function addToTrainingDataQueue() {
             return;
         }
         
+        // Remove commas from both userPrompt and selectedCode before creating training entry
+        const cleanedUserPrompt = removeCommas(userPrompt);
+        const cleanedSelectedCode = removeCommas(selectedCode);
+        
+        console.log("[addToTrainingDataQueue] Original userPrompt length:", userPrompt.length);
+        console.log("[addToTrainingDataQueue] Cleaned userPrompt length:", cleanedUserPrompt.length);
+        console.log("[addToTrainingDataQueue] Original selectedCode length:", selectedCode.length);
+        console.log("[addToTrainingDataQueue] Cleaned selectedCode length:", cleanedSelectedCode.length);
+        
         // Show user what will be saved (more detailed log)
-        if (userPrompt) {
-            console.log("[addToTrainingDataQueue] Will save prompt:", `"${userPrompt}"`);
+        if (cleanedUserPrompt) {
+            console.log("[addToTrainingDataQueue] Will save cleaned prompt:", `"${cleanedUserPrompt}"`);
         }
-        if (selectedCode) {
-            console.log("[addToTrainingDataQueue] Will save selectedCode (first 200 chars):", `"${selectedCode.substring(0,200)}..."`);
+        if (cleanedSelectedCode) {
+            console.log("[addToTrainingDataQueue] Will save cleaned selectedCode (first 200 chars):", `"${cleanedSelectedCode.substring(0,200)}..."`);
         } else {
             console.log("[addToTrainingDataQueue] No selectedCode to save for this entry.");
         }
         
         const trainingEntry = {
-            prompt: userPrompt,
-            selectedCode: selectedCode
+            prompt: cleanedUserPrompt,
+            selectedCode: cleanedSelectedCode
         };
         
         console.log("[addToTrainingDataQueue] Created training entry:", trainingEntry);

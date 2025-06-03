@@ -595,7 +595,7 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
         });
 
         console.log("[AIModelPlanner._executePlannerCodes] Validating ALL codes...");
-        const validationErrors = await validateCodeStringsForRun(modelCodesString.split(/\r?\n/).filter(line => line.trim() !== ''));
+        const validationErrors = await validateCodeStringsForRun(modelCodesString);
         if (validationErrors && validationErrors.length > 0) {
             const errorMsg = "Code validation failed for planner-generated codes:\n" + validationErrors.join("\n");
             console.error("[AIModelPlanner._executePlannerCodes] Code validation failed:", validationErrors);
