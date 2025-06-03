@@ -2172,6 +2172,23 @@ function getSelectedTextFromEditor() {
     return codesTextarea.value.substring(start, end);
 }
 
+// Function to remove TAB codes from text
+function removeTABCodes(text) {
+    if (!text || typeof text !== 'string') {
+        return text;
+    }
+    
+    // Remove any <> brackets that contain the word "TAB"
+    const tabCodeRegex = /<[^>]*TAB[^>]*>/g;
+    const cleanedText = text.replace(tabCodeRegex, '');
+    
+    console.log("[removeTABCodes] Original text length:", text.length);
+    console.log("[removeTABCodes] Cleaned text length:", cleanedText.length);
+    console.log("[removeTABCodes] TAB codes removed:", text.length - cleanedText.length > 0);
+    
+    return cleanedText;
+}
+
 // Function to add data to training queue
 async function addToTrainingDataQueue() {
     try {
@@ -2225,8 +2242,11 @@ async function addToTrainingDataQueue() {
             selectedCode = getSelectedTextFromEditor();
         }
         
-        console.log("[addToTrainingDataQueue] selectedCode length:", selectedCode.length);
-        console.log("[addToTrainingDataQueue] selectedCode preview:", selectedCode.substring(0, 200) + "..."); // Increased preview length
+        // Remove TAB codes from selectedCode before processing
+        selectedCode = removeTABCodes(selectedCode);
+        
+        console.log("[addToTrainingDataQueue] selectedCode length after TAB removal:", selectedCode.length);
+        console.log("[addToTrainingDataQueue] selectedCode preview after TAB removal:", selectedCode.substring(0, 200) + "..."); // Increased preview length
         
         // Validate inputs - require at least one (userPrompt or selectedCode)
         if (!userPrompt && !selectedCode) {
