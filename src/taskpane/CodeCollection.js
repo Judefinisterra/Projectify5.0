@@ -899,6 +899,22 @@ async function parseFormulaSCustomFormula(formulaString, targetRow, worksheet = 
         return `${driver1}/(EOMONTH(${driver2},0)-(EOMONTH(${driver1},0))*(12/AE$2*30))`;
     });
     
+    // Process rd{} references first if driver map is available
+    if (driverMap) {
+        const rdPattern = /rd\{([^}]+)\}/g;
+        result = result.replace(rdPattern, (match, driverName) => {
+            const driverRow = driverMap.get(driverName);
+            if (driverRow) {
+                const replacement = `AE$${driverRow}`;
+                console.log(`    Replacing rd{${driverName}} with ${replacement}`);
+                return replacement;
+            } else {
+                console.warn(`    Driver '${driverName}' not found in column A, keeping as is`);
+                return match; // Keep the original if driver not found
+            }
+        });
+    }
+
     // Process cd{} references before returning
     // Define column mapping for cd: 1=I, 2=H, 3=G, etc.
     const columnMapping = {
@@ -1378,37 +1394,15 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         }
                     }
                     
-                    // NEW: Apply customformula parameter to column AE for row1
-                    if (g === 1 && yy === 0 && code.params.customformula && code.params.customformula !== "0") {
+                    // Apply customformula parameter to column AE for row1 (FORMULA-S codes only)
+                    if (g === 1 && yy === 0 && code.type === "FORMULA-S" && code.params.customformula && code.params.customformula !== "0") {
                         try {
-                            console.log(`  Applying customformula to AE${currentRowNum}: ${code.params.customformula}`);
+                            console.log(`  Applying customformula to AE${currentRowNum} for FORMULA-S: ${code.params.customformula}`);
                             
-                            // Log current value before applying formula
+                            // For FORMULA-S, set it as a value that will be converted to formula later by processFormulaSRows
                             const customFormulaCell = currentWorksheet.getRange(`AE${currentRowNum}`);
-                            customFormulaCell.load("values");
-                            await context.sync();
-                            console.log(`  Current value in AE${currentRowNum}: ${customFormulaCell.values[0][0]}`);
-                            
-                            // Parse the formula to convert special functions
-                            const parsedFormula = await parseFormulaSCustomFormula(code.params.customformula, currentRowNum, currentWorksheet, context);
-                            console.log(`  Parsed formula: ${parsedFormula}`);
-                            
-                            // Ensure the formula starts with '='
-                            let finalFormula = parsedFormula;
-                            if (finalFormula && !finalFormula.startsWith('=')) {
-                                finalFormula = '=' + finalFormula;
-                            }
-                            
-                            // Check if this is FORMULA-S code to determine if we should apply formula or value
-                            if (code.type === "FORMULA-S") {
-                                // For FORMULA-S, set it as a value that will be converted to formula later by processFormulaSRows
-                                customFormulaCell.values = [[code.params.customformula]];
-                                console.log(`  Set customformula as value for FORMULA-S processing`);
-                            } else {
-                                // For other codes, apply as formula directly
-                                customFormulaCell.formulas = [[finalFormula]];
-                                console.log(`  Applied parsed formula: ${finalFormula}`);
-                            }
+                            customFormulaCell.values = [[code.params.customformula]];
+                            console.log(`  Set customformula as value for FORMULA-S processing`);
                         } catch (customFormulaError) {
                             console.error(`  Error applying customformula: ${customFormulaError.message}`);
                         }
