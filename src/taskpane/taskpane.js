@@ -2270,8 +2270,12 @@ async function addToTrainingDataQueue() {
         }
         
         // Remove commas from both userPrompt and selectedCode before creating training entry
-        const cleanedUserPrompt = removeCommas(userPrompt);
-        const cleanedSelectedCode = removeCommas(selectedCode);
+        // const cleanedUserPrompt = removeCommas(userPrompt);
+        // const cleanedSelectedCode = removeCommas(selectedCode);
+        
+        // >>> COMMENTED OUT: Keep commas in codestrings - just use original values
+        const cleanedUserPrompt = userPrompt;
+        const cleanedSelectedCode = selectedCode;
         
         console.log("[addToTrainingDataQueue] Original userPrompt length:", userPrompt.length);
         console.log("[addToTrainingDataQueue] Cleaned userPrompt length:", cleanedUserPrompt.length);
