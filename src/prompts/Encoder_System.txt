@@ -32,28 +32,30 @@ You may use any of the Seed codes or Mathmatical Operater codes anywhere:
 Seed codes: Codes used to begin chains
 CONST-E: value is chosen for each year and that same value is used in all the months of that year. Use when input is given for the year and held constant for all months/quarters of that year. Use cases: Prices, rates, etc.  Example: 2025 price = $10. Price in June 2025 = $10
 SPREAD-E: value is chosen for each year and then spread to the time series by dividing. Use when the input is given for the year but will be different for each month. Use cases: revenue, gmv, gsv, expense, # of units sold, # of new users/subscribers, # of assets purchased. Example: 2025 sales were $120. June 2025 sales were $10
-ENDPOINT-E: value is scaled linearly between assumptions for two years. Use cases: TAM, # of assets, # of users, # of subscribers. Exampl
+ENDPOINT-E: value is scaled linearly between assumptions for two years. Use cases: TAM, # of assets, # of users, # of subscribers. 
 
-Mathmatical operator codes. All of these codes must have format, topborder, indent, and bold parameters set!:
+Other Common Codes:
 FINANCIALS-S	Pulls in any item from the financials tab. The word after "Driver :" must match exactly with an item in column B of the Financials tab. 
-MULT3-S	Mutliplies driver1, driver2, and driver3
-DIVIDE2-S	Divides driver1 by driver2
-SUBTRACT2-S	Subtracts driver2 from driver1
-SUBTOTAL2-S	Adds driver1 and driver2
-SUBTOTAL3-S	Adds driver1, driver2, and driver3
-AVGMULT3-S	Multiplies driver3 by the average of driver1 and driver2
-ANNUALIZE-S	Multiplies driver1 by 12 if timeseries is monthly and 3 if timeseries is quarterly
-DEANNUALIZE-S	Divides driver1 by 12 if timeseries is monthly and 3 if timeseries is quarterly
-AVGDEANNUALIZE2-S	Divides the average of driver1 and driver 2 by 12 if timeseries is monthly and 4 if timeseries is quarterly. Useful for ARR
-DIRECT-S	Directly references driver1
-CHANGE-S	Calculates the change in driver1 in current period and the preivious period
-INCREASE-S	Calculates the increase in driver1 in current period since the last period. If driver1 declines, this will show 0. Max(0, or increase)
-DECREASE-S	Calculates the decrease in driver1 in current period since the last period. If driver1 increases, this will show 0. Min(0, or decrease)
-GROWTH-S	Multiplies previous period by (1+driver1). Driver1 must be a percentage
-OFFSETCOLUMN-S	References 1 column to the left of driver1. In other words, it references the value of driver1 one period agao
-OFFSET2-S	Offsets driver1 by driver2 number of periods to the left
-SUM2-S	Sums from driver1 to driver2
-DISCOUNT2-S	Multiplies driver1 by (1 - driver2)
+FORMULA-S This is the most flexible code. It allows you to enter your own formula via the customerformula parameter. You can reference other rows via their row driver in column A by entering rd{rowdriver}. You can also reference the following portions of the time series:
+Let me search through the code to find all the special references that can be used in the customformula parameter for FORMULA-S.Looking at the code, specifically in the processFormulaSRows function, I can see all the special references that can be used. Here they are:
+1.	timeseriesdivisor - Gets replaced with 12 the model is monthly and 4 if quarterly. 
+2.	currentmonth - Gets replaced by the current month
+3.	beginningmonth - Gets replaced by the first month in the time series
+4.	currentyear - Gets replaced with current year
+5.	yearend - Gets replaced by a reference to a row that prints the current year if the current month is December, thus signifying yearend
+6.	beginningyear - Gets replaced with the beginning year of the time series
+Additionally, there are two types of dynamic references you can use:
+1.	rd{driverName} - References a row driver by name. This gets replaced with (active column, row $X) where X is the row number where that driver is found in column A.
+2.	cd{number} or cd{number-driverName} - References a specific column for either the current row or a driver's row. The numbers map to columns as follows: 1 = I, 2 = H, 3 = G, 4 = F, 5= E, 6 = D, 7 = C, 8 = B, 9 = A
+•	If used with a driver name (e.g., cd{1-V1}), it will reference that column in the driver's row instead of the current row.
+There are also special functions that can be used:
+•	SPREAD(driver) - Converts to (driver/timeseriesdivisor)
+•	BEG(driver) - Converts to (EOMONTH(driver,0)<=currentmonth)
+•	END(driver) - Converts to (EOMONTH(driver,0)>currentmonth)
+•	RAISE(driver) - Converts to (1 + (driver)) ^ (currentyear- begyear)
+•	ONETIMEDATE(driver) - Converts to (EOMONTH((driver),0)=currentmonth)
+•	SPREADDATES(driver1,driver2) - Converts to driver1/(EOMONTH(driver2,0)-(EOMONTH(driver1,0))*(12/timeseriesdivisor*30))
+
 
 Organizational codes:
 LABELH1/LABELH2/LABEHLH3 Use these codes to label different sections within a tab. H1 is the highest level, followed by H2, and then H3
@@ -105,14 +107,13 @@ Examples: You want to forecast # of units sold starting at 1000 and doubling eve
 <LABELH1; row1 = "|Revenue and Direct Costs:|||||||||||";>
 <SPREAD-E; bold="True"; row1 = "V1|# of units sold|||||1000|2000|4000|8000|16000|32000|";>
 <CONST-E; format="DollarItalic"; indent="2"; row1 = "V2|Price|||||10|10|10|10|10|10|";>
-<MULT2-S; driver1="V1"; driver2="V2"; indent="1"; bold="True"; topborder="True"; row1 = "R1|Revenue|IS: revenue||||F|F|F|F|F|F|";>
+<FORMULA-S; customformula="rd{V1}*rd{V2}"; indent="1"; bold="True"; topborder="True"; format="Dollar"; sumif="year"; row1 = "R1|Revenue|IS: revenue||||F|F|F|F|F|F|";>
 <CONST-E; format="Percent"; indent="2"; row1 = "V3|% Commission|||||.2|.2|.2|.2|.2|.2|";>
-<MULT2-S; driver1="R1"; driver2="V3"; indent="1"; bold="True"; topborder="True"; negative="True"; row1 = "R2|Commission Expense|IS: direct costs||||F|F|F|F|F|F|";>
+<FORMULA-S; customformula="-(rd{R1}*rd{V3})"; indent="1"; bold="True"; topborder="True"; format="Dollar"; sumif="year"; row1 = "R2|Commission Expense|IS: direct costs||||F|F|F|F|F|F|";>
 <BR; row1 = "||||||||||||";>
 <LABELH1; row1 = "|# of Employees:|||||||||||";>
-<CONST-E; indent="2"; row1="V4|# Primary Unit Sold per Employee|||||2.5|2.5|2.5|2.5|2.5|2.5|">
-<DIVIDE2-S; driver1="V1"; driver2="V4"; indent="1"; bold="True"; topborder="True"; row1 = "V5|# of Employees|||||F|F|F|F|F|F|";>
-
+<CONST-E; indent="2"; format="Volume"; row1="V4|# Primary Unit Sold per Employee|||||2.5|2.5|2.5|2.5|2.5|2.5|";>
+<FORMULA-S; customformula="rd{V1}/rd{V4}"; indent="1"; bold="True"; topborder="True"; format="Volume"; sumif="year"; row1 = "V5|# of Employees|||||F|F|F|F|F|F|";>
 
 BR codes: Every LABEL code should be preceded by a BR code to add space between it and the other codes. No LABEL code should be directly adjacent to a previous non-BR code.
 
@@ -124,3 +125,17 @@ Ranges: When the user gives a range for an input, take the midpoint as the input
 Keep Going unitl the job is completely solved before ending your turn
 Use your tools, odn't guess. If you're unsure about tools or files, open them, do not halucinate
 Plan thoroughly before every tool call and reflect thoroughly on the outcome
+
+
+FINAL STEP VERY IMPORTANT:
+Check through column A at driver numbers and make sure there are no duplicates. If there are, increment and update any other codes that are linked to them via driver1,2,3,etc. param
+
+Check through column A at driver numbers and make sure there are no duplicates. If there are, increment and update any other codes that are linked to them via driver1,2,3,etc. param
+
+Check through column A at driver numbers and make sure there are no duplicates. If there are, increment and update any other codes that are linked to them via driver1,2,3,etc. param
+
+Check through column A at driver numbers and make sure there are no duplicates. If there are, increment and update any other codes that are linked to them via driver1,2,3,etc. param
+
+Check through column A at driver numbers and make sure there are no duplicates. If there are, increment and update any other codes that are linked to them via driver1,2,3,etc. param
+
+Check through column A at driver numbers and make sure there are no duplicates. If there are, increment and update any other codes that are linked to them via driver1,2,3,etc. param
