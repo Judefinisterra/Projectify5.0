@@ -4,6 +4,122 @@
 // import { fileURLToPath } from 'url';
 // import { dirname } from 'path';
 
+// >>> ADDED: Helper function to validate custom formula syntax
+function validateCustomFormula(formula) {
+    const errors = [];
+    
+    if (!formula || formula.trim() === '') {
+        return errors; // Empty formula is allowed
+    }
+    
+    // Prepare formula for validation
+    let testFormula = formula.trim();
+    
+    // Add = if not present (as mentioned in requirements)
+    if (!testFormula.startsWith('=')) {
+        testFormula = '=' + testFormula;
+    }
+    
+    // Replace custom functions with valid Excel references for syntax checking
+    // Replace dr{...}, cd{...}, etc. with placeholder cell references
+    testFormula = testFormula.replace(/dr\{[^}]*\}/g, 'A1');
+    testFormula = testFormula.replace(/cd\{[^}]*\}/g, 'B1');
+    testFormula = testFormula.replace(/rd\{[^}]*\}/g, 'C1');
+    testFormula = testFormula.replace(/cr\{[^}]*\}/g, 'D1');
+    
+    // Basic Excel formula syntax validation
+    try {
+        // Check for balanced parentheses
+        let parenCount = 0;
+        for (let i = 0; i < testFormula.length; i++) {
+            if (testFormula[i] === '(') parenCount++;
+            if (testFormula[i] === ')') parenCount--;
+            if (parenCount < 0) {
+                errors.push(`Unmatched closing parenthesis at position ${i + 1}`);
+                break;
+            }
+        }
+        if (parenCount > 0) {
+            errors.push(`${parenCount} unmatched opening parenthesis(es)`);
+        }
+        
+        // Check for common Excel function syntax errors
+        // Look for function calls that might be missing commas
+        const functionPattern = /(\w+)\s*\(/g;
+        let match;
+        while ((match = functionPattern.exec(testFormula)) !== null) {
+            const funcName = match[1].toLowerCase();
+            const startPos = match.index + match[0].length;
+            
+            // Find the matching closing parenthesis for this function
+            let depth = 1;
+            let pos = startPos;
+            let args = [];
+            let currentArg = '';
+            
+            while (pos < testFormula.length && depth > 0) {
+                const char = testFormula[pos];
+                if (char === '(') {
+                    depth++;
+                    currentArg += char;
+                } else if (char === ')') {
+                    depth--;
+                    if (depth === 0) {
+                        if (currentArg.trim()) args.push(currentArg.trim());
+                    } else {
+                        currentArg += char;
+                    }
+                } else if (char === ',' && depth === 1) {
+                    args.push(currentArg.trim());
+                    currentArg = '';
+                } else {
+                    currentArg += char;
+                }
+                pos++;
+            }
+            
+            // Check specific functions that commonly need commas
+            if (['offset', 'index', 'match', 'vlookup', 'hlookup', 'indirect'].includes(funcName)) {
+                // Look for patterns like offset(A10) which should be offset(A1,0,0)
+                if (args.length === 1 && /^[A-Z]+\d+$/.test(args[0])) {
+                    errors.push(`Function ${funcName.toUpperCase()}() likely missing required arguments - found only "${args[0]}"`);
+                }
+                
+                // Check for missing commas in arguments (like "A10" immediately followed by numbers)
+                args.forEach((arg, index) => {
+                    // Look for patterns like "A1123" which should be "A1,123"
+                    const suspiciousPattern = /^([A-Z]+\d+)(\d+)$/;
+                    const suspiciousMatch = arg.match(suspiciousPattern);
+                    if (suspiciousMatch) {
+                        errors.push(`Function ${funcName.toUpperCase()}() argument ${index + 1} "${arg}" appears to be missing a comma between "${suspiciousMatch[1]}" and "${suspiciousMatch[2]}"`);
+                    }
+                });
+            }
+        }
+        
+        // Check for other common syntax issues
+        // Missing operators between terms
+        if (/[A-Z]\d+[A-Z]\d+/.test(testFormula)) {
+            errors.push(`Missing operator between cell references (e.g., A1B1 should be A1+B1 or A1*B1)`);
+        }
+        
+        // Invalid characters in cell references
+        const invalidCellRef = /[A-Z]+\d+[A-Za-z]+\d*/g;
+        let invalidMatch;
+        while ((invalidMatch = invalidCellRef.exec(testFormula)) !== null) {
+            if (!/^[A-Z]+\d+$/.test(invalidMatch[0])) {
+                errors.push(`Invalid cell reference format: "${invalidMatch[0]}"`);
+            }
+        }
+        
+    } catch (error) {
+        errors.push(`Formula syntax error: ${error.message}`);
+    }
+    
+    return errors;
+}
+// <<< END ADDED
+
 export async function validateCodeStrings(inputText) {
     const errors = [];
     const tabLabels = new Set();
@@ -122,11 +238,25 @@ export async function validateCodeStrings(inputText) {
             errors.push(`[LERR002] Invalid code string format: ${codeString}`);
             continue;
         }
-        // Extract and store row IDs
         if (codeString.startsWith('<BR>')) {
-            // Skip extraction for BR tags
             continue;
         }
+
+        // >>> ADDED: Validate customformula parameters
+        const customFormulaMatches = codeString.match(/customformula\d*\s*=\s*"([^"]*)"/g);
+        if (customFormulaMatches) {
+            customFormulaMatches.forEach(match => {
+                const formulaMatch = match.match(/customformula\d*\s*=\s*"([^"]*)"/);
+                if (formulaMatch) {
+                    const formula = formulaMatch[1];
+                    const formulaErrors = validateCustomFormula(formula);
+                    formulaErrors.forEach(error => {
+                        errors.push(`[LERR014] Custom formula validation error in ${codeString}: ${error}`);
+                    });
+                }
+            });
+        }
+        // <<< END ADDED
 
         const rowMatches = codeString.match(/row\d+\s*=\s*"([^"]*)"/g);
         if (rowMatches) {
@@ -717,12 +847,30 @@ export async function validateCodeStringsForRun(inputText) {
         if (codeString.startsWith('<BR>')) {
             continue;
         }
+        
+        // >>> ADDED: Validate customformula parameters
+        const customFormulaMatches = codeString.match(/customformula\d*\s*=\s*"([^"]*)"/g);
+        if (customFormulaMatches) {
+            customFormulaMatches.forEach(match => {
+                const formulaMatch = match.match(/customformula\d*\s*=\s*"([^"]*)"/);
+                if (formulaMatch) {
+                    const formula = formulaMatch[1];
+                    const formulaErrors = validateCustomFormula(formula);
+                    formulaErrors.forEach(error => {
+                        errors.push(`[LERR014] Custom formula validation error in ${codeString}: ${error}`);
+                    });
+                }
+            });
+        }
+        // <<< END ADDED
+        
         const rowMatches = codeString.match(/row\d+\s*=\s*"([^"]*)"/g);
         if (rowMatches) {
             rowMatches.forEach(match => {
                 const rowParam = match.match(/(row\d+)\s*=\s*"([^"]*)"/);
                 const rowName = rowParam[1];
                 const rowContent = rowParam[2];
+                // Handle spaces before/after the pipe delimiter
                 const parts = rowContent.split('|');
                 if (parts.length > 0) {
                     const driver = parts[0].trim();
@@ -765,20 +913,27 @@ export async function validateCodeStringsForRun(inputText) {
                         }
                     }
                     
+                    // Extract all potential row IDs including those after asterisks
                     parts.forEach(part => {
                         const trimmedPart = part.trim();
                         if (trimmedPart.startsWith('*')) {
+                            // Add the ID after the asterisk
                             const afterAsterisk = trimmedPart.substring(1).trim();
                             if (afterAsterisk) {
                                 rowValues.add(afterAsterisk);
                             }
                         } else if (trimmedPart) {
+                            // Add regular IDs
                             rowValues.add(trimmedPart);
                         }
                     });
                 }
             });
         }
+
+        
+        // console.log(rowMatches);
+        // Extract code type and suffix
         const codeMatch = codeString.match(/<([^;]+);/);
         if (codeMatch) {
             const codeType = codeMatch[1].trim();
@@ -1084,8 +1239,6 @@ export async function validateCodeStringsForRun(inputText) {
                 tabRowDrivers.set(codeString, new Map());
             }
         }
-        
-        // Validate row format and check for duplicate drivers within TAB
         if (codeType === 'TAB') {
             const rowMatches = codeString.match(/row\d+="([^"]*)"/g);
             if (rowMatches) {
