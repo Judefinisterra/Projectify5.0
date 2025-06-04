@@ -36,7 +36,7 @@ ENDPOINT-E: value is scaled linearly between assumptions for two years. Use case
 
 Other Common Codes:
 FINANCIALS-S	Pulls in any item from the financials tab. The word after "Driver :" must match exactly with an item in column B of the Financials tab. 
-FORMULA-S This is the most flexible code. It allows you to enter your own formula via the customerformula parameter. You can reference other rows via their row driver in column A by entering rd{rowdriver}. You can also reference the following portions of the time series:
+FORMULA-S This is the most flexible code. It allows you to enter your own formula via the customerformula parameter. The formula you are editing is for an individual month of the time series (or quarter if the model is quarterly). You can reference other rows via their row driver in column A by entering rd{rowdriver}. You can also reference the following portions of the time series:
 Let me search through the code to find all the special references that can be used in the customformula parameter for FORMULA-S.Looking at the code, specifically in the processFormulaSRows function, I can see all the special references that can be used. Here they are:
 1.	timeseriesdivisor - Gets replaced with 12 the model is monthly and 4 if quarterly. 
 2.	currentmonth - Gets replaced by the current month
@@ -49,13 +49,21 @@ Additionally, there are two types of dynamic references you can use:
 2.	cd{number} or cd{number-driverName} - References a specific column for either the current row or a driver's row. The numbers map to columns as follows: 1 = I, 2 = H, 3 = G, 4 = F, 5= E, 6 = D, 7 = C, 8 = B, 9 = A
 •	If used with a driver name (e.g., cd{1-V1}), it will reference that column in the driver's row instead of the current row.
 There are also special functions that can be used:
-•	SPREAD(driver) - Converts to (driver/timeseriesdivisor)
-•	BEG(driver) - Converts to (EOMONTH(driver,0)<=currentmonth)
-•	END(driver) - Converts to (EOMONTH(driver,0)>currentmonth)
-•	RAISE(driver) - Converts to (1 + (driver)) ^ (currentyear- begyear)
-•	ONETIMEDATE(driver) - Converts to (EOMONTH((driver),0)=currentmonth)
-•	SPREADDATES(driver1,driver2) - Converts to driver1/(EOMONTH(driver2,0)-(EOMONTH(driver1,0))*(12/timeseriesdivisor*30))
+•	BEG(driver) - Converts to (EOMONTH(driver,0)<=currentmonth). Use to model a start date.
+•	END(driver) - Converts to (EOMONTH(driver,0)>currentmonth). Use to model an end date
+•	RAISE(driver) - Converts to (1 + (driver)) ^ (currentyear- begyear). Use to model a calendar year raise.
+•	ONETIMEDATE(driver) - Converts to (EOMONTH((driver),0)=currentmonth). Use to a model a one-time item. 
+•	SPREADDATES(driver1,driver2) - Converts to driver1/(EOMONTH(driver2,0)-(EOMONTH(driver1,0))*(12/timeseriesdivisor*30)). Use to spread an assumption between two dates.
 
+
+DO NOT ADD HARDCODED NUMBERS TO THE CUSTOMFORMULA PARAMETER!
+DO NOT ADD HARDCODED NUMBERS TO THE CUSTOMFORMULA PARAMETER!
+DO NOT ADD HARDCODED NUMBERS TO THE CUSTOMFORMULA PARAMETER!
+DO NOT ADD HARDCODED NUMBERS TO THE CUSTOMFORMULA PARAMETER!
+
+If you need an assumption, it must be drawn from another codestring upstream or downstream using rd{} or cd{} references. 
+
+Ex. of illegal parameter: customerformula="rd{v1}/12". Ex of corrected code: customformula="rd{v1}/timeseriesdivisor"
 
 Organizational codes:
 LABELH1/LABELH2/LABEHLH3 Use these codes to label different sections within a tab. H1 is the highest level, followed by H2, and then H3
