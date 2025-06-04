@@ -112,6 +112,49 @@ function validateCustomFormula(formula) {
             }
         }
         
+        // >>> ADDED: Check for hardcoded numbers in custom formulas
+        // This validates against using hardcoded numeric values instead of cell references
+        const originalFormula = formula.trim();
+        
+        // Look for numeric patterns that are likely hardcoded values
+        // Match integers and decimals (positive/negative) but exclude cell references
+        // and exclude numbers within curly braces (driver references like rd{V12})
+        
+        // First, temporarily replace all driver references with placeholders to avoid false positives
+        let formulaForNumberCheck = originalFormula;
+        formulaForNumberCheck = formulaForNumberCheck.replace(/[a-z]{2}\{[^}]*\}/g, 'DRIVER_REF');
+        
+        const numberPattern = /(?<![A-Z])(-?\d+(?:\.\d+)?)(?![A-Z])/g;
+        let numberMatch;
+        const foundNumbers = [];
+        
+        while ((numberMatch = numberPattern.exec(formulaForNumberCheck)) !== null) {
+            const number = numberMatch[1];
+            const position = numberMatch.index;
+            
+            // Skip acceptable hardcoded numbers: -1, 0, and 1
+            if (number === '-1' || number === '0' || number === '1') {
+                continue;
+            }
+            
+            // Get the corresponding position in the original formula to show proper context
+            // Find this number in the original formula at approximately the same position
+            const originalContext = originalFormula.substring(Math.max(0, position - 10), Math.min(originalFormula.length, position + number.length + 10));
+            
+            foundNumbers.push({
+                number: number,
+                position: position,
+                context: originalContext.trim()
+            });
+        }
+        
+        if (foundNumbers.length > 0) {
+            foundNumbers.forEach(item => {
+                errors.push(`Hardcoded number "${item.number}" found in formula - consider using a cell reference instead (context: "${item.context}")`);
+            });
+        }
+        // <<< END ADDED
+        
     } catch (error) {
         errors.push(`Formula syntax error: ${error.message}`);
     }

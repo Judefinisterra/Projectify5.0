@@ -1,8 +1,11 @@
 CodeName	CodeString
+ 	< ; driver1=""; row1 = "||||||||||||"; row2 = "||||||||||||"; row3 = "V|# of untis sold|||||F|F|F|F|F|F|"; row4 = "||||||0.05|0.05|0.05|0.05|0.05|0.05|"; row5 = "||||||||||||";>
+ 	< ; driver1=""; row1 = "||||||||||||"; row2 = "||||||||||||"; row3 = "V|# of untis sold|||||F|F|F|F|F|F|"; row4 = "||||||0.05|0.05|0.05|0.05|0.05|0.05|"; row5 = "||||||||||||";>
 ACQUISITION-ER	<ACQUISITION-ER; row1 = "|Assumptions:|||||||||||"; row2 = "|Close Date||||1/1/2026|||||||"; row3 = "|Purchase Price||||7000000|||||||"; row4 = "||||||||||||"; row5 = "|Target Financials:|||||||||||"; row6 = "|Revenue|||||7500000|F|F|F|F|F|"; row7 = "|% YoY growth||||||0.05|0.05|0.05|0.05|0.05|"; row8 = "|EBITDA|||||1125000|F|F|F|F|F|"; row9 = "|% margin|||||F|0.15|0.15|0.15|0.15|0.15|"; row10 = "||||||||||||"; row11 = "||||||||||||"; row12 = "|Financial Statement Items:|||||||||||"; row13 = "R|Revenue|IS: revenue||||F|F|F|F|F|F|"; row14 = "EXP|Operating Costs|IS: Corporate Overhead||||F|F|F|F|F|F|"; row15 = "ASSET|Fixed Assets - Acquisition|BS: fixed assets||||F|F|F|F|F|F|"; row16 = "CF|Acquisitions|CF: CFI||||F|F|F|F|F|F|";>
 ANNUALEXP-AR	<ANNUALEXP-AR; row1 = "AS|Revenue|is: direct costs||||-100000|-100000|-100000|-100000|-100000|-100000|";>
 ANNUALEXPLI-AR	<ANNUALEXPLI-AR; row1 = "|Expenses:|||||||||||"; row2 = "LI|Revenue|is: direct costs||||-100000|-100000|-100000|-100000|-100000|-100000|"; row3 = "EXP|Total Expense|||||F|F|F|F|F|F|";>
 ANNUALEXP-VR	<ANNUALEXP-VR; driver1=""; row1 = "|Expense/Unit|||||-100000|-100000|-100000|-100000|-100000|-100000|"; row2 = "R|Expense|is: direct costs||||F|F|F|F|F|F|";>
+ANNUALGROWTH-S	<ANNUALGROWTH-S; driver1=""; row1 = "V|# of untis sold|||||F|F|F|F|F|F|"; row2 = "||||||0.05|0.05|0.05|0.05|0.05|0.05|";>
 ANNUALIZE-RR	<ANNUALIZE-RR; driver1=""; row1 = "R|Revenue|||||F|F|F|F|F|F|";>
 ANNUALIZE-S	<ANNUALIZE-S; format="Dollar"; topborder="false"; bold="false"; indent="1"; negative="false"; driver1=""; row1 = "V|# of untis sold|||||F|F|F|F|F|F|";>
 ANNUALREV-ER	<ANNUALREV-ER; row1 = "AS|Revenue|IS: revenue||||100000|100000|100000|100000|100000|100000|";>
@@ -85,7 +88,6 @@ GPLP-ISR	<GPLP-ISR; driver1=""; financialsdriver="Change in cash"; row1 = "|Driv
 GROWTHCURVE-VR	<GROWTHCURVE-VR; driver1=""; row1 = "SS|Steady-state revenue/unit|||||1000|1200|F|F|F|F|"; row2 = "||||||||||||"; row3 = "|Month #|||||||||||"; row4 = "M|1||||% of Stead State Revenue:|||||||"; row5 = "M|2||||0.1|F|F|F|F|F|F|"; row6 = "M|3||||0.19|F|F|F|F|F|F|"; row7 = "M|4||||0.28|F|F|F|F|F|F|"; row8 = "M|5||||0.37|F|F|F|F|F|F|"; row9 = "M|6||||0.46|F|F|F|F|F|F|"; row10 = "M|7||||0.55|F|F|F|F|F|F|"; row11 = "M|8||||0.64|F|F|F|F|F|F|"; row12 = "M|9||||0.73|F|F|F|F|F|F|"; row13 = "M|10||||0.82|F|F|F|F|F|F|"; row14 = "M|11||||0.91|F|F|F|F|F|F|"; row15 = "M|12||||1|F|F|F|F|F|F|"; row16 = "R|Revenue|IS: revenue||||F|F|F|F|F|F|";>
 GROWTHREV-ER	<GROWTHREV-ER; row1 = "AS|Revenue|IS: revenue||||100000|F|F|F|F|F|"; row2 = "|% annual growth||||||0.2|0.2|0.2|0.2|0.2|";>
 GROWTHREV-HR	<GROWTHREV-HR; row1 = "AS|Revenue|||||F|F|F|F|F|F|"; row2 = "AS|% annual growth|||||0.2|0.2|0.2|0.2|0.2|0.2|";>
-GROWTH-S	<GROWTH-S; format="Dollar"; topborder="false"; bold="false"; indent="1"; negative="false"; driver1=""; row1 = "V|# of untis sold||||10|F|F|F|F|F|F|";>
 GROWTHVOL-HV	<GROWTHVOL-HV; row1 = "AS|# of units sold|||||F|F|F|F|F|F|"; row2 = "AS|% annual growth|||||0.2|0.2|0.2|0.2|0.2|0.2|";>
 INCREASE-S	<INCREASE-S; format="Dollar"; topborder="false"; bold="false"; indent="1"; negative="false"; driver1=""; row1 = "V|# of untis sold|||||F|F|F|F|F|F|";>
 INDEXBEGIN	<INDEXBEGIN; driver1=""; row1 = "|Growth Curve Time Series Begins|||||F|F|F|F|F|F|";>
@@ -111,6 +113,7 @@ MARGIN2-RR	<MARGIN2-RR; driver1=""; driver2=""; financialsdriver="Total # of new
 MARGINCOGS-RR	<MARGINCOGS-RR; driver1=""; row1 = "DC|COGS|is: direct costs||||F|F|F|F|F|F|"; row2 = "GP|Gross Profit|||||F|F|F|F|F|F|"; row3 = "MARG|% Gross Margin|||||0.3|0.3|0.3|0.3|0.3|0.3|";>
 MODEL	<MODEL;>
 MONTHEXP-ER	<MONTHEXP-ER; row1 = "ASS|Revenue|is: direct costs|||-5000|F|F|F|F|F|F|";>
+MONTHGROWTH-S	<MONTHGROWTH-S; driver1=""; row1 = "V|# of untis sold||||10|F|F|F|F|F|F|";>
 MONTHREV-ER	<MONTHREV-ER; driver1=""; financialsdriver="# of new subscribers"; row1 = "R|Revenue|IS: revenue||||F|F|F|F|F|F|";>
 MONTHREVLIST-ER	<MONTHREVLIST-ER; row1 = "|Total Revenue:|||MRR|Beginning Month|||||||"; row2 = "LI|Item 1|||10000|6/1/2025|F|F|F|F|F|F|"; row3 = "R|Total Revenue|IS: revenue||||F|F|F|F|F|F|";>
 MONTHSOPEN-EV	<MONTHSOPEN-EV; row1 = "AS|# of Months Open (1=Open, 0=Closed):|||||||||||"; row2 = "AS|January||||1|1|1|1|1|1|1|"; row3 = "AS|February||||2|1|1|1|1|1|1|"; row4 = "AS|March||||3|1|1|1|1|1|1|"; row5 = "AS|April||||4|1|1|1|1|1|1|"; row6 = "AS|May||||5|1|1|1|1|1|1|"; row7 = "AS|June||||6|1|1|1|1|1|1|"; row8 = "AS|July||||7|1|1|1|1|1|1|"; row9 = "AS|August||||8|1|1|1|1|1|1|"; row10 = "AS|September||||9|1|1|1|1|1|1|"; row11 = "AS|October||||10|1|1|1|1|1|1|"; row12 = "AS|November||||11|1|1|1|1|1|1|"; row13 = "AS|December||||12|1|1|1|1|1|1|"; row14 = "V|Total # of Months Open|||||F|F|F|F|F|F|";>
@@ -219,8 +222,5 @@ VOLUMEANN-AV	<VOLUMEANN-AV; row1 = "AS|# of Units Per Month Assumption|||||10000
 VOLUMEPERSIST-AV	<VOLUMEPERSIST-AV; row1 = "AS|# of Units Assumptions|||||100000|100000|100000|100000|100000|100000|";>
 WCDSO2-S	<WCDSO2-S; driver1=""; driver2=""; row1 = "A|Accounts Receivable|BS: current assets||||F|F|F|F|F|F|";>
 WCNETARUR-RR	<WCNETARUR-RR; driver1=""; financialsdriver="Revenue"; row1 = "|# of days - payment (+- revenue day):|||||||||||"; row2 = "AS|1|||||-30|-30|-30|-30|-30|-30|"; row3 = "AS|2|||||50|50|50|50|50|50|"; row4 = "||||||||||||"; row5 = "|% of total:|||||||||||"; row6 = "AS|1|||||1|1|1|1|1|1|"; row7 = "|2|||||F|F|F|F|F|F|"; row8 = "|Check|||||F|F|F|F|F|F|"; row9 = "||||||||||||"; row10 = "|Unearned Revenue / (Accounts Receivable):|||||||||||"; row11 = "|Beginning|||||F|F|F|F|F|F|"; row12 = "|Payment 1|||||F|F|F|F|F|F|"; row13 = "|Payment 2|||||F|F|F|F|F|F|"; row14 = "|Revenue Recognized|||||F|F|F|F|F|F|"; row15 = "|Unearned Revenue / (Accounts Receivable)|||||F|F|F|F|F|F|"; row16 = "|Check|||||F|F|F|F|F|F|"; row17 = "||||||||||||"; row18 = "A|Accounts Receivable - Unit Sales|BS: current assets||||F|F|F|F|F|F|"; row19 = "L|Unearned Revenue - Unit Sales|BS: current liabilities||||F|F|F|F|F|F|"; row20 = "||||||||||||"; row21 = "CF|Change in Accounts Receivable - Unit Sales|CF: WC||||F|F|F|F|F|F|"; row22 = "CF|Change in Unearned Revenue - Unit Sales|CF: WC||||F|F|F|F|F|F|";>
-WCOFFSET-S	<WCOFFSET-S; driver1=""; driver2=""; row1 = "A|Accounts Receivable|BS: current assets||||F|F|F|F|F|F|";>
-WCOFFSET-S	<WCOFFSET-S; driver1=""; driver2=""; row1 = "A|Accounts Receivable|BS: current assets||||F|F|F|F|F|F|";>
-WCOFFSET-S	<WCOFFSET-S; driver1=""; driver2=""; row1 = "A|Accounts Receivable|BS: current assets||||F|F|F|F|F|F|";>
 WCOFFSET-S	<WCOFFSET-S; driver1=""; driver2=""; row1 = "A|Accounts Receivable|BS: current assets||||F|F|F|F|F|F|";>
 WCOFFSET-S	<WCOFFSET-S; driver1=""; driver2=""; row1 = "A|Accounts Receivable|BS: current assets||||F|F|F|F|F|F|";>
