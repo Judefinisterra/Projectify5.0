@@ -191,22 +191,22 @@ const PINECONE_ENVIRONMENT = "gcp-starter";
 
 // Define configurations for each index
 const PINECONE_INDEXES = {
-    codes: {
-        name: "codes",
-        apiEndpoint: "https://codes-zmg9zog.svc.aped-4627-b74a.pinecone.io"
-    },
+    // codes: {
+    //     name: "codes",
+    //     apiEndpoint: "https://codes-hz34tmv.svc.aped-4627-b74a.pinecone.io"
+    // },
     call2trainingdata: {
         name: "call2trainingdata",
-        apiEndpoint: "https://call2trainingdata-zmg9zog.svc.aped-4627-b74a.pinecone.io"
-    },
-    call2context: {
-        name: "call2context",
-        apiEndpoint: "https://call2context-zmg9zog.svc.aped-4627-b74a.pinecone.io"
-    },
-    call1context: {
-        name: "call1context",
-        apiEndpoint: "https://call1context-zmg9zog.svc.aped-4627-b74a.pinecone.io"
+        apiEndpoint: "https://call2trainingdata-hz34tmv.svc.aped-4627-b74a.pinecone.io"
     }
+    // call2context: {
+    //     name: "call2context",
+    //     apiEndpoint: "https://call2context-hz34tmv.svc.aped-4627-b74a.pinecone.io"
+    // },
+    // call1context: {
+    //     name: "call1context",
+    //     apiEndpoint: "https://call1context-hz34tmv.svc.aped-4627-b74a.pinecone.io"
+    // }
 };
 
 //Models
@@ -217,7 +217,6 @@ const GPT45_TURBO = "gpt-4.5-turbo"
 const GPT35_TURBO = "gpt-3.5-turbo"
 const GPT4_TURBO = "gpt-4-turbo"
 const GPTFT1 =  "ft:gpt-3.5-turbo-1106:orsi-advisors:cohcolumnsgpt35:B6Wlrql1"
-const GPTFT_ENCODER = "ft:gpt-4.1-2025-04-14:personal:jun25gpt4-1:BeyDTNt1"
 
 // Conversation history storage
 let conversationHistory = [];
@@ -560,7 +559,7 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
       const queryStrings = await processPrompt({
           userInput: clientprompt,
           systemPrompt: systemStructurePrompt,
-          model: GPTFT_ENCODER,
+          model: GPT41,
           temperature: 1,
           history: [], // Explicitly empty
           promptFiles: { system: 'Structure_System' }
@@ -942,7 +941,7 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
     const responseArray = await processPrompt({
         userInput: followUpPrompt,
         systemPrompt: systemPrompt,
-        model: GPTFT_ENCODER,
+        model: GPT41,
         temperature: 1,
         history: currentHistory, // Pass the existing history
         promptFiles: { system: 'Followup_System', main: 'Encoder_Main' }
@@ -1007,7 +1006,7 @@ export async function handleInitialConversation(clientprompt) {
     const outputArray = await processPrompt({
         userInput: initialCallPrompt,
         systemPrompt: systemPrompt,
-        model: GPTFT_ENCODER,
+        model: GPT41,
         temperature: 1,
         history: [], // No history for initial call
         promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
@@ -1149,7 +1148,7 @@ export async function validationCorrection(clientprompt, initialResponse, valida
         const correctedResponseArray = await processPrompt({
             userInput: correctionPrompt,
             systemPrompt: validationSystemPrompt,
-            model: GPTFT_ENCODER,
+            model: GPT41,
             temperature: 0.7, // Lower temperature for correction
             history: [],
             promptFiles: { system: 'Validation_System', main: 'Validation_Main' }
@@ -1436,7 +1435,7 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         let responseArray = await processPrompt({
             userInput: combinedInputForAI,
             systemPrompt: systemPrompt,
-            model: GPTFT_ENCODER, // Using the fine-tuned encoder model
+            model: GPT41, // Using the same model as in other parts
             temperature: 1, // Consistent temperature
             history: [], // Treat each call as independent for this processing
             promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
