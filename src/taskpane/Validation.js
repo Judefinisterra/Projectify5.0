@@ -619,7 +619,7 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
             
             const tabList = Array.from(tabSet).join(', ');
             
-            errors.push(`[LERR012] Duplicate financial statement item "${itemName}" found in ${occurrences.length} locations across tabs: ${tabList}`);
+            errors.push(`[FERR010] Duplicate financial statement item "${itemName}" found in ${occurrences.length} locations across tabs: ${tabList}`);
             
             // Add details about each occurrence
             occurrences.forEach(loc => {
@@ -1008,30 +1008,30 @@ export async function validateCodeStringsForRun(inputText, includeFormatValidati
         });
     });
 
-    // Check for duplicate financial statement items
-    financialStatementItems.forEach((occurrences, itemName) => {
-        if (occurrences.length > 1) {
-            // Exception: Skip depreciation and amortization items
-            if (/depreciation|amortization/i.test(itemName)) {
-                return; // Skip this error for depreciation/amortization items
-            }
-            
-            // Get unique tabs for better error reporting
-            const tabSet = new Set();
-            occurrences.forEach(loc => {
-                const tabIndex = inputCodeStrings.indexOf(loc.codeString);
-                const tab = codeToTab.get(tabIndex);
-                if (tab !== 'default') {
-                    const labelMatch = tab.match(/label\d+="([^"]*)"/);
-                    tabSet.add(labelMatch ? labelMatch[1] : 'Unnamed Tab');
-                } else {
-                    tabSet.add('Before any TAB');
+            // Check for duplicate financial statement items
+        financialStatementItems.forEach((occurrences, itemName) => {
+            if (occurrences.length > 1) {
+                // Exception: Skip depreciation and amortization items
+                if (/depreciation|amortization/i.test(itemName)) {
+                    return; // Skip this error for depreciation/amortization items
                 }
-            });
-            
-            const tabList = Array.from(tabSet).join(', ');
-            
-            errors.push(`[LERR012] Duplicate financial statement item "${itemName}" found in ${occurrences.length} locations across tabs: ${tabList}`);
+                
+                // Get unique tabs for better error reporting
+                const tabSet = new Set();
+                occurrences.forEach(loc => {
+                    const tabIndex = inputCodeStrings.indexOf(loc.codeString);
+                    const tab = codeToTab.get(tabIndex);
+                    if (tab !== 'default') {
+                        const labelMatch = tab.match(/label\d+="([^"]*)"/);
+                        tabSet.add(labelMatch ? labelMatch[1] : 'Unnamed Tab');
+                    } else {
+                        tabSet.add('Before any TAB');
+                    }
+                });
+                
+                const tabList = Array.from(tabSet).join(', ');
+                
+                errors.push(`[FERR010] Duplicate financial statement item "${itemName}" found in ${occurrences.length} locations across tabs: ${tabList}`);
             
             // Add details about each occurrence
             occurrences.forEach(loc => {

@@ -8,6 +8,6 @@ LERR008 - Tab label contains illegal characters. Tab label contains comma, quote
 LERR009 - Duplicate tab label. Solution: Change one of the tab labels.
 LERR010 - Invalid row format Row is missing required fields (less than 2 pipe-separated values). Solution: Add missing | symbols. 
 LERR011 - Driver value not found. A driver reference points to a row ID that doesn't exist. Solution: Change driver value to driver that does exist in the other codestrings. 
-LERR012 - Duplicate financial statement item. Two or more rows have the same value in column B when column C starts with IS, BS, or CF. Financial statement items must be unique across all tabs. Solution: Change the column B value to make it unique.
+
 LERR013 - Invalid financial statement code. Column 3 contains a financial statement code (starting with IS:, BS:, or CF:) that is not in the approved list. Valid codes are: IS: revenue, IS: direct costs, IS: corporate overhead, IS: D&A, IS: interest, IS: Other Income, IS: Net Income, BS: current assets, BS: fixed assets, BS: current liabilities, BS: LT Liabilities, BS: equity, CF: WC, CF: Non-cash, CF: CFI, CF: CFF. Solution: Change column 3 to use one of the approved financial statement codes.
 LERR014 - Invalid custom formula syntax. The customformula parameter contains Excel syntax errors such as missing commas, unmatched parentheses, or invalid function arguments. Solution: Correct the formula syntax to be valid Excel formula syntax.

@@ -417,7 +417,7 @@ export async function validateLogicErrors(inputText) {
             
             const tabList = Array.from(tabSet).join(', ');
             
-            errors.push(`[LERR012] Duplicate financial statement item "${itemName}" found in ${occurrences.length} locations across tabs: ${tabList}`);
+                            errors.push(`[FERR010] Duplicate financial statement item "${itemName}" found in ${occurrences.length} locations across tabs: ${tabList}`);
             
             // Add details about each occurrence
             occurrences.forEach(loc => {
