@@ -820,7 +820,7 @@ export function deduplicateTrainingData(results) {
                     console.log(`  First seen in result ${firstOccurrence.resultIndex}, entry ${firstOccurrence.entryIndex}`);
                     console.log(`  Current location: result ${resultIndex}, entry ${entryIndex}`);
                 }
-                return `${inputPortion} (duplicate. See these codes above)`;
+                return `${inputPortion} Output: (Duplicate: See codes in earlier example above)`;
             } else {
                 // First occurrence, store it and keep the original
                 seenInputs.set(inputPortion, { resultIndex, entryIndex });
