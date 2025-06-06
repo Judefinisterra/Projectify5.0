@@ -1,0 +1,8 @@
+FERR001 - Missing required format parameters Specified codes missing topborder, format, bold, or indent parameters. Solution: Add these parameters to the codestring
+FERR002 - LABELH1/H2/H3 column 2 must end with colon. Label header codes must have a colon at the end of column 2. Solution: Add the colon. 
+FERR003 - LABELH3 must be followed by indent="2". Solution: Use LABELH2 instead or change the indent to 2 if it is a one row code. 
+FERR004 - Adjacent codes both have topborder="true"/ Two consecutive codes both have topborder set to true. Solution: Set the second topborder param to false.
+FERR005 - Adjacent codes both have bold="true". Two consecutive codes both have bold set to true. Solution: Add a BR code between the two codes. 
+FERR006 - Adjacent codes both have indent="1". Two consecutive codes both have indent set to 1. Add a BR code in between the two codes. 
+FERR007 - BR code followed by code with indent="2". A BR code is immediately followed by a code with indent="2". Solution: Add LABELH3 above the indent=2 code.
+FERR009 - Rows with column 2 beginning with "Total" must have specific formatting. If following a BR code: must have bold="true" and indent="1". If not following a BR code: must have bold="true", indent="1", and topborder="True". Solution: Set the correct parameters based on whether the code follows a BR code.

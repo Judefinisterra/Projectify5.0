@@ -209,7 +209,7 @@ const PINECONE_INDEXES = {
     },
     call2context: {
         name: "call2context",
-        apiEndpoint: "https://call2trainingdata-zmg9zog.svc.aped-4627-b74a.pinecone.io"
+        apiEndpoint: "https://call2context-zmg9zog.svc.aped-4627-b74a.pinecone.io"
     },
 
 };
