@@ -46,6 +46,14 @@ let loadedCodeStrings = "";
 // Variable to store the parsed code database
 let codeDatabase = [];
 
+// >>> ADDED: Variable to track validation pass number
+let validationPassCounter = 0;
+
+// >>> ADDED: Function to reset validation pass counter (call at start of new processing)
+export function resetValidationPassCounter() {
+    validationPassCounter = 0;
+}
+
 // >>> ADDED: Variables for search/replace state <<<
 // >>> REMOVED: Main search/replace state variables <<<
 // let lastSearchTerm = '';
@@ -252,18 +260,53 @@ export function loadConversationHistory() {
 
 // Direct OpenAI API call function
 export async function* callOpenAI(messages, options = {}) {
-  const { model = GPTFT1, temperature = 0.7, stream = false, caller = "Unknown" } = options;
+  const { model = GPT41, temperature = 0.7, stream = false, caller = "Unknown" } = options;
 
   try {
     console.log(`Calling OpenAI API with model: ${model}, stream: ${stream}`);
     
-    // >>> ADDED: Comprehensive logging of all messages sent to OpenAI
+    // >>> ADDED: Comprehensive logging of all messages sent to OpenAI with descriptive names
+    // Map system prompts to descriptive call names
+    let callName = "Unknown";
+    let validationErrors = "";
+    
+    if (caller.includes("Structure_System")) {
+      callName = "Prompt Breakup";
+    } else if (caller.includes("Encoder_System") || caller.includes("Followup_System")) {
+      callName = "Main Encoder";
+    } else if (caller.includes("FormatGPT")) {
+      callName = "Format GPT";
+    } else if (caller.includes("Validation_System")) {
+      // Parse validation pass number and errors from caller
+      const passMatch = caller.match(/PASS_(\d+)/);
+      const errorsMatch = caller.match(/ERRORS:(.+)$/);
+      const passNumber = passMatch ? passMatch[1] : "1";
+      callName = `Validation Pass ${passNumber}`;
+      validationErrors = errorsMatch ? errorsMatch[1] : "";
+    }
+    
     console.log("\n╔════════════════════════════════════════════════════════════════╗");
-    console.log("║                    OPENAI API CALL                             ║");
+    console.log(`║              OPENAI API CALL - ${callName.padEnd(25)} ║`);
     console.log("╠════════════════════════════════════════════════════════════════╣");
     console.log(`║ CALLER: ${caller.padEnd(54)} ║`);
     console.log(`║ FILE: AIcalls.js                                               ║`);
     console.log(`║ FUNCTION: callOpenAI()                                         ║`);
+    
+    // Display validation errors if this is a validation call
+    if (validationErrors) {
+      console.log("╠════════════════════════════════════════════════════════════════╣");
+      console.log("║ VALIDATION ERRORS BEING CHECKED:                               ║");
+      console.log("╠════════════════════════════════════════════════════════════════╣");
+      const errorLines = validationErrors.split('\n').slice(0, 5); // Show first 5 lines
+      errorLines.forEach(line => {
+        const truncatedLine = line.substring(0, 62);
+        console.log(`║ ${truncatedLine.padEnd(62)} ║`);
+      });
+      if (validationErrors.split('\n').length > 5) {
+        console.log("║ ... (additional errors truncated)                              ║");
+      }
+    }
+    
     console.log("╚════════════════════════════════════════════════════════════════╝");
     console.log(`Model: ${model}`);
     console.log(`Temperature: ${temperature}`);
@@ -561,6 +604,25 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
           history: [], // Explicitly empty
           promptFiles: { system: 'Structure_System' }
       });
+
+      // >>> ADDED: Console log the full response array from Prompt Breakup call
+      console.log("\n╔════════════════════════════════════════════════════════════════╗");
+      console.log("║                    PROMPT BREAKUP RESPONSE                     ║");
+      console.log("╠════════════════════════════════════════════════════════════════╣");
+      console.log("║ Full Response Array from Structure_System call:                ║");
+      console.log("╚════════════════════════════════════════════════════════════════╝");
+      console.log("Response Array Type:", Array.isArray(queryStrings) ? "Array" : typeof queryStrings);
+      console.log("Response Array Length:", queryStrings?.length || "N/A");
+      console.log("Full Response Array Contents:");
+      console.log(queryStrings);
+      console.log("────────────────────────────────────────────────────────────────");
+      if (Array.isArray(queryStrings)) {
+          queryStrings.forEach((item, index) => {
+              console.log(`[${index}]:`, item);
+          });
+      }
+      console.log("────────────────────────────────────────────────────────────────\n");
+      // <<< END ADDED
 
       if (!queryStrings || !Array.isArray(queryStrings)) {
           console.error("Invalid query strings received:", queryStrings);
@@ -933,7 +995,7 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
     const responseArray = await processPrompt({
         userInput: followUpPrompt,
         systemPrompt: systemPrompt,
-        model: GPTFT1,
+        model: GPT41,
         temperature: 1,
         history: currentHistory, // Pass the existing history
         promptFiles: { system: 'Followup_System', main: 'Encoder_Main' }
@@ -986,7 +1048,7 @@ export async function handleInitialConversation(clientprompt) {
     const outputArray = await processPrompt({
         userInput: initialCallPrompt,
         systemPrompt: systemPrompt,
-        model: GPTFT1,
+        model: GPT41,
         temperature: 1,
         history: [], // No history for initial call
         promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
@@ -1013,6 +1075,9 @@ export async function handleInitialConversation(clientprompt) {
 // Main conversation handler - decides between initial and follow-up
 // Takes current history and returns { response, history }
 export async function handleConversation(clientprompt, currentHistory) {
+    // Reset validation pass counter for new conversation
+    resetValidationPassCounter();
+    
     try {
         const isFollowUp = currentHistory && currentHistory.length > 0;
         if (isFollowUp) {
@@ -1094,15 +1159,18 @@ export async function validationCorrection(clientprompt, initialResponse, valida
             console.log("=========================================");
         }
 
+        // Increment validation pass counter
+        validationPassCounter++;
+        
         // Call LLM for correction (processPrompt uses OpenAI key)
         // Pass an empty history, as correction likely doesn't need chat context
         const correctedResponseArray = await processPrompt({
             userInput: correctionPrompt,
             systemPrompt: validationSystemPrompt,
-            model: GPTFT1,
+            model: GPT41,
             temperature: 0.7, // Lower temperature for correction
             history: [],
-            promptFiles: { system: 'Validation_System', main: 'Validation_Main' }
+            promptFiles: { system: `Validation_System|PASS_${validationPassCounter}|ERRORS:${validationResultsString}` }
         });
 
         // Save the output using the mock fs (as per original logic)
@@ -1346,6 +1414,9 @@ Office.onReady(async (info) => {
 export async function getAICallsProcessedResponse(userInputString, progressCallback = null) {
     if (DEBUG) console.log("[getAICallsProcessedResponse] Processing input:", userInputString.substring(0, 100) + "...");
 
+    // Reset validation pass counter for new processing
+    resetValidationPassCounter();
+
     try {
         // 1. Structure database queries
         if (DEBUG) console.log("[getAICallsProcessedResponse] Calling structureDatabasequeries...");
@@ -1385,7 +1456,7 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         let responseArray = await processPrompt({
             userInput: combinedInputForAI,
             systemPrompt: systemPrompt,
-            model: GPTFT1, // Using the same model as in other parts
+            model: GPT41, // Using the same model as in other parts
             temperature: 1, // Consistent temperature
             history: [], // Treat each call as independent for this processing
             promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
@@ -1491,7 +1562,7 @@ export async function formatCodeStringsWithGPT(responseArray) {
         const formattedResponseArray = await processPrompt({
             userInput: codestringsInput,
             systemPrompt: formatSystemPrompt,
-            model: GPTFT1, // Using same model as other calls
+            model: GPT41, // Using same model as other calls
             temperature: 0.3, // Lower temperature for formatting consistency
             history: [], // No history needed for formatting
             promptFiles: { system: 'FormatGPT' }
