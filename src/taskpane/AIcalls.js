@@ -768,11 +768,136 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
           console.log("=== END SUMMARY ===");
       }
 
-      return results;
+      // >>> ADDED: Deduplicate training data to remove redundant code strings
+      if (progressCallback) {
+          progressCallback("Deduplicating training data...");
+      }
+      const deduplicatedResults = deduplicateTrainingData(results);
+      if (progressCallback) {
+          progressCallback("Training data deduplication completed");
+      }
+
+      return deduplicatedResults;
   } catch (error) {
       console.error("Error in structureDatabasequeries:", error);
       throw error; // Re-throw
   }
+}
+
+// >>> ADDED: Function to deduplicate training data entries
+export function deduplicateTrainingData(results) {
+    if (DEBUG) console.log("Starting training data deduplication...");
+    
+    const seenInputs = new Map(); // Maps input portion to first occurrence details
+    let totalOriginalCount = 0;
+    let totalDeduplicatedCount = 0;
+
+    // Process each result set
+    results.forEach((result, resultIndex) => {
+        if (!result.trainingData || !Array.isArray(result.trainingData)) {
+            return;
+        }
+
+        totalOriginalCount += result.trainingData.length;
+
+        // Process each training data entry in this result
+        result.trainingData = result.trainingData.map((trainingEntry, entryIndex) => {
+            // Extract the input portion (before code strings)
+            const inputPortion = extractInputPortion(trainingEntry);
+            
+            if (!inputPortion) {
+                // If we can't extract input portion, keep the original
+                return trainingEntry;
+            }
+
+            // Check if we've seen this input before
+            if (seenInputs.has(inputPortion)) {
+                // This is a duplicate, replace with reference
+                const firstOccurrence = seenInputs.get(inputPortion);
+                if (DEBUG) {
+                    console.log(`Found duplicate training data:"`);
+                    console.log(`  Input: "${inputPortion.substring(0, 50)}..."`);
+                    console.log(`  First seen in result ${firstOccurrence.resultIndex}, entry ${firstOccurrence.entryIndex}`);
+                    console.log(`  Current location: result ${resultIndex}, entry ${entryIndex}`);
+                }
+                return `${inputPortion} (duplicate. See these codes above)`;
+            } else {
+                // First occurrence, store it and keep the original
+                seenInputs.set(inputPortion, { resultIndex, entryIndex });
+                return trainingEntry;
+            }
+        });
+
+        totalDeduplicatedCount += result.trainingData.length;
+    });
+
+    if (DEBUG) {
+        console.log("Training data deduplication completed:");
+        console.log(`  Total entries before: ${totalOriginalCount}`);
+        console.log(`  Total entries after: ${totalDeduplicatedCount}`);
+        console.log(`  Unique inputs found: ${seenInputs.size}`);
+        console.log(`  Duplicates replaced: ${totalOriginalCount - seenInputs.size}`);
+    }
+
+    return results;
+}
+
+// >>> ADDED: Helper function to extract input portion from training data entry
+function extractInputPortion(trainingEntry) {
+    if (!trainingEntry || typeof trainingEntry !== 'string') {
+        return null;
+    }
+
+    // First try to find "Output:" which typically precedes code strings in training data
+    const outputMatch = trainingEntry.search(/\bOutput:\s*/i);
+    if (outputMatch !== -1) {
+        // Extract everything before "Output:"
+        const inputPortion = trainingEntry.substring(0, outputMatch).trim();
+        // Clean up trailing periods, commas, etc.
+        return inputPortion.replace(/[.,\s]*$/, '').trim();
+    }
+
+    // Fallback: Look for common code string patterns in your training data
+    // Based on the actual patterns I see: <BR;, <LABELH1;, <SPREAD-E;, etc.
+    const codePatterns = [
+        /<BR;/i,                 // <BR; pattern
+        /<LABELH\d*;/i,          // <LABELH1;, <LABELH3;, etc.
+        /<SPREAD-E;/i,           // <SPREAD-E; pattern
+        /<CONST-E;/i,            // <CONST-E; pattern
+        /<OFFSETCOLUMN-S;/i,     // <OFFSETCOLUMN-S; pattern
+        /<DIRECT-S;/i,           // <DIRECT-S; pattern
+        /<MULT2-S;/i,            // <MULT2-S; pattern
+        /<SUM2-S;/i,             // <SUM2-S; pattern
+        /<AVGMULT3-S;/i,         // <AVGMULT3-S; pattern
+        /<DEANNUALIZE-S;/i,      // <DEANNUALIZE-S; pattern
+        /<SUBTRACT2-S;/i,        // <SUBTRACT2-S; pattern
+        /<ENDPOINT-E;/i,         // <ENDPOINT-E; pattern
+        /<const-/i,              // Original <const-e; pattern (keep for compatibility)
+        /<code\d*/i,             // Original <code2>, <code3>, etc. (keep for compatibility)
+        /<[A-Z][A-Z0-9_]*-[A-Z];/i  // Generic pattern for code markers like PATTERN-X;
+    ];
+
+    let splitIndex = -1;
+    
+    // Find the earliest occurrence of any code pattern
+    for (const pattern of codePatterns) {
+        const match = trainingEntry.search(pattern);
+        if (match !== -1 && (splitIndex === -1 || match < splitIndex)) {
+            splitIndex = match;
+        }
+    }
+
+    if (splitIndex === -1) {
+        // No code patterns found, assume the entire entry is input
+        // This might happen with short entries or different formats
+        return trainingEntry.trim();
+    }
+
+    // Extract everything before the first code pattern
+    const inputPortion = trainingEntry.substring(0, splitIndex).trim();
+    
+    // Clean up common trailing characters that might indicate start of code
+    return inputPortion.replace(/[.,\s]*$/, '').trim();
 }
 
 // Function: Query Vector Database using Pinecone REST API
