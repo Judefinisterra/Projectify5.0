@@ -873,12 +873,10 @@ export async function plannerHandleSend() {
         // If it wasn't JSON, the text is already correctly displayed.
 
         if (jsonObjectToProcess) {
-            let ModelCodes = ""; 
             console.log("AIModelPlanner: Starting to process JSON object for ModelCodes generation.");
-            // Update UI to indicate processing of JSON (optional)
-            // assistantMessageContent.textContent = "Processing received plan..."; 
-            // displayInClientChatLogPlanner("Generating model structure from AI response...", false); //This would add a new bubble
-
+            
+            // Prepare all tabs for parallel processing
+            const tabsToProcess = [];
             for (const tabLabel in jsonObjectToProcess) {
                 if (Object.prototype.hasOwnProperty.call(jsonObjectToProcess, tabLabel)) {
                     const lowerCaseTabLabel = tabLabel.toLowerCase();
@@ -886,7 +884,7 @@ export async function plannerHandleSend() {
                         console.log(`AIModelPlanner: Skipping excluded tab - "${tabLabel}"`);
                         continue; 
                     }
-                    ModelCodes += `<TAB; label1="${tabLabel}";>\n`;
+                    
                     const tabDescription = jsonObjectToProcess[tabLabel];
                     let tabDescriptionString = "";
                     if (typeof tabDescription === 'string') {
@@ -896,49 +894,118 @@ export async function plannerHandleSend() {
                     } else {
                         tabDescriptionString = String(tabDescription);
                     }
-                    if (tabDescriptionString.trim() !== "") {
-                        console.log(`AIModelPlanner: Submitting description for tab "${tabLabel}" to getAICallsProcessedResponse...`);
-                        // Update UI for this sub-task (optional)
-                        // assistantMessageContent.textContent = `Processing details for tab: ${tabLabel}...`;
-                        displayInClientChatLogPlanner(`Processing details for tab: ${tabLabel}...`, false); // Adds new bubble
-                        try {
-                            const aiResponseForTabArray = await getAICallsProcessedResponse(tabDescriptionString);
-                            let formattedAiResponse = "";
-                            if (typeof aiResponseForTabArray === 'object' && aiResponseForTabArray !== null && !Array.isArray(aiResponseForTabArray)) {
-                                formattedAiResponse = JSON.stringify(aiResponseForTabArray, null, 2); 
-                            } else if (Array.isArray(aiResponseForTabArray)) {
-                                formattedAiResponse = aiResponseForTabArray.join('\n');
-                            } else {
-                                formattedAiResponse = String(aiResponseForTabArray);
-                            }
-                            
-                            // VALIDATE TAB CODE BEFORE ADDING TO ModelCodes
-                            console.log(`AIModelPlanner: Validating generated code for tab "${tabLabel}"...`);
-                            const validationResult = await validateAndCorrectTabCode(tabLabel, formattedAiResponse, 2); // 2 retries = 3 total attempts
-                            
-                            if (validationResult.success) {
-                                ModelCodes += validationResult.code + "\n\n";
-                                console.log(`AIModelPlanner: Tab "${tabLabel}" code validated and appended to ModelCodes`);
-                                displayInClientChatLogPlanner(`Completed and validated details for tab: ${tabLabel}.`, false);
-                            } else {
-                                // Tab validation failed after all retries
-                                console.error(`AIModelPlanner: Tab "${tabLabel}" validation failed. Including code with errors commented.`);
-                                ModelCodes += `// WARNING: Tab ${tabLabel} has validation errors after ${validationResult.retryCount + 1} correction attempts\n`;
-                                ModelCodes += `// Errors: ${validationResult.errors.join("; ")}\n`;
-                                ModelCodes += `// Original code included below for reference:\n`;
-                                ModelCodes += validationResult.code.split('\n').map(line => `// ${line}`).join('\n') + "\n\n";
-                                displayInClientChatLogPlanner(`Warning: Tab ${tabLabel} has validation errors. Code included as comments.`, false);
-                            }
-                        } catch (tabError) {
-                            console.error(`AIModelPlanner: Error processing description for tab "${tabLabel}" via getAICallsProcessedResponse:`, tabError);
-                            ModelCodes += `// Error processing tab ${tabLabel}: ${tabError.message}\n\n`;
-                            displayInClientChatLogPlanner(`Error processing details for tab ${tabLabel}: ${tabError.message}`, false);
-                        }
-                    } else {
-                        ModelCodes += `// No description provided for tab ${tabLabel}\n\n`;
-                    }
+                    
+                    tabsToProcess.push({
+                        label: tabLabel,
+                        description: tabDescriptionString,
+                        order: tabsToProcess.length // Preserve original order
+                    });
                 }
             }
+            
+            if (tabsToProcess.length === 0) {
+                console.log("AIModelPlanner: No tabs to process after filtering.");
+                displayInClientChatLogPlanner("No valid tabs found to process.", false);
+                return;
+            }
+            
+            // Display initial processing message
+            displayInClientChatLogPlanner(`Processing ${tabsToProcess.length} tabs in parallel...`, false);
+            
+            // Process all tabs in parallel
+            const tabProcessingPromises = tabsToProcess.map(async (tab) => {
+                const { label: tabLabel, description: tabDescriptionString, order } = tab;
+                
+                console.log(`AIModelPlanner: Starting parallel processing for tab "${tabLabel}"`);
+                displayInClientChatLogPlanner(`Processing details for tab: ${tabLabel}...`, false);
+                
+                try {
+                    if (tabDescriptionString.trim() === "") {
+                        return {
+                            order,
+                            tabLabel,
+                            content: `// No description provided for tab ${tabLabel}\n\n`,
+                            success: true
+                        };
+                    }
+                    
+                    // Call AI to generate tab content
+                    const aiResponseForTabArray = await getAICallsProcessedResponse(tabDescriptionString);
+                    let formattedAiResponse = "";
+                    if (typeof aiResponseForTabArray === 'object' && aiResponseForTabArray !== null && !Array.isArray(aiResponseForTabArray)) {
+                        formattedAiResponse = JSON.stringify(aiResponseForTabArray, null, 2); 
+                    } else if (Array.isArray(aiResponseForTabArray)) {
+                        formattedAiResponse = aiResponseForTabArray.join('\n');
+                    } else {
+                        formattedAiResponse = String(aiResponseForTabArray);
+                    }
+                    
+                    // Validate and correct tab code
+                    console.log(`AIModelPlanner: Validating generated code for tab "${tabLabel}"...`);
+                    const validationResult = await validateAndCorrectTabCode(tabLabel, formattedAiResponse, 2);
+                    
+                    if (validationResult.success) {
+                        console.log(`AIModelPlanner: Tab "${tabLabel}" code validated successfully`);
+                        displayInClientChatLogPlanner(`✓ Completed and validated details for tab: ${tabLabel}`, false);
+                        return {
+                            order,
+                            tabLabel,
+                            content: validationResult.code + "\n\n",
+                            success: true
+                        };
+                    } else {
+                        // Tab validation failed after all retries
+                        console.error(`AIModelPlanner: Tab "${tabLabel}" validation failed`);
+                        displayInClientChatLogPlanner(`⚠ Warning: Tab ${tabLabel} has validation errors. Code included as comments.`, false);
+                        const errorContent = `// WARNING: Tab ${tabLabel} has validation errors after ${validationResult.retryCount + 1} correction attempts\n` +
+                                           `// Errors: ${validationResult.errors.join("; ")}\n` +
+                                           `// Original code included below for reference:\n` +
+                                           validationResult.code.split('\n').map(line => `// ${line}`).join('\n') + "\n\n";
+                        return {
+                            order,
+                            tabLabel,
+                            content: errorContent,
+                            success: false
+                        };
+                    }
+                } catch (tabError) {
+                    console.error(`AIModelPlanner: Error processing tab "${tabLabel}":`, tabError);
+                    displayInClientChatLogPlanner(`✗ Error processing details for tab ${tabLabel}: ${tabError.message}`, false);
+                    return {
+                        order,
+                        tabLabel,
+                        content: `// Error processing tab ${tabLabel}: ${tabError.message}\n\n`,
+                        success: false
+                    };
+                }
+            });
+            
+            // Wait for all tabs to complete processing
+            console.log(`AIModelPlanner: Waiting for ${tabProcessingPromises.length} tabs to complete processing...`);
+            const tabResults = await Promise.all(tabProcessingPromises);
+            
+            // Sort results by original order and assemble ModelCodes
+            tabResults.sort((a, b) => a.order - b.order);
+            
+            let ModelCodes = "";
+            let successCount = 0;
+            let errorCount = 0;
+            
+            for (const result of tabResults) {
+                ModelCodes += `<TAB; label1="${result.tabLabel}";>\n`;
+                ModelCodes += result.content;
+                
+                if (result.success) {
+                    successCount++;
+                } else {
+                    errorCount++;
+                }
+            }
+            
+            // Display processing summary
+            const summaryMessage = `Parallel processing completed: ${successCount} tabs processed successfully${errorCount > 0 ? `, ${errorCount} tabs had errors` : ''}`;
+            console.log(`AIModelPlanner: ${summaryMessage}`);
+            displayInClientChatLogPlanner(summaryMessage, false);
             console.log("Generated ModelCodes (final):\n" + ModelCodes); 
             if (ModelCodes.trim().length > 0) {
                 displayInClientChatLogPlanner("Model structure generated. Now applying to workbook...", false);
