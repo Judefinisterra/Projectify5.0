@@ -35,6 +35,28 @@ Ex. I sell $100mm per year => Use  SPREAD-E and a label like “Sales” and not
 
 Interpreting assumptions: When a client says "per month", you should generally use CONST-E to take the monthly assumption for each year and spread it to each month of the time series. Ex. We spend $10/month in 2025. => Jan 2025, Feb 2025, etc. will all use the $10 assumption. FORMULA-S customformulas that reference this row do not need to divide by the timeseriesdivisor because it is already a monthly metric. 
 
+Mathmatical operator codes:
+FINANCIALS-S	Pulls in any item from the financials tab. The word after "Driver :" must match exactly with an item in column B of the Financials tab
+MULT3-S	Mutliplies driver1, driver2, and driver3
+DIVIDE2-S	Divides driver1 by driver2
+SUBTRACT2-S	Subtracts driver2 from driver1
+SUBTOTAL2-S	Adds driver1 and driver2
+SUBTOTAL3-S	Adds driver1, driver2, and driver3
+AVGMULT3-S	Multiplies driver3 by the average of driver1 and driver2
+ANNUALIZE-S	Multiplies driver1 by 12 if timeseries is monthly and 3 if timeseries is quarterly
+DEANNUALIZE-S	Divides driver1 by 12 if timeseries is monthly and 3 if timeseries is quarterly
+AVGDEANNUALIZE2-S	Divides the average of driver1 and driver 2 by 12 if timeseries is monthly and 4 if timeseries is quarterly. Useful for ARR
+DIRECT-S	Directly references driver1
+CHANGE-S	Calculates the change in driver1 in current period and the preivious period
+INCREASE-S	Calculates the increase in driver1 in current period since the last period. If driver1 declines, this will show 0. Max(0, or increase)
+DECREASE-S	Calculates the decrease in driver1 in current period since the last period. If driver1 increases, this will show 0. Min(0, or decrease)
+GROWTH-S	Multiplies previous period by (1+driver1). Driver1 must be a percentage
+OFFSETCOLUMN-S	References 1 column to the left of driver1. In other words, it references the value of driver1 one period agao
+OFFSET2-S	Offsets driver1 by driver2 number of periods to the left
+SUM2-S	Sums from driver1 to driver2
+DISCOUNT2-S	Multiplies driver1 by (1 - driver2)
+LABELH1/LABELH2/LABEHLH3 Use these codes to label different sections within a tab. H1 is the highest level, followed by H2, and then H3
+BR <BR; row1 = "|  |||||||||||";> Adds a line break. Use before every LABELH1/LABELH2/LABELH3 code. 
 
 
 
@@ -160,5 +182,3 @@ Plan thoroughly before every tool call and reflect thoroughly on the outcome
 FINAL STEP VERY IMPORTANT:
 Check through column A at driver numbers and make sure there are no duplicates. If there are, increment and update any other codes that are linked to them via driver1,2,3,etc. param
 
-
-Training data: <BR; row1="||||||||||||";> <LABELH1; row1="|Ad-driven Subscriber Acquisition:|||||||||||";> <SPREAD-E; format="Dollar"; indent="1"; bold="True"; row1="R1|Ad Budget|IS: Corporate Overhead||||-1000000|-1000000|-1000000|-1000000|-1000000|-1000000|";> <CONST-E; format="DollarItalic"; indent="2"; row1="R2|Customer Acquisition Cost per Subscriber|||||20|20|20|20|20|20|";> <FORMULA-S; row1="V1|# of New Subscribers|||||F|F|F|F|F|F|"; customformula="-rd{R1}/rd{R2}"; format="Volume"; indent="1"; bold="True"; topborder="True"; sumif="year";> <BR; row1="||||||||||||";> <LABELH1; row1="|Subscribers & Servers:|||||||||||";> <SPREAD-E; format="Percent"; indent="2"; row1="V2|% Churn/Year|||||.1|.1|.1|.1|.1|.1|";> <BR; row1="||||||||||||";> <LABELH3; row1="|# of Subscribers:|||||||||||";> <FORMULA-S; row1="V3|Beginning|||||F|F|F|F|F|F|"; customformula="offset(rd{R6},0,-1)"; format="volume"; indent="2"; bold="false"; italic="true"; sumif="offsetyear";> <FORMULA-S; row1="V4|New|||||F|F|F|F|F|F|"; customformula="rd{V1}"; format="volume"; indent="2"; bold="false"; italic="true"; sumif="year";> <FORMULA-S; row1="R3|Churned|||||F|F|F|F|F|F|"; customformula="-(rd{V3}*rd{V2})"; format="volume"; indent="2"; bold="false"; italic="true"; sumif="year";> <FORMULA-S; row1="R6|Ending|||||F|F|F|F|F|F|"; customformula="sum(rd{V4}:rd{R3}:rd{V3})"; bold="true"; italic="true"; sumif="yearend"; topborder="true"; format="Volume";> <BR; row1="||||||||||||";> <LABELH3; row1="|Server Requirements:|||||||||||";> <CONST-E; format="Volume"; indent="2"; row1="V5|Subscribers per Server|||||1000|1000|1000|1000|1000|1000|";> <FORMULA-S; row1="V6|Servers Required|||||F|F|F|F|F|F|"; customformula="roundup(rd{R6}/rd{V5},0)"; format="Volume"; indent="1"; bold="True"; topborder="True"; sumif="yearend";> <BR; row1="|  |||||||||||";> <LABELH3; row1="|Servers Purchased:|||||||||||";> <FORMULA-S; row1="V7|Servers Purchased|||||F|F|F|F|F|F|"; customformula="MAX(0, rd{V6} - OFFSET(rd{V6},0,-1))"; format="Volume"; indent="2"; bold="false"; sumif="year";> <CONST-E; format="DollarItalic"; indent="2"; row1="V8|Price per Server|||||-1000|-1000|-1000|-1000|-1000|-1000|";> <FORMULA-S; row1="R7|Capital Expenditures - Servers|CF: CFI||||F|F|F|F|F|F|"; customformula="rd{V7}*rd{V8}"; bold="true"; format="Dollar"; indent="1"; topborder="True"; topborder="true"; sumif="year";> <BR; row1="||||||||||||";> <FAPPE-S; driver1="R7"; row1="|Assumptions:|||||||||||"; row2="AS1|# of Months Useful Life||||120|||||||"; row3="||||||||||||"; row4="|Income statement:|||||||||||"; row5="C1|Depreciation - Servers|IS: D&A||||F|F|F|F|F|F|"; row6="||||||||||||"; row7="|Balance sheet:|||||||||||"; row8="|Gross PP&E - Servers|||||F|F|F|F|F|F|"; row9="|Accumulated depreciation - Servers|||||F|F|F|F|F|F|"; row10="A1|Net PP&E - Servers|BS: fixed assets||||F|F|F|F|F|F|"; row11="||||||||||||"; row12="|Cash Flow From Operations:|||||||||||"; row13="|Depreciation - Servers|CF: Non-cash||||F|F|F|F|F|F|";>
