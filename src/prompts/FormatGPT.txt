@@ -77,4 +77,5 @@ Examples: Look at the parameters and structure of the following codes, which hav
 <FORMULA-S; customformula="rd{V1}/rd{V4}"; indent="1"; bold="True"; topborder="True"; format="Volume"; sumif="year"; row1 = "V5|# of Employees|||||F|F|F|F|F|F|";>
 
 BR codes: Every LABEL code should be preceded by a BR code to add space between it and the other codes. No LABEL code should be directly adjacent to a previous non-BR code.
+Output: Return array of codestrings. Do not include any text outside of <> brackets. Do not provide context or any special characters.	
 

@@ -25,7 +25,7 @@ import { queryVectorDB } from './AIcalls.js';
 import { safeJsonForPrompt } from './AIcalls.js';
 // >>> ADDED: Import conversation handling and validation functions from AIcalls
 // Make sure handleConversation is included here
-import { handleFollowUpConversation, handleInitialConversation, handleConversation, validationCorrection } from './AIcalls.js';
+import { handleFollowUpConversation, handleInitialConversation, handleConversation, validationCorrection, formatCodeStringsWithGPT } from './AIcalls.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -417,8 +417,17 @@ async function handleSend() {
             throw new Error("Failed to get valid response array from conversation result");
         }
 
+        // Update progress message to show formatting step
+        progressMessageContent.textContent = 'Formatting response with FormatGPT...';
+        chatLog.scrollTop = chatLog.scrollHeight;
+
+        // Format the response using FormatGPT
+        console.log("Starting FormatGPT formatting");
+        responseArray = await formatCodeStringsWithGPT(responseArray);
+        console.log("FormatGPT formatting completed");
+
         // Update progress message to show validation step
-        progressMessageContent.textContent = 'Validating response...';
+        progressMessageContent.textContent = 'Validating formatted response...';
         chatLog.scrollTop = chatLog.scrollHeight;
 
         // First validation pass

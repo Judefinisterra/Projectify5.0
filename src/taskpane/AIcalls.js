@@ -1442,12 +1442,17 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         });
         if (DEBUG) console.log("[getAICallsProcessedResponse] processPrompt completed. Response:", responseArray);
 
-        // 4. Validate the response
-        if (DEBUG) console.log("[getAICallsProcessedResponse] Validating response array...");
+        // 4. Format the response using FormatGPT
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Formatting response with FormatGPT...");
+        responseArray = await formatCodeStringsWithGPT(responseArray);
+        if (DEBUG) console.log("[getAICallsProcessedResponse] FormatGPT formatting completed");
+
+        // 5. Validate the formatted response
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Validating formatted response array...");
         const validationErrors = await validateCodeStrings(responseArray);
         if (DEBUG) console.log("[getAICallsProcessedResponse] Validation completed. Errors:", validationErrors);
 
-        // 5. Perform validation correction if needed
+        // 6. Perform validation correction if needed
         if (validationErrors && validationErrors.length > 0) {
             if (DEBUG) console.log("[getAICallsProcessedResponse] Validation errors found. Performing correction...");
             responseArray = await validationCorrection(userInputString, responseArray, validationErrors);
@@ -1502,4 +1507,58 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
 //         }
 //     }
 // }
+
+// >>> ADDED: FormatGPT function to format codestrings after initial encoder call
+export async function formatCodeStringsWithGPT(responseArray) {
+    if (DEBUG) console.log("[formatCodeStringsWithGPT] Processing codestrings for formatting...");
+
+    try {
+        // Ensure API keys are available
+        if (!INTERNAL_API_KEYS.OPENAI_API_KEY) {
+            throw new Error("OpenAI API key not initialized for FormatGPT formatting.");
+        }
+
+        // Load the FormatGPT system prompt
+        const formatSystemPrompt = await getSystemPromptFromFile('FormatGPT');
+        if (!formatSystemPrompt) {
+            throw new Error("Failed to load FormatGPT system prompt");
+        }
+
+        // Convert responseArray to string for processing
+        let codestringsInput = "";
+        if (Array.isArray(responseArray)) {
+            codestringsInput = responseArray.join("\n");
+        } else {
+            codestringsInput = String(responseArray);
+        }
+
+        if (DEBUG) {
+            console.log("[formatCodeStringsWithGPT] Input codestrings:", codestringsInput.substring(0, 200) + "...");
+            console.log("[formatCodeStringsWithGPT] Using FormatGPT system prompt");
+        }
+
+        // Call processPrompt with FormatGPT system prompt
+        const formattedResponseArray = await processPrompt({
+            userInput: codestringsInput,
+            systemPrompt: formatSystemPrompt,
+            model: GPTFT1, // Using same model as other calls
+            temperature: 0.3, // Lower temperature for formatting consistency
+            history: [], // No history needed for formatting
+            promptFiles: { system: 'FormatGPT' }
+        });
+
+        if (DEBUG) {
+            console.log("[formatCodeStringsWithGPT] FormatGPT processing completed");
+            console.log("[formatCodeStringsWithGPT] Formatted output:", formattedResponseArray);
+        }
+
+        return formattedResponseArray;
+
+    } catch (error) {
+        console.error("[formatCodeStringsWithGPT] Error during FormatGPT processing:", error);
+        // Return original response on error to avoid breaking the flow
+        console.warn("[formatCodeStringsWithGPT] Returning original response due to formatting error");
+        return responseArray;
+    }
+}
 
