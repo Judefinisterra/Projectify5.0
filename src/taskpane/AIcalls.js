@@ -198,15 +198,12 @@ const PINECONE_INDEXES = {
     call2trainingdata: {
         name: "call2trainingdata",
         apiEndpoint: "https://call2trainingdata-zmg9zog.svc.aped-4627-b74a.pinecone.io"
-    }
-    // call2context: {
-    //     name: "call2context",
-    //     apiEndpoint: "https://call2context-hz34tmv.svc.aped-4627-b74a.pinecone.io"
-    // },
-    // call1context: {
-    //     name: "call1context",
-    //     apiEndpoint: "https://call1context-hz34tmv.svc.aped-4627-b74a.pinecone.io"
-    // }
+    },
+    call2context: {
+        name: "call2context",
+        apiEndpoint: "https://call2trainingdata-zmg9zog.svc.aped-4627-b74a.pinecone.io"
+    },
+
 };
 
 //Models
@@ -559,7 +556,7 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
       const queryStrings = await processPrompt({
           userInput: clientprompt,
           systemPrompt: systemStructurePrompt,
-          model: GPTFT1,
+          model: GPT41,
           temperature: 1,
           history: [], // Explicitly empty
           promptFiles: { system: 'Structure_System' }
@@ -606,8 +603,8 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
               query: clientprompt + " (FULL PROMPT)",
               trainingData: fullPromptTrainingData,
               call2Context: [], // Empty for full prompt query
-              call1Context: [], // Empty for full prompt query  
-              codeOptions: [] // Empty for full prompt query
+
+            //   codeOptions: [] // Empty for full prompt query
           };
 
           results.push(fullPromptResult);
@@ -659,18 +656,13 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
                       indexName: 'call2context',
                       numResults: 5
                   }),
-                  call1Context: await queryVectorDB({
-                      queryPrompt: queryString,
-                      similarityThreshold: .2,
-                      indexName: 'call1context',
-                      numResults: 5
-                  }),
-                  codeOptions: await queryVectorDB({
-                      queryPrompt: queryString,
-                      indexName: 'codes',
-                      numResults: 3,
-                      similarityThreshold: .1
-                  })
+
+                //   codeOptions: await queryVectorDB({
+                //       queryPrompt: queryString,
+                //       indexName: 'codes',
+                //       numResults: 3,
+                //       similarityThreshold: .1
+                //   })
               };
 
               results.push(queryResults);
@@ -678,9 +670,9 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
               if (DEBUG) {
                   console.log(`Chunk ${chunkNumber} results summary:`);
                   console.log(`  - Training data: ${queryResults.trainingData.length} items`);
-                  console.log(`  - Call2 context: ${queryResults.call2Context.length} items`);
-                  console.log(`  - Call1 context: ${queryResults.call1Context.length} items`);
-                  console.log(`  - Code options: ${queryResults.codeOptions.length} items`);
+                  console.log(`  - Context: ${queryResults.call2Context.length} items`);
+                //   console.log(`  - Call1 context: ${queryResults.call1Context.length} items`);
+                //   console.log(`  - Code options: ${queryResults.codeOptions.length} items`);
                   console.log(`=== END CHUNK ${chunkNumber} ===`);
               }
               
@@ -915,27 +907,27 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
         numResults: 5
     });
 
-    const call1context = await queryVectorDB({
-        queryPrompt: clientprompt + safeJsonForPrompt(trainingdataCall2, false),
-        similarityThreshold: .3,
-        indexName: 'call1context',
-        numResults: 5
-    });
+    // const call1context = await queryVectorDB({
+    //     queryPrompt: clientprompt + safeJsonForPrompt(trainingdataCall2, false),
+    //     similarityThreshold: .3,
+    //     indexName: 'call1context',
+    //     numResults: 5
+    // });
 
-    const codeOptions = await queryVectorDB({
-        queryPrompt: clientprompt + safeJsonForPrompt(trainingdataCall2, false) + safeJsonForPrompt(call1context, false),
-        indexName: 'codes',
-        numResults: 10,
-        similarityThreshold: .1
-    });
+    // const codeOptions = await queryVectorDB({
+    //     queryPrompt: clientprompt + safeJsonForPrompt(trainingdataCall2, false) + safeJsonForPrompt(call1context, false),
+    //     indexName: 'codes',
+    //     numResults: 10,
+    //     similarityThreshold: .1
+    // });
 
     // Construct the prompt for the LLM
     const followUpPrompt = `Client request: ${clientprompt}\n` +
-                   `Main Prompt Context: ${mainPromptText}\n` + // Use loaded main prompt text
-                   `Training Data Context: ${safeJsonForPrompt(trainingdataCall2, true)}\n` + // Use readable format for prompt
-                   `Code Choosing Context: ${safeJsonForPrompt(call1context, true)}\n` +
-                   `Code Editing Context: ${safeJsonForPrompt(call2context, true)}\n` +
-                   `Relevant Code Options: ${safeJsonForPrompt(codeOptions, true)}`;
+                   `Main Prompt Context: ${mainPromptText}\n`; // Use loaded main prompt text
+                //    `Training Data Context: ${safeJsonForPrompt(trainingdataCall2, true)}\n` + // Use readable format for prompt
+    
+                //    `Context: ${safeJsonForPrompt(call2context, true)}\n` +
+                // //    `Relevant Code Options: ${safeJsonForPrompt(codeOptions, true)}`;
 
     // Call the LLM (processPrompt uses OpenAI key internally)
     const responseArray = await processPrompt({
@@ -956,19 +948,7 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
 
     // Persist updated history and analysis data (using localStorage helpers)
     saveConversationHistory(updatedHistory); // Save the new history state
-    savePromptAnalysis(
-        clientprompt,
-        systemPrompt,
-        mainPromptText,
-        null, // No validation prompt info available here
-        null, // No validation prompt info available here
-        null, // No validation results available here
-        safeJsonForPrompt(call2context, false), // Save non-readable for potential re-use
-        safeJsonForPrompt(call1context, false),
-        safeJsonForPrompt(trainingdataCall2, false),
-        safeJsonForPrompt(codeOptions, false),
-        responseArray
-    );
+    
     saveTrainingData(clientprompt, responseArray);
 
     if (DEBUG) console.log("Follow-up conversation processed. History length:", updatedHistory.length);
@@ -1020,14 +1000,7 @@ export async function handleInitialConversation(clientprompt) {
 
     // Persist history and analysis data
     saveConversationHistory(initialHistory);
-    savePromptAnalysis(
-        clientprompt,
-        systemPrompt,
-        mainPromptText,
-        null, null, null, // No validation info
-        "", "", "", "", // No vector DB context yet
-        outputArray
-    );
+   
     saveTrainingData(clientprompt, outputArray);
 
     if (DEBUG) console.log("Initial conversation processed. History length:", initialHistory.length);
@@ -1058,29 +1031,7 @@ export async function handleConversation(clientprompt, currentHistory) {
 }
 
 
-// Function: Save prompt analysis data to localStorage
-function savePromptAnalysis(clientprompt, systemPrompt, mainPrompt, validationSystemPrompt, validationMainPrompt, validationResults, call2context, call1context, trainingdataCall2, codeOptions, outputArray) {
-    try {
-        const analysisData = {
-            clientRequest: clientprompt || "",
-            systemPrompt: systemPrompt || "",
-            mainPrompt: mainPrompt || "",
-            validationSystemPrompt: validationSystemPrompt || "",
-            validationMainPrompt: validationMainPrompt || "",
-            validationResults: validationResults || [],
-            call2context: call2context || "", // Store the potentially non-readable string used
-            call1context: call1context || "",
-            trainingdataCall2: trainingdataCall2 || "",
-            codeOptions: codeOptions || "",
-            outputArray: outputArray || []
-        };
 
-        localStorage.setItem('promptAnalysis', JSON.stringify(analysisData));
-        if (DEBUG) console.log('Prompt analysis saved to localStorage');
-    } catch (error) {
-        console.error("Error saving prompt analysis:", error);
-    }
-}
 
 // Function: Save training data pair to localStorage
 function saveTrainingData(clientprompt, outputArray) {
@@ -1411,9 +1362,8 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
             if (!result) return "No results found for a query";
             return `Query: ${result.query || 'No query'}\n` +
                    `Training Data:\n${(result.trainingData || []).join('\n')}\n` +
-                   `Code Options:\n${(result.codeOptions || []).join('\n')}\n` +
-                   `Code Choosing Context:\n${(result.call1Context || []).join('\n')}\n` +
-                   `Code Editing Context:\n${(result.call2Context || []).join('\n')}\n` +
+                //    `Code Options:\n${(result.codeOptions || []).join('\n')}\n` +
+                  `Context:\n${(result.call2Context || []).join('\n')}\n` +
                    `---\n`;
         }).join('\n');
 
