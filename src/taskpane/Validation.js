@@ -1146,3 +1146,383 @@ export async function validateCodeStringsForRun(inputText, includeFormatValidati
 }
 // <<< END ADDED FUNCTION
 
+// >>> ADDED: New function for logic-only validation (for LogicGPT preprocessing)
+export async function validateLogicOnly(inputText) {
+    const errors = [];
+    const tabLabels = new Set();
+    const rowValues = new Set();
+    const codeTypes = new Set();
+    const tabRowDrivers = new Map(); // Track row drivers per TAB
+    
+    // Log validation start with input details
+    console.log("=".repeat(80));
+    console.log("[LogicValidation] STARTING LOGIC VALIDATION");
+    console.log("[LogicValidation] Input type:", typeof inputText);
+    console.log("[LogicValidation] Input length:", inputText?.length || 0);
+    console.log("[LogicValidation] Input preview (first 200 chars):", 
+        typeof inputText === 'string' ? inputText.substring(0, 200) + '...' : 
+        Array.isArray(inputText) ? `Array with ${inputText.length} items` : 
+        'Unknown input type');
+    
+    // Extract all code strings using regex pattern /<[^>]+>/g
+    let inputCodeStrings = [];
+    if (typeof inputText === 'string') {
+        const codeStringMatches = inputText.match(/<[^>]+>/g);
+        inputCodeStrings = codeStringMatches || [];
+    } else if (Array.isArray(inputText)) {
+        inputCodeStrings = [];
+        for (const item of inputText) {
+            if (typeof item === 'string') {
+                const matches = item.match(/<[^>]+>/g);
+                if (matches) {
+                    inputCodeStrings.push(...matches);
+                }
+            }
+        }
+    }
+    
+    if (inputCodeStrings.length === 0) {
+        console.log("[LogicValidation] No code strings found in input");
+        console.log("[LogicValidation] VALIDATION COMPLETE - No code strings to validate");
+        console.log("=".repeat(80));
+        return []; // Return empty array for logic errors
+    }
+    
+    console.log(`[LogicValidation] Found ${inputCodeStrings.length} code strings to validate`);
+    console.log("[LogicValidation] Extracted code strings:");
+    inputCodeStrings.forEach((codeString, index) => {
+        console.log(`  ${index + 1}. ${codeString.substring(0, 100)}${codeString.length > 100 ? '...' : ''}`);
+    });
+    
+    // Remove line breaks within angle brackets before processing
+    inputCodeStrings = inputCodeStrings.map(str => {
+        return str.replace(/<[^>]*>/g, match => {
+            return match.replace(/[\r\n]+/g, ' ');
+        });
+    });
+    
+    // Clean up input strings by removing anything outside angle brackets
+    inputCodeStrings = inputCodeStrings.map(str => {
+        const match = str.match(/<[^>]+>/);
+        return match ? match[0] : str;
+    });
+
+    console.log("[LogicValidation] Preprocessed code strings (removed line breaks and cleaned format)");
+    console.log(`[LogicValidation] Final count of code strings to validate: ${inputCodeStrings.length}`);
+
+    // Load valid codes from the correct location
+    console.log("[LogicValidation] Loading valid codes from Codes.txt...");
+    let validCodes = new Set();
+    try {
+        const response = await fetch('../prompts/Codes.txt');
+        if (!response.ok) {
+            throw new Error('Failed to load Codes.txt file');
+        }
+        const fileContent = await response.text();
+        validCodes = new Set(fileContent.split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0));
+        console.log(`[LogicValidation] Loaded ${validCodes.size} valid code types from Codes.txt`);
+    } catch (error) {
+        console.error("[LogicValidation] ERROR: Failed to load Codes.txt file:", error.message);
+        errors.push(`[LERR001] Error reading Codes.txt file: ${error.message}`);
+        return errors;
+    }
+
+    // Determine which tab each code belongs to
+    console.log("[LogicValidation] Phase 1: Analyzing tab structure and organizing codes...");
+    let currentTab = 'default';
+    const codeToTab = new Map();
+    
+    // Initialize the default tab
+    tabRowDrivers.set('default', new Map());
+    
+    for (let i = 0; i < inputCodeStrings.length; i++) {
+        const codeString = inputCodeStrings[i];
+        const codeMatch = codeString.match(/<([^;]+);/);
+        
+        if (codeMatch && codeMatch[1].trim() === 'TAB') {
+            currentTab = codeString;
+            tabRowDrivers.set(currentTab, new Map());
+        }
+        
+        codeToTab.set(i, currentTab);
+    }
+    
+    const tabCount = Array.from(tabRowDrivers.keys()).length;
+    console.log(`[LogicValidation] Found ${tabCount} tabs (including default): ${Array.from(tabRowDrivers.keys()).map(tab => {
+        if (tab === 'default') return 'default';
+        const match = tab.match(/label\d+="([^"]*)"/);
+        return match ? `"${match[1]}"` : 'unnamed';
+    }).join(', ')}`);
+
+    // First pass: collect all row values and validate custom formulas
+    console.log("[LogicValidation] Phase 2: First pass - collecting row values and validating custom formulas...");
+    const financialStatementItems = new Map();
+    
+    // Define valid financial statement codes
+    const validFinancialCodes = new Set([
+        'is: revenue',
+        'is: direct costs',
+        'is: corporate overhead',
+        'is: d&a',
+        'is: interest',
+        'is: other income',
+        'is: net income',
+        'bs: current assets',
+        'bs: fixed assets',
+        'bs: current liabilities',
+        'bs: lt liabilities',
+        'bs: equity',
+        'cf: wc',
+        'cf: non-cash',
+        'cf: cfi',
+        'cf: cff'
+    ]);
+    
+    for (let i = 0; i < inputCodeStrings.length; i++) {
+        const codeString = inputCodeStrings[i];
+        const currentTabForCode = codeToTab.get(i);
+        
+        if (!codeString.startsWith('<') || !codeString.endsWith('>')) {
+            errors.push(`[LERR002] Invalid code string format: ${codeString}`);
+            continue;
+        }
+        if (codeString.startsWith('<BR>')) {
+            continue;
+        }
+
+        // Validate customformula parameters (LOGIC ERROR)
+        const customFormulaMatches = codeString.match(/customformula\d*\s*=\s*"([^"]*)"/g);
+        if (customFormulaMatches) {
+            customFormulaMatches.forEach(match => {
+                const formulaMatch = match.match(/customformula\d*\s*=\s*"([^"]*)"/);
+                if (formulaMatch) {
+                    const formula = formulaMatch[1];
+                    const formulaErrors = validateCustomFormula(formula);
+                    formulaErrors.forEach(error => {
+                        errors.push(`[LERR014] Custom formula validation error in ${codeString}: ${error}`);
+                    });
+                }
+            });
+        }
+
+        const rowMatches = codeString.match(/row\d+\s*=\s*"([^"]*)"/g);
+        if (rowMatches) {
+            rowMatches.forEach(match => {
+                const rowParam = match.match(/(row\d+)\s*=\s*"([^"]*)"/);
+                const rowName = rowParam[1];
+                const rowContent = rowParam[2];
+                const parts = rowContent.split('|');
+                if (parts.length > 0) {
+                    const driver = parts[0].trim();
+                    
+                    // Check for financial statement items (LOGIC ERROR)
+                    if (parts.length >= 3) {
+                        const columnB = parts[1].trim();
+                        const columnC = parts[2].trim();
+                        
+                        if (columnC && (columnC.startsWith('IS:') || columnC.startsWith('BS:') || columnC.startsWith('CF:'))) {
+                            // Validate against approved financial codes
+                            if (!validFinancialCodes.has(columnC.toLowerCase())) {
+                                errors.push(`[LERR013] Invalid financial statement code "${columnC}" in ${codeString} at ${rowName}. Must be one of the approved codes.`);
+                            }
+                            
+                            if (columnB) {
+                                // Track this financial statement item for duplicate checking
+                                if (financialStatementItems.has(columnB)) {
+                                    const existing = financialStatementItems.get(columnB);
+                                    existing.push({ codeString, rowName, driver });
+                                } else {
+                                    financialStatementItems.set(columnB, [{ codeString, rowName, driver }]);
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Track row drivers per tab (LOGIC ERROR - duplicates)
+                    if (driver && !driver.startsWith('*') && tabRowDrivers.has(currentTabForCode)) {
+                        const driversInThisTab = tabRowDrivers.get(currentTabForCode);
+                        if (driversInThisTab.has(driver)) {
+                            const existing = driversInThisTab.get(driver);
+                            existing.occurrences.push({ codeString, rowName });
+                        } else {
+                            driversInThisTab.set(driver, {
+                                firstOccurrence: { codeString, rowName },
+                                occurrences: [{ codeString, rowName }]
+                            });
+                        }
+                    }
+                    
+                    // Extract all potential row IDs including those after asterisks
+                    parts.forEach(part => {
+                        const trimmedPart = part.trim();
+                        if (trimmedPart.startsWith('*')) {
+                            const afterAsterisk = trimmedPart.substring(1).trim();
+                            if (afterAsterisk) {
+                                rowValues.add(afterAsterisk);
+                            }
+                        } else if (trimmedPart) {
+                            rowValues.add(trimmedPart);
+                        }
+                    });
+                }
+            });
+        }
+
+        // Extract code type and suffix
+        const codeMatch = codeString.match(/<([^;]+);/);
+        if (codeMatch) {
+            const codeType = codeMatch[1].trim();
+            codeTypes.add(codeType);
+        }
+    }
+
+    // Check for duplicate row drivers within each tab (LOGIC ERROR)
+    console.log("[LogicValidation] Phase 3: Checking for duplicate row drivers within tabs...");
+    tabRowDrivers.forEach((driversInTab, tabCode) => {
+        driversInTab.forEach((driverInfo, driver) => {
+            if (driverInfo.occurrences.length > 1) {
+                const tabLabel = tabCode === 'default' ? 'before any TAB' : 
+                    (() => {
+                        const labelMatch = tabCode.match(/label\d+="([^"]*)"/);
+                        return labelMatch ? `TAB "${labelMatch[1]}"` : 'TAB (no label)';
+                    })();
+                
+                const locations = driverInfo.occurrences.map(loc => {
+                    const codeMatch = loc.codeString.match(/<([^;]+);/);
+                    const codeType = codeMatch ? codeMatch[1] : 'Unknown';
+                    return `${codeType} code (${loc.rowName})`;
+                }).join(' and ');
+                
+                errors.push(`[LERR003] Duplicate row driver "${driver}" found within ${tabLabel}: ${locations}`);
+            }
+        });
+    });
+
+    // Check for duplicate financial statement items (LOGIC ERROR)
+    console.log("[LogicValidation] Phase 4: Checking for duplicate financial statement items...");
+    financialStatementItems.forEach((occurrences, itemName) => {
+        if (occurrences.length > 1) {
+            // Exception: Skip depreciation and amortization items
+            if (/depreciation|amortization/i.test(itemName)) {
+                return;
+            }
+            
+            const tabSet = new Set();
+            occurrences.forEach(loc => {
+                const tabIndex = inputCodeStrings.indexOf(loc.codeString);
+                const tab = codeToTab.get(tabIndex);
+                if (tab !== 'default') {
+                    const labelMatch = tab.match(/label\d+="([^"]*)"/);
+                    tabSet.add(labelMatch ? labelMatch[1] : 'Unnamed Tab');
+                } else {
+                    tabSet.add('Before any TAB');
+                }
+            });
+            
+            const tabList = Array.from(tabSet).join(', ');
+            errors.push(`[LERR015] Duplicate financial statement item "${itemName}" found in ${occurrences.length} locations across tabs: ${tabList}`);
+        }
+    });
+
+    // Second pass: detailed validation (LOGIC ERRORS ONLY)
+    console.log("[LogicValidation] Phase 5: Second pass - detailed code validation...");
+    for (const codeString of inputCodeStrings) {
+        if (codeString === '<BR>') {
+            continue;
+        }
+        
+        const codeMatch = codeString.match(/<([^;]+);/);
+        if (!codeMatch) {
+            errors.push(`[LERR004] Cannot extract code type from: ${codeString}`);
+            continue;
+        }
+
+        const codeType = codeMatch[1].trim();
+        
+        // Validate code exists in description file (LOGIC ERROR)
+        if (!validCodes.has(codeType)) {
+            errors.push(`[LERR005] Invalid code type: "${codeType}" not found in valid codes list - ${codeString}`);
+        }
+
+        // Validate TAB labels (LOGIC ERROR)
+        if (codeType === 'TAB') {
+            const labelMatch = codeString.match(/label\d+="([^"]*)"/);
+            if (!labelMatch) {
+                errors.push(`[LERR006] TAB code missing label parameter - ${codeString}`);
+                continue;
+            }
+
+            const label = labelMatch[1];
+            
+            if (label.length > 30) {
+                errors.push(`[LERR007] Tab label too long (max 30 chars): "${label}" - ${codeString}`);
+            }
+            
+            if (/[,":;]/.test(label)) {
+                errors.push(`[LERR008] Tab label contains illegal characters (,":;): "${label}" - ${codeString}`);
+            }
+            
+            if (tabLabels.has(label)) {
+                errors.push(`[LERR009] Duplicate tab label: "${label}" - ${codeString}`);
+            }
+            tabLabels.add(label);
+        }
+
+        // Validate row format (LOGIC ERROR)
+        const rowMatches = codeString.match(/row\d+="([^"]*)"/g);
+        if (rowMatches) {
+            rowMatches.forEach(match => {
+                const rowContent = match.match(/row\d+="([^"]*)"/)[1];
+                const parts = rowContent.split('|');
+                if (parts.length < 2) {
+                    errors.push(`[LERR010] Invalid row format (missing required fields): "${rowContent}" in ${codeString}`);
+                }
+            });
+        }
+    }
+
+    // Third pass: validate driver references (LOGIC ERROR)
+    console.log("[LogicValidation] Phase 6: Third pass - validating driver references...");
+    for (const codeString of inputCodeStrings) {
+        const driverMatches = codeString.match(/driver\d+\s*=\s*"([^"]*)"/g);
+        if (driverMatches) {
+            driverMatches.forEach(match => {
+                const driverValue = match.match(/driver\d+\s*=\s*"([^"]*)"/)[1].trim();
+                if (!rowValues.has(driverValue)) {
+                    errors.push(`[LERR011] Driver value "${driverValue}" not found in any row - in ${codeString}`);
+                }
+            });
+        }
+    }
+
+    // Log validation completion with output details
+    console.log("[LogicValidation] VALIDATION COMPLETE");
+    console.log(`[LogicValidation] Total logic errors found: ${errors.length}`);
+    
+    if (errors.length > 0) {
+        console.log("[LogicValidation] Logic errors found:");
+        errors.forEach((error, index) => {
+            console.log(`  ${index + 1}. ${error}`);
+        });
+    } else {
+        console.log("[LogicValidation] No logic errors detected - validation passed!");
+    }
+    
+    console.log("[LogicValidation] Error summary by type:");
+    const errorTypes = {};
+    errors.forEach(error => {
+        const errorCode = error.match(/\[LERR\d+\]/)?.[0] || 'Unknown';
+        errorTypes[errorCode] = (errorTypes[errorCode] || 0) + 1;
+    });
+    
+    Object.entries(errorTypes).forEach(([type, count]) => {
+        console.log(`  ${type}: ${count} error(s)`);
+    });
+    
+    console.log("=".repeat(80));
+    return errors; // Return array of logic errors
+}
+// <<< END ADDED FUNCTION
+

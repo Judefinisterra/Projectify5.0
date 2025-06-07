@@ -5,6 +5,148 @@
 
 import { convertKeysToCamelCase } from "@pinecone-database/pinecone/dist/utils";
 
+// >>> ADDED: Import the logic validation function
+import { validateLogicOnly } from './Validation.js';
+
+/*
+ * LOGIC VALIDATION INTEGRATION GUIDE
+ * 
+ * This module provides logic validation functions to detect errors before LogicGPT API calls.
+ * The logic validation checks for:
+ * - Invalid code types
+ * - Duplicate row drivers within tabs
+ * - Invalid financial statement codes
+ * - Duplicate financial statement items
+ * - Custom formula syntax errors
+ * - Driver references not found
+ * - Invalid row formats
+ * - TAB validation errors
+ * 
+ * INTEGRATION WORKFLOW:
+ * 
+ * 1. Basic Usage (Formatted for GPT prompt):
+ *    const logicErrors = await getLogicErrorsForPrompt(inputCodeStrings);
+ *    const enhancedPrompt = originalPrompt + logicErrors;
+ *    // Call LogicGPT API with enhancedPrompt
+ * 
+ * 2. Conditional Processing:
+ *    if (await hasLogicErrors(inputCodeStrings)) {
+ *        const logicErrors = await getLogicErrorsForPrompt(inputCodeStrings);
+ *        // Include errors in LogicGPT prompt
+ *    } else {
+ *        // Proceed with normal LogicGPT call
+ *    }
+ * 
+ * 3. Custom Error Processing:
+ *    const rawErrors = await getLogicErrors(inputCodeStrings);
+ *    // Process errors as needed for custom formatting
+ * 
+ * NOTE: This validation focuses on LOGIC errors only (LERR codes), not format errors (FERR codes).
+ * Format validation is handled separately in the full validation system.
+ */
+
+// <<< END ADDED
+
+/**
+ * Runs logic validation on input text and returns formatted errors for LogicGPT prompt inclusion
+ * @param {string} inputText - The input text containing code strings
+ * @returns {Promise<string>} - Formatted logic errors string for prompt inclusion
+ * 
+ * USAGE EXAMPLE:
+ * // Before making LogicGPT API call:
+ * const logicErrors = await getLogicErrorsForPrompt(inputCodeStrings);
+ * const enhancedPrompt = originalPrompt + logicErrors;
+ * // Then call LogicGPT API with enhancedPrompt
+ */
+export async function getLogicErrorsForPrompt(inputText) {
+    try {
+        console.log("╔" + "═".repeat(78) + "╗");
+        console.log("║ [CodeCollection] LOGIC VALIDATION FOR GPT PROMPT                          ║");
+        console.log("╚" + "═".repeat(78) + "╝");
+        console.log("[CodeCollection] Starting logic validation for LogicGPT prompt enhancement...");
+        console.log("[CodeCollection] Input type:", typeof inputText);
+        console.log("[CodeCollection] Input size:", inputText?.length || 0, "characters");
+        
+        // Run logic-only validation
+        const logicErrors = await validateLogicOnly(inputText);
+        
+        if (logicErrors.length === 0) {
+            console.log("[CodeCollection] ✅ No logic errors found - prompt will not be enhanced");
+            console.log("[CodeCollection] Logic validation complete - returning empty string");
+            return ""; // Return empty string if no errors
+        }
+        
+        console.log(`[CodeCollection] ⚠️  Found ${logicErrors.length} logic errors to include in prompt`);
+        
+        // Format errors for GPT prompt inclusion
+        let formattedErrors = "\n\nLOGIC VALIDATION ERRORS DETECTED:\n";
+        formattedErrors += "Please address the following logic errors in your response:\n\n";
+        
+        logicErrors.forEach((error, index) => {
+            formattedErrors += `${index + 1}. ${error}\n`;
+        });
+        
+        formattedErrors += "\nPlease ensure your corrected codestrings resolve these logic issues.\n";
+        
+        console.log("[CodeCollection] Formatted error prompt enhancement:");
+        console.log(formattedErrors);
+        console.log("[CodeCollection] Logic validation complete - returning formatted errors for prompt");
+        
+        return formattedErrors;
+        
+    } catch (error) {
+        console.error("[CodeCollection] ❌ Error during logic validation:", error);
+        console.error("[CodeCollection] Returning error message for prompt inclusion");
+        return "\n\nLOGIC VALIDATION ERROR: Could not complete logic validation due to technical error.\n";
+    }
+}
+
+/**
+ * Gets raw logic errors array for custom processing
+ * @param {string} inputText - The input text containing code strings
+ * @returns {Promise<Array>} - Array of logic error strings
+ */
+export async function getLogicErrors(inputText) {
+    try {
+        console.log("[CodeCollection] Getting raw logic errors array...");
+        console.log("[CodeCollection] Input type:", typeof inputText);
+        console.log("[CodeCollection] Input size:", inputText?.length || 0, "characters");
+        
+        const errors = await validateLogicOnly(inputText);
+        
+        console.log(`[CodeCollection] Raw logic validation complete - returning ${errors.length} errors`);
+        return errors;
+    } catch (error) {
+        console.error("[CodeCollection] ❌ Error getting logic errors:", error);
+        const errorArray = [`Logic validation error: ${error.message}`];
+        console.log("[CodeCollection] Returning error array with 1 error message");
+        return errorArray;
+    }
+}
+
+/**
+ * Checks if there are any logic errors without returning details
+ * @param {string} inputText - The input text containing code strings
+ * @returns {Promise<boolean>} - True if logic errors exist, false otherwise
+ */
+export async function hasLogicErrors(inputText) {
+    try {
+        console.log("[CodeCollection] Checking if logic errors exist...");
+        console.log("[CodeCollection] Input type:", typeof inputText);
+        console.log("[CodeCollection] Input size:", inputText?.length || 0, "characters");
+        
+        const errors = await validateLogicOnly(inputText);
+        const hasErrors = errors.length > 0;
+        
+        console.log(`[CodeCollection] Logic error check complete - result: ${hasErrors ? '❌ Has errors' : '✅ No errors'} (${errors.length} errors found)`);
+        return hasErrors;
+    } catch (error) {
+        console.error("[CodeCollection] ❌ Error checking for logic errors:", error);
+        console.log("[CodeCollection] Assuming errors exist due to validation failure");
+        return true; // Assume errors exist if validation fails
+    }
+}
+
 /**
  * Parses code strings and creates a code collection
  * @param {string} inputText - The input text containing code strings

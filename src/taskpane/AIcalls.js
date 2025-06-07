@@ -19,6 +19,13 @@ import { validateCodeStringsForRun } from './Validation.js';
 import { generateTabString } from './IndexWorksheet.js';
 // >>> ADDED: Import AIModelPlanner functions
 import { handleAIModelPlannerConversation, resetAIModelPlannerConversation, setAIModelPlannerOpenApiKey, plannerHandleSend, plannerHandleReset, plannerHandleWriteToExcel, plannerHandleInsertToEditor } from './AIModelPlanner.js';
+// >>> ADDED: Import logic validation functions  
+import { getLogicErrorsForPrompt, getLogicErrors, hasLogicErrors } from './CodeCollection.js';
+
+// >>> ADDED: Test import on module load
+console.log("🔧 IMPORT TEST: getLogicErrorsForPrompt function type:", typeof getLogicErrorsForPrompt);
+console.log("🔧 IMPORT TEST: getLogicErrors function type:", typeof getLogicErrors);
+console.log("🔧 IMPORT TEST: hasLogicErrors function type:", typeof hasLogicErrors);
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -1971,11 +1978,68 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
 export async function checkCodeStringsWithLogicChecker(responseArray) {
     if (DEBUG) console.log("[checkCodeStringsWithLogicChecker] Processing codestrings for logic checking...");
 
+    // >>> ADDED: Quick import test at function start
+    console.log("🔧 FUNCTION START TEST: getLogicErrorsForPrompt available?", typeof getLogicErrorsForPrompt);
+    
+    try {
+        // >>> ADDED: Simple test call
+        console.log("🔧 SIMPLE TEST: Calling getLogicErrorsForPrompt with empty string...");
+        const testResult = await getLogicErrorsForPrompt("");
+        console.log("🔧 SIMPLE TEST: Test call succeeded, result type:", typeof testResult);
+        console.log("🔧 SIMPLE TEST: Test result length:", testResult ? testResult.length : 0);
+    } catch (testError) {
+        console.error("🔧 SIMPLE TEST: Test call failed!", testError);
+    }
+
     try {
         // Ensure API keys are available
         if (!INTERNAL_API_KEYS.OPENAI_API_KEY) {
             throw new Error("OpenAI API key not initialized for LogicCheckerGPT checking.");
         }
+
+        // >>> ADDED: Run logic validation BEFORE LogicGPT call
+        console.log("\n🔍 RUNNING LOGIC VALIDATION BEFORE LOGICGPT CALL");
+        console.log("──────────────────────────────────────────────────────────────");
+        
+        let logicErrors = "";
+        
+        try {
+            console.log("🔧 DEBUG: About to call getLogicErrorsForPrompt function...");
+            console.log("🔧 DEBUG: Function available?", typeof getLogicErrorsForPrompt);
+            
+            // Convert responseArray to string for logic validation
+            let codestringsForValidation = "";
+            if (Array.isArray(responseArray)) {
+                codestringsForValidation = responseArray.join("\n");
+            } else {
+                codestringsForValidation = String(responseArray);
+            }
+            
+            console.log("🔧 DEBUG: Codestrings prepared for validation (length):", codestringsForValidation.length);
+            console.log("🔧 DEBUG: Sample codestrings:", codestringsForValidation.substring(0, 200) + "...");
+            
+            // Get logic errors formatted for prompt inclusion
+            console.log("🔧 DEBUG: Calling getLogicErrorsForPrompt now...");
+            logicErrors = await getLogicErrorsForPrompt(codestringsForValidation);
+            console.log("🔧 DEBUG: getLogicErrorsForPrompt completed successfully");
+            console.log("🔧 DEBUG: Logic errors result type:", typeof logicErrors);
+            console.log("🔧 DEBUG: Logic errors length:", logicErrors ? logicErrors.length : 0);
+            
+            if (logicErrors && logicErrors.trim() !== "") {
+                console.log("⚠️  Logic errors detected - will be included in LogicGPT prompt");
+                console.log("🔧 DEBUG: First 200 chars of logic errors:", logicErrors.substring(0, 200));
+            } else {
+                console.log("✅ No logic errors detected - proceeding with normal LogicGPT call");
+            }
+            
+        } catch (validationError) {
+            console.error("❌ ERROR during logic validation:", validationError);
+            console.error("❌ Error stack:", validationError.stack);
+            console.log("🔧 DEBUG: Continuing with LogicGPT without validation errors...");
+            logicErrors = ""; // Continue without errors if validation fails
+        }
+        
+        console.log("──────────────────────────────────────────────────────────────\n");
 
         // >>> SIMPLE FIX: Extract clean client request from whatever we have
         console.log("\n🔧 EXTRACTING CLEAN CLIENT REQUEST");
@@ -2013,12 +2077,21 @@ export async function checkCodeStringsWithLogicChecker(responseArray) {
             codestringsInput = String(responseArray);
         }
 
-        // Create the main message with ONLY the clean client request + completed codestrings
-        const logicCheckerInput = `Original Client Request: ${cleanClientRequest}\n\nCompleted Codestrings to Check:\n${codestringsInput}`;
+        // Create the main message with ONLY the clean client request + completed codestrings + logic errors (if any)
+        let logicCheckerInput = `Original Client Request: ${cleanClientRequest}\n\nCompleted Codestrings to Check:\n${codestringsInput}`;
+        
+        // >>> ADDED: Append logic errors to LogicGPT prompt if any were found
+        if (logicErrors && logicErrors.trim() !== "") {
+            logicCheckerInput += logicErrors; // logicErrors already includes proper formatting and line breaks
+            console.log("📋 Logic errors appended to LogicGPT prompt for targeted correction");
+            console.log("🎯 Enhanced LogicGPT prompt preview (last 300 chars):");
+            console.log("..." + logicCheckerInput.slice(-300));
+        }
 
         if (DEBUG) {
             console.log("[checkCodeStringsWithLogicChecker] Final clean client request being sent:", cleanClientRequest.substring(0, 100) + "...");
             console.log("[checkCodeStringsWithLogicChecker] Input codestrings:", codestringsInput.substring(0, 200) + "...");
+            console.log("[checkCodeStringsWithLogicChecker] Logic errors included in prompt:", logicErrors ? "YES" : "NO");
             console.log("[checkCodeStringsWithLogicChecker] Using LogicCheckerGPT system prompt");
         }
 
