@@ -1338,19 +1338,6 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
     if (DEBUG) console.log("[handleFollowUpConversation] Formatting response with FormatGPT...");
     responseArray = await formatCodeStringsWithGPT(responseArray);
     if (DEBUG) console.log("[handleFollowUpConversation] FormatGPT formatting completed");
-
-    // >>> ADDED: Validate the formatted response
-    if (DEBUG) console.log("[handleFollowUpConversation] Validating formatted response array...");
-    const validationErrors = await validateCodeStrings(responseArray);
-    if (DEBUG) console.log("[handleFollowUpConversation] Validation completed. Errors:", validationErrors);
-
-    // >>> ADDED: Perform validation correction if needed
-    if (validationErrors && validationErrors.length > 0) {
-        if (DEBUG) console.log("[handleFollowUpConversation] Validation errors found. Performing correction...");
-        if (DEBUG) console.log("[handleFollowUpConversation] Using stored original client prompt for validation correction:", originalClientPrompt.substring(0, 100) + "...");
-        responseArray = await validationCorrection(originalClientPrompt, responseArray, validationErrors);
-        if (DEBUG) console.log("[handleFollowUpConversation] Validation correction completed. Corrected response:", responseArray);
-    }
   
     // Update history (create new array, don't modify inplace)
     const updatedHistory = [
@@ -1427,19 +1414,6 @@ export async function handleInitialConversation(clientprompt) {
     if (DEBUG) console.log("[handleInitialConversation] Formatting response with FormatGPT...");
     outputArray = await formatCodeStringsWithGPT(outputArray);
     if (DEBUG) console.log("[handleInitialConversation] FormatGPT formatting completed");
-
-    // >>> ADDED: Validate the formatted response
-    if (DEBUG) console.log("[handleInitialConversation] Validating formatted response array...");
-    const validationErrors = await validateCodeStrings(outputArray);
-    if (DEBUG) console.log("[handleInitialConversation] Validation completed. Errors:", validationErrors);
-
-    // >>> ADDED: Perform validation correction if needed
-    if (validationErrors && validationErrors.length > 0) {
-        if (DEBUG) console.log("[handleInitialConversation] Validation errors found. Performing correction...");
-        if (DEBUG) console.log("[handleInitialConversation] Using stored original client prompt for validation correction:", originalClientPrompt.substring(0, 100) + "...");
-        outputArray = await validationCorrection(originalClientPrompt, outputArray, validationErrors);
-        if (DEBUG) console.log("[handleInitialConversation] Validation correction completed. Corrected response:", outputArray);
-    }
 
     // Create the initial history
     const initialHistory = [
@@ -1868,19 +1842,6 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         if (DEBUG) console.log("[getAICallsProcessedResponse] Formatting response with FormatGPT...");
         responseArray = await formatCodeStringsWithGPT(responseArray);
         if (DEBUG) console.log("[getAICallsProcessedResponse] FormatGPT formatting completed");
-
-        // 6. Validate the formatted response
-        if (DEBUG) console.log("[getAICallsProcessedResponse] Validating formatted response array...");
-        const validationErrors = await validateCodeStrings(responseArray);
-        if (DEBUG) console.log("[getAICallsProcessedResponse] Validation completed. Errors:", validationErrors);
-
-        // 7. Perform validation correction if needed
-        if (validationErrors && validationErrors.length > 0) {
-            if (DEBUG) console.log("[getAICallsProcessedResponse] Validation errors found. Performing correction...");
-            if (DEBUG) console.log("[getAICallsProcessedResponse] Using stored original client prompt for validation correction:", originalClientPrompt.substring(0, 100) + "...");
-            responseArray = await validationCorrection(originalClientPrompt, responseArray, validationErrors);
-            if (DEBUG) console.log("[getAICallsProcessedResponse] Validation correction completed. Corrected response:", responseArray);
-        }
 
         // >>> ADDED: Save the complete enhanced prompt that was sent to AI to lastprompt.txt
         // await saveEnhancedPrompt(combinedInputForAI);
