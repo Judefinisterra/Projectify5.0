@@ -1,45 +1,12 @@
-You performed the steps below in a previous step and came up with the codestrings in the “response” section. These have several errors detailed in the “validation result” section. Please correct these validation errors. 
-Follow these steps while adhering to code rules below:
-1)	Choose codes. Main resource is training data. “Code descriptions” and “code choosing context” provide further guidance. Choose training data examples that most closely match client request. Mixing and matching codestrings is allowed. Do not improvise codestrings. All selected codestrings must be present in training data. 
+You performed the steps below in a previous step and came up with the codestrings in the “response” section. These have several errors detailed in the “validation result” section. Please correct these validation errors:
+
+Steps (already performed. Added here to give you context)
 2)	Conceptualize spreadsheet created by selected codestrings. Build mental model of an array equal to row1, row2, row3, etc. of each codestring. Second dimension of array is columns delimited by the “|” symbols. Within the columns, strings are labels, numbers are assumptions, and “F” is a formula that is performing calculations on assumptions. 
 3)	Number the drivers. Within the first column of each row (after the first quote and before the first |), you will find that row's driver letters  (ex. row5 = "LI|Employee 1||40|30|1/1/2025|F|F|F|F|F|F|" => driver letter is "LI"). If this is blank, that row has no driver. If the letters already have a number, skip and begin next identical driver letters with incremented number. Number all identical driver letters in the codestrings array. Ex. If row1 and row2 both have LI as their driver letters, row1 driver letter would change to LI1, and row2 driver letter would change to LI2. If row 3 had V as a driver letter, it would change to V1. If the row1 in the next codestring had V as the driver letter, it would change to V2. 
 4)	Set driver1,2,3,etc. field. Connect codestrings via the driver1,2,3,etc. field. In previous example, in the second codestring, setting driver1="V1" would connect that codestring to row3 of the first codestring, meaning that row3's values would be an input in the formulas of codestring 2. Driver parameter must connect to drivers of different codestrings and cannot be connected to its own drivers.  
 5)	Adjust labels and assumptions and add *LI rows within the row1,2,3,etc. fields to reflect client request. Do not alter any columns with values that are blank or "F". Maintain 12 "|" symbols in every row. Edit only existing row and driver parameters. Do not add row and driver parameters.  
 
-Validation checks:
-1)	Ensure each row has exactly 12 "|" symbols, unless a duplicate row has been added using the * symbol. 
-2)	Only modify values inside quotes; no structural changes. 
-3)	All drivers must be set and valid. 
-4)	Blank columns remain unchanged. 
-5)	"F" columns must remain unchanged. Do not improvise "F" values that weren't in the original codestring.  
-6)	All driver letters must be numbered. Ex. "row1 = "AS|Ad budget..." => "row1 = "AS1|Ad budget..."
-7)  Next include consecutive <BR> codes. Multiple <BR> codes in a row is not allowed. Remove all but one if present. 
 
 
 
-Logic Errors (LERR) - High priority. These MUST be corrected:
 
-LERR002 - Invalid code string format. Code string doesn't start with < or end with >. Solution: 1) add missing brackets. 2) Sometimes, this is caused by carriage breaks within a codestring. Remove the cariage breaks within the codestring to clear the error. 
-LERR003 - Duplicate row driver within tab. Two or more rows in the same tab have identical drivers (first value before |). Iterate the numbering on the duplicate row drivers and make sure to adjust and driver1,2,3,etc. params that point to the changed row drivers. 
-LERR004 - Cannot extract code type. Unable to parse the code type from the code string. Solution: Replace code with code that is present in the training data or system prompt. 
-LERR005 - Invalid code type. Code type not found in the valid codes list (Codes.txt) Solution: Replace code with code that is present in the training data or system prompt. 
-LERR006 - TAB code missing label parameter. Solution: Add label1="" to the <TAB> code
-LERR007 - Tab label too long. Tab label exceeds 30 characters. Solution: Reduce Tab name to <= 30 characters
-LERR008 - Tab label contains illegal characters. Tab label contains comma, quotes, colon, or semicolon. Solution: remove the illegal characters
-LERR009 - Duplicate tab label. Solution: Change one of the tab labels.
-LERR010 - Invalid row format Row is missing required fields (less than 2 pipe-separated values). Solution: Add missing | symbols. 
-LERR011 - Driver value not found. A driver reference points to a row ID that doesn't exist. Solution: Change driver value to driver that does exist in the other codestrings. 
-LERR012 - Duplicate financial statement item. Two or more rows have the same value in column B when column C starts with IS, BS, or CF. Financial statement items must be unique across all tabs. Solution: Change the column B value to make it unique.
-LERR013 - Invalid financial statement code. Column 3 contains a financial statement code (starting with IS:, BS:, or CF:) that is not in the approved list. Valid codes are: IS: revenue, IS: direct costs, IS: corporate overhead, IS: D&A, IS: interest, IS: Other Income, IS: Net Income, BS: current assets, BS: fixed assets, BS: current liabilities, BS: LT Liabilities, BS: equity, CF: WC, CF: Non-cash, CF: CFI, CF: CFF. Solution: Change column 3 to use one of the approved financial statement codes.
-LERR014 - Invalid custom formula syntax. The customformula parameter contains Excel syntax errors such as missing commas, unmatched parentheses, or invalid function arguments. Solution: Correct the formula syntax to be valid Excel formula syntax.
-
-Format Errors (FERR) - Secondary priority to logic errors. Do your best but it is possible that some edge cases could violate formatting validation legitimately:
-FERR001 - Missing required format parameters Specified codes missing topborder, format, bold, or indent parameters. Solution: Add these parameters to the codestring
-FERR002 - LABELH1/H2/H3 column 2 must end with colon. Label header codes must have a colon at the end of column 2. Solution: Add the colon. 
-FERR003 - LABELH3 must be followed by indent="2". Solution: Use LABELH2 instead or change the indent to 2 if it is a one row code. 
-FERR004 - Adjacent codes both have topborder="true"/ Two consecutive codes both have topborder set to true. Solution: Set the second topborder param to false.
-FERR005 - Adjacent codes both have bold="true". Two consecutive codes both have bold set to true. Solution: Add a BR code between the two codes. 
-FERR006 - Adjacent codes both have indent="1". Two consecutive codes both have indent set to 1. Add a BR code in between the two codes. 
-FERR007 - BR code followed by code with indent="2". A BR code is immediately followed by a code with indent="2". Solution: Add LABELH3 above the indent=2 code.
-FERR008 - MULT, SUBTRACT, SUM, or SUBTOTAL codes must have indent="1" and bold="true". Any code starting with MULT, SUBTRACT, SUM, or SUBTOTAL must have both indent="1" and bold="true" parameters. Solution: Set indent="1" and bold="true" for these codes.
-FERR009 - Rows with column 2 beginning with "Total" must have specific formatting. If following a BR code: must have bold="true" and indent="1". If not following a BR code: must have bold="true", indent="1", and topborder="True". Solution: Set the correct parameters based on whether the code follows a BR code.
