@@ -21,11 +21,6 @@ import { generateTabString } from './IndexWorksheet.js';
 import { handleAIModelPlannerConversation, resetAIModelPlannerConversation, setAIModelPlannerOpenApiKey, plannerHandleSend, plannerHandleReset, plannerHandleWriteToExcel, plannerHandleInsertToEditor } from './AIModelPlanner.js';
 // >>> ADDED: Import logic validation functions  
 import { getLogicErrorsForPrompt, getLogicErrors, hasLogicErrors } from './CodeCollection.js';
-
-// >>> ADDED: Test import on module load
-console.log("🔧 IMPORT TEST: getLogicErrorsForPrompt function type:", typeof getLogicErrorsForPrompt);
-console.log("🔧 IMPORT TEST: getLogicErrors function type:", typeof getLogicErrors);
-console.log("🔧 IMPORT TEST: hasLogicErrors function type:", typeof hasLogicErrors);
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -782,13 +777,7 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
       }
 
       // >>> ADDED: Deduplicate training data to remove redundant code strings
-      if (progressCallback) {
-          progressCallback("Deduplicating training data...");
-      }
       const deduplicatedResults = deduplicateTrainingData(results);
-      if (progressCallback) {
-          progressCallback("Training data deduplication completed");
-      }
 
       return deduplicatedResults;
   } catch (error) {
@@ -799,8 +788,6 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
 
 // >>> ADDED: Function to deduplicate training data entries
 export function deduplicateTrainingData(results) {
-    if (DEBUG) console.log("Starting training data deduplication...");
-    
     const seenInputs = new Map(); // Maps input portion to first occurrence details
     let totalOriginalCount = 0;
     let totalDeduplicatedCount = 0;
@@ -827,12 +814,6 @@ export function deduplicateTrainingData(results) {
             if (seenInputs.has(inputPortion)) {
                 // This is a duplicate, replace with reference
                 const firstOccurrence = seenInputs.get(inputPortion);
-                if (DEBUG) {
-                    console.log(`Found duplicate training data:"`);
-                    console.log(`  Input: "${inputPortion.substring(0, 50)}..."`);
-                    console.log(`  First seen in result ${firstOccurrence.resultIndex}, entry ${firstOccurrence.entryIndex}`);
-                    console.log(`  Current location: result ${resultIndex}, entry ${entryIndex}`);
-                }
                 return `${inputPortion} Output: (Duplicate: See codes in earlier example above)`;
             } else {
                 // First occurrence, store it and keep the original
@@ -843,14 +824,6 @@ export function deduplicateTrainingData(results) {
 
         totalDeduplicatedCount += result.trainingData.length;
     });
-
-    if (DEBUG) {
-        console.log("Training data deduplication completed:");
-        console.log(`  Total entries before: ${totalOriginalCount}`);
-        console.log(`  Total entries after: ${totalDeduplicatedCount}`);
-        console.log(`  Unique inputs found: ${seenInputs.size}`);
-        console.log(`  Duplicates replaced: ${totalOriginalCount - seenInputs.size}`);
-    }
 
     return results;
 }
@@ -881,8 +854,6 @@ function formatCodeStringsInTrainingEntry(trainingEntry) {
 
 // >>> ADDED: Function to consolidate and deduplicate training data and context across ALL queries
 export function consolidateAndDeduplicateTrainingData(results) {
-    if (DEBUG) console.log("Starting global training data and context consolidation and deduplication...");
-    
     const allTrainingData = [];
     const allContextData = [];
     const seenTrainingInputs = new Set(); // Track unique training input portions
@@ -912,9 +883,6 @@ export function consolidateAndDeduplicateTrainingData(results) {
                 if (seenTrainingInputs.has(inputPortion)) {
                     // This is a duplicate, skip it
                     trainingDuplicatesRemoved++;
-                    if (DEBUG) {
-                        console.log(`Skipping duplicate training data: "${inputPortion.substring(0, 50)}..."`);
-                    }
                 } else {
                     // First occurrence, add it and mark as seen
                     seenTrainingInputs.add(inputPortion);
@@ -936,9 +904,6 @@ export function consolidateAndDeduplicateTrainingData(results) {
                     allContextData.push(contextEntry);
                 } else if (contextKey) {
                     contextDuplicatesRemoved++;
-                    if (DEBUG) {
-                        console.log(`Skipping duplicate context data: "${contextKey.substring(0, 50)}..."`);
-                    }
                 }
             });
         }
@@ -963,16 +928,6 @@ export function consolidateAndDeduplicateTrainingData(results) {
         const processedEntry = formatCodeStringsInTrainingEntry(trainingEntry);
         formattedOutput += `Input/output set ${index + 1}) ${processedEntry}\n***\n`;
     });
-
-    if (DEBUG) {
-        console.log("Global training data and context consolidation completed:");
-        console.log(`  Training data entries before: ${totalOriginalTrainingCount}`);
-        console.log(`  Training data unique entries after: ${allTrainingData.length}`);
-        console.log(`  Training data duplicates removed: ${trainingDuplicatesRemoved}`);
-        console.log(`  Context entries before: ${totalOriginalContextCount}`);
-        console.log(`  Context unique entries after: ${allContextData.length}`);
-        console.log(`  Context duplicates removed: ${contextDuplicatesRemoved}`);
-    }
 
     return formattedOutput;
 }
@@ -1978,19 +1933,6 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
 export async function checkCodeStringsWithLogicChecker(responseArray) {
     if (DEBUG) console.log("[checkCodeStringsWithLogicChecker] Processing codestrings for logic checking...");
 
-    // >>> ADDED: Quick import test at function start
-    console.log("🔧 FUNCTION START TEST: getLogicErrorsForPrompt available?", typeof getLogicErrorsForPrompt);
-    
-    try {
-        // >>> ADDED: Simple test call
-        console.log("🔧 SIMPLE TEST: Calling getLogicErrorsForPrompt with empty string...");
-        const testResult = await getLogicErrorsForPrompt("");
-        console.log("🔧 SIMPLE TEST: Test call succeeded, result type:", typeof testResult);
-        console.log("🔧 SIMPLE TEST: Test result length:", testResult ? testResult.length : 0);
-    } catch (testError) {
-        console.error("🔧 SIMPLE TEST: Test call failed!", testError);
-    }
-
     try {
         // Ensure API keys are available
         if (!INTERNAL_API_KEYS.OPENAI_API_KEY) {
@@ -1998,55 +1940,34 @@ export async function checkCodeStringsWithLogicChecker(responseArray) {
         }
 
         // >>> ADDED: Run logic validation BEFORE LogicGPT call
-        console.log("\n🔍 RUNNING LOGIC VALIDATION BEFORE LOGICGPT CALL");
-        console.log("──────────────────────────────────────────────────────────────");
-        
-        let logicErrors = "";
-        
-        try {
-            console.log("🔧 DEBUG: About to call getLogicErrorsForPrompt function...");
-            console.log("🔧 DEBUG: Function available?", typeof getLogicErrorsForPrompt);
-            
-            // Convert responseArray to string for logic validation
-            let codestringsForValidation = "";
-            if (Array.isArray(responseArray)) {
-                codestringsForValidation = responseArray.join("\n");
-            } else {
-                codestringsForValidation = String(responseArray);
-            }
-            
-            console.log("🔧 DEBUG: Codestrings prepared for validation (length):", codestringsForValidation.length);
-            console.log("🔧 DEBUG: Sample codestrings:", codestringsForValidation.substring(0, 200) + "...");
-            
-            // Get logic errors formatted for prompt inclusion
-            console.log("🔧 DEBUG: Calling getLogicErrorsForPrompt now...");
-            logicErrors = await getLogicErrorsForPrompt(codestringsForValidation);
-            console.log("🔧 DEBUG: getLogicErrorsForPrompt completed successfully");
-            console.log("🔧 DEBUG: Logic errors result type:", typeof logicErrors);
-            console.log("🔧 DEBUG: Logic errors length:", logicErrors ? logicErrors.length : 0);
-            
-            if (logicErrors && logicErrors.trim() !== "") {
-                console.log("⚠️  Logic errors detected - will be included in LogicGPT prompt");
-                console.log("🔧 DEBUG: First 200 chars of logic errors:", logicErrors.substring(0, 200));
-            } else {
-                console.log("✅ No logic errors detected - proceeding with normal LogicGPT call");
-            }
-            
-        } catch (validationError) {
-            console.error("❌ ERROR during logic validation:", validationError);
-            console.error("❌ Error stack:", validationError.stack);
-            console.log("🔧 DEBUG: Continuing with LogicGPT without validation errors...");
-            logicErrors = ""; // Continue without errors if validation fails
+        // Convert responseArray to string for logic validation
+        let codestringsForValidation = "";
+        if (Array.isArray(responseArray)) {
+            codestringsForValidation = responseArray.join("\n");
+        } else {
+            codestringsForValidation = String(responseArray);
         }
         
-        console.log("──────────────────────────────────────────────────────────────\n");
+        console.log("Logic validation beginning for:", codestringsForValidation);
+        
+        // Get logic errors formatted for prompt inclusion
+        const logicErrors = await getLogicErrorsForPrompt(codestringsForValidation);
+        
+        if (logicErrors && logicErrors.trim() !== "") {
+            console.log("Validation errors:");
+            // Extract just the error messages from the formatted output
+            const errorLines = logicErrors.split('\n').filter(line => 
+                line.trim() && 
+                !line.includes('LOGIC VALIDATION ERRORS DETECTED') && 
+                !line.includes('Please address the following') &&
+                !line.includes('Please ensure your corrected')
+            );
+            errorLines.forEach(line => console.log(line));
+        } else {
+            console.log("No validation errors found");
+        }
 
         // >>> SIMPLE FIX: Extract clean client request from whatever we have
-        console.log("\n🔧 EXTRACTING CLEAN CLIENT REQUEST");
-        console.log("📄 What we received in global variable:");
-        console.log(originalClientPrompt);
-        console.log("────────────────────────────────────────────────────────────────");
-
         // Simple extraction: get everything after the first "Client Request:" or "Client request:" and before any training data
         let cleanClientRequest = originalClientPrompt;
         
@@ -2058,10 +1979,6 @@ export async function checkCodeStringsWithLogicChecker(responseArray) {
         if (contextStart !== -1) {
             cleanClientRequest = cleanClientRequest.substring(0, contextStart).trim();
         }
-        
-        console.log("✅ EXTRACTED clean client request:");
-        console.log(cleanClientRequest);
-        console.log("────────────────────────────────────────────────────────────────\n");
 
         // Load the LogicCheckerGPT system prompt
         const logicCheckerSystemPrompt = await getSystemPromptFromFile('LogicCheckerGPT');
@@ -2083,9 +2000,6 @@ export async function checkCodeStringsWithLogicChecker(responseArray) {
         // >>> ADDED: Append logic errors to LogicGPT prompt if any were found
         if (logicErrors && logicErrors.trim() !== "") {
             logicCheckerInput += logicErrors; // logicErrors already includes proper formatting and line breaks
-            console.log("📋 Logic errors appended to LogicGPT prompt for targeted correction");
-            console.log("🎯 Enhanced LogicGPT prompt preview (last 300 chars):");
-            console.log("..." + logicCheckerInput.slice(-300));
         }
 
         if (DEBUG) {
