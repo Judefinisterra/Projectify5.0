@@ -386,18 +386,10 @@ async function handleSend() {
             throw new Error("Failed to get valid database results");
         }
         
-        // Import and use the consolidated training data function from AIcalls.js
-        const consolidatedTrainingData = consolidateAndDeduplicateTrainingData(dbResults);
-        
-        // Format individual queries with context only (training data will be consolidated)
-        const queryContextResults = dbResults.map(result => {
-            if (!result) return "No results found for a query";
-            return `Query: ${result.query || 'No query'}\n` +
-                   `Context:\n${(result.call2Context || []).join('\n')}\n` +
-                   `---\n`;
-        }).join('\n');
+        // Import and use the consolidated training data and context function from AIcalls.js
+        const consolidatedData = consolidateAndDeduplicateTrainingData(dbResults);
 
-        const enhancedPrompt = `Client Request: ${userInput}\n\n${consolidatedTrainingData}\n\nQuery Context Results:\n${queryContextResults}`;
+        const enhancedPrompt = `Client Request: ${userInput}\n\n${consolidatedData}`;
         console.log("Enhanced prompt created");
         console.log("Enhanced prompt:", enhancedPrompt);
 

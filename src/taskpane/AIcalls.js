@@ -842,63 +842,126 @@ export function deduplicateTrainingData(results) {
     return results;
 }
 
-// >>> ADDED: Function to consolidate and deduplicate training data across ALL queries
+// >>> ADDED: Helper function to format code strings in training entry output
+function formatCodeStringsInTrainingEntry(trainingEntry) {
+    if (!trainingEntry || typeof trainingEntry !== 'string') {
+        return trainingEntry;
+    }
+
+    // Find the "Output:" portion
+    const outputMatch = trainingEntry.search(/\bOutput:\s*/i);
+    if (outputMatch === -1) {
+        // No "Output:" found, return as is
+        return trainingEntry;
+    }
+
+    // Split into input and output portions
+    const inputPortion = trainingEntry.substring(0, outputMatch + trainingEntry.match(/\bOutput:\s*/i)[0].length);
+    const outputPortion = trainingEntry.substring(outputMatch + trainingEntry.match(/\bOutput:\s*/i)[0].length);
+
+    // Add line breaks between code strings (< and >) in the output portion
+    // This regex finds code strings like <BR;...>, <LABELH1;...>, etc.
+    const formattedOutput = outputPortion.replace(/></g, '>\n<');
+
+    return inputPortion + formattedOutput;
+}
+
+// >>> ADDED: Function to consolidate and deduplicate training data and context across ALL queries
 export function consolidateAndDeduplicateTrainingData(results) {
-    if (DEBUG) console.log("Starting global training data consolidation and deduplication...");
+    if (DEBUG) console.log("Starting global training data and context consolidation and deduplication...");
     
     const allTrainingData = [];
-    const seenInputs = new Set(); // Track unique input portions
-    let totalOriginalCount = 0;
-    let duplicatesRemoved = 0;
+    const allContextData = [];
+    const seenTrainingInputs = new Set(); // Track unique training input portions
+    const seenContextData = new Set(); // Track unique context entries
+    let totalOriginalTrainingCount = 0;
+    let totalOriginalContextCount = 0;
+    let trainingDuplicatesRemoved = 0;
+    let contextDuplicatesRemoved = 0;
 
-    // Collect all training data from all results
+    // Collect all training data and context data from all results
     results.forEach((result, resultIndex) => {
-        if (!result.trainingData || !Array.isArray(result.trainingData)) {
-            return;
+        // Process training data
+        if (result.trainingData && Array.isArray(result.trainingData)) {
+            totalOriginalTrainingCount += result.trainingData.length;
+
+            result.trainingData.forEach((trainingEntry, entryIndex) => {
+                // Extract the input portion (before code strings)
+                const inputPortion = extractInputPortion(trainingEntry);
+                
+                if (!inputPortion) {
+                    // If we can't extract input portion, keep the original but mark it as processed
+                    allTrainingData.push(trainingEntry);
+                    return;
+                }
+
+                // Check if we've seen this input before
+                if (seenTrainingInputs.has(inputPortion)) {
+                    // This is a duplicate, skip it
+                    trainingDuplicatesRemoved++;
+                    if (DEBUG) {
+                        console.log(`Skipping duplicate training data: "${inputPortion.substring(0, 50)}..."`);
+                    }
+                } else {
+                    // First occurrence, add it and mark as seen
+                    seenTrainingInputs.add(inputPortion);
+                    allTrainingData.push(trainingEntry);
+                }
+            });
         }
 
-        totalOriginalCount += result.trainingData.length;
+        // Process context data
+        if (result.call2Context && Array.isArray(result.call2Context)) {
+            totalOriginalContextCount += result.call2Context.length;
 
-        result.trainingData.forEach((trainingEntry, entryIndex) => {
-            // Extract the input portion (before code strings)
-            const inputPortion = extractInputPortion(trainingEntry);
-            
-            if (!inputPortion) {
-                // If we can't extract input portion, keep the original but mark it as processed
-                allTrainingData.push(trainingEntry);
-                return;
-            }
-
-            // Check if we've seen this input before
-            if (seenInputs.has(inputPortion)) {
-                // This is a duplicate, skip it
-                duplicatesRemoved++;
-                if (DEBUG) {
-                    console.log(`Skipping duplicate training data: "${inputPortion.substring(0, 50)}..."`);
+            result.call2Context.forEach((contextEntry, entryIndex) => {
+                // For context, use the full entry as the unique identifier
+                const contextKey = contextEntry.trim();
+                
+                if (contextKey && !seenContextData.has(contextKey)) {
+                    seenContextData.add(contextKey);
+                    allContextData.push(contextEntry);
+                } else if (contextKey) {
+                    contextDuplicatesRemoved++;
+                    if (DEBUG) {
+                        console.log(`Skipping duplicate context data: "${contextKey.substring(0, 50)}..."`);
+                    }
                 }
-            } else {
-                // First occurrence, add it and mark as seen
-                seenInputs.add(inputPortion);
-                allTrainingData.push(trainingEntry);
-            }
-        });
+            });
+        }
     });
 
-    // Format the consolidated training data in the requested structure
-    let formattedTrainingData = "Training Data:\n****\n";
+    // Format the consolidated context data first
+    let formattedOutput = "";
+    if (allContextData.length > 0) {
+        formattedOutput += "Client request-specific Context:\n****\n";
+        
+        allContextData.forEach((contextEntry, index) => {
+            formattedOutput += `Context item ${index + 1}) ${contextEntry}\n***\n`;
+        });
+        formattedOutput += "\n";
+    }
+
+    // Format the consolidated training data
+    formattedOutput += "Training Data:\n****\n";
     
     allTrainingData.forEach((trainingEntry, index) => {
-        formattedTrainingData += `Input/output set ${index + 1}) ${trainingEntry}\n***\n`;
+        // Process the training entry to add line breaks between code strings in output
+        const processedEntry = formatCodeStringsInTrainingEntry(trainingEntry);
+        formattedOutput += `Input/output set ${index + 1}) ${processedEntry}\n***\n`;
     });
 
     if (DEBUG) {
-        console.log("Global training data consolidation completed:");
-        console.log(`  Total entries before: ${totalOriginalCount}`);
-        console.log(`  Unique entries after: ${allTrainingData.length}`);
-        console.log(`  Duplicates removed: ${duplicatesRemoved}`);
+        console.log("Global training data and context consolidation completed:");
+        console.log(`  Training data entries before: ${totalOriginalTrainingCount}`);
+        console.log(`  Training data unique entries after: ${allTrainingData.length}`);
+        console.log(`  Training data duplicates removed: ${trainingDuplicatesRemoved}`);
+        console.log(`  Context entries before: ${totalOriginalContextCount}`);
+        console.log(`  Context unique entries after: ${allContextData.length}`);
+        console.log(`  Context duplicates removed: ${contextDuplicatesRemoved}`);
     }
 
-    return formattedTrainingData;
+    return formattedOutput;
 }
 
 // >>> ADDED: Helper function to extract input portion from training data entry
@@ -910,10 +973,9 @@ function extractInputPortion(trainingEntry) {
     // First try to find "Output:" which typically precedes code strings in training data
     const outputMatch = trainingEntry.search(/\bOutput:\s*/i);
     if (outputMatch !== -1) {
-        // Extract everything before "Output:"
+        // Extract everything before "Output:" and preserve full input including trailing punctuation
         const inputPortion = trainingEntry.substring(0, outputMatch).trim();
-        // Clean up trailing periods, commas, etc.
-        return inputPortion.replace(/[.,\s]*$/, '').trim();
+        return inputPortion;
     }
 
     // Fallback: Look for common code string patterns in your training data
@@ -952,11 +1014,11 @@ function extractInputPortion(trainingEntry) {
         return trainingEntry.trim();
     }
 
-    // Extract everything before the first code pattern
+    // Extract everything before the first code pattern and preserve full input
     const inputPortion = trainingEntry.substring(0, splitIndex).trim();
     
-    // Clean up common trailing characters that might indicate start of code
-    return inputPortion.replace(/[.,\s]*$/, '').trim();
+    // Return the full input portion without removing trailing punctuation
+    return inputPortion;
 }
 
 // Function: Query Vector Database using Pinecone REST API
@@ -1141,7 +1203,7 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
     // These calls internally use createEmbedding (OpenAI key) and query (Pinecone key)
     const trainingdataCall2 = await queryVectorDB({
         queryPrompt: clientprompt,
-        similarityThreshold: .4,
+        similarityThreshold: .6,
         indexName: 'call2trainingdata',
         numResults: 10
     });
@@ -1612,18 +1674,10 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
             throw new Error("Failed to get valid database results from structureDatabasequeries");
         }
 
-        // 2. Format database results into an enhanced prompt with consolidated training data
-        const consolidatedTrainingData = consolidateAndDeduplicateTrainingData(dbResults);
-        
-        // Format individual queries with context only (training data will be consolidated)
-        const queryContextResults = dbResults.map(result => {
-            if (!result) return "No results found for a query";
-            return `Query: ${result.query || 'No query'}\n` +
-                   `Context:\n${(result.call2Context || []).join('\n')}\n` +
-                   `---\n`;
-        }).join('\n');
+        // 2. Format database results into an enhanced prompt with consolidated training data and context
+        const consolidatedData = consolidateAndDeduplicateTrainingData(dbResults);
 
-        const enhancedPrompt = `Client request: ${userInputString}\n\n${consolidatedTrainingData}\n\nQuery Context Results:\n${queryContextResults}`;
+        const enhancedPrompt = `Client request: ${userInputString}\n\n${consolidatedData}`;
         if (DEBUG) console.log("[getAICallsProcessedResponse] Enhanced prompt created:", enhancedPrompt.substring(0, 200) + "...");
 
         // 3. Call the AI using processPrompt (to avoid main history side effects of handleConversation)
