@@ -1703,17 +1703,22 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         });
         if (DEBUG) console.log("[getAICallsProcessedResponse] processPrompt completed. Response:", responseArray);
 
-        // 4. Format the response using FormatGPT
+        // 4. Check the response using LogicCheckerGPT
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Checking response with LogicCheckerGPT...");
+        responseArray = await checkCodeStringsWithLogicChecker(userInputString, responseArray);
+        if (DEBUG) console.log("[getAICallsProcessedResponse] LogicCheckerGPT checking completed");
+
+        // 5. Format the response using FormatGPT
         if (DEBUG) console.log("[getAICallsProcessedResponse] Formatting response with FormatGPT...");
         responseArray = await formatCodeStringsWithGPT(responseArray);
         if (DEBUG) console.log("[getAICallsProcessedResponse] FormatGPT formatting completed");
 
-        // 5. Validate the formatted response
+        // 6. Validate the formatted response
         if (DEBUG) console.log("[getAICallsProcessedResponse] Validating formatted response array...");
         const validationErrors = await validateCodeStrings(responseArray);
         if (DEBUG) console.log("[getAICallsProcessedResponse] Validation completed. Errors:", validationErrors);
 
-        // 6. Perform validation correction if needed
+        // 7. Perform validation correction if needed
         if (validationErrors && validationErrors.length > 0) {
             if (DEBUG) console.log("[getAICallsProcessedResponse] Validation errors found. Performing correction...");
             responseArray = await validationCorrection(userInputString, responseArray, validationErrors);
@@ -1768,6 +1773,64 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
 //         }
 //     }
 // }
+
+// >>> ADDED: LogicCheckerGPT function to check codestrings after encoder main step
+export async function checkCodeStringsWithLogicChecker(originalClientPrompt, responseArray) {
+    if (DEBUG) console.log("[checkCodeStringsWithLogicChecker] Processing codestrings for logic checking...");
+
+    try {
+        // Ensure API keys are available
+        if (!INTERNAL_API_KEYS.OPENAI_API_KEY) {
+            throw new Error("OpenAI API key not initialized for LogicCheckerGPT checking.");
+        }
+
+        // Load the LogicCheckerGPT system prompt
+        const logicCheckerSystemPrompt = await getSystemPromptFromFile('LogicCheckerGPT');
+        if (!logicCheckerSystemPrompt) {
+            throw new Error("Failed to load LogicCheckerGPT system prompt");
+        }
+
+        // Convert responseArray to string for processing
+        let codestringsInput = "";
+        if (Array.isArray(responseArray)) {
+            codestringsInput = responseArray.join("\n");
+        } else {
+            codestringsInput = String(responseArray);
+        }
+
+        // Create the main message with original client prompt + completed codestrings
+        const logicCheckerInput = `Original Client Request: ${originalClientPrompt}\n\nCompleted Codestrings to Check:\n${codestringsInput}`;
+
+        if (DEBUG) {
+            console.log("[checkCodeStringsWithLogicChecker] Original client prompt:", originalClientPrompt.substring(0, 100) + "...");
+            console.log("[checkCodeStringsWithLogicChecker] Input codestrings:", codestringsInput.substring(0, 200) + "...");
+            console.log("[checkCodeStringsWithLogicChecker] Using LogicCheckerGPT system prompt");
+        }
+
+        // Call processPrompt with LogicCheckerGPT system prompt
+        const checkedResponseArray = await processPrompt({
+            userInput: logicCheckerInput,
+            systemPrompt: logicCheckerSystemPrompt,
+            model: GPT41, // Using same model as other calls
+            temperature: 0.3, // Lower temperature for logic checking consistency
+            history: [], // No history needed for logic checking
+            promptFiles: { system: 'LogicCheckerGPT' }
+        });
+
+        if (DEBUG) {
+            console.log("[checkCodeStringsWithLogicChecker] LogicCheckerGPT processing completed");
+            console.log("[checkCodeStringsWithLogicChecker] Checked output:", checkedResponseArray);
+        }
+
+        return checkedResponseArray;
+
+    } catch (error) {
+        console.error("[checkCodeStringsWithLogicChecker] Error during LogicCheckerGPT processing:", error);
+        // Return original response on error to avoid breaking the flow
+        console.warn("[checkCodeStringsWithLogicChecker] Returning original response due to logic checking error");
+        return responseArray;
+    }
+}
 
 // >>> ADDED: FormatGPT function to format codestrings after initial encoder call
 export async function formatCodeStringsWithGPT(responseArray) {
