@@ -221,6 +221,7 @@ const GPT41 = "gpt-4.1"
 const GPT45_TURBO = "gpt-4.5-turbo"
 const GPT35_TURBO = "gpt-3.5-turbo"
 const GPT4_TURBO = "gpt-4-turbo"
+const GPTO3 = "gpt-o3"
 const GPTFT1 =  "ft:gpt-4.1-2025-04-14:personal:jun25gpt4-1:BeyDTNt1"
 
 // Conversation history storage
@@ -322,7 +323,7 @@ export async function* callOpenAI(messages, options = {}) {
     });
     
     console.log("\n╔════════════════════════════════════════════════════════════════╗");
-    console.log("║                  END OF OPENAI API CALL                        ║");
+    console.log(`║              END OF ${callName.toUpperCase()} CALL${' '.repeat(Math.max(0, 25 - callName.length))}║`);
     console.log("╚════════════════════════════════════════════════════════════════╝\n");
     // <<< END ADDED
 
@@ -596,14 +597,14 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
 
       if (DEBUG) console.log("Got system prompt, processing query strings");
       // processPrompt expects history, pass empty array if none applicable here
-      const queryStrings = await processPrompt({
-          userInput: clientprompt,
-          systemPrompt: systemStructurePrompt,
-          model: GPT41,
-          temperature: 1,
-          history: [], // Explicitly empty
-          promptFiles: { system: 'Structure_System' }
-      });
+              const queryStrings = await processPrompt({
+            userInput: clientprompt,
+            systemPrompt: systemStructurePrompt,
+            model: GPT41,
+            temperature: 1,
+            history: [], // Explicitly empty
+            promptFiles: { system: 'Structure_System' }
+        });
 
       // >>> ADDED: Console log the full response array from Prompt Breakup call
       console.log("\n╔════════════════════════════════════════════════════════════════╗");
@@ -1238,14 +1239,14 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
                 // //    `Relevant Code Options: ${safeJsonForPrompt(codeOptions, true)}`;
 
     // Call the LLM (processPrompt uses OpenAI key internally)
-    const responseArray = await processPrompt({
-        userInput: followUpPrompt,
-        systemPrompt: systemPrompt,
-        model: GPT41,
-        temperature: 1,
-        history: currentHistory, // Pass the existing history
-        promptFiles: { system: 'Followup_System', main: 'Encoder_Main' }
-    });
+            const responseArray = await processPrompt({
+            userInput: followUpPrompt,
+            systemPrompt: systemPrompt,
+            model: GPT41,
+            temperature: 1,
+            history: currentHistory, // Pass the existing history
+            promptFiles: { system: 'Followup_System', main: 'Encoder_Main' }
+        });
   
     // Update history (create new array, don't modify inplace)
     const updatedHistory = [
@@ -1291,14 +1292,14 @@ export async function handleInitialConversation(clientprompt) {
                            `Main Prompt: ${mainPromptText}`;
 
     // Call the LLM (processPrompt uses OpenAI key internally)
-    const outputArray = await processPrompt({
-        userInput: initialCallPrompt,
-        systemPrompt: systemPrompt,
-        model: GPT41,
-        temperature: 1,
-        history: [], // No history for initial call
-        promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
-    });
+            const outputArray = await processPrompt({
+            userInput: initialCallPrompt,
+            systemPrompt: systemPrompt,
+            model: GPT41,
+            temperature: 1,
+            history: [], // No history for initial call
+            promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
+        });
 
     // Create the initial history
     const initialHistory = [
