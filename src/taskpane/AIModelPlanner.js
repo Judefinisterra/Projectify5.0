@@ -211,30 +211,55 @@ async function* callOpenAIForModelPlanner(messages, options = {}) {
       console.log("AIModelPlanner - OpenAI API response received (stream)");
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
+      let buffer = ""; // Buffer to accumulate incomplete chunks
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) {
           console.log("AIModelPlanner - Stream finished.");
+          // Process any remaining buffer content
+          if (buffer.trim()) {
+            const finalLines = buffer.split("\n");
+            for (const line of finalLines) {
+              const cleanedLine = line.replace(/^data: /, "").trim();
+              if (cleanedLine && cleanedLine !== "[DONE]") {
+                try {
+                  const parsedLine = JSON.parse(cleanedLine);
+                  yield parsedLine;
+                } catch (e) {
+                  console.warn("AIModelPlanner - Could not parse final JSON line from stream:", cleanedLine, e);
+                }
+              }
+            }
+          }
           break;
         }
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-        const parsedLines = lines
-          .map((line) => line.replace(/^data: /, "").trim())
-          .filter((line) => line !== "" && line !== "[DONE]")
-          .map((line) => {
-            try {
-              return JSON.parse(line);
-            } catch (e) {
-              console.warn("AIModelPlanner - Could not parse JSON line from stream:", line, e);
-              return null;
+        
+        const chunk = decoder.decode(value, { stream: true }); // Use stream: true for proper decoding
+        buffer += chunk;
+        
+        // Split by double newlines to get complete SSE events
+        const events = buffer.split("\n\n");
+        
+        // Keep the last potentially incomplete event in the buffer
+        buffer = events.pop() || "";
+        
+        // Process complete events
+        for (const event of events) {
+          if (!event.trim()) continue;
+          
+          const lines = event.split("\n");
+          for (const line of lines) {
+            const cleanedLine = line.replace(/^data: /, "").trim();
+            if (cleanedLine && cleanedLine !== "[DONE]") {
+              try {
+                const parsedLine = JSON.parse(cleanedLine);
+                yield parsedLine;
+              } catch (e) {
+                console.warn("AIModelPlanner - Could not parse JSON line from stream:", cleanedLine, e);
+              }
             }
-          })
-          .filter(line => line !== null);
-
-        for (const parsedLine of parsedLines) {
-          yield parsedLine;
+          }
         }
       }
     } else {
