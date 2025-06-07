@@ -49,6 +49,9 @@ let codeDatabase = [];
 // >>> ADDED: Variable to track validation pass number
 let validationPassCounter = 0;
 
+// >>> ADDED: Variable to store the original clean client prompt for LogicCheckerGPT
+let originalClientPrompt = "";
+
 // >>> ADDED: Function to reset validation pass counter (call at start of new processing)
 export function resetValidationPassCounter() {
     validationPassCounter = 0;
@@ -275,6 +278,8 @@ export async function* callOpenAI(messages, options = {}) {
       callName = "Prompt Breakup";
     } else if (caller.includes("Encoder_System") || caller.includes("Followup_System")) {
       callName = "Main Encoder";
+    } else if (caller.includes("LogicCheckerGPT")) {
+      callName = "Logic Checker GPT";
     } else if (caller.includes("FormatGPT")) {
       callName = "Format GPT";
     } else if (caller.includes("Validation_System")) {
@@ -1286,6 +1291,10 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
     if (DEBUG) console.log("Processing follow-up question:", clientprompt);
     if (DEBUG) console.log("Using conversation history length:", currentHistory.length);
 
+    // >>> ADDED: Store the original clean client prompt at the very start
+    originalClientPrompt = clientprompt;
+    if (DEBUG) console.log("[handleFollowUpConversation] Stored original client prompt:", originalClientPrompt.substring(0, 100) + "...");
+
     // Ensure API keys are available
     if (!INTERNAL_API_KEYS.OPENAI_API_KEY || !INTERNAL_API_KEYS.PINECONE_API_KEY) {
         throw new Error("API keys not initialized for follow-up conversation.");
@@ -1347,9 +1356,18 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
             promptFiles: { system: 'Followup_System', main: 'Encoder_Main' }
         });
 
-    // >>> ADDED: Check the response using LogicCheckerGPT
+    // >>> ADDED: Console log the main encoder output
+    console.log("\n╔════════════════════════════════════════════════════════════════╗");
+    console.log("║                    MAIN ENCODER OUTPUT (FOLLOWUP)              ║");
+    console.log("╚════════════════════════════════════════════════════════════════╝");
+    console.log("Main Encoder Response Array:");
+    console.log(responseArray);
+    console.log("────────────────────────────────────────────────────────────────\n");
+
+    // >>> ADDED: Check the response using LogicCheckerGPT (uses global originalClientPrompt variable)
     if (DEBUG) console.log("[handleFollowUpConversation] Checking response with LogicCheckerGPT...");
-    responseArray = await checkCodeStringsWithLogicChecker(clientprompt, responseArray);
+    if (DEBUG) console.log("[handleFollowUpConversation] Using stored original client prompt for LogicCheckerGPT:", originalClientPrompt.substring(0, 100) + "...");
+    responseArray = await checkCodeStringsWithLogicChecker(responseArray);
     if (DEBUG) console.log("[handleFollowUpConversation] LogicCheckerGPT checking completed");
 
     // >>> ADDED: Format the response using FormatGPT
@@ -1365,7 +1383,8 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
     // >>> ADDED: Perform validation correction if needed
     if (validationErrors && validationErrors.length > 0) {
         if (DEBUG) console.log("[handleFollowUpConversation] Validation errors found. Performing correction...");
-        responseArray = await validationCorrection(clientprompt, responseArray, validationErrors);
+        if (DEBUG) console.log("[handleFollowUpConversation] Using stored original client prompt for validation correction:", originalClientPrompt.substring(0, 100) + "...");
+        responseArray = await validationCorrection(originalClientPrompt, responseArray, validationErrors);
         if (DEBUG) console.log("[handleFollowUpConversation] Validation correction completed. Corrected response:", responseArray);
     }
   
@@ -1391,6 +1410,10 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
 // Function: Handle Initial Conversation
 export async function handleInitialConversation(clientprompt) {
     if (DEBUG) console.log("Processing initial question:", clientprompt);
+
+    // >>> ADDED: Store the original clean client prompt at the very start
+    originalClientPrompt = clientprompt;
+    if (DEBUG) console.log("[handleInitialConversation] Stored original client prompt:", originalClientPrompt.substring(0, 100) + "...");
 
      // Ensure API keys are available
     if (!INTERNAL_API_KEYS.OPENAI_API_KEY) {
@@ -1422,9 +1445,18 @@ export async function handleInitialConversation(clientprompt) {
             promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
         });
 
-    // >>> ADDED: Check the response using LogicCheckerGPT
+    // >>> ADDED: Console log the main encoder output
+    console.log("\n╔════════════════════════════════════════════════════════════════╗");
+    console.log("║                    MAIN ENCODER OUTPUT                         ║");
+    console.log("╚════════════════════════════════════════════════════════════════╝");
+    console.log("Main Encoder Response Array:");
+    console.log(outputArray);
+    console.log("────────────────────────────────────────────────────────────────\n");
+
+    // >>> ADDED: Check the response using LogicCheckerGPT (uses global originalClientPrompt variable)
     if (DEBUG) console.log("[handleInitialConversation] Checking response with LogicCheckerGPT...");
-    outputArray = await checkCodeStringsWithLogicChecker(clientprompt, outputArray);
+    if (DEBUG) console.log("[handleInitialConversation] Using stored original client prompt for LogicCheckerGPT:", originalClientPrompt.substring(0, 100) + "...");
+    outputArray = await checkCodeStringsWithLogicChecker(outputArray);
     if (DEBUG) console.log("[handleInitialConversation] LogicCheckerGPT checking completed");
 
     // >>> ADDED: Format the response using FormatGPT
@@ -1440,7 +1472,8 @@ export async function handleInitialConversation(clientprompt) {
     // >>> ADDED: Perform validation correction if needed
     if (validationErrors && validationErrors.length > 0) {
         if (DEBUG) console.log("[handleInitialConversation] Validation errors found. Performing correction...");
-        outputArray = await validationCorrection(clientprompt, outputArray, validationErrors);
+        if (DEBUG) console.log("[handleInitialConversation] Using stored original client prompt for validation correction:", originalClientPrompt.substring(0, 100) + "...");
+        outputArray = await validationCorrection(originalClientPrompt, outputArray, validationErrors);
         if (DEBUG) console.log("[handleInitialConversation] Validation correction completed. Corrected response:", outputArray);
     }
 
@@ -1807,6 +1840,10 @@ Office.onReady(async (info) => {
 export async function getAICallsProcessedResponse(userInputString, progressCallback = null) {
     if (DEBUG) console.log("[getAICallsProcessedResponse] Processing input:", userInputString.substring(0, 100) + "...");
 
+    // >>> ADDED: Store the original clean client prompt at the very start (global variable)
+    originalClientPrompt = userInputString;
+    if (DEBUG) console.log("[getAICallsProcessedResponse] Stored original client prompt:", originalClientPrompt.substring(0, 100) + "...");
+
     // Reset validation pass counter for new processing
     resetValidationPassCounter();
 
@@ -1849,9 +1886,18 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         });
         if (DEBUG) console.log("[getAICallsProcessedResponse] processPrompt completed. Response:", responseArray);
 
-        // 4. Check the response using LogicCheckerGPT
+        // >>> ADDED: Console log the main encoder output
+        console.log("\n╔════════════════════════════════════════════════════════════════╗");
+        console.log("║              MAIN ENCODER OUTPUT (getAICallsProcessedResponse)  ║");
+        console.log("╚════════════════════════════════════════════════════════════════╝");
+        console.log("Main Encoder Response Array:");
+        console.log(responseArray);
+        console.log("────────────────────────────────────────────────────────────────\n");
+
+        // 4. Check the response using LogicCheckerGPT (uses global originalClientPrompt variable)
         if (DEBUG) console.log("[getAICallsProcessedResponse] Checking response with LogicCheckerGPT...");
-        responseArray = await checkCodeStringsWithLogicChecker(userInputString, responseArray);
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Using stored original client prompt for LogicCheckerGPT:", originalClientPrompt.substring(0, 100) + "...");
+        responseArray = await checkCodeStringsWithLogicChecker(responseArray);
         if (DEBUG) console.log("[getAICallsProcessedResponse] LogicCheckerGPT checking completed");
 
         // 5. Format the response using FormatGPT
@@ -1867,7 +1913,8 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         // 7. Perform validation correction if needed
         if (validationErrors && validationErrors.length > 0) {
             if (DEBUG) console.log("[getAICallsProcessedResponse] Validation errors found. Performing correction...");
-            responseArray = await validationCorrection(userInputString, responseArray, validationErrors);
+            if (DEBUG) console.log("[getAICallsProcessedResponse] Using stored original client prompt for validation correction:", originalClientPrompt.substring(0, 100) + "...");
+            responseArray = await validationCorrection(originalClientPrompt, responseArray, validationErrors);
             if (DEBUG) console.log("[getAICallsProcessedResponse] Validation correction completed. Corrected response:", responseArray);
         }
 
@@ -1921,7 +1968,7 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
 // }
 
 // >>> ADDED: LogicCheckerGPT function to check codestrings after encoder main step
-export async function checkCodeStringsWithLogicChecker(originalClientPrompt, responseArray) {
+export async function checkCodeStringsWithLogicChecker(responseArray) {
     if (DEBUG) console.log("[checkCodeStringsWithLogicChecker] Processing codestrings for logic checking...");
 
     try {
@@ -1929,6 +1976,28 @@ export async function checkCodeStringsWithLogicChecker(originalClientPrompt, res
         if (!INTERNAL_API_KEYS.OPENAI_API_KEY) {
             throw new Error("OpenAI API key not initialized for LogicCheckerGPT checking.");
         }
+
+        // >>> SIMPLE FIX: Extract clean client request from whatever we have
+        console.log("\n🔧 EXTRACTING CLEAN CLIENT REQUEST");
+        console.log("📄 What we received in global variable:");
+        console.log(originalClientPrompt);
+        console.log("────────────────────────────────────────────────────────────────");
+
+        // Simple extraction: get everything after the first "Client Request:" or "Client request:" and before any training data
+        let cleanClientRequest = originalClientPrompt;
+        
+        // Remove "Client Request:" prefix if it exists
+        cleanClientRequest = cleanClientRequest.replace(/^Client [Rr]equest:\s*/, '');
+        
+        // Find where training data or context starts and cut it off
+        const contextStart = cleanClientRequest.search(/\n\n(Client request-specific Context|Training Data)/i);
+        if (contextStart !== -1) {
+            cleanClientRequest = cleanClientRequest.substring(0, contextStart).trim();
+        }
+        
+        console.log("✅ EXTRACTED clean client request:");
+        console.log(cleanClientRequest);
+        console.log("────────────────────────────────────────────────────────────────\n");
 
         // Load the LogicCheckerGPT system prompt
         const logicCheckerSystemPrompt = await getSystemPromptFromFile('LogicCheckerGPT');
@@ -1944,11 +2013,11 @@ export async function checkCodeStringsWithLogicChecker(originalClientPrompt, res
             codestringsInput = String(responseArray);
         }
 
-        // Create the main message with original client prompt + completed codestrings
-        const logicCheckerInput = `Original Client Request: ${originalClientPrompt}\n\nCompleted Codestrings to Check:\n${codestringsInput}`;
+        // Create the main message with ONLY the clean client request + completed codestrings
+        const logicCheckerInput = `Original Client Request: ${cleanClientRequest}\n\nCompleted Codestrings to Check:\n${codestringsInput}`;
 
         if (DEBUG) {
-            console.log("[checkCodeStringsWithLogicChecker] Original client prompt:", originalClientPrompt.substring(0, 100) + "...");
+            console.log("[checkCodeStringsWithLogicChecker] Final clean client request being sent:", cleanClientRequest.substring(0, 100) + "...");
             console.log("[checkCodeStringsWithLogicChecker] Input codestrings:", codestringsInput.substring(0, 200) + "...");
             console.log("[checkCodeStringsWithLogicChecker] Using LogicCheckerGPT system prompt");
         }
