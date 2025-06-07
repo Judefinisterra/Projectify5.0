@@ -947,10 +947,6 @@ function extractCodestrings(text) {
 
 // >>> ADDED: Helper function to compare and log codestring changes
 function logCodestringComparison(beforeText, afterText, stepName) {
-    console.log(`\n╔════════════════════════════════════════════════════════════════╗`);
-    console.log(`║              ${stepName.toUpperCase().padEnd(25)} COMPARISON ║`);
-    console.log(`╚════════════════════════════════════════════════════════════════╝`);
-    
     // Convert arrays to strings if needed
     const beforeStr = Array.isArray(beforeText) ? beforeText.join('\n') : String(beforeText);
     const afterStr = Array.isArray(afterText) ? afterText.join('\n') : String(afterText);
@@ -958,79 +954,26 @@ function logCodestringComparison(beforeText, afterText, stepName) {
     const beforeCodestrings = extractCodestrings(beforeStr);
     const afterCodestrings = extractCodestrings(afterStr);
     
-    console.log(`📊 BEFORE ${stepName}: ${beforeCodestrings.length} codestrings found`);
-    console.log(`📊 AFTER ${stepName}: ${afterCodestrings.length} codestrings found`);
+    // Create sets for easier comparison
+    const beforeSet = new Set(beforeCodestrings);
+    const afterSet = new Set(afterCodestrings);
     
-    // Create maps for easier comparison
-    const beforeMap = new Map();
-    const afterMap = new Map();
+    // Find all unique codestrings (exists in one set but not both)
+    const uniqueCodestrings = new Set([
+        ...beforeCodestrings.filter(code => !afterSet.has(code)),
+        ...afterCodestrings.filter(code => !beforeSet.has(code))
+    ]);
     
-    beforeCodestrings.forEach((code, index) => {
-        beforeMap.set(code, index);
-    });
-    
-    afterCodestrings.forEach((code, index) => {
-        afterMap.set(code, index);
-    });
-    
-    // Find added codestrings
-    const addedCodestrings = afterCodestrings.filter(code => !beforeMap.has(code));
-    
-    // Find removed codestrings
-    const removedCodestrings = beforeCodestrings.filter(code => !afterMap.has(code));
-    
-    // Find unchanged codestrings
-    const unchangedCodestrings = beforeCodestrings.filter(code => afterMap.has(code));
-    
-    // Log summary
-    console.log(`\n📈 CHANGES SUMMARY:`);
-    console.log(`   • Unchanged: ${unchangedCodestrings.length} codestrings`);
-    console.log(`   • Added: ${addedCodestrings.length} codestrings`);
-    console.log(`   • Removed: ${removedCodestrings.length} codestrings`);
-    
-    // Log added codestrings
-    if (addedCodestrings.length > 0) {
-        console.log(`\n✅ ADDED CODESTRINGS (${addedCodestrings.length}):`);
-        addedCodestrings.forEach((code, index) => {
+    // Only log if there are differences
+    if (uniqueCodestrings.size > 0) {
+        console.log(`\n📊 ${stepName} - Different codestrings (${uniqueCodestrings.size}):`);
+        Array.from(uniqueCodestrings).forEach((code, index) => {
             console.log(`   ${index + 1}. ${code}`);
         });
+        console.log(''); // Add spacing
+    } else {
+        console.log(`✨ ${stepName}: No changes detected`);
     }
-    
-    // Log removed codestrings
-    if (removedCodestrings.length > 0) {
-        console.log(`\n❌ REMOVED CODESTRINGS (${removedCodestrings.length}):`);
-        removedCodestrings.forEach((code, index) => {
-            console.log(`   ${index + 1}. ${code}`);
-        });
-    }
-    
-    // Look for potential modifications (similar codestrings with small changes)
-    if (addedCodestrings.length > 0 && removedCodestrings.length > 0) {
-        console.log(`\n🔄 POTENTIAL MODIFICATIONS:`);
-        
-        for (const removedCode of removedCodestrings) {
-            for (const addedCode of addedCodestrings) {
-                // Extract the code name portion (everything before the first semicolon)
-                const removedCodeName = removedCode.split(';')[0];
-                const addedCodeName = addedCode.split(';')[0];
-                
-                // If they have the same code name, they might be modifications
-                if (removedCodeName === addedCodeName && removedCode !== addedCode) {
-                    console.log(`   🔄 MODIFIED: ${removedCodeName}`);
-                    console.log(`      BEFORE: ${removedCode}`);
-                    console.log(`      AFTER:  ${addedCode}`);
-                    console.log(`   ────────────────────────────────────────────────────────────────`);
-                }
-            }
-        }
-    }
-    
-    // If no changes detected
-    if (addedCodestrings.length === 0 && removedCodestrings.length === 0) {
-        console.log(`\n✨ NO CHANGES DETECTED - All codestrings remained identical`);
-    }
-    
-    console.log(`\n╚════════════════════════════════════════════════════════════════╝\n`);
 }
 
 // >>> ADDED: Helper function to extract input portion from training data entry
