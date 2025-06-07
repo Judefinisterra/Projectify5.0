@@ -64,4 +64,3 @@ Examples: Look at the parameters and structure of the following codes, which hav
 <CONST-E; indent="2"; format="Volume"; row1="V4|# Primary Unit Sold per Employee|||||2.5|2.5|2.5|2.5|2.5|2.5|";>
 <FORMULA-S; customformula="rd{V1}/rd{V4}"; indent="1"; bold="True"; topborder="True"; format="Volume"; sumif="year"; row1 = "V5|# of Employees|||||F|F|F|F|F|F|";>
 
-
