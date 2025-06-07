@@ -21,6 +21,8 @@ import { generateTabString } from './IndexWorksheet.js';
 import { handleAIModelPlannerConversation, resetAIModelPlannerConversation, setAIModelPlannerOpenApiKey, plannerHandleSend, plannerHandleReset, plannerHandleWriteToExcel, plannerHandleInsertToEditor } from './AIModelPlanner.js';
 // >>> ADDED: Import logic validation functions  
 import { getLogicErrorsForPrompt, getLogicErrors, hasLogicErrors } from './CodeCollection.js';
+// >>> ADDED: Import format validation functions  
+import { getFormatErrorsForPrompt, getFormatErrors, hasFormatErrors } from './CodeCollection.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -2047,6 +2049,34 @@ export async function formatCodeStringsWithGPT(responseArray) {
             throw new Error("OpenAI API key not initialized for FormatGPT formatting.");
         }
 
+        // >>> ADDED: Run format validation BEFORE FormatGPT call
+        // Convert responseArray to string for format validation
+        let codestringsForValidation = "";
+        if (Array.isArray(responseArray)) {
+            codestringsForValidation = responseArray.join("\n");
+        } else {
+            codestringsForValidation = String(responseArray);
+        }
+        
+        console.log("Format validation beginning for:", codestringsForValidation);
+        
+        // Get format errors formatted for prompt inclusion
+        const formatErrors = await getFormatErrorsForPrompt(codestringsForValidation);
+        
+        if (formatErrors && formatErrors.trim() !== "") {
+            console.log("Format validation errors:");
+            // Extract just the error messages from the formatted output
+            const errorLines = formatErrors.split('\n').filter(line => 
+                line.trim() && 
+                !line.includes('FORMAT VALIDATION ERRORS DETECTED') && 
+                !line.includes('Please address the following') &&
+                !line.includes('Please ensure your corrected')
+            );
+            errorLines.forEach(line => console.log(line));
+        } else {
+            console.log("No format validation errors found");
+        }
+
         // Load the FormatGPT system prompt
         const formatSystemPrompt = await getSystemPromptFromFile('FormatGPT');
         if (!formatSystemPrompt) {
@@ -2061,14 +2091,23 @@ export async function formatCodeStringsWithGPT(responseArray) {
             codestringsInput = String(responseArray);
         }
 
+        // Create the main message with codestrings + format errors (if any)
+        let formatInput = `Codestrings to Format:\n${codestringsInput}`;
+        
+        // >>> ADDED: Append format errors to FormatGPT prompt if any were found
+        if (formatErrors && formatErrors.trim() !== "") {
+            formatInput += formatErrors; // formatErrors already includes proper formatting and line breaks
+        }
+
         if (DEBUG) {
             console.log("[formatCodeStringsWithGPT] Input codestrings:", codestringsInput.substring(0, 200) + "...");
+            console.log("[formatCodeStringsWithGPT] Format errors included in prompt:", formatErrors ? "YES" : "NO");
             console.log("[formatCodeStringsWithGPT] Using FormatGPT system prompt");
         }
 
-        // Call processPrompt with FormatGPT system prompt
+        // Call processPrompt with FormatGPT system prompt and enhanced input
         const formattedResponseArray = await processPrompt({
-            userInput: codestringsInput,
+            userInput: formatInput,
             systemPrompt: formatSystemPrompt,
             model: GPT41, // Using same model as other calls
             temperature: 0.3, // Lower temperature for formatting consistency

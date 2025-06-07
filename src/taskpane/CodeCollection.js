@@ -7,6 +7,8 @@ import { convertKeysToCamelCase } from "@pinecone-database/pinecone/dist/utils";
 
 // >>> ADDED: Import the logic validation function
 import { validateLogicOnly } from './Validation.js';
+// >>> ADDED: Import the format validation function
+import { validateFormatErrors } from './ValidationFormat.js';
 
 /*
  * LOGIC VALIDATION INTEGRATION GUIDE
@@ -43,6 +45,39 @@ import { validateLogicOnly } from './Validation.js';
  * 
  * NOTE: This validation focuses on LOGIC errors only (LERR codes), not format errors (FERR codes).
  * Format validation is handled separately in the full validation system.
+ */
+
+/*
+ * FORMAT VALIDATION INTEGRATION GUIDE
+ * 
+ * This module provides format validation functions to detect errors before FormatGPT API calls.
+ * The format validation checks for:
+ * - LABELH1/H2/H3 column formatting rules
+ * - Indent and bold parameter requirements
+ * - Adjacent code formatting conflicts
+ * - BR code adjacency rules
+ * - Total row formatting requirements
+ * 
+ * INTEGRATION WORKFLOW:
+ * 
+ * 1. Basic Usage (Formatted for GPT prompt):
+ *    const formatErrors = await getFormatErrorsForPrompt(inputCodeStrings);
+ *    const enhancedPrompt = originalPrompt + formatErrors;
+ *    // Call FormatGPT API with enhancedPrompt
+ * 
+ * 2. Conditional Processing:
+ *    if (await hasFormatErrors(inputCodeStrings)) {
+ *        const formatErrors = await getFormatErrorsForPrompt(inputCodeStrings);
+ *        // Include errors in FormatGPT prompt
+ *    } else {
+ *        // Proceed with normal FormatGPT call
+ *    }
+ * 
+ * 3. Custom Error Processing:
+ *    const rawErrors = await getFormatErrors(inputCodeStrings);
+ *    // Process errors as needed for custom formatting
+ * 
+ * NOTE: This validation focuses on FORMAT errors only (FERR codes), not logic errors (LERR codes).
  */
 
 // <<< END ADDED
@@ -142,6 +177,106 @@ export async function hasLogicErrors(inputText) {
         return hasErrors;
     } catch (error) {
         console.error("[CodeCollection] ❌ Error checking for logic errors:", error);
+        console.log("[CodeCollection] Assuming errors exist due to validation failure");
+        return true; // Assume errors exist if validation fails
+    }
+}
+
+/**
+ * Runs format validation on input text and returns formatted errors for FormatGPT prompt inclusion
+ * @param {string} inputText - The input text containing code strings
+ * @returns {Promise<string>} - Formatted format errors string for prompt inclusion
+ * 
+ * USAGE EXAMPLE:
+ * // Before making FormatGPT API call:
+ * const formatErrors = await getFormatErrorsForPrompt(inputCodeStrings);
+ * const enhancedPrompt = originalPrompt + formatErrors;
+ * // Then call FormatGPT API with enhancedPrompt
+ */
+export async function getFormatErrorsForPrompt(inputText) {
+    try {
+        console.log("╔" + "═".repeat(78) + "╗");
+        console.log("║ [CodeCollection] FORMAT VALIDATION FOR GPT PROMPT                         ║");
+        console.log("╚" + "═".repeat(78) + "╝");
+        console.log("[CodeCollection] Starting format validation for FormatGPT prompt enhancement...");
+        console.log("[CodeCollection] Input type:", typeof inputText);
+        console.log("[CodeCollection] Input size:", inputText?.length || 0, "characters");
+        
+        // Run format-only validation
+        const formatErrors = await validateFormatErrors(inputText);
+        
+        if (formatErrors.length === 0) {
+            console.log("[CodeCollection] ✅ No format errors found - prompt will not be enhanced");
+            console.log("[CodeCollection] Format validation complete - returning empty string");
+            return ""; // Return empty string if no errors
+        }
+        
+        console.log(`[CodeCollection] ⚠️  Found ${formatErrors.length} format errors to include in prompt`);
+        
+        // Format errors for GPT prompt inclusion
+        let formattedErrors = "\n\nFORMAT VALIDATION ERRORS DETECTED:\n";
+        formattedErrors += "Please address the following format errors in your response:\n\n";
+        
+        formatErrors.forEach((error, index) => {
+            formattedErrors += `${index + 1}. ${error}\n`;
+        });
+        
+        formattedErrors += "\nPlease ensure your corrected codestrings resolve these format issues.\n";
+        
+        console.log("[CodeCollection] Formatted error prompt enhancement:");
+        console.log(formattedErrors);
+        console.log("[CodeCollection] Format validation complete - returning formatted errors for prompt");
+        
+        return formattedErrors;
+        
+    } catch (error) {
+        console.error("[CodeCollection] ❌ Error during format validation:", error);
+        console.error("[CodeCollection] Returning error message for prompt inclusion");
+        return "\n\nFORMAT VALIDATION ERROR: Could not complete format validation due to technical error.\n";
+    }
+}
+
+/**
+ * Gets raw format errors array for custom processing
+ * @param {string} inputText - The input text containing code strings
+ * @returns {Promise<Array>} - Array of format error strings
+ */
+export async function getFormatErrors(inputText) {
+    try {
+        console.log("[CodeCollection] Getting raw format errors array...");
+        console.log("[CodeCollection] Input type:", typeof inputText);
+        console.log("[CodeCollection] Input size:", inputText?.length || 0, "characters");
+        
+        const errors = await validateFormatErrors(inputText);
+        
+        console.log(`[CodeCollection] Raw format validation complete - returning ${errors.length} errors`);
+        return errors;
+    } catch (error) {
+        console.error("[CodeCollection] ❌ Error getting format errors:", error);
+        const errorArray = [`Format validation error: ${error.message}`];
+        console.log("[CodeCollection] Returning error array with 1 error message");
+        return errorArray;
+    }
+}
+
+/**
+ * Checks if there are any format errors without returning details
+ * @param {string} inputText - The input text containing code strings
+ * @returns {Promise<boolean>} - True if format errors exist, false otherwise
+ */
+export async function hasFormatErrors(inputText) {
+    try {
+        console.log("[CodeCollection] Checking if format errors exist...");
+        console.log("[CodeCollection] Input type:", typeof inputText);
+        console.log("[CodeCollection] Input size:", inputText?.length || 0, "characters");
+        
+        const errors = await validateFormatErrors(inputText);
+        const hasErrors = errors.length > 0;
+        
+        console.log(`[CodeCollection] Format error check complete - result: ${hasErrors ? '❌ Has errors' : '✅ No errors'} (${errors.length} errors found)`);
+        return hasErrors;
+    } catch (error) {
+        console.error("[CodeCollection] ❌ Error checking for format errors:", error);
         console.log("[CodeCollection] Assuming errors exist due to validation failure");
         return true; // Assume errors exist if validation fails
     }
