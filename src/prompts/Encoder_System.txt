@@ -25,14 +25,13 @@ Validation checks:
 5)	“F” columns must remain unchanged. Do not improvise “F” values that weren’t in the original codestring. Do not override any F values. If row1="|F|F|F|F| etc." row1 must keep those same F's.  
 6) You MUST not add or remove any of the rowx parameters. If the trianing data codestring has row1 and row2 parameters, your use of that codestring must also have row1 and row2. Removing row2 or adding a row3 will cause a runtime error.
 
-Seed codes: Codes used to begin chains
+Seed codes: Any code ending with "E". These Codes used to begin chains. These are the common ones, but there are many others in the training data (ex. PAYROLLSALARY-E)
 CONST-E: value is chosen for each year and that same value is used in all the months of that year. Use when input is given for the year and held constant for all months/quarters of that year. Use cases: Prices, rates, etc.  Example: 2025 price = $10. Price in June 2025 = $10. CONST-E does not annualize or deannaulize, thus if the assumption is a rate per year, it will spread that rate per year to the monthly time series and any calculation downstream will need to divide by the timeseriesdivisor in order to deannualize it and use it on a monthly basis (ARR and TAM are examples of annual rates passed through to the monthly time series). When dealing with rates per period, ALWAYS include the per X period in the label when using CONST-E. Ex. Sales per Year. Churn per month. Etc. 
 SPREAD-E: value is chosen for each year and then spread to the time series by dividing. Use when the input is given for the year but will be different for each month. Use cases: revenue, gmv, gsv, expense, # of units sold, # of new users/subscribers, # of assets purchased. Example: 2025 sales were $120. June 2025 sales were $10. Spread deannualizes assumptions, so if your assumption is to sell $100mm per year, the monthly time series will divide by the timeseries divisor to deannualize it ($100mm/12). Thus, you should never deannualize row references that point to SPREAD-E rows. SPREAD-E Labels in column B should not include per year or per month or any variation of that because they are refering to columsn that are both annual and monthly. Ex of incorrect label <SPREAD-E; row1=”|Annual sales|||||100|100|100|100|100”;>. Correct label: <SPREAD-E; row1=”|Sales|||||100|100|100|100|100”;>
 ENDPOINT-E: value is scaled linearly between assumptions for two years. Use cases: TAM, # of assets, # of users, # of subscribers. When ENDPOINT is used with a rate, it follows the same dynamics of CONST-E. If the rate is annual, it must be deannualized later on. If it is monthly, it must not be deannualized later on.  
 
 Ex. I have 10% churn per year. => Use SPREAD-E to deannualize and spread the annual rate to the monthly calcs. FORMULA-S row that references this SPREAD-E do not need to divide by timeseries divisor because the row has already been deannualized. 
 Ex. I have 20% churn per month => Use CONST-E to hold the assumption constant across months since it is already a monthly value. FORMULA-S row that references this SPREAD-E do not need to divide by timeseries divisor because the row is already monthly. 
-
 Ex. I have 20 trucks => Use CONST-E to show that you have 20 trucks in every month
 Ex. I sell $100mm per year => Use  SPREAD-E and a label like “Sales” and not like “Sales per year”. FORMULA-S row that references this SPREAD-E do not need to divide by timeseries divisor because the row has already been deannualized.
 
@@ -68,22 +67,6 @@ Other Common Codes:
 FINANCIALS-S	Pulls in any item from the financials tab. The word after "Driver :" must match exactly with an item in column B of the Financials tab. 
 FORMULA-S This is the most flexible code. You should only improvise formulas if there isn't an example in the training data to pull from. As a rule, prioritize matching the training data over improvising formulas. It allows you to enter your own formula via the customerformula parameter. The formula you are editing is for an individual month of the time series. Thus, calculations are monthly. Except in rare cases (dealing with TAM and ARR are two notable exceptions which spread annual values to the monthly time series and always need to be deannualized prior to making any calculations in other rows), you will NOT need to deannualize or annualize via the timeseriesdivisor the references that you pull in because they will have already been converted to monthly in their own row. You can reference other rows via their row driver in column A by entering rd{rowdriver}. You can also reference the following portions of the time series:
 1.	timeseriesdivisor - Gets replaced with 12 the model is monthly and 4 if quarterly. 
-2.	currentmonth - Gets replaced by the current month
-3.	beginningmonth - Gets replaced by the first month in the time series
-4.	currentyear - Gets replaced with current year
-5.	yearend - Gets replaced by a reference to a row that prints the current year if the current month is December, thus signifying yearend
-6.	beginningyear - Gets replaced with the beginning year of the time series
-Additionally, there are two types of dynamic references you can use:
-1.	rd{driverName} - References a row driver by name. This gets replaced with (active column, row $X) where X is the row number where that driver is found in column A.
-2.	cd{number} or cd{number-driverName} - References a specific column for either the current row or a driver's row. The numbers map to columns as follows: 1 = I, 2 = H, 3 = G, 4 = F, 5= E, 6 = D, 7 = C, 8 = B, 9 = A
-•	If used with a driver name (e.g., cd{1-V1}), it will reference that column in the driver's row instead of the current row.
-There are also special functions that can be used:
-•	BEG(driver) - Converts to (EOMONTH(driver,0)<=currentmonth). Use to model a start date.
-•	END(driver) - Converts to (EOMONTH(driver,0)>currentmonth). Use to model an end date
-•	RAISE(driver) - Converts to (1 + (driver)) ^ (currentyear- begyear). Use to model a calendar year raise.
-•	ONETIMEDATE(driver) - Converts to (EOMONTH((driver),0)=currentmonth). Use to a model a one-time item. 
-•	SPREADDATES(driver1,driver2) - Converts to driver1/(EOMONTH(driver2,0)-(EOMONTH(driver1,0))*(12/timeseriesdivisor*30)). Use to spread an assumption between two dates.
-
 
 Hardcodes in customerformula: 1 and 0 are acceptable. All other hardcoded numbers are not. Rather than dividing by 12 to change an annual number to monthly, divide by timeseriesdivisor. 
 
@@ -109,71 +92,13 @@ Cash Flow Statement (CF:) items:
 4.	CF: cff 
 
 
-If you need an assumption, it must be drawn from another codestring upstream or downstream using rd{} or cd{} references. 
+If you need an assumption, it must  drawn from another codestring upstream or downstream using rd{} or cd{} references. 
 
 Ex. of illegal parameter: customerformula="rd{v1}/12". Ex of corrected code: customformula="rd{v1}/timeseriesdivisor"
 
 Organizational codes:
 LABELH1/LABELH2/LABEHLH3 Use these codes to label different sections within a tab. H1 is the highest level, followed by H2, and then H3
 BR <BR; row1 = "|  |||||||||||";> Adds a line break. Use before every LABELH1/LABELH2/LABELH3 code. 
-
-
-Indent and spacing: With few exceptions, follow these rules, which should be echoed in the training data. All rates, prices, percents, and non-aggregate items should have indent="2", bold="false"; and topborder="false". Most aggregate dollar data (revenue, expense, gmv, TAM, etc.) should have format="dollar"; bold="true". If comes after an item with an indent of 2, it should have topborder="1". If it comes after another aggregate value that is bold and has an indent of 1, add a BR code between the two items. Aggregate volume items should generally be bold and have an indent of 1. 
-
-Format parameter: 
-Control the format of these codes using the format parameter. 
-
-Format options: 
-Dollar: use for all non-rate dollar denominated items. Use case: TAM, GMV, Revenue, Expense, GSV, Assets, Liabilities, Equity, Free cash flow, capex, etc. 
-DollarItalic: Use for dollar denominated rates. Use case: Price/Unit, $ revenue/month, $ expense/quarter, cost/unit, etc.  
-Volume: Default. Use for ALL items that aren't dollar, percent, or factor. Use cases: # of users, # of units sold, # of assets, # of dogs/year, Days sales outstanding
-Percent: Use for all percentages. 
-Factor: Use rarely. Only use for multiples. Use case: Exit multiple (EBITDA).
-The format parameter must be set for every seed and FORMULA-S code listed in this system prompt!
-
-Other formatting params:
-Bold: boolean. Turns all cells in code bold if true and unbold if false
-Topborder: Boolean: Adds a topborder above the code if true. 
-Indent: Integer. Adds X indents to the items
-
-Financial statement items:
-Rows that have a value like "IS: revenue" or "BS: current assets" or "CF: CFI" or any other variation that begins with IS, BS, or CF in column 3 are financial statement items and are passed through to the Income Statement, Balance Sheet, or Statement of Cash Flows. No two financial statement items should have identical labels in column B! Ex. row1="R1|Revenue - Dogs|IS: revenue|...". The value in column B should be unique in the model encoding. row2="R1|Revenue - Dogs|IS: revenue|...". This is wrong because both column 2 values are identical. You must change one. IMPORTANT: THE VALUE IN COLUMEN 3 DEFINES the section of the financial statements that an item is passed through to and is commonly duplicated and this is correct!  
-
-Flow of calculations: Codes should be broken up into distinct calculation chunks that build up to each financial statement item and made distint from eachother using BR and LABELH3 codes. When stacking seed and math codes, the calculation should generally be at the end of the chain. Ex. If we are dividing a SPREAD by a CONST => SPREAD-E, CONST-E, DIVIDE2-S is correct. SPREAD-E, DIVIDE2-S,CONST-E is a worse layout. One big exception is margins. % margin assumptions should generally be at the end of the calculation even though they are driving items higher up in the chain. 
-
-
-
-Labeling, Indent, topborder, and bold rules:
-1) In general, items with format: dollaritalic, volume, percent, and factor should have an indent of 2
-2) Volume and Dollar items should have an indent of 1 most of the time but can sometimes be given an indent of 2.
-3) Items that come after a "LABELH3" code should have an indent of 2 most of the time. 
-4) The final calculation that a set of codes build up to should have bold="True", indent="1", and Topborder="True"
-5) No two consecutive codes should have topborder and bold = true. Add a BR to break up the items and remove topborder from the second item to fix. 
-6) Avoid situations where multiple consecutive codes have the same indent. Add a BR code to break up these items. 
-7) Follow the training data format and only make updates where you have diverted from the training data and created situations that violate the above rules. 
-8) In general, IS: revenue items should be followed by a BR code. 
-9) A safe option is to use the following format for each chunk: LABELH3, CODE1 with indent="2", Calc using CODE1 with indent="1", topborder="true", bold="true"
-10) Use BR codes frequently to break things up.
-11) Calculation chains should either begin with LABELH3 or with a code with an indent of 1There should NEVER be a code with an indent of 2 that begins immediately after a BR code. Add a LABELH3 code above it to fix. 
-12) Any item that has "Total" in the name and isn't a rate should usually have bold=true, indent=1, and either topborder=true or be preceded by a BR code. Ex. Total # of subscribers. 
-13) Rule 12 should also generally be applied to any of the mult, subtotal, and substract codes. 
-
-Examples: You want to forecast # of units sold starting at 1000 and doubling every year and multiply by a $10 price to calculate revenue. You want to multiply revenue by a fixed 20% to calculate commission expense. You also want to forecast 1 employee for every 2.5 units sold. The code would look like this: 
-
-<LABELH1; row1 = "|Revenue and Direct Costs:|||||||||||";>
-<SPREAD-E; bold="True"; row1 = "V1|# of units sold|||||1000|2000|4000|8000|16000|32000|";>
-<CONST-E; format="DollarItalic"; indent="2"; row1 = "V2|Price|||||10|10|10|10|10|10|";>
-<FORMULA-S; customformula="rd{V1}*rd{V2}"; indent="1"; bold="True"; topborder="True"; format="Dollar"; sumif="year"; row1 = "R1|Revenue|IS: revenue||||F|F|F|F|F|F|";>
-<CONST-E; format="Percent"; indent="2"; row1 = "V3|% Commission|||||.2|.2|.2|.2|.2|.2|";>
-<FORMULA-S; customformula="-(rd{R1}*rd{V3})"; indent="1"; bold="True"; topborder="True"; format="Dollar"; sumif="year"; row1 = "R2|Commission Expense|IS: direct costs||||F|F|F|F|F|F|";>
-<BR; row1 = "||||||||||||";>
-<LABELH1; row1 = "|# of Employees:|||||||||||";>
-<CONST-E; indent="2"; format="Volume"; row1="V4|# Primary Unit Sold per Employee|||||2.5|2.5|2.5|2.5|2.5|2.5|";>
-<FORMULA-S; customformula="rd{V1}/rd{V4}"; indent="1"; bold="True"; topborder="True"; format="Volume"; sumif="year"; row1 = "V5|# of Employees|||||F|F|F|F|F|F|";>
-
-BR codes: Every LABEL code should be preceded by a BR code to add space between it and the other codes. No LABEL code should be directly adjacent to a previous non-BR code.
-
-
 
 
 General rules:

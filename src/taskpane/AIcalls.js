@@ -842,6 +842,65 @@ export function deduplicateTrainingData(results) {
     return results;
 }
 
+// >>> ADDED: Function to consolidate and deduplicate training data across ALL queries
+export function consolidateAndDeduplicateTrainingData(results) {
+    if (DEBUG) console.log("Starting global training data consolidation and deduplication...");
+    
+    const allTrainingData = [];
+    const seenInputs = new Set(); // Track unique input portions
+    let totalOriginalCount = 0;
+    let duplicatesRemoved = 0;
+
+    // Collect all training data from all results
+    results.forEach((result, resultIndex) => {
+        if (!result.trainingData || !Array.isArray(result.trainingData)) {
+            return;
+        }
+
+        totalOriginalCount += result.trainingData.length;
+
+        result.trainingData.forEach((trainingEntry, entryIndex) => {
+            // Extract the input portion (before code strings)
+            const inputPortion = extractInputPortion(trainingEntry);
+            
+            if (!inputPortion) {
+                // If we can't extract input portion, keep the original but mark it as processed
+                allTrainingData.push(trainingEntry);
+                return;
+            }
+
+            // Check if we've seen this input before
+            if (seenInputs.has(inputPortion)) {
+                // This is a duplicate, skip it
+                duplicatesRemoved++;
+                if (DEBUG) {
+                    console.log(`Skipping duplicate training data: "${inputPortion.substring(0, 50)}..."`);
+                }
+            } else {
+                // First occurrence, add it and mark as seen
+                seenInputs.add(inputPortion);
+                allTrainingData.push(trainingEntry);
+            }
+        });
+    });
+
+    // Format the consolidated training data in the requested structure
+    let formattedTrainingData = "Training Data:\n****\n";
+    
+    allTrainingData.forEach((trainingEntry, index) => {
+        formattedTrainingData += `Input/output set ${index + 1}) ${trainingEntry}\n***\n`;
+    });
+
+    if (DEBUG) {
+        console.log("Global training data consolidation completed:");
+        console.log(`  Total entries before: ${totalOriginalCount}`);
+        console.log(`  Unique entries after: ${allTrainingData.length}`);
+        console.log(`  Duplicates removed: ${duplicatesRemoved}`);
+    }
+
+    return formattedTrainingData;
+}
+
 // >>> ADDED: Helper function to extract input portion from training data entry
 function extractInputPortion(trainingEntry) {
     if (!trainingEntry || typeof trainingEntry !== 'string') {
@@ -1553,17 +1612,18 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
             throw new Error("Failed to get valid database results from structureDatabasequeries");
         }
 
-        // 2. Format database results into an enhanced prompt
-        const plainTextResults = dbResults.map(result => {
+        // 2. Format database results into an enhanced prompt with consolidated training data
+        const consolidatedTrainingData = consolidateAndDeduplicateTrainingData(dbResults);
+        
+        // Format individual queries with context only (training data will be consolidated)
+        const queryContextResults = dbResults.map(result => {
             if (!result) return "No results found for a query";
             return `Query: ${result.query || 'No query'}\n` +
-                   `Training Data:\n${(result.trainingData || []).join('\n')}\n` +
-                //    `Code Options:\n${(result.codeOptions || []).join('\n')}\n` +
-                  `Context:\n${(result.call2Context || []).join('\n')}\n` +
+                   `Context:\n${(result.call2Context || []).join('\n')}\n` +
                    `---\n`;
         }).join('\n');
 
-        const enhancedPrompt = `Client request: ${userInputString}\n\nDatabase Results:\n${plainTextResults}`;
+        const enhancedPrompt = `Client request: ${userInputString}\n\n${consolidatedTrainingData}\n\nQuery Context Results:\n${queryContextResults}`;
         if (DEBUG) console.log("[getAICallsProcessedResponse] Enhanced prompt created:", enhancedPrompt.substring(0, 200) + "...");
 
         // 3. Call the AI using processPrompt (to avoid main history side effects of handleConversation)

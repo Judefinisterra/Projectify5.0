@@ -25,7 +25,7 @@ import { queryVectorDB } from './AIcalls.js';
 import { safeJsonForPrompt } from './AIcalls.js';
 // >>> ADDED: Import conversation handling and validation functions from AIcalls
 // Make sure handleConversation is included here
-import { handleFollowUpConversation, handleInitialConversation, handleConversation, validationCorrection, formatCodeStringsWithGPT } from './AIcalls.js';
+import { handleFollowUpConversation, handleInitialConversation, handleConversation, validationCorrection, formatCodeStringsWithGPT, consolidateAndDeduplicateTrainingData } from './AIcalls.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -386,19 +386,18 @@ async function handleSend() {
             throw new Error("Failed to get valid database results");
         }
         
-        // Format the database results into a string
-        const plainTextResults = dbResults.map(result => {
-            if (!result) return "No results found";
-            
+        // Import and use the consolidated training data function from AIcalls.js
+        const consolidatedTrainingData = consolidateAndDeduplicateTrainingData(dbResults);
+        
+        // Format individual queries with context only (training data will be consolidated)
+        const queryContextResults = dbResults.map(result => {
+            if (!result) return "No results found for a query";
             return `Query: ${result.query || 'No query'}\n` +
-                   `Training Data:\n${(result.trainingData || []).join('\n')}\n` +
-                   `Code Options:\n${(result.codeOptions || []).join('\n')}\n` +
-                   `Code Choosing Context:\n${(result.call1Context || []).join('\n')}\n` +
-                   `Code Editing Context:\n${(result.call2Context || []).join('\n')}\n` +
+                   `Context:\n${(result.call2Context || []).join('\n')}\n` +
                    `---\n`;
         }).join('\n');
 
-        const enhancedPrompt = `Client Request: ${userInput}\n\nDatabase Results:\n${plainTextResults}`;
+        const enhancedPrompt = `Client Request: ${userInput}\n\n${consolidatedTrainingData}\n\nQuery Context Results:\n${queryContextResults}`;
         console.log("Enhanced prompt created");
         console.log("Enhanced prompt:", enhancedPrompt);
 

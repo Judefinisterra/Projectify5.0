@@ -28,6 +28,9 @@ SUM2-S
 DISCOUNT2-S
 FORMULA-S
 
+DO NOT ADJUST ANY PARAMETERS OF CODES THAT ARE NOT IN THIS LIST. EX. IF YOU SEE <PAYROLLSALLARY-E;> SKIP THIS CODE AND MOVE ON TO THE OTHERS. 
+
+
 In addition to parameters, you are allowed to add the following codes:
 LABELH1/LABELH2/LABEHLH3 Use these codes to label different sections within a tab. H1 is the highest level, followed by H2, and then H3
 BR <BR; row1 = "|  |||||||||||";> Adds a line break. Use before every LABELH1/LABELH2/LABELH3 code. 
