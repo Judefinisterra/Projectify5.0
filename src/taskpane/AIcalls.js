@@ -965,6 +965,105 @@ export function consolidateAndDeduplicateTrainingData(results) {
     return formattedOutput;
 }
 
+// >>> ADDED: Helper function to extract codestrings (items between <> brackets) from text
+function extractCodestrings(text) {
+    if (!text || typeof text !== 'string') {
+        return [];
+    }
+    
+    // Find all text between < and > brackets
+    const codestringMatches = text.match(/<[^>]*>/g);
+    return codestringMatches || [];
+}
+
+// >>> ADDED: Helper function to compare and log codestring changes
+function logCodestringComparison(beforeText, afterText, stepName) {
+    console.log(`\n╔════════════════════════════════════════════════════════════════╗`);
+    console.log(`║              ${stepName.toUpperCase().padEnd(25)} COMPARISON ║`);
+    console.log(`╚════════════════════════════════════════════════════════════════╝`);
+    
+    // Convert arrays to strings if needed
+    const beforeStr = Array.isArray(beforeText) ? beforeText.join('\n') : String(beforeText);
+    const afterStr = Array.isArray(afterText) ? afterText.join('\n') : String(afterText);
+    
+    const beforeCodestrings = extractCodestrings(beforeStr);
+    const afterCodestrings = extractCodestrings(afterStr);
+    
+    console.log(`📊 BEFORE ${stepName}: ${beforeCodestrings.length} codestrings found`);
+    console.log(`📊 AFTER ${stepName}: ${afterCodestrings.length} codestrings found`);
+    
+    // Create maps for easier comparison
+    const beforeMap = new Map();
+    const afterMap = new Map();
+    
+    beforeCodestrings.forEach((code, index) => {
+        beforeMap.set(code, index);
+    });
+    
+    afterCodestrings.forEach((code, index) => {
+        afterMap.set(code, index);
+    });
+    
+    // Find added codestrings
+    const addedCodestrings = afterCodestrings.filter(code => !beforeMap.has(code));
+    
+    // Find removed codestrings
+    const removedCodestrings = beforeCodestrings.filter(code => !afterMap.has(code));
+    
+    // Find unchanged codestrings
+    const unchangedCodestrings = beforeCodestrings.filter(code => afterMap.has(code));
+    
+    // Log summary
+    console.log(`\n📈 CHANGES SUMMARY:`);
+    console.log(`   • Unchanged: ${unchangedCodestrings.length} codestrings`);
+    console.log(`   • Added: ${addedCodestrings.length} codestrings`);
+    console.log(`   • Removed: ${removedCodestrings.length} codestrings`);
+    
+    // Log added codestrings
+    if (addedCodestrings.length > 0) {
+        console.log(`\n✅ ADDED CODESTRINGS (${addedCodestrings.length}):`);
+        addedCodestrings.forEach((code, index) => {
+            console.log(`   ${index + 1}. ${code}`);
+        });
+    }
+    
+    // Log removed codestrings
+    if (removedCodestrings.length > 0) {
+        console.log(`\n❌ REMOVED CODESTRINGS (${removedCodestrings.length}):`);
+        removedCodestrings.forEach((code, index) => {
+            console.log(`   ${index + 1}. ${code}`);
+        });
+    }
+    
+    // Look for potential modifications (similar codestrings with small changes)
+    if (addedCodestrings.length > 0 && removedCodestrings.length > 0) {
+        console.log(`\n🔄 POTENTIAL MODIFICATIONS:`);
+        
+        for (const removedCode of removedCodestrings) {
+            for (const addedCode of addedCodestrings) {
+                // Extract the code name portion (everything before the first semicolon)
+                const removedCodeName = removedCode.split(';')[0];
+                const addedCodeName = addedCode.split(';')[0];
+                
+                // If they have the same code name, they might be modifications
+                if (removedCodeName === addedCodeName && removedCode !== addedCode) {
+                    console.log(`   🔄 MODIFIED: ${removedCodeName}`);
+                    console.log(`      BEFORE: ${removedCode}`);
+                    console.log(`      AFTER:  ${addedCode}`);
+                    console.log(`   ────────────────────────────────────────────────────────────────`);
+                }
+            }
+        }
+    }
+    
+    // If no changes detected
+    if (addedCodestrings.length === 0 && removedCodestrings.length === 0) {
+        console.log(`\n✨ NO CHANGES DETECTED - All codestrings remained identical`);
+    }
+    
+    console.log(`\n╚════════════════════════════════════════════════════════════════╝\n`);
+}
+
 // >>> ADDED: Helper function to extract input portion from training data entry
 function extractInputPortion(trainingEntry) {
     if (!trainingEntry || typeof trainingEntry !== 'string') {
@@ -1239,7 +1338,7 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
                 // //    `Relevant Code Options: ${safeJsonForPrompt(codeOptions, true)}`;
 
     // Call the LLM (processPrompt uses OpenAI key internally)
-            const responseArray = await processPrompt({
+            let responseArray = await processPrompt({
             userInput: followUpPrompt,
             systemPrompt: systemPrompt,
             model: GPT41,
@@ -1247,6 +1346,28 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
             history: currentHistory, // Pass the existing history
             promptFiles: { system: 'Followup_System', main: 'Encoder_Main' }
         });
+
+    // >>> ADDED: Check the response using LogicCheckerGPT
+    if (DEBUG) console.log("[handleFollowUpConversation] Checking response with LogicCheckerGPT...");
+    responseArray = await checkCodeStringsWithLogicChecker(clientprompt, responseArray);
+    if (DEBUG) console.log("[handleFollowUpConversation] LogicCheckerGPT checking completed");
+
+    // >>> ADDED: Format the response using FormatGPT
+    if (DEBUG) console.log("[handleFollowUpConversation] Formatting response with FormatGPT...");
+    responseArray = await formatCodeStringsWithGPT(responseArray);
+    if (DEBUG) console.log("[handleFollowUpConversation] FormatGPT formatting completed");
+
+    // >>> ADDED: Validate the formatted response
+    if (DEBUG) console.log("[handleFollowUpConversation] Validating formatted response array...");
+    const validationErrors = await validateCodeStrings(responseArray);
+    if (DEBUG) console.log("[handleFollowUpConversation] Validation completed. Errors:", validationErrors);
+
+    // >>> ADDED: Perform validation correction if needed
+    if (validationErrors && validationErrors.length > 0) {
+        if (DEBUG) console.log("[handleFollowUpConversation] Validation errors found. Performing correction...");
+        responseArray = await validationCorrection(clientprompt, responseArray, validationErrors);
+        if (DEBUG) console.log("[handleFollowUpConversation] Validation correction completed. Corrected response:", responseArray);
+    }
   
     // Update history (create new array, don't modify inplace)
     const updatedHistory = [
@@ -1292,7 +1413,7 @@ export async function handleInitialConversation(clientprompt) {
                            `Main Prompt: ${mainPromptText}`;
 
     // Call the LLM (processPrompt uses OpenAI key internally)
-            const outputArray = await processPrompt({
+            let outputArray = await processPrompt({
             userInput: initialCallPrompt,
             systemPrompt: systemPrompt,
             model: GPT41,
@@ -1300,6 +1421,28 @@ export async function handleInitialConversation(clientprompt) {
             history: [], // No history for initial call
             promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
         });
+
+    // >>> ADDED: Check the response using LogicCheckerGPT
+    if (DEBUG) console.log("[handleInitialConversation] Checking response with LogicCheckerGPT...");
+    outputArray = await checkCodeStringsWithLogicChecker(clientprompt, outputArray);
+    if (DEBUG) console.log("[handleInitialConversation] LogicCheckerGPT checking completed");
+
+    // >>> ADDED: Format the response using FormatGPT
+    if (DEBUG) console.log("[handleInitialConversation] Formatting response with FormatGPT...");
+    outputArray = await formatCodeStringsWithGPT(outputArray);
+    if (DEBUG) console.log("[handleInitialConversation] FormatGPT formatting completed");
+
+    // >>> ADDED: Validate the formatted response
+    if (DEBUG) console.log("[handleInitialConversation] Validating formatted response array...");
+    const validationErrors = await validateCodeStrings(outputArray);
+    if (DEBUG) console.log("[handleInitialConversation] Validation completed. Errors:", validationErrors);
+
+    // >>> ADDED: Perform validation correction if needed
+    if (validationErrors && validationErrors.length > 0) {
+        if (DEBUG) console.log("[handleInitialConversation] Validation errors found. Performing correction...");
+        outputArray = await validationCorrection(clientprompt, outputArray, validationErrors);
+        if (DEBUG) console.log("[handleInitialConversation] Validation correction completed. Corrected response:", outputArray);
+    }
 
     // Create the initial history
     const initialHistory = [
@@ -1427,6 +1570,9 @@ export async function validationCorrection(clientprompt, initialResponse, valida
 
         if (DEBUG) console.log(`Validation correction output saved via mock fs to ${correctionOutputPath}`);
         if (DEBUG) console.log("Corrected Response:", correctedResponseArray);
+
+        // >>> ADDED: Compare before and after codestrings for Validation Correction
+        logCodestringComparison(initialResponse, correctedResponseArray, "Validation Correction");
 
         return correctedResponseArray; // Return the array format expected by caller
 
@@ -1822,6 +1968,9 @@ export async function checkCodeStringsWithLogicChecker(originalClientPrompt, res
             console.log("[checkCodeStringsWithLogicChecker] Checked output:", checkedResponseArray);
         }
 
+        // >>> ADDED: Compare before and after codestrings for LogicCheckerGPT
+        logCodestringComparison(responseArray, checkedResponseArray, "LogicCheckerGPT");
+
         return checkedResponseArray;
 
     } catch (error) {
@@ -1875,6 +2024,9 @@ export async function formatCodeStringsWithGPT(responseArray) {
             console.log("[formatCodeStringsWithGPT] FormatGPT processing completed");
             console.log("[formatCodeStringsWithGPT] Formatted output:", formattedResponseArray);
         }
+
+        // >>> ADDED: Compare before and after codestrings for FormatGPT
+        logCodestringComparison(responseArray, formattedResponseArray, "FormatGPT");
 
         return formattedResponseArray;
 
