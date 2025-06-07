@@ -958,18 +958,88 @@ function logCodestringComparison(beforeText, afterText, stepName) {
     const beforeSet = new Set(beforeCodestrings);
     const afterSet = new Set(afterCodestrings);
     
-    // Find all unique codestrings (exists in one set but not both)
-    const uniqueCodestrings = new Set([
-        ...beforeCodestrings.filter(code => !afterSet.has(code)),
-        ...afterCodestrings.filter(code => !beforeSet.has(code))
-    ]);
+    // Find codestrings that are different
+    const removedCodestrings = beforeCodestrings.filter(code => !afterSet.has(code));
+    const addedCodestrings = afterCodestrings.filter(code => !beforeSet.has(code));
     
     // Only log if there are differences
-    if (uniqueCodestrings.size > 0) {
-        console.log(`\n📊 ${stepName} - Different codestrings (${uniqueCodestrings.size}):`);
-        Array.from(uniqueCodestrings).forEach((code, index) => {
-            console.log(`   ${index + 1}. ${code}`);
+    if (removedCodestrings.length > 0 || addedCodestrings.length > 0) {
+        console.log(`\n📊 ${stepName} - Changes detected:`);
+        
+        // Helper function to extract key identifiers for matching
+        const getCodeKey = (codestring) => {
+            const codeTypeMatch = codestring.match(/<([^;]+);/);
+            const codeType = codeTypeMatch ? codeTypeMatch[1] : '';
+            
+            // Extract row1 parameter to identify the same logical codestring
+            const row1Match = codestring.match(/row1\s*=\s*"([^"]*)"/) || codestring.match(/row1\s*=\s*"([^"]*)/);
+            const row1 = row1Match ? row1Match[1].split('|')[0] : ''; // Get driver ID (first part before |)
+            
+            return `${codeType}:${row1}`;
+        };
+        
+        // Create maps for matching
+        const removedByKey = new Map();
+        const addedByKey = new Map();
+        
+        removedCodestrings.forEach(code => {
+            const key = getCodeKey(code);
+            if (!removedByKey.has(key)) removedByKey.set(key, []);
+            removedByKey.get(key).push(code);
         });
+        
+        addedCodestrings.forEach(code => {
+            const key = getCodeKey(code);
+            if (!addedByKey.has(key)) addedByKey.set(key, []);
+            addedByKey.get(key).push(code);
+        });
+        
+        // Find matches and show before/after pairs
+        const processedKeys = new Set();
+        let changeCount = 1;
+        
+        // Process matched pairs first
+        removedByKey.forEach((removedList, key) => {
+            if (addedByKey.has(key)) {
+                const addedList = addedByKey.get(key);
+                
+                // Pair them up (assuming 1:1 mapping for simplicity)
+                for (let i = 0; i < Math.max(removedList.length, addedList.length); i++) {
+                    const before = removedList[i];
+                    const after = addedList[i];
+                    
+                    if (before && after) {
+                        console.log(`   ${changeCount++}. MODIFIED:`);
+                        console.log(`      BEFORE: ${before}`);
+                        console.log(`      AFTER:  ${after}`);
+                    } else if (before) {
+                        console.log(`   ${changeCount++}. REMOVED: ${before}`);
+                    } else if (after) {
+                        console.log(`   ${changeCount++}. ADDED: ${after}`);
+                    }
+                }
+                processedKeys.add(key);
+            }
+        });
+        
+        // Process remaining removed items (no match found)
+        removedByKey.forEach((removedList, key) => {
+            if (!processedKeys.has(key)) {
+                removedList.forEach(code => {
+                    console.log(`   ${changeCount++}. REMOVED: ${code}`);
+                });
+            }
+        });
+        
+        // Process remaining added items (no match found)
+        addedByKey.forEach((addedList, key) => {
+            if (!processedKeys.has(key)) {
+                addedList.forEach(code => {
+                    console.log(`   ${changeCount++}. ADDED: ${code}`);
+                });
+            }
+        });
+        
         console.log(''); // Add spacing
     } else {
         console.log(`✨ ${stepName}: No changes detected`);
