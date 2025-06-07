@@ -15,3 +15,9 @@ Example of correct chain:
 <MULT2-S; driver1="R1"; driver2="V3"; indent="1"; bold="True"; topborder="true"; format="Dollar"; sumif="Year"; row1 = "R2|Gross Profit|||||F|F|F|F|F|F|">
 <CONST-E; format="Percent"; indent="2"; bold="false"; topborder="false"; row1 = "V3|% Gross Margin|||||.2|.2|.2|.2|.2|.2|">
 <BR; row1 = "||||||||||||">
+
+
+Validation:
+1) Is the last code in the chain that calculates COGS and Gross Profit the % margin assumption? If not, it is not correct. Move the % margin row to the end.
+2) Does the codestring that calculates COGS come after Gross Profit? If so, this is not correct. Reorder so that the COGS calculation comes before the Gross Profit calculation. 
+3) Does Gross Profit come after % Gross Margin? If so, this is incorrect. Reorder so that Gross Profit comes after % gross margin.

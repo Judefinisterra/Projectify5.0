@@ -1892,6 +1892,32 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
 //     }
 // }
 
+// >>> ADDED: Helper function to check if "margin" is found in codestrings (case insensitive)
+function containsMargin(codestrings) {
+    if (!codestrings || typeof codestrings !== 'string') {
+        if (DEBUG) console.log("[containsMargin] Invalid input:", typeof codestrings);
+        return false;
+    }
+    
+    // Convert to lowercase for case-insensitive search
+    const lowercaseCodestrings = codestrings.toLowerCase();
+    
+    // Check for "margin" anywhere in the codestrings
+    const hasMargin = lowercaseCodestrings.includes('margin');
+    
+    if (DEBUG) {
+        console.log("[containsMargin] Has 'margin':", hasMargin);
+        
+        // Show examples of matches if found
+        if (hasMargin) {
+            const marginMatches = codestrings.match(/[^|]*margin[^|]*/gi);
+            console.log("[containsMargin] 'margin' matches found:", marginMatches);
+        }
+    }
+    
+    return hasMargin;
+}
+
 // >>> ADDED: Helper function to check if "beg" or "end" words are found in codestrings (case insensitive)
 function containsBeginningOrEnding(codestrings) {
     if (!codestrings || typeof codestrings !== 'string') {
@@ -1924,6 +1950,32 @@ function containsBeginningOrEnding(codestrings) {
     }
     
     return result;
+}
+
+// >>> ADDED: Function to load MarginCOGS.txt content
+async function loadMarginCOGSContent() {
+    try {
+        if (DEBUG) console.log("[loadMarginCOGSContent] Loading MarginCOGS.txt content...");
+        
+        const response = await fetch('https://localhost:3002/prompts/MarginCOGS.txt');
+        if (DEBUG) console.log("[loadMarginCOGSContent] Fetch response status:", response.status, response.statusText);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to load MarginCOGS.txt: ${response.statusText}`);
+        }
+        
+        const marginCOGSContent = await response.text();
+        if (DEBUG) {
+            console.log("[loadMarginCOGSContent] MarginCOGS.txt content loaded successfully, length:", marginCOGSContent.length);
+            console.log("[loadMarginCOGSContent] Content preview:", marginCOGSContent.substring(0, 200) + "...");
+        }
+        
+        return marginCOGSContent;
+    } catch (error) {
+        console.error("[loadMarginCOGSContent] Error loading MarginCOGS.txt:", error);
+        // Return empty string on error to avoid breaking the flow
+        return "";
+    }
 }
 
 // >>> ADDED: Function to load ReconTable.txt content
@@ -2053,6 +2105,8 @@ export async function checkCodeStringsWithLogicChecker(responseArray) {
             if (DEBUG) console.log("[checkCodeStringsWithLogicChecker] No 'beg' or 'end' detected - ReconTable content not needed");
         }
         
+
+        
         // >>> ADDED: Append logic errors to LogicGPT prompt if any were found
         if (logicErrors && logicErrors.trim() !== "") {
             logicCheckerInput += logicErrors; // logicErrors already includes proper formatting and line breaks
@@ -2149,6 +2203,38 @@ export async function formatCodeStringsWithGPT(responseArray) {
         // Create the main message with codestrings + format errors (if any)
         let formatInput = `Codestrings to Format:\n${codestringsInput}`;
         
+        // >>> ADDED: Check if MarginCOGS content should be appended
+        if (DEBUG) {
+            console.log("[formatCodeStringsWithGPT] Starting MarginCOGS detection...");
+        }
+        
+        const needsMarginCOGSInfo = containsMargin(codestringsInput);
+        
+        if (DEBUG) {
+            console.log("[formatCodeStringsWithGPT] MarginCOGS detection result:", needsMarginCOGSInfo);
+        }
+        
+        if (needsMarginCOGSInfo) {
+            if (DEBUG) console.log("[formatCodeStringsWithGPT] Detected 'margin' - loading MarginCOGS content...");
+            
+            try {
+                const marginCOGSContent = await loadMarginCOGSContent();
+                if (DEBUG) console.log("[formatCodeStringsWithGPT] MarginCOGS content loaded, length:", marginCOGSContent ? marginCOGSContent.length : 0);
+                
+                if (marginCOGSContent && marginCOGSContent.trim() !== "") {
+                    formatInput += `\n\nMARGIN & COGS VALIDATION RULES:\n${marginCOGSContent}`;
+                    if (DEBUG) console.log("[formatCodeStringsWithGPT] MarginCOGS content appended to FormatGPT prompt");
+                } else {
+                    if (DEBUG) console.log("[formatCodeStringsWithGPT] MarginCOGS content was empty or failed to load");
+                }
+            } catch (error) {
+                console.error("[formatCodeStringsWithGPT] Error loading MarginCOGS content:", error);
+                // Continue without MarginCOGS content rather than failing
+            }
+        } else {
+            if (DEBUG) console.log("[formatCodeStringsWithGPT] No 'margin' detected - MarginCOGS content not needed");
+        }
+        
         // >>> ADDED: Append format errors to FormatGPT prompt if any were found
         if (formatErrors && formatErrors.trim() !== "") {
             formatInput += formatErrors; // formatErrors already includes proper formatting and line breaks
@@ -2157,6 +2243,7 @@ export async function formatCodeStringsWithGPT(responseArray) {
         if (DEBUG) {
             console.log("[formatCodeStringsWithGPT] Input codestrings:", codestringsInput.substring(0, 200) + "...");
             console.log("[formatCodeStringsWithGPT] Format errors included in prompt:", formatErrors ? "YES" : "NO");
+            console.log("[formatCodeStringsWithGPT] MarginCOGS content included in prompt:", needsMarginCOGSInfo ? "YES" : "NO");
             console.log("[formatCodeStringsWithGPT] Using FormatGPT system prompt");
         }
 
