@@ -225,44 +225,7 @@ function validateFormatRules(inputCodeStrings) {
             }
         }
         
-        // Check SUBTRACT, SUM, SUBTOTAL codes must have indent="1" and bold="true"
-        // MULT codes only require bold="true" (indent requirement removed)
-        if (codeType.startsWith('SUBTRACT') || codeType.startsWith('SUM') || codeType.startsWith('SUBTOTAL')) {
-            
-            // Check indent="1"
-            const hasIndent1 = /indent\s*=\s*["']?1["']?/i.test(codeString);
-            const indentMatch = codeString.match(/indent\s*=\s*["']?(\d+)["']?/i);
-            const indentValue = indentMatch ? indentMatch[1] : null;
-            
-            // Check bold="true"
-            const hasBoldTrue = /bold\s*=\s*["']?true["']?/i.test(codeString);
-            const boldMatch = codeString.match(/bold\s*=\s*["']?(true|false)["']?/i);
-            const boldValue = boldMatch ? boldMatch[1].toLowerCase() : null;
-            
-            const issues = [];
-            
-            if (!hasIndent1) {
-                if (indentValue) {
-                    issues.push(`has indent="${indentValue}" instead of indent="1"`);
-                } else {
-                    issues.push('missing indent="1"');
-                }
-            }
-            
-            if (!hasBoldTrue) {
-                if (boldValue === 'false') {
-                    issues.push('has bold="false" instead of bold="true"');
-                } else {
-                    issues.push('missing bold="true"');
-                }
-            }
-            
-            if (issues.length > 0) {
-                formatErrors.push(`[FERR008] Format validation: ${codeType} code must have indent="1" and bold="true" - ${codeString} ${issues.join(' and ')}`);
-            }
-        }
-        
-        // MULT codes have no format validation requirements
+        // MULT, SUBTRACT, SUM, SUBTOTAL codes have no format validation requirements
         
         // Check rows with column 2 beginning with "Total"
         const rowMatch = codeString.match(/row\d+\s*=\s*"([^"]*)"/);

@@ -1892,6 +1892,66 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
 //     }
 // }
 
+// >>> ADDED: Helper function to check if "beg" or "end" words are found in codestrings (case insensitive)
+function containsBeginningOrEnding(codestrings) {
+    if (!codestrings || typeof codestrings !== 'string') {
+        if (DEBUG) console.log("[containsBeginningOrEnding] Invalid input:", typeof codestrings);
+        return false;
+    }
+    
+    // Convert to lowercase for case-insensitive search
+    const lowercaseCodestrings = codestrings.toLowerCase();
+    
+    // Check for "beg" or "end" anywhere in the codestrings
+    const hasBeg = lowercaseCodestrings.includes('beg');
+    const hasEnd = lowercaseCodestrings.includes('end');
+    const result = hasBeg || hasEnd;
+    
+    if (DEBUG) {
+        console.log("[containsBeginningOrEnding] Has 'beg':", hasBeg);
+        console.log("[containsBeginningOrEnding] Has 'end':", hasEnd);
+        console.log("[containsBeginningOrEnding] Final result:", result);
+        
+        // Show examples of matches if found
+        if (hasBeg) {
+            const begMatches = codestrings.match(/[^|]*beg[^|]*/gi);
+            console.log("[containsBeginningOrEnding] 'beg' matches found:", begMatches);
+        }
+        if (hasEnd) {
+            const endMatches = codestrings.match(/[^|]*end[^|]*/gi);
+            console.log("[containsBeginningOrEnding] 'end' matches found:", endMatches);
+        }
+    }
+    
+    return result;
+}
+
+// >>> ADDED: Function to load ReconTable.txt content
+async function loadReconTableContent() {
+    try {
+        if (DEBUG) console.log("[loadReconTableContent] Loading ReconTable.txt content...");
+        
+        const response = await fetch('https://localhost:3002/prompts/ReconTable.txt');
+        if (DEBUG) console.log("[loadReconTableContent] Fetch response status:", response.status, response.statusText);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to load ReconTable.txt: ${response.statusText}`);
+        }
+        
+        const reconTableContent = await response.text();
+        if (DEBUG) {
+            console.log("[loadReconTableContent] ReconTable.txt content loaded successfully, length:", reconTableContent.length);
+            console.log("[loadReconTableContent] Content preview:", reconTableContent.substring(0, 200) + "...");
+        }
+        
+        return reconTableContent;
+    } catch (error) {
+        console.error("[loadReconTableContent] Error loading ReconTable.txt:", error);
+        // Return empty string on error to avoid breaking the flow
+        return "";
+    }
+}
+
 // >>> ADDED: LogicCheckerGPT function to check codestrings after encoder main step
 export async function checkCodeStringsWithLogicChecker(responseArray) {
     if (DEBUG) console.log("[checkCodeStringsWithLogicChecker] Processing codestrings for logic checking...");
@@ -1960,6 +2020,39 @@ export async function checkCodeStringsWithLogicChecker(responseArray) {
         // Create the main message with ONLY the clean client request + completed codestrings + logic errors (if any)
         let logicCheckerInput = `Original Client Request: ${cleanClientRequest}\n\nCompleted Codestrings to Check:\n${codestringsInput}`;
         
+        // >>> ADDED: Check if ReconTable content should be appended
+        if (DEBUG) {
+            console.log("[checkCodeStringsWithLogicChecker] Starting ReconTable detection...");
+            console.log("[checkCodeStringsWithLogicChecker] Codestrings sample:", codestringsInput.substring(0, 500) + "...");
+        }
+        
+        const needsReconTableInfo = containsBeginningOrEnding(codestringsInput);
+        
+        if (DEBUG) {
+            console.log("[checkCodeStringsWithLogicChecker] ReconTable detection result:", needsReconTableInfo);
+        }
+        
+        if (needsReconTableInfo) {
+            if (DEBUG) console.log("[checkCodeStringsWithLogicChecker] Detected 'beg' or 'end' - loading ReconTable content...");
+            
+            try {
+                const reconTableContent = await loadReconTableContent();
+                if (DEBUG) console.log("[checkCodeStringsWithLogicChecker] ReconTable content loaded, length:", reconTableContent ? reconTableContent.length : 0);
+                
+                if (reconTableContent && reconTableContent.trim() !== "") {
+                    logicCheckerInput += `\n\nRECONCILIATION TABLE VALIDATION RULES:\n${reconTableContent}`;
+                    if (DEBUG) console.log("[checkCodeStringsWithLogicChecker] ReconTable content appended to LogicCheckerGPT prompt");
+                } else {
+                    if (DEBUG) console.log("[checkCodeStringsWithLogicChecker] ReconTable content was empty or failed to load");
+                }
+            } catch (error) {
+                console.error("[checkCodeStringsWithLogicChecker] Error loading ReconTable content:", error);
+                // Continue without ReconTable content rather than failing
+            }
+        } else {
+            if (DEBUG) console.log("[checkCodeStringsWithLogicChecker] No 'beg' or 'end' detected - ReconTable content not needed");
+        }
+        
         // >>> ADDED: Append logic errors to LogicGPT prompt if any were found
         if (logicErrors && logicErrors.trim() !== "") {
             logicCheckerInput += logicErrors; // logicErrors already includes proper formatting and line breaks
@@ -1969,6 +2062,7 @@ export async function checkCodeStringsWithLogicChecker(responseArray) {
             console.log("[checkCodeStringsWithLogicChecker] Final clean client request being sent:", cleanClientRequest.substring(0, 100) + "...");
             console.log("[checkCodeStringsWithLogicChecker] Input codestrings:", codestringsInput.substring(0, 200) + "...");
             console.log("[checkCodeStringsWithLogicChecker] Logic errors included in prompt:", logicErrors ? "YES" : "NO");
+            console.log("[checkCodeStringsWithLogicChecker] ReconTable content included in prompt:", needsReconTableInfo ? "YES" : "NO");
             console.log("[checkCodeStringsWithLogicChecker] Using LogicCheckerGPT system prompt");
         }
 
