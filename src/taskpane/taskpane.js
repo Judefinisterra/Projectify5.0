@@ -174,6 +174,10 @@ let lastUserInput = null;
 // Add this variable to store the first user input (conversation starter) for training data
 let firstUserInput = null;
 
+// Add variables to persist training data modal values
+let persistedTrainingUserInput = null;
+let persistedTrainingAiResponse = null;
+
 // Add this function at the top level
 function showMessage(message) {
     const messageDiv = document.createElement('div');
@@ -622,6 +626,10 @@ function resetChat() {
     firstUserInput = null;
     lastUserInput = null;
     
+    // Clear persisted training data modal values
+    persistedTrainingUserInput = null;
+    persistedTrainingAiResponse = null;
+    
     // Clear the input field
     document.getElementById('user-input').value = '';
     
@@ -662,6 +670,10 @@ function resetChatClient() {
     // Reset the stored user inputs for client mode too
     firstUserInput = null;
     lastUserInput = null;
+    
+    // Clear persisted training data modal values
+    persistedTrainingUserInput = null;
+    persistedTrainingAiResponse = null;
     
     console.log("Client mode chat reset.");
 }
@@ -2286,9 +2298,18 @@ function showTrainingDataModal(userPrompt = '', aiResponse = '') {
         return;
     }
     
+    // Use persisted values if they exist, otherwise use provided parameters
+    const finalUserPrompt = persistedTrainingUserInput !== null ? persistedTrainingUserInput : userPrompt;
+    const finalAiResponse = persistedTrainingAiResponse !== null ? persistedTrainingAiResponse : aiResponse;
+    
     // Populate the fields
-    userInputField.value = userPrompt;
-    aiResponseField.value = aiResponse;
+    userInputField.value = finalUserPrompt;
+    aiResponseField.value = finalAiResponse;
+    
+    console.log("[showTrainingDataModal] Using persisted values:", {
+        userInputPersisted: persistedTrainingUserInput !== null,
+        aiResponsePersisted: persistedTrainingAiResponse !== null
+    });
     
     // Ensure paste functionality works by adding explicit event handlers
     const enablePasteForElement = (element) => {
@@ -2377,6 +2398,16 @@ function handlePasteEvent(e) {
 // Function to hide the training data modal
 function hideTrainingDataModal() {
     const modal = document.getElementById('training-data-modal');
+    const userInputField = document.getElementById('training-user-input');
+    const aiResponseField = document.getElementById('training-ai-response');
+    
+    // Save current field values before hiding
+    if (userInputField && aiResponseField) {
+        persistedTrainingUserInput = userInputField.value;
+        persistedTrainingAiResponse = aiResponseField.value;
+        console.log("[hideTrainingDataModal] Saved field values for persistence");
+    }
+    
     if (modal) {
         modal.style.display = 'none';
     }
@@ -2447,6 +2478,10 @@ async function saveTrainingDataFromModal() {
         
         // Show success message
         showMessage(`Training data added to queue! Entry ${trainingQueue.length} saved. TXT file downloaded.`);
+        
+        // Clear persisted values since data was successfully saved
+        persistedTrainingUserInput = null;
+        persistedTrainingAiResponse = null;
         
         // Hide the modal
         hideTrainingDataModal();
