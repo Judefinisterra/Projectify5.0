@@ -665,9 +665,9 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
       try {
           const fullPromptTrainingData = await queryVectorDB({
               queryPrompt: clientprompt,
-              similarityThreshold: .2,
+              similarityThreshold: .3,
               indexName: 'call2trainingdata',
-              numResults: 15 // Slightly higher number since this is the full prompt
+              numResults: 30 // Slightly higher number since this is the full prompt
           });
 
           // Add the full prompt query as a separate result
@@ -718,15 +718,15 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
                   query: queryString,
                   trainingData: await queryVectorDB({
                       queryPrompt: queryString,
-                      similarityThreshold: .2,
+                      similarityThreshold: .31,
                       indexName: 'call2trainingdata',
-                      numResults: 10
+                      numResults: 30
                   }),
                   call2Context: await queryVectorDB({
                       queryPrompt: queryString,
-                      similarityThreshold: .2,
+                      similarityThreshold: .31,
                       indexName: 'call2context',
-                      numResults: 5
+                      numResults: 20
                   }),
 
                 //   codeOptions: await queryVectorDB({
@@ -852,8 +852,11 @@ export function deduplicateTrainingDataByOutput(results) {
 
         // Filter training data to remove entries with duplicate outputs
         result.trainingData = result.trainingData.filter((trainingEntry, entryIndex) => {
+            // Handle both old string format and new object format
+            const trainingText = typeof trainingEntry === 'object' ? trainingEntry.text : trainingEntry;
+            
             // Extract the output portion (codestrings after "Output:")
-            const outputCodestrings = extractOutputCodestrings(trainingEntry);
+            const outputCodestrings = extractOutputCodestrings(trainingText);
             
             if (!outputCodestrings) {
                 // If we can't extract output codestrings, keep the entry
@@ -888,6 +891,7 @@ export function deduplicateTrainingDataByOutput(results) {
         console.log(`  - Total after deduplication: ${totalDeduplicatedCount}`);
         console.log(`  - Duplicates removed: ${duplicatesRemoved}`);
         console.log(`  - Unique outputs retained: ${seenOutputs.size}`);
+        console.log(`  - Similarity scores preserved: TRUE`);
     }
 
     return results;
@@ -966,12 +970,16 @@ export function consolidateAndDeduplicateTrainingData(results) {
             totalOriginalTrainingCount += result.trainingData.length;
 
             result.trainingData.forEach((trainingEntry, entryIndex) => {
+                // Handle both old string format and new object format
+                const trainingText = typeof trainingEntry === 'object' ? trainingEntry.text : trainingEntry;
+                const trainingScore = typeof trainingEntry === 'object' ? trainingEntry.score : null;
+                
                 // Extract the output codestrings (to deduplicate by output instead of input)
-                const outputCodestrings = extractOutputCodestrings(trainingEntry);
+                const outputCodestrings = extractOutputCodestrings(trainingText);
                 
                 if (!outputCodestrings) {
                     // If we can't extract output codestrings, keep the original but mark it as processed
-                    allTrainingData.push(trainingEntry);
+                    allTrainingData.push({ text: trainingText, score: trainingScore });
                     return;
                 }
 
@@ -982,7 +990,7 @@ export function consolidateAndDeduplicateTrainingData(results) {
                 } else {
                     // First occurrence of this output, add it and mark as seen
                     seenTrainingOutputs.add(outputCodestrings);
-                    allTrainingData.push(trainingEntry);
+                    allTrainingData.push({ text: trainingText, score: trainingScore });
                 }
             });
         }
@@ -992,12 +1000,16 @@ export function consolidateAndDeduplicateTrainingData(results) {
             totalOriginalContextCount += result.call2Context.length;
 
             result.call2Context.forEach((contextEntry, entryIndex) => {
+                // Handle both old string format and new object format
+                const contextText = typeof contextEntry === 'object' ? contextEntry.text : contextEntry;
+                const contextScore = typeof contextEntry === 'object' ? contextEntry.score : null;
+                
                 // For context, use the full entry as the unique identifier
-                const contextKey = contextEntry.trim();
+                const contextKey = contextText.trim();
                 
                 if (contextKey && !seenContextData.has(contextKey)) {
                     seenContextData.add(contextKey);
-                    allContextData.push(contextEntry);
+                    allContextData.push({ text: contextText, score: contextScore });
                 } else if (contextKey) {
                     contextDuplicatesRemoved++;
                 }
@@ -1011,7 +1023,8 @@ export function consolidateAndDeduplicateTrainingData(results) {
         formattedOutput += "Client request-specific Context:\n****\n";
         
         allContextData.forEach((contextEntry, index) => {
-            formattedOutput += `Context item ${index + 1}) ${contextEntry}\n***\n`;
+            const scorePrefix = contextEntry.score !== null ? ` - similarity threshold: ${contextEntry.score.toFixed(4)}:` : ')';
+            formattedOutput += `Context item ${index + 1}${scorePrefix} ${contextEntry.text}\n***\n`;
         });
         formattedOutput += "\n";
     }
@@ -1021,9 +1034,24 @@ export function consolidateAndDeduplicateTrainingData(results) {
     
     allTrainingData.forEach((trainingEntry, index) => {
         // Process the training entry to add line breaks between code strings in output
-        const processedEntry = formatCodeStringsInTrainingEntry(trainingEntry);
-        formattedOutput += `Input/output set ${index + 1}) ${processedEntry}\n***\n`;
+        let processedEntry = formatCodeStringsInTrainingEntry(trainingEntry.text);
+        
+        // Ensure training data starts with "Client input:" if it doesn't already
+        if (!processedEntry.toLowerCase().startsWith('client input:')) {
+            processedEntry = `Client input: ${processedEntry}`;
+        }
+        
+        const scorePrefix = trainingEntry.score !== null ? ` - similarity threshold: ${trainingEntry.score.toFixed(4)}:` : ')';
+        formattedOutput += `Input/output set ${index + 1}${scorePrefix} ${processedEntry}\n***\n`;
     });
+
+    if (DEBUG) {
+        console.log(`[consolidateAndDeduplicateTrainingData] Enhanced prompt generated with similarity scores:`);
+        console.log(`  - Training data entries: ${allTrainingData.length}`);
+        console.log(`  - Context entries: ${allContextData.length}`);
+        console.log(`  - Training entries with scores: ${allTrainingData.filter(item => item.score !== null).length}`);
+        console.log(`  - Context entries with scores: ${allContextData.filter(item => item.score !== null).length}`);
+    }
 
     return formattedOutput;
 }
@@ -1254,15 +1282,15 @@ export async function queryVectorDB({ queryPrompt, indexName = 'codes', numResul
         // Apply numResults limit *after* threshold filtering
         matches = matches.slice(0, numResults);
 
-        // Extract text using the helper function
-        const cleanMatches = matches.map(match => extractTextFromJson(match)).filter(text => text !== "");
+        // Extract text and preserve similarity scores
+        const enrichedMatches = matches.map(match => extractTextAndScoreFromJson(match)).filter(item => item.text !== "");
 
         if (DEBUG) {
-            console.log(`Found ${cleanMatches.length} matches (after threshold/limit/extraction):`);
-            cleanMatches.forEach((text, i) => console.log(`  ${i + 1}: ${text.substring(0, 100)}...`));
+            console.log(`Found ${enrichedMatches.length} matches (after threshold/limit/extraction):`);
+            enrichedMatches.forEach((item, i) => console.log(`  ${i + 1}: Score ${item.score.toFixed(4)} - ${item.text.substring(0, 100)}...`));
         }
 
-        return cleanMatches;
+        return enrichedMatches;
 
     } catch (error) {
         console.error(`Error during vector database query for index "${indexName}":`, error);
@@ -1304,6 +1332,48 @@ function extractTextFromJson(jsonInput) {
        // Log the problematic input for debugging
        console.error("Input causing error:", jsonInput);
        return ""; // Return empty string on error
+   }
+}
+
+// >>> ADDED: Helper function to extract both text and similarity score from Pinecone match JSON
+function extractTextAndScoreFromJson(jsonInput) {
+   try {
+       // Input might already be an object if response was parsed
+       const jsonData = typeof jsonInput === 'string' ? JSON.parse(jsonInput) : jsonInput;
+
+       let text = "";
+       let score = 0;
+
+       // Extract text using same logic as extractTextFromJson
+       if (jsonData?.metadata?.text) {
+           text = jsonData.metadata.text;
+       } else if (typeof jsonData?.text === 'string') {
+           text = jsonData.text;
+       } else if (Array.isArray(jsonData)) {
+           for (const item of jsonData) {
+               if (item?.metadata?.text) {
+                   text = item.metadata.text; // Use first found
+                   break;
+               }
+           }
+       }
+
+       // Extract similarity score
+       if (typeof jsonData?.score === 'number') {
+           score = jsonData.score;
+       }
+
+       // Return object with both text and score
+       return {
+           text: text,
+           score: score
+       };
+
+   } catch (error) {
+       console.error(`Error processing JSON for text and score extraction: ${error.message}`);
+       // Log the problematic input for debugging
+       console.error("Input causing error:", jsonInput);
+       return { text: "", score: 0 }; // Return empty values on error
    }
 }
 
