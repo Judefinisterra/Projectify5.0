@@ -171,6 +171,9 @@ let lastResponse = null;
 // Add this variable to store the last user input for training data
 let lastUserInput = null;
 
+// Add this variable to store the first user input (conversation starter) for training data
+let firstUserInput = null;
+
 // Add this function at the top level
 function showMessage(message) {
     const messageDiv = document.createElement('div');
@@ -344,6 +347,11 @@ async function handleSend() {
 
     // Store the user input for training data before clearing
     lastUserInput = userInput;
+    
+    // Store the first user input if this is the start of the conversation
+    if (isFirstMessageInSession) {
+        firstUserInput = userInput;
+    }
 
     // Check if this is a response to a previous message (use session tracking instead of just history length)
     isResponse = !isFirstMessageInSession;
@@ -480,6 +488,11 @@ async function handleSendClient() {
 
     // Store the user input for training data before clearing
     lastUserInput = userInput;
+    
+    // Store the first user input if this is the start of the conversation in client mode
+    if (conversationHistoryClient.length === 0) {
+        firstUserInput = userInput;
+    }
 
     // >>> ADDED: Hide header and activate conversation layout on first message
     const clientHeader = document.getElementById('client-mode-header');
@@ -605,6 +618,10 @@ function resetChat() {
     // Reset the session tracking
     isFirstMessageInSession = true;
     
+    // Reset the stored user inputs
+    firstUserInput = null;
+    lastUserInput = null;
+    
     // Clear the input field
     document.getElementById('user-input').value = '';
     
@@ -641,6 +658,11 @@ function resetChatClient() {
 
     // Reset conversation history for client mode
     // Note: This might need to be adjusted based on how client mode history is managed
+    
+    // Reset the stored user inputs for client mode too
+    firstUserInput = null;
+    lastUserInput = null;
+    
     console.log("Client mode chat reset.");
 }
 // <<< END ADDED
@@ -1171,6 +1193,31 @@ Office.onReady((info) => {
         addToTrainingQueueButton.onclick = addToTrainingDataQueue;
     } else {
         console.error("Could not find button with id='add-to-training-queue'");
+    }
+
+    // Training Data Modal buttons
+    const trainingDataModal = document.getElementById('training-data-modal');
+    const saveTrainingDataButton = document.getElementById('save-training-data-button');
+    const cancelTrainingDataButton = document.getElementById('cancel-training-data-button');
+    
+    if (saveTrainingDataButton) {
+        saveTrainingDataButton.onclick = saveTrainingDataFromModal;
+    } else {
+        console.error("Could not find button with id='save-training-data-button'");
+    }
+    
+    if (cancelTrainingDataButton) {
+        cancelTrainingDataButton.onclick = hideTrainingDataModal;
+    } else {
+        console.error("Could not find button with id='cancel-training-data-button'");
+    }
+    
+    // Training Data Modal close button
+    if (trainingDataModal) {
+        const trainingDataCloseButton = trainingDataModal.querySelector('.close-button');
+        if (trainingDataCloseButton) {
+            trainingDataCloseButton.onclick = hideTrainingDataModal;
+        }
     }
 
     // >>> ADDED: Setup for Client Mode Chat Buttons
@@ -2016,6 +2063,22 @@ Office.onReady((info) => {
     }
     // <<< END ADDED
 
+    // Window click handler to close modals when clicking outside
+    window.onclick = function(event) {
+        const trainingDataModal = document.getElementById('training-data-modal');
+        const codeParamsModal = document.getElementById('code-params-modal');
+        
+        // Close training data modal if clicking outside
+        if (trainingDataModal && event.target === trainingDataModal) {
+            hideTrainingDataModal();
+        }
+        
+        // Close code params modal if clicking outside (existing functionality)
+        if (codeParamsModal && event.target === codeParamsModal) {
+            hideParamsModal();
+        }
+    };
+
     // ... (rest of your Office.onReady, e.g., Promise.all)
   }
 });
@@ -2189,100 +2252,82 @@ function removeCommas(text) {
     return cleanedText;
 }
 
-// Function to add data to training queue
+// Function to show training data modal
 async function addToTrainingDataQueue() {
     try {
-        // Get the user input from the stored last input (since input field gets cleared after send)
-        const userInputElement = document.getElementById('user-input');
-        const currentInputValue = userInputElement ? userInputElement.value.trim() : '';
+        // Use the first user input (conversation starter) for training data
+        const userPrompt = firstUserInput || '';
         
-        // Use current input if available, otherwise use the last stored input
-        const userPrompt = currentInputValue || lastUserInput || '';
-        
-        // Debug logging for userPrompt
-        console.log("[addToTrainingDataQueue] userInputElement found:", !!userInputElement);
-        console.log("[addToTrainingDataQueue] currentInputValue:", `"${currentInputValue}"`);
-        console.log("[addToTrainingDataQueue] lastUserInput:", `"${lastUserInput}"`);
-        console.log("[addToTrainingDataQueue] final userPrompt value:", `"${userPrompt}"`);
-        console.log("[addToTrainingDataQueue] userPrompt length:", userPrompt.length);
-        
-        // New logic for determining selectedCode
-        const codesTextarea = document.getElementById('codes-textarea');
-        if (!codesTextarea) {
-            showError("Code editor textarea not found.");
-            return;
-        }
-        const editorContent = codesTextarea.value;
-        let selectedCode = ''; // Initialize selectedCode
-
-        const tabRegex = /<TAB/g;
-        let match;
-        let tabIndices = [];
-        while ((match = tabRegex.exec(editorContent)) !== null) {
-            tabIndices.push(match.index);
-        }
-        const tabCount = tabIndices.length;
-
-        console.log(`[addToTrainingDataQueue] Detected ${tabCount} <TAB> instances.`);
-
-        if (tabCount === 1) {
-            console.log("[addToTrainingDataQueue] Single <TAB> detected. Capturing from its start to end of editor content.");
-            selectedCode = editorContent.substring(tabIndices[0]);
-        } else if (tabCount > 1) {
-            console.log("[addToTrainingDataQueue] Multiple <TAB> codes detected. Checking for highlighted text.");
-            selectedCode = getSelectedTextFromEditor(); // This function gets highlighted text
-            if (!selectedCode) {
-                showError("Multiple <TAB> codes found. Please highlight the specific code you want to add to the training data.");
-                console.log("[addToTrainingDataQueue] Multiple <TAB> codes and no selection. Aborting.");
-                return; // Stop processing
-            }
-            console.log("[addToTrainingDataQueue] Using highlighted selection with multiple <TAB> codes.");
-        } else { // tabCount === 0
-            console.log("[addToTrainingDataQueue] No <TAB> codes detected. Using highlighted text if any.");
-            selectedCode = getSelectedTextFromEditor();
+        // Get AI response - convert array to string if needed
+        let aiResponse = '';
+        if (Array.isArray(lastResponse)) {
+            aiResponse = lastResponse.join('\n');
+        } else if (typeof lastResponse === 'string') {
+            aiResponse = lastResponse;
         }
         
-        // Remove TAB codes from selectedCode before processing
-        selectedCode = removeTABCodes(selectedCode);
+        // Show the training data modal
+        showTrainingDataModal(userPrompt, aiResponse);
         
-        console.log("[addToTrainingDataQueue] selectedCode length after TAB removal:", selectedCode.length);
-        console.log("[addToTrainingDataQueue] selectedCode preview after TAB removal:", selectedCode.substring(0, 200) + "..."); // Increased preview length
+    } catch (error) {
+        console.error("Error opening training data modal:", error);
+        showError(`Error opening training data dialog: ${error.message}`);
+    }
+}
+
+// Function to show the training data modal
+function showTrainingDataModal(userPrompt = '', aiResponse = '') {
+    const modal = document.getElementById('training-data-modal');
+    const userInputField = document.getElementById('training-user-input');
+    const aiResponseField = document.getElementById('training-ai-response');
+    
+    if (!modal || !userInputField || !aiResponseField) {
+        showError('Training data modal elements not found');
+        return;
+    }
+    
+    // Populate the fields
+    userInputField.value = userPrompt;
+    aiResponseField.value = aiResponse;
+    
+    // Show the modal
+    modal.style.display = 'block';
+}
+
+// Function to hide the training data modal
+function hideTrainingDataModal() {
+    const modal = document.getElementById('training-data-modal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
+// Function to save training data from modal
+async function saveTrainingDataFromModal() {
+    try {
+        const userInputField = document.getElementById('training-user-input');
+        const aiResponseField = document.getElementById('training-ai-response');
         
-        // Validate inputs - require at least one (userPrompt or selectedCode)
-        if (!userPrompt && !selectedCode) {
-            showError("Please enter a prompt in the message box or select/provide code in the code editor. No data to save.");
+        if (!userInputField || !aiResponseField) {
+            showError('Training data input fields not found');
             return;
         }
         
-        // Remove commas from both userPrompt and selectedCode before creating training entry
-        // const cleanedUserPrompt = removeCommas(userPrompt);
-        // const cleanedSelectedCode = removeCommas(selectedCode);
+        const userPrompt = userInputField.value.trim();
+        const aiResponse = aiResponseField.value.trim();
         
-        // >>> COMMENTED OUT: Keep commas in codestrings - just use original values
-        const cleanedUserPrompt = userPrompt;
-        const cleanedSelectedCode = selectedCode;
-        
-        console.log("[addToTrainingDataQueue] Original userPrompt length:", userPrompt.length);
-        console.log("[addToTrainingDataQueue] Cleaned userPrompt length:", cleanedUserPrompt.length);
-        console.log("[addToTrainingDataQueue] Original selectedCode length:", selectedCode.length);
-        console.log("[addToTrainingDataQueue] Cleaned selectedCode length:", cleanedSelectedCode.length);
-        
-        // Show user what will be saved (more detailed log)
-        if (cleanedUserPrompt) {
-            console.log("[addToTrainingDataQueue] Will save cleaned prompt:", `"${cleanedUserPrompt}"`);
-        }
-        if (cleanedSelectedCode) {
-            console.log("[addToTrainingDataQueue] Will save cleaned selectedCode (first 200 chars):", `"${cleanedSelectedCode.substring(0,200)}..."`);
-        } else {
-            console.log("[addToTrainingDataQueue] No selectedCode to save for this entry.");
+        // Validate inputs - require at least one field to be filled
+        if (!userPrompt && !aiResponse) {
+            showError("Please enter either a client message or AI response before saving.");
+            return;
         }
         
         const trainingEntry = {
-            prompt: cleanedUserPrompt,
-            selectedCode: cleanedSelectedCode
+            prompt: userPrompt,
+            selectedCode: aiResponse
         };
         
-        console.log("[addToTrainingDataQueue] Created training entry:", trainingEntry);
+        console.log("[saveTrainingDataFromModal] Created training entry:", trainingEntry);
         
         // Load existing training queue and add new entry
         let trainingQueue = [];
@@ -2293,13 +2338,13 @@ async function addToTrainingDataQueue() {
                 // Only use existing data if it's in the new format (no timestamp, hasPrompt, etc.)
                 if (parsed.length > 0 && !parsed[0].timestamp && parsed[0].hasPrompt === undefined) {
                     trainingQueue = parsed;
-                    console.log("[addToTrainingDataQueue] Loaded existing queue with", trainingQueue.length, "entries");
+                    console.log("[saveTrainingDataFromModal] Loaded existing queue with", trainingQueue.length, "entries");
                 } else {
-                    console.log("[addToTrainingDataQueue] Found old format data, starting fresh");
+                    console.log("[saveTrainingDataFromModal] Found old format data, starting fresh");
                     trainingQueue = [];
                 }
             } else {
-                console.log("[addToTrainingDataQueue] No existing queue found, starting fresh");
+                console.log("[saveTrainingDataFromModal] No existing queue found, starting fresh");
             }
         } catch (error) {
             console.warn("Error loading existing training queue:", error);
@@ -2308,14 +2353,14 @@ async function addToTrainingDataQueue() {
         
         // Add new entry to queue
         trainingQueue.push(trainingEntry);
-        console.log("[addToTrainingDataQueue] Queue now has", trainingQueue.length, "entries");
+        console.log("[saveTrainingDataFromModal] Queue now has", trainingQueue.length, "entries");
         
         // Save back to localStorage
         localStorage.setItem('trainingDataQueue', JSON.stringify(trainingQueue));
         
         // Create CSV content
         const csvContent = convertTrainingQueueToCSV(trainingQueue);
-        console.log("[addToTrainingDataQueue] Generated CSV content:", csvContent);
+        console.log("[saveTrainingDataFromModal] Generated CSV content:", csvContent);
         
         // Save CSV file (using browser download)
         downloadCSVFile(csvContent, `training_data_queue.csv`);
@@ -2323,15 +2368,13 @@ async function addToTrainingDataQueue() {
         // Show success message
         showMessage(`Training data added to queue! Entry ${trainingQueue.length} saved. CSV file downloaded.`);
         
-        // Optionally clear the input after successful save
-        if (userInputElement) {
-            userInputElement.value = '';
-        }
+        // Hide the modal
+        hideTrainingDataModal();
         
         console.log("Training data entry added:", trainingEntry);
         
     } catch (error) {
-        console.error("Error adding to training data queue:", error);
+        console.error("Error saving training data:", error);
         showError(`Error saving training data: ${error.message}`);
     }
 }

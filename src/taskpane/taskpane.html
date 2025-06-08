@@ -140,6 +140,28 @@
                 </div>
             </div>
 
+            <!-- Training Data Modal -->
+            <div id="training-data-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-button">&times;</span>
+                    <h2>Edit Training Data</h2>
+                    <div class="training-data-form">
+                        <div class="training-field">
+                            <label for="training-user-input">Client Message:</label>
+                            <textarea id="training-user-input" rows="4" placeholder="Enter the client's original message..."></textarea>
+                        </div>
+                        <div class="training-field">
+                            <label for="training-ai-response">AI Response:</label>
+                            <textarea id="training-ai-response" rows="8" placeholder="Enter the AI's response..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button id="save-training-data-button" class="ms-Button ms-Button--primary">Add to Queue</button>
+                        <button id="cancel-training-data-button" class="ms-Button">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </main>
 
