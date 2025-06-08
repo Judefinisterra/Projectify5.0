@@ -1703,8 +1703,15 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                             console.log(`  Processing columnformula for AE${currentRowNum}: ${code.params.columnformula}`);
                             
                             // Process the formula through parseFormulaSCustomFormula to handle BEG, END, etc.
-                            const processedFormula = await parseFormulaSCustomFormula(code.params.columnformula, currentRowNum, currentWorksheet, context);
+                            let processedFormula = await parseFormulaSCustomFormula(code.params.columnformula, currentRowNum, currentWorksheet, context);
                             console.log(`  Processed columnformula result: ${processedFormula}`);
+                            
+                            // Check for negative parameter and apply it to the processed formula
+                            if (code.params.negative && String(code.params.negative).toUpperCase() === "TRUE") {
+                                console.log(`  Applying negative transformation to columnformula`);
+                                processedFormula = `-(${processedFormula})`;
+                                console.log(`  Columnformula after negative transformation: ${processedFormula}`);
+                            }
                             
                             // Apply the processed formula to the cell
                             const columnFormulaCell = currentWorksheet.getRange(`AE${currentRowNum}`);
