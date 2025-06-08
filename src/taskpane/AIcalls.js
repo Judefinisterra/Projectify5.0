@@ -1263,111 +1263,129 @@ export function safeJsonForPrompt(obj, readable = true) {
 }
 
 
-// Function: Handle Follow-Up Conversation
+// Function: Handle Follow-Up Conversation - Standalone Simple Process
 export async function handleFollowUpConversation(clientprompt, currentHistory) {
-    if (DEBUG) console.log("Processing follow-up question:", clientprompt);
+    if (DEBUG) console.log("Processing follow-up question (standalone):", clientprompt);
     if (DEBUG) console.log("Using conversation history length:", currentHistory.length);
 
-    // >>> ADDED: Store the original clean client prompt at the very start
-    originalClientPrompt = clientprompt;
-    if (DEBUG) console.log("[handleFollowUpConversation] Stored original client prompt:", originalClientPrompt.substring(0, 100) + "...");
+    try {
+        // Ensure API keys are available
+        if (!INTERNAL_API_KEYS.OPENAI_API_KEY) {
+            throw new Error("OpenAI API key not initialized for follow-up conversation.");
+        }
 
-    // Ensure API keys are available
-    if (!INTERNAL_API_KEYS.OPENAI_API_KEY || !INTERNAL_API_KEYS.PINECONE_API_KEY) {
-        throw new Error("API keys not initialized for follow-up conversation.");
+        // Load the followup system prompt
+        const followupSystemPrompt = await getSystemPromptFromFile('Followup_System');
+        if (!followupSystemPrompt) {
+            throw new Error("Failed to load Followup_System prompt.");
+        }
+
+        // Extract current codestrings from the last assistant response in history
+        let currentCodestrings = "";
+        if (currentHistory.length >= 2) {
+            const lastAssistantResponse = currentHistory[currentHistory.length - 1];
+            if (lastAssistantResponse[0] === "assistant") {
+                const assistantResponse = lastAssistantResponse[1];
+                const codestrings = extractCodestrings(assistantResponse);
+                currentCodestrings = codestrings.length > 0 ? codestrings.join('\n') : assistantResponse;
+            }
+        }
+
+        // Build conversation history string for the prompt
+        let conversationHistoryString = "";
+        for (let i = 0; i < currentHistory.length; i += 2) {
+            if (i + 1 < currentHistory.length) {
+                const humanMessage = currentHistory[i];
+                const assistantMessage = currentHistory[i + 1];
+                
+                if (humanMessage[0] === "human" && assistantMessage[0] === "assistant") {
+                    // Clean the human message (remove training data if any)
+                    let cleanHumanPrompt = humanMessage[1];
+                    cleanHumanPrompt = cleanHumanPrompt.replace(/\n\n(Client request-specific Context|Training Data):[\s\S]*$/i, '');
+                    cleanHumanPrompt = cleanHumanPrompt.replace(/^Client [Rr]equest:\s*/, '');
+                    
+                    // Extract codestrings from assistant response
+                    const assistantResponse = assistantMessage[1];
+                    const codestrings = extractCodestrings(assistantResponse);
+                    const codestringsOnly = codestrings.length > 0 ? codestrings.join('\n') : assistantResponse;
+                    
+                    conversationHistoryString += `Human: ${cleanHumanPrompt.trim()}\nAssistant: ${codestringsOnly}\n\n`;
+                }
+            }
+        }
+
+        // Create the complete prompt for the followup
+        const followupPrompt = `CONVERSATION HISTORY:\n${conversationHistoryString}CURRENT CODESTRINGS:\n${currentCodestrings}\n\nNEW USER MESSAGE:\n${clientprompt}`;
+
+        if (DEBUG) {
+            console.log("[handleFollowUpConversation] Followup prompt created:");
+            console.log("System prompt:", followupSystemPrompt.substring(0, 100) + "...");
+            console.log("User prompt preview:", followupPrompt.substring(0, 300) + "...");
+        }
+
+        // Make direct OpenAI call (not using processPrompt to avoid any history manipulation)
+        const messages = [
+            { role: "system", content: followupSystemPrompt },
+            { role: "user", content: followupPrompt }
+        ];
+
+        const openaiCallOptions = { 
+            model: GPT41, 
+            temperature: 1, 
+            stream: false,
+            caller: "handleFollowUpConversation - Standalone"
+        };
+
+        let responseContent = "";
+        for await (const contentPart of callOpenAI(messages, openaiCallOptions)) {
+            responseContent += contentPart;
+        }
+
+        // Convert response to array format for consistency
+        let responseArray;
+        try {
+            const parsed = JSON.parse(responseContent);
+            if (Array.isArray(parsed)) {
+                responseArray = parsed;
+            } else {
+                responseArray = responseContent.split('\n').filter(line => line.trim());
+            }
+        } catch (e) {
+            responseArray = responseContent.split('\n').filter(line => line.trim());
+        }
+
+        // >>> ADDED: Console log the followup output
+        console.log("\n╔════════════════════════════════════════════════════════════════╗");
+        console.log("║                FOLLOWUP OUTPUT (STANDALONE)                    ║");
+        console.log("╚════════════════════════════════════════════════════════════════╝");
+        console.log("Followup Response Array:");
+        console.log(responseArray);
+        console.log("────────────────────────────────────────────────────────────────\n");
+
+        // Update history (create new array, don't modify inplace)
+        const updatedHistory = [
+            ...currentHistory,
+            ["human", clientprompt],
+            ["assistant", responseArray.join("\n")] // Store response as single string
+        ];
+
+        // Persist updated history and analysis data (using localStorage helpers)
+        saveConversationHistory(updatedHistory); // Save the new history state
+        saveTrainingData(clientprompt, responseArray);
+
+        if (DEBUG) console.log("Follow-up conversation processed (standalone). History length:", updatedHistory.length);
+
+        // Return the response and the updated history
+        return { response: responseArray, history: updatedHistory };
+
+    } catch (error) {
+        console.error("Error in standalone follow-up conversation:", error);
+        // Return error message and unchanged history
+        return {
+            response: ["Error processing follow-up request: " + error.message],
+            history: currentHistory || []
+        };
     }
-
-    // Load necessary prompts
-    const systemPrompt = await getSystemPromptFromFile('Followup_System');
-    const mainPromptText = await getSystemPromptFromFile('Encoder_Main'); // Assuming this is the 'MainPrompt' context needed
-
-     if (!systemPrompt || !mainPromptText) {
-         throw new Error("Failed to load required prompts for follow-up.");
-     }
-
-    // Fetch context using vector DB queries
-    // These calls internally use createEmbedding (OpenAI key) and query (Pinecone key)
-    const trainingdataCall2 = await queryVectorDB({
-        queryPrompt: clientprompt,
-        similarityThreshold: .6,
-        indexName: 'call2trainingdata',
-        numResults: 10
-    });
-
-    const call2context = await queryVectorDB({
-        queryPrompt: clientprompt + safeJsonForPrompt(trainingdataCall2, false), // Append context for better query
-        similarityThreshold: .3,
-        indexName: 'call2context',
-        numResults: 5
-    });
-
-    // const call1context = await queryVectorDB({
-    //     queryPrompt: clientprompt + safeJsonForPrompt(trainingdataCall2, false),
-    //     similarityThreshold: .3,
-    //     indexName: 'call1context',
-    //     numResults: 5
-    // });
-
-    // const codeOptions = await queryVectorDB({
-    //     queryPrompt: clientprompt + safeJsonForPrompt(trainingdataCall2, false) + safeJsonForPrompt(call1context, false),
-    //     indexName: 'codes',
-    //     numResults: 10,
-    //     similarityThreshold: .1
-    // });
-
-    // Construct the prompt for the LLM
-    const followUpPrompt = `Client request: ${clientprompt}\n` +
-                   `Main Prompt Context: ${mainPromptText}\n`; // Use loaded main prompt text
-                //    `Training Data Context: ${safeJsonForPrompt(trainingdataCall2, true)}\n` + // Use readable format for prompt
-    
-                //    `Context: ${safeJsonForPrompt(call2context, true)}\n` +
-                // //    `Relevant Code Options: ${safeJsonForPrompt(codeOptions, true)}`;
-
-    // Call the LLM (processPrompt uses OpenAI key internally)
-            let responseArray = await processPrompt({
-            userInput: followUpPrompt,
-            systemPrompt: systemPrompt,
-            model: GPT41,
-            temperature: 1,
-            history: currentHistory, // Pass the existing history
-            promptFiles: { system: 'Followup_System', main: 'Encoder_Main' }
-        });
-
-    // >>> ADDED: Console log the main encoder output
-    console.log("\n╔════════════════════════════════════════════════════════════════╗");
-    console.log("║                    MAIN ENCODER OUTPUT (FOLLOWUP)              ║");
-    console.log("╚════════════════════════════════════════════════════════════════╝");
-    console.log("Main Encoder Response Array:");
-    console.log(responseArray);
-    console.log("────────────────────────────────────────────────────────────────\n");
-
-    // >>> ADDED: Check the response using LogicCheckerGPT (uses global originalClientPrompt variable)
-    if (DEBUG) console.log("[handleFollowUpConversation] Checking response with LogicCheckerGPT...");
-    if (DEBUG) console.log("[handleFollowUpConversation] Using stored original client prompt for LogicCheckerGPT:", originalClientPrompt.substring(0, 100) + "...");
-    responseArray = await checkCodeStringsWithLogicChecker(responseArray);
-    if (DEBUG) console.log("[handleFollowUpConversation] LogicCheckerGPT checking completed");
-
-    // >>> ADDED: Format the response using FormatGPT
-    if (DEBUG) console.log("[handleFollowUpConversation] Formatting response with FormatGPT...");
-    responseArray = await formatCodeStringsWithGPT(responseArray);
-    if (DEBUG) console.log("[handleFollowUpConversation] FormatGPT formatting completed");
-  
-    // Update history (create new array, don't modify inplace)
-    const updatedHistory = [
-        ...currentHistory,
-        ["human", clientprompt],
-        ["assistant", responseArray.join("\n")] // Store response as single string
-    ];
-
-    // Persist updated history and analysis data (using localStorage helpers)
-    saveConversationHistory(updatedHistory); // Save the new history state
-    
-    saveTrainingData(clientprompt, responseArray);
-
-    if (DEBUG) console.log("Follow-up conversation processed. History length:", updatedHistory.length);
-
-    // Return the response and the updated history
-    return { response: responseArray, history: updatedHistory };
 }
 
 

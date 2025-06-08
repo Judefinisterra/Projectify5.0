@@ -157,6 +157,9 @@ let conversationHistory = [];
 // Add this variable to track if the current message is a response
 let isResponse = false;
 
+// Track if this is the first message in the current session
+let isFirstMessageInSession = true;
+
 // >>> ADDED: State for Client Chat
 let conversationHistoryClient = [];
 let lastResponseClient = null;
@@ -342,8 +345,8 @@ async function handleSend() {
     // Store the user input for training data before clearing
     lastUserInput = userInput;
 
-    // Check if this is a response to a previous message
-    isResponse = conversationHistory.length > 0;
+    // Check if this is a response to a previous message (use session tracking instead of just history length)
+    isResponse = !isFirstMessageInSession;
 
     // Add user message to chat
     appendMessage(userInput, true);
@@ -365,36 +368,47 @@ async function handleSend() {
     chatLog.scrollTop = chatLog.scrollHeight;
     
     try {
-        // Process the text through the main function with progress callback
-        console.log("Starting structureDatabasequeries");
+        let conversationResult;
         
-        // Define progress callback to update the progress message
-        const progressCallback = (message) => {
-            progressMessageContent.textContent = message;
+        if (!isResponse) {
+            // Initial conversation: do full database processing
+            console.log("Starting structureDatabasequeries (initial conversation)");
+            
+            // Define progress callback to update the progress message
+            const progressCallback = (message) => {
+                progressMessageContent.textContent = message;
+                chatLog.scrollTop = chatLog.scrollHeight;
+            };
+            
+            const dbResults = await structureDatabasequeries(userInput, progressCallback);
+            console.log("Database queries completed");
+            
+            // Update progress message to show next step
+            progressMessageContent.textContent = 'Processing AI response...';
             chatLog.scrollTop = chatLog.scrollHeight;
-        };
-        
-        const dbResults = await structureDatabasequeries(userInput, progressCallback);
-        console.log("Database queries completed");
-        
-        // Update progress message to show next step
-        progressMessageContent.textContent = 'Processing AI response...';
-        chatLog.scrollTop = chatLog.scrollHeight;
-        
-        if (!dbResults || !Array.isArray(dbResults)) {
-            console.error("Invalid database results:", dbResults);
-            throw new Error("Failed to get valid database results");
+            
+            if (!dbResults || !Array.isArray(dbResults)) {
+                console.error("Invalid database results:", dbResults);
+                throw new Error("Failed to get valid database results");
+            }
+            
+            // Import and use the consolidated training data and context function from AIcalls.js
+            const consolidatedData = consolidateAndDeduplicateTrainingData(dbResults);
+
+            const enhancedPrompt = `Client Request: ${userInput}\n\n${consolidatedData}`;
+            console.log("Enhanced prompt created");
+            console.log("Enhanced prompt:", enhancedPrompt);
+
+            console.log("Starting handleConversation (initial)");
+            conversationResult = await handleConversation(enhancedPrompt, conversationHistory);
+        } else {
+            // Follow-up conversation: skip database queries, use simple prompt
+            console.log("Starting handleConversation (follow-up - no database queries)");
+            progressMessageContent.textContent = 'Processing follow-up response...';
+            chatLog.scrollTop = chatLog.scrollHeight;
+            
+            conversationResult = await handleConversation(userInput, conversationHistory);
         }
-        
-        // Import and use the consolidated training data and context function from AIcalls.js
-        const consolidatedData = consolidateAndDeduplicateTrainingData(dbResults);
-
-        const enhancedPrompt = `Client Request: ${userInput}\n\n${consolidatedData}`;
-        console.log("Enhanced prompt created");
-        console.log("Enhanced prompt:", enhancedPrompt);
-
-        console.log("Starting handleConversation");
-        let conversationResult = await handleConversation(enhancedPrompt, isResponse); // Store the whole result object
         console.log("Conversation completed");
         console.log("Initial Conversation Result:", conversationResult); // Log the whole object
 
@@ -408,14 +422,20 @@ async function handleSend() {
             throw new Error("Failed to get valid response array from conversation result");
         }
 
-        // Update progress message to show formatting step
-        progressMessageContent.textContent = 'Formatting response with FormatGPT...';
-        chatLog.scrollTop = chatLog.scrollHeight;
+        // >>> MODIFIED: Skip FormatGPT for follow-up conversations (isResponse = true means follow-up)
+        if (!isResponse) {
+            // Only format for initial conversations
+            // Update progress message to show formatting step
+            progressMessageContent.textContent = 'Formatting response with FormatGPT...';
+            chatLog.scrollTop = chatLog.scrollHeight;
 
-        // Format the response using FormatGPT
-        console.log("Starting FormatGPT formatting");
-        responseArray = await formatCodeStringsWithGPT(responseArray);
-        console.log("FormatGPT formatting completed");
+            // Format the response using FormatGPT
+            console.log("Starting FormatGPT formatting (initial conversation only)");
+            responseArray = await formatCodeStringsWithGPT(responseArray);
+            console.log("FormatGPT formatting completed");
+        } else {
+            console.log("Skipping FormatGPT for follow-up conversation");
+        }
 
         // Update progress message to show completion
         progressMessageContent.textContent = 'Finalizing response...';
@@ -423,6 +443,9 @@ async function handleSend() {
 
         // Store the final response array for Excel writing
         lastResponse = responseArray;
+
+        // Mark that we've processed the first message in this session
+        isFirstMessageInSession = false;
 
         // Remove the progress message and add the final assistant message
         chatLog.removeChild(progressMessageDiv);
@@ -578,6 +601,9 @@ function resetChat() {
     // Reset the response flag and last response
     isResponse = false;
     lastResponse = null;
+    
+    // Reset the session tracking
+    isFirstMessageInSession = true;
     
     // Clear the input field
     document.getElementById('user-input').value = '';
