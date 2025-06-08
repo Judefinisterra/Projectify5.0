@@ -872,6 +872,17 @@ body {
     font-size: 14px;
     resize: vertical;
     min-height: 60px;
+    /* Ensure paste operations work properly */
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+    /* Allow clipboard operations */
+    -webkit-user-modify: read-write;
+    /* Ensure the element is properly focusable */
+    outline: none;
+    /* Remove any potential restrictions */
+    pointer-events: auto;
 }
 
 .training-field textarea:focus {

@@ -2290,8 +2290,88 @@ function showTrainingDataModal(userPrompt = '', aiResponse = '') {
     userInputField.value = userPrompt;
     aiResponseField.value = aiResponse;
     
+    // Ensure paste functionality works by adding explicit event handlers
+    const enablePasteForElement = (element) => {
+        // Remove any existing paste handlers to avoid duplicates
+        element.removeEventListener('paste', handlePasteEvent);
+        
+        // Add paste event handler
+        element.addEventListener('paste', handlePasteEvent);
+        
+        // Also ensure the element is properly focusable
+        element.setAttribute('tabindex', '0');
+        
+        // Add context menu support (right-click paste)
+        element.addEventListener('contextmenu', (e) => {
+            // Allow default context menu behavior
+            e.stopPropagation();
+        });
+        
+        // Add keyboard shortcut support
+        element.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+                // Allow default paste behavior
+                e.stopPropagation();
+            }
+        });
+    };
+    
+    // Enable paste for both textarea elements
+    enablePasteForElement(userInputField);
+    enablePasteForElement(aiResponseField);
+    
     // Show the modal
     modal.style.display = 'block';
+    
+    // Focus the first field to ensure proper initialization
+    setTimeout(() => {
+        userInputField.focus();
+        
+        // Debug logging to help troubleshoot paste issues
+        console.log('Training data modal opened successfully');
+        console.log('User input field can focus:', document.activeElement === userInputField);
+        console.log('User input field readonly:', userInputField.readOnly);
+        console.log('User input field disabled:', userInputField.disabled);
+        console.log('AI response field readonly:', aiResponseField.readOnly);
+        console.log('AI response field disabled:', aiResponseField.disabled);
+        
+        // Test if paste events can be triggered
+        try {
+            const testEvent = new ClipboardEvent('paste', {
+                bubbles: true,
+                cancelable: true,
+                clipboardData: new DataTransfer()
+            });
+            console.log('Clipboard event creation test passed');
+        } catch (e) {
+            console.warn('Clipboard event creation test failed:', e.message);
+        }
+    }, 100);
+}
+
+// Helper function to handle paste events
+function handlePasteEvent(e) {
+    try {
+        // Allow the default paste behavior
+        console.log('Paste event detected in training data field');
+        
+        // For debugging - log what's being pasted (if accessible)
+        if (e.clipboardData && e.clipboardData.getData) {
+            try {
+                const pastedText = e.clipboardData.getData('text');
+                console.log('Pasted text length:', pastedText.length);
+            } catch (clipboardError) {
+                console.log('Could not access clipboard data for logging');
+            }
+        }
+        
+        // Don't prevent default - let the browser handle the paste
+        return true;
+    } catch (error) {
+        console.error('Error in paste handler:', error);
+        // Still allow the paste to proceed
+        return true;
+    }
 }
 
 // Function to hide the training data modal
