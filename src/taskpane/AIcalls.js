@@ -778,8 +778,8 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
           console.log("=== END SUMMARY ===");
       }
 
-      // >>> ADDED: Deduplicate training data to remove redundant code strings
-      const deduplicatedResults = deduplicateTrainingData(results);
+      // >>> ADDED: Deduplicate training data to remove redundant code strings based on output codestrings
+      const deduplicatedResults = deduplicateTrainingDataByOutput(results);
 
       return deduplicatedResults;
   } catch (error) {
@@ -830,6 +830,100 @@ export function deduplicateTrainingData(results) {
     return results;
 }
 
+// >>> ADDED: Function to deduplicate training data entries based on output codestrings
+export function deduplicateTrainingDataByOutput(results) {
+    const seenOutputs = new Set(); // Track unique output codestrings
+    let totalOriginalCount = 0;
+    let totalDeduplicatedCount = 0;
+    let duplicatesRemoved = 0;
+
+    if (DEBUG) console.log("[deduplicateTrainingDataByOutput] Starting output-based deduplication...");
+
+    // Process each result set
+    results.forEach((result, resultIndex) => {
+        if (!result.trainingData || !Array.isArray(result.trainingData)) {
+            return;
+        }
+
+        const originalLength = result.trainingData.length;
+        totalOriginalCount += originalLength;
+
+        if (DEBUG) console.log(`[deduplicateTrainingDataByOutput] Processing result ${resultIndex + 1} with ${originalLength} training entries`);
+
+        // Filter training data to remove entries with duplicate outputs
+        result.trainingData = result.trainingData.filter((trainingEntry, entryIndex) => {
+            // Extract the output portion (codestrings after "Output:")
+            const outputCodestrings = extractOutputCodestrings(trainingEntry);
+            
+            if (!outputCodestrings) {
+                // If we can't extract output codestrings, keep the entry
+                if (DEBUG) console.log(`[deduplicateTrainingDataByOutput] Could not extract output from entry ${entryIndex}, keeping it`);
+                return true;
+            }
+
+            // Check if we've seen this output before
+            if (seenOutputs.has(outputCodestrings)) {
+                // This is a duplicate output, remove it
+                duplicatesRemoved++;
+                if (DEBUG) console.log(`[deduplicateTrainingDataByOutput] Duplicate output found, removing entry ${entryIndex}`);
+                if (DEBUG) console.log(`[deduplicateTrainingDataByOutput] Duplicate output: ${outputCodestrings.substring(0, 100)}...`);
+                return false;
+            } else {
+                // First occurrence of this output, keep it and mark as seen
+                seenOutputs.add(outputCodestrings);
+                if (DEBUG) console.log(`[deduplicateTrainingDataByOutput] New unique output found, keeping entry ${entryIndex}`);
+                return true;
+            }
+        });
+
+        const newLength = result.trainingData.length;
+        totalDeduplicatedCount += newLength;
+        
+        if (DEBUG) console.log(`[deduplicateTrainingDataByOutput] Result ${resultIndex + 1}: ${originalLength} -> ${newLength} (removed ${originalLength - newLength} duplicates)`);
+    });
+
+    if (DEBUG) {
+        console.log(`[deduplicateTrainingDataByOutput] Deduplication complete:`);
+        console.log(`  - Total original entries: ${totalOriginalCount}`);
+        console.log(`  - Total after deduplication: ${totalDeduplicatedCount}`);
+        console.log(`  - Duplicates removed: ${duplicatesRemoved}`);
+        console.log(`  - Unique outputs retained: ${seenOutputs.size}`);
+    }
+
+    return results;
+}
+
+// >>> ADDED: Helper function to extract output codestrings from training data entry
+function extractOutputCodestrings(trainingEntry) {
+    if (!trainingEntry || typeof trainingEntry !== 'string') {
+        return null;
+    }
+
+    // Find the "Output:" portion which typically precedes code strings in training data
+    const outputMatch = trainingEntry.search(/\bOutput:\s*/i);
+    if (outputMatch === -1) {
+        // No "Output:" found, look for code patterns directly
+        const codestrings = extractCodestrings(trainingEntry);
+        return codestrings.length > 0 ? codestrings.join('\n') : null;
+    }
+
+    // Extract everything after "Output:" which should contain the codestrings
+    const outputPortion = trainingEntry.substring(outputMatch + trainingEntry.match(/\bOutput:\s*/i)[0].length).trim();
+    
+    // Extract codestrings from the output portion
+    const codestrings = extractCodestrings(outputPortion);
+    
+    // If no codestrings found in output portion, use the raw output portion
+    if (codestrings.length === 0) {
+        return outputPortion || null;
+    }
+    
+    // Return normalized codestrings joined consistently
+    // Sort to ensure order doesn't matter for comparison
+    const sortedCodestrings = codestrings.sort();
+    return sortedCodestrings.join('\n');
+}
+
 // >>> ADDED: Helper function to format code strings in training entry output
 function formatCodeStringsInTrainingEntry(trainingEntry) {
     if (!trainingEntry || typeof trainingEntry !== 'string') {
@@ -858,7 +952,7 @@ function formatCodeStringsInTrainingEntry(trainingEntry) {
 export function consolidateAndDeduplicateTrainingData(results) {
     const allTrainingData = [];
     const allContextData = [];
-    const seenTrainingInputs = new Set(); // Track unique training input portions
+    const seenTrainingOutputs = new Set(); // Track unique training output codestrings
     const seenContextData = new Set(); // Track unique context entries
     let totalOriginalTrainingCount = 0;
     let totalOriginalContextCount = 0;
@@ -872,22 +966,22 @@ export function consolidateAndDeduplicateTrainingData(results) {
             totalOriginalTrainingCount += result.trainingData.length;
 
             result.trainingData.forEach((trainingEntry, entryIndex) => {
-                // Extract the input portion (before code strings)
-                const inputPortion = extractInputPortion(trainingEntry);
+                // Extract the output codestrings (to deduplicate by output instead of input)
+                const outputCodestrings = extractOutputCodestrings(trainingEntry);
                 
-                if (!inputPortion) {
-                    // If we can't extract input portion, keep the original but mark it as processed
+                if (!outputCodestrings) {
+                    // If we can't extract output codestrings, keep the original but mark it as processed
                     allTrainingData.push(trainingEntry);
                     return;
                 }
 
-                // Check if we've seen this input before
-                if (seenTrainingInputs.has(inputPortion)) {
-                    // This is a duplicate, skip it
+                // Check if we've seen this output before
+                if (seenTrainingOutputs.has(outputCodestrings)) {
+                    // This is a duplicate output, skip it
                     trainingDuplicatesRemoved++;
                 } else {
-                    // First occurrence, add it and mark as seen
-                    seenTrainingInputs.add(inputPortion);
+                    // First occurrence of this output, add it and mark as seen
+                    seenTrainingOutputs.add(outputCodestrings);
                     allTrainingData.push(trainingEntry);
                 }
             });
