@@ -1101,7 +1101,7 @@ export async function isActiveCellGreen() {
  * @param {Excel.RequestContext} context - The Excel context (optional, needed for driver lookups)
  * @returns {Promise<string>} - The converted Excel formula
  */
-async function parseFormulaSCustomFormula(formulaString, targetRow, worksheet = null, context = null) {
+export async function parseFormulaSCustomFormula(formulaString, targetRow, worksheet = null, context = null) {
     if (!formulaString || typeof formulaString !== 'string') {
         return formulaString;
     }
@@ -1112,21 +1112,31 @@ async function parseFormulaSCustomFormula(formulaString, targetRow, worksheet = 
     let driverMap = null;
     if (worksheet && context) {
         try {
+            // Use the same range approach as processFormulaSRows
+            const startRow = 10; // Same as processFormulaSRows
+            
+            // Get the last used row in the worksheet
+            const usedRange = worksheet.getUsedRange();
+            usedRange.load("rowIndex, rowCount");
+            await context.sync();
+            const lastRow = usedRange.rowIndex + usedRange.rowCount;
+            
             // Load column A values to create driver lookup map
-            const colARange = worksheet.getRange("A:A");
-            const usedRange = colARange.getUsedRange(true);
-            usedRange.load("values");
+            const colARangeAddress = `A${startRow}:A${lastRow}`;
+            const colARange = worksheet.getRange(colARangeAddress);
+            colARange.load("values");
             await context.sync();
             
             driverMap = new Map();
-            const colAValues = usedRange.values;
+            const colAValues = colARange.values;
             
-            // Build driver map: driver name -> row number
+            // Build driver map: driver name -> row number (same logic as processFormulaSRows)
             for (let i = 0; i < colAValues.length; i++) {
                 const value = colAValues[i][0];
                 if (value !== null && value !== "") {
-                    const rowNum = i + 1; // 1-based row number
+                    const rowNum = startRow + i; // Same calculation as processFormulaSRows
                     driverMap.set(String(value), rowNum);
+                    console.log(`    Driver map: ${value} -> row ${rowNum}`);
                 }
             }
             console.log(`    Built driver map with ${driverMap.size} entries for cd lookups`);
@@ -1135,46 +1145,6 @@ async function parseFormulaSCustomFormula(formulaString, targetRow, worksheet = 
             driverMap = null;
         }
     }
-    
-    // Process SPREAD function: SPREAD(driver) -> driver/AE$7
-    result = result.replace(/SPREAD\(([^)]+)\)/g, (match, driver) => {
-        console.log(`    Converting SPREAD(${driver}) to ${driver}/AE$7`);
-        return `(${driver}/AE$7)`;
-    });
-    
-    // Process BEG function: BEG(driver) -> (EOMONTH(driver,0)<=AE$2)
-    result = result.replace(/BEG\(([^)]+)\)/g, (match, driver) => {
-        console.log(`    Converting BEG(${driver}) to (EOMONTH(${driver},0)<=AE$2)`);
-        return `(EOMONTH(${driver},0)<=AE$2)`;
-    });
-    
-    // Process END function: END(driver) -> (EOMONTH(driver,0)>AE$2)
-    result = result.replace(/END\(([^)]+)\)/g, (match, driver) => {
-        console.log(`    Converting END(${driver}) to (EOMONTH(${driver},0)>AE$2)`);
-        return `(EOMONTH(${driver},0)>AE$2)`;
-    });
-    
-    // Process RAISE function: RAISE(driver) -> (1 + (driver)) ^ (AE$3 - $AE3)
-    result = result.replace(/RAISE\(([^)]+)\)/g, (match, driver) => {
-        console.log(`    Converting RAISE(${driver}) to (1 + (${driver})) ^ (AE$3 - $AE3)`);
-        return `(1 + (${driver})) ^ (AE$3 - $AE3)`;
-    });
-    
-    // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=AE$2)
-    result = result.replace(/ONETIMEDATE\(([^)]+)\)/g, (match, driver) => {
-        console.log(`    Converting ONETIMEDATE(${driver}) to (EOMONTH((${driver}),0)=AE$2)`);
-        return `(EOMONTH((${driver}),0)=AE$2)`;
-    });
-    
-    // Process SPREADDATES function: SPREADDATES(driver1,driver2) -> driver1/(EOMONTH(driver2,0)-(EOMONTH(driver1,0))*(12/AE$2*30)
-    // Note: Need to handle nested parentheses and comma separation
-    result = result.replace(/SPREADDATES\(([^,]+),([^)]+)\)/g, (match, driver1, driver2) => {
-        // Trim whitespace from drivers
-        driver1 = driver1.trim();
-        driver2 = driver2.trim();
-        console.log(`    Converting SPREADDATES(${driver1},${driver2}) to ${driver1}/(EOMONTH(${driver2},0)-(EOMONTH(${driver1},0))*(12/AE$2*30))`);
-        return `${driver1}/(EOMONTH(${driver2},0)-(EOMONTH(${driver1},0))*(12/AE$2*30))`;
-    });
     
     // Process rd{} references first if driver map is available
     if (driverMap) {
@@ -1192,7 +1162,7 @@ async function parseFormulaSCustomFormula(formulaString, targetRow, worksheet = 
         });
     }
 
-    // Process cd{} references before returning
+    // Process cd{} references before functions too
     // Define column mapping for cd: 1=I, 2=H, 3=G, etc.
     const columnMapping = {
         '1': 'I',
@@ -1248,6 +1218,48 @@ async function parseFormulaSCustomFormula(formulaString, targetRow, worksheet = 
         const replacement = `$${column}${rowToUse}`;
         return replacement;
     });
+    
+    // Process SPREAD function: SPREAD(driver) -> driver/AE$7
+    result = result.replace(/SPREAD\(([^)]+)\)/g, (match, driver) => {
+        console.log(`    Converting SPREAD(${driver}) to ${driver}/AE$7`);
+        return `(${driver}/AE$7)`;
+    });
+    
+    // Process BEG function: BEG(driver) -> (EOMONTH(driver,0)<=AE$2)
+    result = result.replace(/BEG\(([^)]+)\)/g, (match, driver) => {
+        console.log(`    Converting BEG(${driver}) to (EOMONTH(${driver},0)<=AE$2)`);
+        return `(EOMONTH(${driver},0)<=AE$2)`;
+    });
+    
+    // Process END function: END(driver) -> (EOMONTH(driver,0)>AE$2)
+    result = result.replace(/END\(([^)]+)\)/g, (match, driver) => {
+        console.log(`    Converting END(${driver}) to (EOMONTH(${driver},0)>AE$2)`);
+        return `(EOMONTH(${driver},0)>AE$2)`;
+    });
+    
+    // Process RAISE function: RAISE(driver) -> (1 + (driver)) ^ (AE$3 - $AE3)
+    result = result.replace(/RAISE\(([^)]+)\)/g, (match, driver) => {
+        console.log(`    Converting RAISE(${driver}) to (1 + (${driver})) ^ (AE$3 - $AE3)`);
+        return `(1 + (${driver})) ^ (AE$3 - $AE3)`;
+    });
+    
+    // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=AE$2)
+    result = result.replace(/ONETIMEDATE\(([^)]+)\)/g, (match, driver) => {
+        console.log(`    Converting ONETIMEDATE(${driver}) to (EOMONTH((${driver}),0)=AE$2)`);
+        return `(EOMONTH((${driver}),0)=AE$2)`;
+    });
+    
+    // Process SPREADDATES function: SPREADDATES(driver1,driver2) -> driver1/(EOMONTH(driver2,0)-(EOMONTH(driver1,0))*(12/AE$2*30)
+    // Note: Need to handle nested parentheses and comma separation
+    result = result.replace(/SPREADDATES\(([^,]+),([^)]+)\)/g, (match, driver1, driver2) => {
+        // Trim whitespace from drivers
+        driver1 = driver1.trim();
+        driver2 = driver2.trim();
+        console.log(`    Converting SPREADDATES(${driver1},${driver2}) to ${driver1}/(EOMONTH(${driver2},0)-(EOMONTH(${driver1},0))*(12/AE$2*30))`);
+        return `${driver1}/(EOMONTH(${driver2},0)-(EOMONTH(${driver1},0))*(12/AE$2*30))`;
+    });
+
+
     
     // Replace timeseriesdivisor with AE$7
     result = result.replace(/timeseriesdivisor/g, (match) => {
@@ -1682,6 +1694,31 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                             console.log(`  Set customformula as value for FORMULA-S processing`);
                         } catch (customFormulaError) {
                             console.error(`  Error applying customformula: ${customFormulaError.message}`);
+                        }
+                    }
+
+                    // Apply columnformula parameter to column AE for row1 (all code types)
+                    if (g === 1 && yy === 0 && code.params.columnformula && code.params.columnformula !== "0") {
+                        try {
+                            console.log(`  Processing columnformula for AE${currentRowNum}: ${code.params.columnformula}`);
+                            
+                            // Process the formula through parseFormulaSCustomFormula to handle BEG, END, etc.
+                            const processedFormula = await parseFormulaSCustomFormula(code.params.columnformula, currentRowNum, currentWorksheet, context);
+                            console.log(`  Processed columnformula result: ${processedFormula}`);
+                            
+                            // Apply the processed formula to the cell
+                            const columnFormulaCell = currentWorksheet.getRange(`AE${currentRowNum}`);
+                            if (processedFormula && processedFormula !== code.params.columnformula) {
+                                // If the formula was modified, set it as a formula
+                                columnFormulaCell.formulas = [['=' + processedFormula]];
+                                console.log(`  Set processed columnformula as formula: =${processedFormula}`);
+                            } else {
+                                // If no processing occurred, set as original value
+                                columnFormulaCell.values = [[code.params.columnformula]];
+                                console.log(`  Set original columnformula as value: ${code.params.columnformula}`);
+                            }
+                        } catch (columnFormulaError) {
+                            console.error(`  Error applying columnformula: ${columnFormulaError.message}`);
                         }
                     }
 
