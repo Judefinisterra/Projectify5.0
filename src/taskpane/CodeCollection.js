@@ -1237,10 +1237,13 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         return `(EOMONTH(${driver},0)>AE$2)`;
     });
     
-    // Process RAISE function: RAISE(driver) -> (1 + (driver)) ^ (AE$3 - $AE3)
-    result = result.replace(/RAISE\(([^)]+)\)/g, (match, driver) => {
-        console.log(`    Converting RAISE(${driver}) to (1 + (${driver})) ^ (AE$3 - $AE3)`);
-        return `(1 + (${driver})) ^ (AE$3 - $AE3)`;
+    // Process RAISE function: RAISE(driver1,driver2) -> (1 + (driver1)) ^ (AE$3 - max(year(driver2), $AE3))
+    result = result.replace(/RAISE\(([^,]+),([^)]+)\)/g, (match, driver1, driver2) => {
+        // Trim whitespace from drivers
+        driver1 = driver1.trim();
+        driver2 = driver2.trim();
+        console.log(`    Converting RAISE(${driver1},${driver2}) to (1 + (${driver1})) ^ (AE$3 - max(year(${driver2}), $AE3))`);
+        return `(1 + (${driver1})) ^ (AE$3 - max(year(${driver2}), $AE3))`;
     });
     
     // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=AE$2)
@@ -3566,10 +3569,13 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                 return `(EOMONTH(${driver},0)>AE$2)`;
             });
             
-            // Process RAISE function: RAISE(driver) -> (1 + (driver)) ^ (AE$3 - $AE3)
-            formula = formula.replace(/RAISE\(([^)]+)\)/g, (match, driver) => {
-                console.log(`    Converting RAISE(${driver}) to (1 + (${driver})) ^ (AE$3 - $AE3)`);
-                return `(1 + (${driver})) ^ (AE$3 - $AE3)`;
+            // Process RAISE function: RAISE(driver1,driver2) -> (1 + (driver1)) ^ (AE$3 - max(year(driver2), $AE3))
+            formula = formula.replace(/RAISE\(([^,]+),([^)]+)\)/g, (match, driver1, driver2) => {
+                // Trim whitespace from drivers
+                driver1 = driver1.trim();
+                driver2 = driver2.trim();
+                console.log(`    Converting RAISE(${driver1},${driver2}) to (1 + (${driver1})) ^ (AE$3 - max(year(${driver2}), $AE3))`);
+                return `(1 + (${driver1})) ^ (AE$3 - max(year(${driver2}), $AE3))`;
             });
             
             // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=AE$2)
