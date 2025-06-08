@@ -2358,15 +2358,15 @@ async function saveTrainingDataFromModal() {
         // Save back to localStorage
         localStorage.setItem('trainingDataQueue', JSON.stringify(trainingQueue));
         
-        // Create CSV content
-        const csvContent = convertTrainingQueueToCSV(trainingQueue);
-        console.log("[saveTrainingDataFromModal] Generated CSV content:", csvContent);
+        // Create TXT content
+        const txtContent = convertTrainingQueueToTXT(trainingQueue);
+        console.log("[saveTrainingDataFromModal] Generated TXT content:", txtContent);
         
-        // Save CSV file (using browser download)
-        downloadCSVFile(csvContent, `training_data_queue.csv`);
+        // Save TXT file (using browser download)
+        downloadTXTFile(txtContent, `training_data_queue.txt`);
         
         // Show success message
-        showMessage(`Training data added to queue! Entry ${trainingQueue.length} saved. CSV file downloaded.`);
+        showMessage(`Training data added to queue! Entry ${trainingQueue.length} saved. TXT file downloaded.`);
         
         // Hide the modal
         hideTrainingDataModal();
@@ -2379,14 +2379,13 @@ async function saveTrainingDataFromModal() {
     }
 }
 
-// Function to convert training queue to CSV format
-function convertTrainingQueueToCSV(trainingQueue) {
+// Function to convert training queue to TXT format
+function convertTrainingQueueToTXT(trainingQueue) {
     if (!trainingQueue || trainingQueue.length === 0) {
-        return ''; // No header, return empty string if no data
+        return ''; // Return empty string if no data
     }
     
-    // No CSV header - just the data rows
-    let csv = '';
+    let txt = '';
     
     // Add each entry - only prompt and selected code, no quotes
     trainingQueue.forEach(entry => {
@@ -2395,26 +2394,19 @@ function convertTrainingQueueToCSV(trainingQueue) {
         // Replace newlines in code with spaces to keep it on one line
         const code = (entry.selectedCode || '').replace(/\n/g, ' ').replace(/\r/g, ' ');
         
-        csv += `${prompt},${code}@\n`; // Added @ symbol before newline
+        txt += `${prompt}^^^${code}@\n`; // Added @ symbol before newline
     });
     
-    return csv;
+    return txt;
 }
 
-// Function to escape CSV fields
-function escapeCSVField(field) {
-    if (typeof field !== 'string') {
-        field = String(field);
-    }
-    // Replace quotes with double quotes and handle newlines
-    return field.replace(/"/g, '""').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-}
 
-// Function to download CSV file
-function downloadCSVFile(csvContent, filename) {
+
+// Function to download TXT file
+function downloadTXTFile(txtContent, filename) {
     try {
-        // Create blob with CSV content
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        // Create blob with TXT content
+        const blob = new Blob([txtContent], { type: 'text/plain;charset=utf-8;' });
         
         // Create download link
         const link = document.createElement('a');
@@ -2432,13 +2424,13 @@ function downloadCSVFile(csvContent, filename) {
         // Clean up the URL object
         URL.revokeObjectURL(url);
         
-        console.log(`CSV file "${filename}" download initiated`);
+        console.log(`TXT file "${filename}" download initiated`);
         
     } catch (error) {
-        console.error("Error downloading CSV file:", error);
-        // Fallback: log the CSV content to console
-        console.log("CSV Content (download failed):", csvContent);
-        showError("Could not download CSV file, but data was saved to localStorage. Check console for CSV content.");
+        console.error("Error downloading TXT file:", error);
+        // Fallback: log the TXT content to console
+        console.log("TXT Content (download failed):", txtContent);
+        showError("Could not download TXT file, but data was saved to localStorage. Check console for TXT content.");
     }
 }
 
