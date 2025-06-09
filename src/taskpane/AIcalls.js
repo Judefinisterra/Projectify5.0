@@ -665,7 +665,7 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
       try {
           const fullPromptTrainingData = await queryVectorDB({
               queryPrompt: clientprompt,
-              similarityThreshold: .3,
+              similarityThreshold: .4,
               indexName: 'call2trainingdata',
               numResults: 30 // Slightly higher number since this is the full prompt
           });
@@ -970,12 +970,44 @@ export function consolidateAndDeduplicateTrainingData(results) {
             totalOriginalTrainingCount += result.trainingData.length;
 
             result.trainingData.forEach((trainingEntry, entryIndex) => {
-                // Handle both old string format and new object format
-                const trainingText = typeof trainingEntry === 'object' ? trainingEntry.text : trainingEntry;
-                const trainingScore = typeof trainingEntry === 'object' ? trainingEntry.score : null;
-                
-                // Extract the output codestrings (to deduplicate by output instead of input)
-                const outputCodestrings = extractOutputCodestrings(trainingText);
+                // Handle new object format with separate input/output fields
+                let trainingText = "";
+                let trainingScore = null;
+                let outputCodestrings = "";
+
+                                 if (typeof trainingEntry === 'object') {
+                     // New format: separate text (input) and output fields
+                     if (trainingEntry.text && trainingEntry.output) {
+                         // Combine input and output into expected training format
+                         trainingText = `Client input: ${trainingEntry.text} Output: ${trainingEntry.output}`;
+                         outputCodestrings = trainingEntry.output; // Use output directly for deduplication
+                         if (DEBUG) {
+                             console.log(`[consolidateAndDeduplicateTrainingData] Combined input/output - Input: ${trainingEntry.text.substring(0, 50)}..., Output: ${trainingEntry.output.substring(0, 50)}...`);
+                         }
+                     } else if (trainingEntry.text) {
+                         // Only input text available (backwards compatibility)
+                         trainingText = trainingEntry.text;
+                         outputCodestrings = extractOutputCodestrings(trainingText);
+                         if (DEBUG) {
+                             console.log(`[consolidateAndDeduplicateTrainingData] Using text field only (backwards compatibility): ${trainingText.substring(0, 50)}...`);
+                         }
+                     } else {
+                         // Handle unexpected object structure
+                         trainingText = JSON.stringify(trainingEntry);
+                         outputCodestrings = extractOutputCodestrings(trainingText);
+                         if (DEBUG) {
+                             console.log(`[consolidateAndDeduplicateTrainingData] Unexpected object structure, stringified: ${trainingText.substring(0, 50)}...`);
+                         }
+                     }
+                     trainingScore = trainingEntry.score;
+                 } else {
+                     // Old format: single string with input and output combined
+                     trainingText = trainingEntry;
+                     outputCodestrings = extractOutputCodestrings(trainingText);
+                     if (DEBUG) {
+                         console.log(`[consolidateAndDeduplicateTrainingData] Using old string format: ${trainingText.substring(0, 50)}...`);
+                     }
+                 }
                 
                 if (!outputCodestrings) {
                     // If we can't extract output codestrings, keep the original but mark it as processed
@@ -1001,8 +1033,18 @@ export function consolidateAndDeduplicateTrainingData(results) {
 
             result.call2Context.forEach((contextEntry, entryIndex) => {
                 // Handle both old string format and new object format
-                const contextText = typeof contextEntry === 'object' ? contextEntry.text : contextEntry;
-                const contextScore = typeof contextEntry === 'object' ? contextEntry.score : null;
+                let contextText = "";
+                let contextScore = null;
+
+                if (typeof contextEntry === 'object') {
+                    // For context data, we typically just use the text field
+                    // (context data might not have separate input/output structure)
+                    contextText = contextEntry.text || JSON.stringify(contextEntry);
+                    contextScore = contextEntry.score;
+                } else {
+                    // Old format: single string
+                    contextText = contextEntry;
+                }
                 
                 // For context, use the full entry as the unique identifier
                 const contextKey = contextText.trim();
@@ -1047,10 +1089,13 @@ export function consolidateAndDeduplicateTrainingData(results) {
 
     if (DEBUG) {
         console.log(`[consolidateAndDeduplicateTrainingData] Enhanced prompt generated with similarity scores:`);
-        console.log(`  - Training data entries: ${allTrainingData.length}`);
-        console.log(`  - Context entries: ${allContextData.length}`);
+        console.log(`  - Training data entries: ${allTrainingData.length} (total original: ${totalOriginalTrainingCount})`);
+        console.log(`  - Context entries: ${allContextData.length} (total original: ${totalOriginalContextCount})`);
+        console.log(`  - Training duplicates removed: ${trainingDuplicatesRemoved}`);
+        console.log(`  - Context duplicates removed: ${contextDuplicatesRemoved}`);
         console.log(`  - Training entries with scores: ${allTrainingData.filter(item => item.score !== null).length}`);
         console.log(`  - Context entries with scores: ${allContextData.filter(item => item.score !== null).length}`);
+        console.log(`  - Using new database structure with separate input/output fields`);
     }
 
     return formattedOutput;
@@ -1342,9 +1387,10 @@ function extractTextAndScoreFromJson(jsonInput) {
        const jsonData = typeof jsonInput === 'string' ? JSON.parse(jsonInput) : jsonInput;
 
        let text = "";
+       let output = "";
        let score = 0;
 
-       // Extract text using same logic as extractTextFromJson
+       // Extract input text using same logic as extractTextFromJson
        if (jsonData?.metadata?.text) {
            text = jsonData.metadata.text;
        } else if (typeof jsonData?.text === 'string') {
@@ -1358,14 +1404,25 @@ function extractTextAndScoreFromJson(jsonInput) {
            }
        }
 
+       // Extract output from metadata (new field for call2trainingdata)
+       if (jsonData?.metadata?.output) {
+           output = jsonData.metadata.output;
+       }
+
        // Extract similarity score
        if (typeof jsonData?.score === 'number') {
            score = jsonData.score;
        }
 
-       // Return object with both text and score
+       // Debug logging for new database structure
+       if (DEBUG && text && output) {
+           console.log(`[extractTextAndScoreFromJson] Found separate input/output fields - Input: ${text.substring(0, 50)}..., Output: ${output.substring(0, 50)}...`);
+       }
+
+       // Return object with text (input), output, and score
        return {
            text: text,
+           output: output,
            score: score
        };
 
@@ -1373,7 +1430,7 @@ function extractTextAndScoreFromJson(jsonInput) {
        console.error(`Error processing JSON for text and score extraction: ${error.message}`);
        // Log the problematic input for debugging
        console.error("Input causing error:", jsonInput);
-       return { text: "", score: 0 }; // Return empty values on error
+       return { text: "", output: "", score: 0 }; // Return empty values on error
    }
 }
 

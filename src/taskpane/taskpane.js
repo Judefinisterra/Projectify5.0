@@ -178,6 +178,73 @@ let firstUserInput = null;
 let persistedTrainingUserInput = null;
 let persistedTrainingAiResponse = null;
 
+// Training data modal find/replace state
+let trainingModalSearchableElements = [];
+
+// Training data modal find/replace functions
+function resetTrainingModalSearchState() {
+    trainingModalSearchableElements = [
+        document.getElementById('training-user-input'),
+        document.getElementById('training-ai-response')
+    ].filter(el => el !== null); // Filter out null elements
+    
+    const trainingSearchStatus = document.getElementById('training-search-status');
+    if (trainingSearchStatus) trainingSearchStatus.textContent = '';
+    
+    console.log("Training modal search state reset.");
+}
+
+function updateTrainingModalSearchStatus(message) {
+    const trainingSearchStatus = document.getElementById('training-search-status');
+    if (trainingSearchStatus) {
+        trainingSearchStatus.textContent = message;
+    }
+}
+
+function trainingModalReplaceAll() {
+    const trainingFindInput = document.getElementById('training-find-input');
+    const trainingReplaceInput = document.getElementById('training-replace-input');
+    
+    if (!trainingFindInput || !trainingReplaceInput) {
+        console.error("Training modal find/replace inputs not found");
+        return;
+    }
+    
+    const searchTerm = trainingFindInput.value;
+    const replaceTerm = trainingReplaceInput.value;
+    
+    if (!searchTerm) {
+        updateTrainingModalSearchStatus("Enter search term.");
+        return;
+    }
+
+    // Ensure searchable elements are up-to-date
+    resetTrainingModalSearchState();
+
+    let replacementsMade = 0;
+    trainingModalSearchableElements.forEach((element, index) => {
+        if (!element) return;
+        
+        let currentValue = element.value;
+        // Escape regex special characters in search term
+        const escapedSearchTerm = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        let newValue = currentValue.replace(new RegExp(escapedSearchTerm, 'g'), () => {
+            replacementsMade++;
+            return replaceTerm;
+        });
+        if (currentValue !== newValue) {
+            element.value = newValue;
+            console.log(`Training Modal Replace All: Made replacements in element ${index}`);
+        }
+    });
+
+    if (replacementsMade > 0) {
+        updateTrainingModalSearchStatus(`Replaced ${replacementsMade} occurrence(s).`);
+    } else {
+        updateTrainingModalSearchStatus(`"${searchTerm}" not found.`);
+    }
+}
+
 // Add this function at the top level
 function showMessage(message) {
     const messageDiv = document.createElement('div');
@@ -1232,6 +1299,14 @@ Office.onReady((info) => {
         }
     }
 
+    // Training Data Modal find/replace buttons
+    const trainingReplaceAllButton = document.getElementById('training-replace-all-button');
+    if (trainingReplaceAllButton) {
+        trainingReplaceAllButton.onclick = trainingModalReplaceAll;
+    } else {
+        console.error("Could not find button with id='training-replace-all-button'");
+    }
+
     // >>> ADDED: Setup for Client Mode Chat Buttons
     const sendClientButton = document.getElementById('send-client');
     if (sendClientButton) sendClientButton.onclick = handleSendClient;
@@ -1303,6 +1378,8 @@ Office.onReady((info) => {
             modalSearchStatus.textContent = message;
         }
     };
+
+
 
     // Removed findAllMatchesInModal function
 
@@ -2310,6 +2387,9 @@ function showTrainingDataModal(userPrompt = '', aiResponse = '') {
         userInputPersisted: persistedTrainingUserInput !== null,
         aiResponsePersisted: persistedTrainingAiResponse !== null
     });
+    
+    // Initialize find/replace functionality for training modal
+    resetTrainingModalSearchState();
     
     // Ensure paste functionality works by adding explicit event handlers
     const enablePasteForElement = (element) => {
