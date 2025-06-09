@@ -446,6 +446,64 @@ export async function validateLogicErrors(inputText) {
             errors.push(`[LERR005] Invalid code type: "${codeType}" not found in valid codes list - ${codeString}`);
         }
 
+        // Validate mathematical operator codes driver parameters (LERR016)
+        if (codeType.endsWith('-S')) {
+            // Define the mathematical operator codes that need validation
+            const mathOperatorCodes = [
+                'MULT3-S', 'DIVIDE2-S', 'SUBTRACT2-S', 'SUBTOTAL2-S', 'SUBTOTAL3-S', 
+                'AVGMULT3-S', 'ANNUALIZE-S', 'DEANNUALIZE-S', 'AVGDEANNUALIZE2-S', 
+                'DIRECT-S', 'CHANGE-S', 'INCREASE-S', 'DECREASE-S', 'GROWTH-S', 
+                'OFFSETCOLUMN-S', 'OFFSET2-S', 'SUM2-S', 'DISCOUNT2-S', 'FORMULA-S'
+            ];
+            
+            if (mathOperatorCodes.includes(codeType)) {
+                // Extract existing driver parameters
+                const driverParams = [];
+                const driver1Match = codeString.match(/driver1\s*=\s*"([^"]*)"/);
+                const driver2Match = codeString.match(/driver2\s*=\s*"([^"]*)"/);
+                const driver3Match = codeString.match(/driver3\s*=\s*"([^"]*)"/);
+                
+                if (driver1Match) driverParams.push('driver1');
+                if (driver2Match) driverParams.push('driver2');
+                if (driver3Match) driverParams.push('driver3');
+                
+                // Determine expected drivers based on code pattern
+                let expectedDrivers = [];
+                
+                if (codeType === 'FORMULA-S') {
+                    // FORMULA-S should have no driver parameters
+                    expectedDrivers = [];
+                } else if (codeType.match(/\d+3-S$/)) {
+                    // Codes ending with "3-S" should have driver1, driver2, driver3
+                    expectedDrivers = ['driver1', 'driver2', 'driver3'];
+                } else if (codeType.match(/\d+2-S$/)) {
+                    // Codes ending with "2-S" should have driver1, driver2
+                    expectedDrivers = ['driver1', 'driver2'];
+                } else if (codeType.match(/^[A-Z]+[A-Z]+-S$/)) {
+                    // Codes with no number before "-S" should have only driver1
+                    expectedDrivers = ['driver1'];
+                }
+                
+                // Validate driver parameters
+                if (expectedDrivers.length !== driverParams.length) {
+                    const expectedStr = expectedDrivers.length === 0 ? 'no driver parameters' : expectedDrivers.join(', ');
+                    const actualStr = driverParams.length === 0 ? 'no driver parameters' : driverParams.join(', ');
+                    errors.push(`[LERR016] Mathematical operator code "${codeType}" requires ${expectedStr}, but found ${actualStr} - ${codeString}`);
+                } else {
+                    // Check if the right driver parameters are present
+                    const missingDrivers = expectedDrivers.filter(driver => !driverParams.includes(driver));
+                    const extraDrivers = driverParams.filter(driver => !expectedDrivers.includes(driver));
+                    
+                    if (missingDrivers.length > 0) {
+                        errors.push(`[LERR016] Mathematical operator code "${codeType}" missing required parameters: ${missingDrivers.join(', ')} - ${codeString}`);
+                    }
+                    if (extraDrivers.length > 0) {
+                        errors.push(`[LERR016] Mathematical operator code "${codeType}" has unexpected parameters: ${extraDrivers.join(', ')} - ${codeString}`);
+                    }
+                }
+            }
+        }
+
         // Validate TAB labels
         if (codeType === 'TAB') {
             const labelMatch = codeString.match(/label\d+="([^"]*)"/);

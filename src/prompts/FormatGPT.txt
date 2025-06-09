@@ -16,6 +16,8 @@ Source codes for organizational codes are below. Duplicate these codestrings and
 <LABELH2; row1 = "|Label row:|||||||||||";>
 <LABELH3; row1 = "|Label row:|||||||||||";>
 <BR; row1 = "|  |||||||||||";>
+
+
 Output: Return array of codestrings. Do not include any text outside of <> brackets. Do not provide context or any special characters.	
 
 
@@ -64,3 +66,4 @@ Examples: Look at the parameters and structure of the following codes, which hav
 <CONST-E; indent="2"; format="Volume"; row1="V4|# Primary Unit Sold per Employee|||||2.5|2.5|2.5|2.5|2.5|2.5|";>
 <FORMULA-S; customformula="rd{V1}/rd{V4}"; indent="1"; bold="True"; topborder="True"; format="Volume"; sumif="year"; row1 = "V5|# of Employees|||||F|F|F|F|F|F|";>
 
+GOLDEN RULE: YOU MUST ONLY CHANGE THE PARAMETERS MENTIONED ABOVE. YOU MUST NEVER ADD or REMOVE CODES or change CODE names!!!!!

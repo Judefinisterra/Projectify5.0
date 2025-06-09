@@ -501,20 +501,9 @@ async function handleSend() {
             throw new Error("Failed to get valid response array from conversation result");
         }
 
-        // >>> MODIFIED: Skip FormatGPT for follow-up conversations (isResponse = true means follow-up)
-        if (!isResponse) {
-            // Only format for initial conversations
-            // Update progress message to show formatting step
-            progressMessageContent.textContent = 'Formatting response with FormatGPT...';
-            chatLog.scrollTop = chatLog.scrollHeight;
-
-            // Format the response using FormatGPT
-            console.log("Starting FormatGPT formatting (initial conversation only)");
-            responseArray = await formatCodeStringsWithGPT(responseArray);
-            console.log("FormatGPT formatting completed");
-        } else {
-            console.log("Skipping FormatGPT for follow-up conversation");
-        }
+        // >>> REMOVED: Redundant FormatGPT call - FormatGPT is already called within handleInitialConversation() in AIcalls.js
+        // This was causing FormatGPT to be called twice for initial conversations
+        console.log("FormatGPT is handled within the conversation flow in AIcalls.js");
 
         // Update progress message to show completion
         progressMessageContent.textContent = 'Finalizing response...';
