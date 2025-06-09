@@ -1176,21 +1176,34 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         '9': 'A'
     };
     
-    // Replace all cd{number} or cd{number-driverName} patterns with column references
+    // Replace all cd{number} or cd{number-driverName} or cd{driverName-number} patterns with column references
     const cdPattern = /cd\{([^}]+)\}/g;
     result = result.replace(cdPattern, (match, content) => {
-        // Check if content contains a dash (e.g., "1-V1")
+        // Check if content contains a dash
         const dashIndex = content.indexOf('-');
         let columnNum, driverName;
         
         if (dashIndex !== -1) {
-            // Split into column number and driver name
-            columnNum = content.substring(0, dashIndex).trim();
-            driverName = content.substring(dashIndex + 1).trim();
+            const firstPart = content.substring(0, dashIndex).trim();
+            const secondPart = content.substring(dashIndex + 1).trim();
+            
+            // Check if first part is a number to determine syntax format
+            if (/^\d+$/.test(firstPart)) {
+                // Format: {columnNumber-driverName} (existing syntax)
+                columnNum = firstPart;
+                driverName = secondPart;
+                console.log(`    Parsing cd{${content}} as columnNumber-driverName format`);
+            } else {
+                // Format: {driverName-columnNumber} (new syntax)
+                driverName = firstPart;
+                columnNum = secondPart;
+                console.log(`    Parsing cd{${content}} as driverName-columnNumber format`);
+            }
         } else {
             // Just column number, no driver name
             columnNum = content.trim();
             driverName = null;
+            console.log(`    Parsing cd{${content}} as columnNumber only format`);
         }
         
         const column = columnMapping[columnNum];
@@ -3469,46 +3482,59 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                 }
             });
             
-            // Replace all cd{number} patterns with column references
-            const cdPattern = /cd\{([^}]+)\}/g;
-            formula = formula.replace(cdPattern, (match, content) => {
-                // Check if content contains a dash (e.g., "1-V1")
-                const dashIndex = content.indexOf('-');
-                let columnNum, driverName;
+                    // Replace all cd{number} or cd{number-driverName} or cd{driverName-number} patterns with column references
+        const cdPattern = /cd\{([^}]+)\}/g;
+        formula = formula.replace(cdPattern, (match, content) => {
+            // Check if content contains a dash
+            const dashIndex = content.indexOf('-');
+            let columnNum, driverName;
+            
+            if (dashIndex !== -1) {
+                const firstPart = content.substring(0, dashIndex).trim();
+                const secondPart = content.substring(dashIndex + 1).trim();
                 
-                if (dashIndex !== -1) {
-                    // Split into column number and driver name
-                    columnNum = content.substring(0, dashIndex).trim();
-                    driverName = content.substring(dashIndex + 1).trim();
+                // Check if first part is a number to determine syntax format
+                if (/^\d+$/.test(firstPart)) {
+                    // Format: {columnNumber-driverName} (existing syntax)
+                    columnNum = firstPart;
+                    driverName = secondPart;
+                    console.log(`    Parsing cd{${content}} as columnNumber-driverName format`);
                 } else {
-                    // Just column number, no driver name
-                    columnNum = content.trim();
-                    driverName = null;
+                    // Format: {driverName-columnNumber} (new syntax)
+                    driverName = firstPart;
+                    columnNum = secondPart;
+                    console.log(`    Parsing cd{${content}} as driverName-columnNumber format`);
                 }
-                
-                const column = columnMapping[columnNum];
-                if (!column) {
-                    console.warn(`    Column number '${columnNum}' not valid (must be 1-9), keeping as is`);
-                    return match; // Keep the original if column number not valid
-                }
-                
-                // Determine which row to use
-                let rowToUse = rowNum;
-                if (driverName) {
-                    const driverRow = driverMap.get(driverName);
-                    if (driverRow) {
-                        rowToUse = driverRow;
-                        console.log(`    Replacing cd{${content}} with $${column}${rowToUse} (driver '${driverName}' found at row ${driverRow})`);
-                    } else {
-                        console.warn(`    Driver '${driverName}' not found in column A, using current row ${rowNum}`);
-                    }
+            } else {
+                // Just column number, no driver name
+                columnNum = content.trim();
+                driverName = null;
+                console.log(`    Parsing cd{${content}} as columnNumber only format`);
+            }
+            
+            const column = columnMapping[columnNum];
+            if (!column) {
+                console.warn(`    Column number '${columnNum}' not valid (must be 1-9), keeping as is`);
+                return match; // Keep the original if column number not valid
+            }
+            
+            // Determine which row to use
+            let rowToUse = rowNum;
+            if (driverName) {
+                const driverRow = driverMap.get(driverName);
+                if (driverRow) {
+                    rowToUse = driverRow;
+                    console.log(`    Replacing cd{${content}} with $${column}${rowToUse} (driver '${driverName}' found at row ${driverRow})`);
                 } else {
-                    console.log(`    Replacing cd{${columnNum}} with $${column}${rowToUse}`);
+                    console.warn(`    Driver '${driverName}' not found in column A, using current row ${rowNum}`);
                 }
-                
-                const replacement = `$${column}${rowToUse}`;
-                return replacement;
-            });
+            } else {
+                console.log(`    Replacing cd{${columnNum}} with $${column}${rowToUse}`);
+            }
+            
+            const replacement = `$${column}${rowToUse}`;
+            return replacement;
+        });
             
             // Replace timeseriesdivisor with AE$7
             formula = formula.replace(/timeseriesdivisor/g, (match) => {
