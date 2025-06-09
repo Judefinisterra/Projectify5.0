@@ -30,7 +30,7 @@ CATEGORIES-ER	<CATEGORIES-ER; row1 = "|Non-Employee Related Expense:|||||||||||"
 CHANGE-S	<CHANGE-S; format="Dollar"; topborder="false"; bold="false"; indent="1"; negative="false"; driver1=""; row1 = "V|# of untis sold|||||F|F|F|F|F|F|";>
 CHANGE-VV	<CHANGE-VV; driver1=""; row1 = "V|# of New Machines Acquired|||||F|F|F|F|F|F|";>
 CHECKPERCENT-VV	<CHECKPERCENT-VV; driver1=""; row1 = "|Check|||||F|F|F|F|F|F|";>
-COLUMN-E	<COLUMN-E; row1 = "||||||||||||";>
+COLUMNASS-E	<COLUMNASS-E; row1 = "|||Column 3|Column 2|Column 1|||||||";>
 COLUMNHEADER-E	<COLUMNHEADER-E; row1 = "|||Column Driver 3 Header|Column Driver 2 Header|Column Driver 1 Header|||||||";>
 CONST-E	<CONST-E; bold="false"; format="DollarItalic"; topborder="false"; negative="false"; row1 = "V|# of subscribers|||||1000|2000|4000|8000|16000|32000|";>
 COSTLIST-ER	<COSTLIST-ER; driver1=""; row1 = "|Cost:|||||||||||"; row2 = "AS|Cost A|||||-1000|-1000|-1000|-1000|-1000|-1000|"; row3 = "AS|Cost A|||||-1000|-1000|-1000|-1000|-1000|-1000|"; row4 = "AS|Cost A|||||-1000|-1000|-1000|-1000|-1000|-1000|"; row5 = "R|Cost|is: direct costs||||F|F|F|F|F|F|";>

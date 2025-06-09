@@ -840,7 +840,7 @@ export async function runCodes(codeCollection) {
                                     } else if (formatValue === "percent") {
                                         numberFormatString = '_(* #,##0.0%;_(* (#,##0.0)%;_(* " -"?_)';
                                     } else if (formatValue === "factor") {
-                                        numberFormatString = '_(* #,##0.0x;_(* (#,##0.0)x;_(* " -"?_)';
+                                        numberFormatString = '_(* #,##0.0x;_(* (#,##0.0)x;_(* "   -"?_)';
                                     } else if (formatValue === "date") {
                                         numberFormatString = 'mmm-yy';
                                     }
@@ -1757,6 +1757,10 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                                 },
                                 'percent': {
                                     numberFormat: '_(* #,##0.0%;_(* (#,##0.0)%;_(* "   -"?_)',
+                                    italic: true
+                                },
+                                'factor': {
+                                    numberFormat: '_(* #,##0.0x;_(* (#,##0.0)x;_(* "   -"?_)',
                                     italic: true
                                 },
                                 'date': {
@@ -3345,7 +3349,7 @@ async function applyColumnFormatting(worksheet, column, startRow, endRow, format
             applyItalics = true;
             break;
         case "factor":
-            numberFormatString = '_(* #,##0.0x;_(* (#,##0.0)x;_(* " -"?_)';
+            numberFormatString = '_(* #,##0.0x;_(* (#,##0.0)x;_(* "   -"?_)';
             applyItalics = true;
             break;
     }
