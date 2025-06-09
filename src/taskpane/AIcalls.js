@@ -1731,6 +1731,11 @@ export async function handleInitialConversation(clientprompt) {
     
     if (DEBUG) console.log(`[handleInitialConversation] Format validation retry mechanism completed after ${formatCurrentPassNumber} pass(es)`);
 
+    // >>> ADDED: Check labels using LabelCheckerGPT
+    if (DEBUG) console.log("[handleInitialConversation] Checking labels with LabelCheckerGPT...");
+    outputArray = await checkLabelsWithGPT(outputArray);
+    if (DEBUG) console.log("[handleInitialConversation] LabelCheckerGPT checking completed");
+
     // Create the initial history
     const initialHistory = [
         ["human", clientprompt],
@@ -2223,6 +2228,11 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         
         if (DEBUG) console.log(`[getAICallsProcessedResponse] Format validation retry mechanism completed after ${formatCurrentPassNumber} pass(es)`);
 
+        // >>> ADDED: Check labels using LabelCheckerGPT
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Checking labels with LabelCheckerGPT...");
+        responseArray = await checkLabelsWithGPT(responseArray);
+        if (DEBUG) console.log("[getAICallsProcessedResponse] LabelCheckerGPT checking completed");
+
         // >>> ADDED: Save the complete enhanced prompt that was sent to AI to lastprompt.txt
         // await saveEnhancedPrompt(combinedInputForAI);
 
@@ -2651,6 +2661,79 @@ export async function formatCodeStringsWithGPT(responseArray) {
         console.error("[formatCodeStringsWithGPT] Error during FormatGPT processing:", error);
         // Return original response on error to avoid breaking the flow
         console.warn("[formatCodeStringsWithGPT] Returning original response due to formatting error");
+        return responseArray;
+    }
+}
+
+// >>> ADDED: LabelCheckerGPT function to check and correct labels after FormatGPT
+export async function checkLabelsWithGPT(responseArray) {
+    if (DEBUG) console.log("[checkLabelsWithGPT] Processing codestrings for label checking...");
+
+    try {
+        // Ensure API keys are available
+        if (!INTERNAL_API_KEYS.OPENAI_API_KEY) {
+            throw new Error("OpenAI API key not initialized for LabelCheckerGPT checking.");
+        }
+
+        // Extract clean client request from the original prompt
+        let cleanClientRequest = originalClientPrompt;
+        
+        // Remove "Client Request:" prefix if it exists
+        cleanClientRequest = cleanClientRequest.replace(/^Client [Rr]equest:\s*/, '');
+        
+        // Find where training data or context starts and cut it off
+        const contextStart = cleanClientRequest.search(/\n\n(Client request-specific Context|Training Data)/i);
+        if (contextStart !== -1) {
+            cleanClientRequest = cleanClientRequest.substring(0, contextStart).trim();
+        }
+
+        // Load the LabelCheckerGPT system prompt
+        const labelCheckerSystemPrompt = await getSystemPromptFromFile('LabelCheckerGPT');
+        if (!labelCheckerSystemPrompt) {
+            throw new Error("Failed to load LabelCheckerGPT system prompt");
+        }
+
+        // Convert responseArray to string for processing
+        let codestringsInput = "";
+        if (Array.isArray(responseArray)) {
+            codestringsInput = responseArray.join("\n");
+        } else {
+            codestringsInput = String(responseArray);
+        }
+
+        // Create the message with ONLY the clean client request + codestrings (no training data or context)
+        const labelCheckerInput = `Original Client Request: ${cleanClientRequest}\n\nCodestrings to Check Labels:\n${codestringsInput}`;
+
+        if (DEBUG) {
+            console.log("[checkLabelsWithGPT] Final clean client request being sent:", cleanClientRequest.substring(0, 100) + "...");
+            console.log("[checkLabelsWithGPT] Input codestrings:", codestringsInput.substring(0, 200) + "...");
+            console.log("[checkLabelsWithGPT] Using LabelCheckerGPT system prompt");
+        }
+
+        // Call processPrompt with LabelCheckerGPT system prompt
+        const checkedResponseArray = await processPrompt({
+            userInput: labelCheckerInput,
+            systemPrompt: labelCheckerSystemPrompt,
+            model: GPT41, // Using same model as other calls
+            temperature: 0.3, // Lower temperature for label checking consistency
+            history: [], // No history needed for label checking
+            promptFiles: { system: 'LabelCheckerGPT' }
+        });
+
+        if (DEBUG) {
+            console.log("[checkLabelsWithGPT] LabelCheckerGPT processing completed");
+            console.log("[checkLabelsWithGPT] Label-checked output:", checkedResponseArray);
+        }
+
+        // >>> ADDED: Compare before and after codestrings for LabelCheckerGPT
+        logCodestringComparison(responseArray, checkedResponseArray, "LabelCheckerGPT");
+
+        return checkedResponseArray;
+
+    } catch (error) {
+        console.error("[checkLabelsWithGPT] Error during LabelCheckerGPT processing:", error);
+        // Return original response on error to avoid breaking the flow
+        console.warn("[checkLabelsWithGPT] Returning original response due to label checking error");
         return responseArray;
     }
 }
