@@ -14,7 +14,7 @@ import { validateCodeStrings } from './Validation.js';
 // Import code collection functions
 import { populateCodeCollection, exportCodeCollectionToText, runCodes, processAssumptionTabs, collapseGroupingsAndNavigateToFinancials, hideColumnsAndNavigate, handleInsertWorksheetsFromBase64 } from './CodeCollection.js';
 // >>> ADDED: Import the new validation function
-import { validateCodeStringsForRun, validateLogicWithRetry } from './Validation.js';
+import { validateCodeStringsForRun, validateLogicWithRetry, validateFormatWithRetry } from './Validation.js';
 // >>> ADDED: Import the tab string generator function
 import { generateTabString } from './IndexWorksheet.js';
 // >>> ADDED: Import AIModelPlanner functions
@@ -1699,6 +1699,38 @@ export async function handleInitialConversation(clientprompt) {
     outputArray = await formatCodeStringsWithGPT(outputArray);
     if (DEBUG) console.log("[handleInitialConversation] FormatGPT formatting completed");
 
+    // >>> ADDED: Run format validation retry mechanism (up to 2 passes total)
+    if (DEBUG) console.log("[handleInitialConversation] Running post-FormatGPT validation retry...");
+    let formatCurrentPassNumber = 1;
+    let formatMaxPasses = 2;
+    let formatValidationComplete = false;
+    
+    while (formatCurrentPassNumber <= formatMaxPasses && !formatValidationComplete) {
+        const codestringsForFormatValidation = Array.isArray(outputArray) ? outputArray.join("\n") : String(outputArray);
+        const formatRetryResult = await validateFormatWithRetry(codestringsForFormatValidation, formatCurrentPassNumber);
+        
+        if (formatRetryResult.formatErrors.length === 0) {
+            // No format errors - validation passed
+            formatValidationComplete = true;
+            if (DEBUG) console.log(`[handleInitialConversation] ✅ Format validation passed on pass ${formatCurrentPassNumber}`);
+        } else if (formatCurrentPassNumber >= formatMaxPasses) {
+            // Maximum passes reached - stop retrying
+            formatValidationComplete = true;
+            if (DEBUG) console.log(`[handleInitialConversation] ⚠️ Format validation completed after ${formatCurrentPassNumber} passes with ${formatRetryResult.formatErrors.length} remaining errors`);
+        } else {
+            // Format errors found and haven't reached max passes - retry with FormatGPT
+            if (DEBUG) console.log(`[handleInitialConversation] 🔄 Pass ${formatCurrentPassNumber} found ${formatRetryResult.formatErrors.length} format errors - retrying with FormatGPT...`);
+            
+            // Run FormatGPT again to fix the remaining errors
+            outputArray = await formatCodeStringsWithGPT(outputArray);
+            if (DEBUG) console.log(`[handleInitialConversation] FormatGPT retry pass ${formatCurrentPassNumber + 1} completed`);
+            
+            formatCurrentPassNumber++;
+        }
+    }
+    
+    if (DEBUG) console.log(`[handleInitialConversation] Format validation retry mechanism completed after ${formatCurrentPassNumber} pass(es)`);
+
     // Create the initial history
     const initialHistory = [
         ["human", clientprompt],
@@ -2158,6 +2190,38 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         if (DEBUG) console.log("[getAICallsProcessedResponse] Formatting response with FormatGPT...");
         responseArray = await formatCodeStringsWithGPT(responseArray);
         if (DEBUG) console.log("[getAICallsProcessedResponse] FormatGPT formatting completed");
+
+        // >>> ADDED: Run format validation retry mechanism (up to 2 passes total)
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Running post-FormatGPT validation retry...");
+        let formatCurrentPassNumber = 1;
+        let formatMaxPasses = 2;
+        let formatValidationComplete = false;
+        
+        while (formatCurrentPassNumber <= formatMaxPasses && !formatValidationComplete) {
+            const codestringsForFormatValidation = Array.isArray(responseArray) ? responseArray.join("\n") : String(responseArray);
+            const formatRetryResult = await validateFormatWithRetry(codestringsForFormatValidation, formatCurrentPassNumber);
+            
+            if (formatRetryResult.formatErrors.length === 0) {
+                // No format errors - validation passed
+                formatValidationComplete = true;
+                if (DEBUG) console.log(`[getAICallsProcessedResponse] ✅ Format validation passed on pass ${formatCurrentPassNumber}`);
+            } else if (formatCurrentPassNumber >= formatMaxPasses) {
+                // Maximum passes reached - stop retrying
+                formatValidationComplete = true;
+                if (DEBUG) console.log(`[getAICallsProcessedResponse] ⚠️ Format validation completed after ${formatCurrentPassNumber} passes with ${formatRetryResult.formatErrors.length} remaining errors`);
+            } else {
+                // Format errors found and haven't reached max passes - retry with FormatGPT
+                if (DEBUG) console.log(`[getAICallsProcessedResponse] 🔄 Pass ${formatCurrentPassNumber} found ${formatRetryResult.formatErrors.length} format errors - retrying with FormatGPT...`);
+                
+                // Run FormatGPT again to fix the remaining errors
+                responseArray = await formatCodeStringsWithGPT(responseArray);
+                if (DEBUG) console.log(`[getAICallsProcessedResponse] FormatGPT retry pass ${formatCurrentPassNumber + 1} completed`);
+                
+                formatCurrentPassNumber++;
+            }
+        }
+        
+        if (DEBUG) console.log(`[getAICallsProcessedResponse] Format validation retry mechanism completed after ${formatCurrentPassNumber} pass(es)`);
 
         // >>> ADDED: Save the complete enhanced prompt that was sent to AI to lastprompt.txt
         // await saveEnhancedPrompt(combinedInputForAI);

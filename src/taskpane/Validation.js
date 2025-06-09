@@ -1063,6 +1063,72 @@ export async function validateLogicOnly(inputText) {
             tabLabels.add(label);
         }
 
+        // >>> ADDED: Validate driver parameters for code types (LOGIC ERROR)
+        const driverMatches = codeString.match(/driver\d+\s*=\s*"([^"]*)"/g);
+        if (driverMatches) {
+            // Extract driver numbers from the matches
+            const driverNumbers = driverMatches.map(match => {
+                const driverMatch = match.match(/driver(\d+)\s*=/);
+                return driverMatch ? parseInt(driverMatch[1]) : null;
+            }).filter(num => num !== null);
+            
+            // Define expected driver counts for specific code types
+            const expectedDriverCounts = {
+                'SUM2-S': 2,
+                'SUM3-S': 3,
+                'SUM4-S': 4,
+                'SUM5-S': 5,
+                'MULT2-S': 2,
+                'MULT3-S': 3,
+                'MULT4-S': 4,
+                'MULT5-S': 5,
+                'DIVIDE2-S': 2,
+                'DIVIDE3-S': 3,
+                'SUBTRACT2-S': 2,
+                'SUBTRACT3-S': 3,
+                'SUBTOTAL2-S': 2,
+                'SUBTOTAL3-S': 3,
+                'AVGMULT3-S': 3,
+                'AVGDEANNUALIZE2-S': 2,
+                'DISCOUNT2-S': 2,
+                'OFFSET2-S': 2,
+                // Single driver codes
+                'DIRECT-S': 1,
+                'OFFSETCOLUMN-S': 1,
+                'ANNUALIZE-S': 1,
+                'DEANNUALIZE-S': 1,
+                'CHANGE-S': 1,
+                'INCREASE-S': 1,
+                'DECREASE-S': 1,
+                'GROWTH-S': 1
+            };
+            
+            if (expectedDriverCounts.hasOwnProperty(codeType)) {
+                const expectedCount = expectedDriverCounts[codeType];
+                const actualCount = driverNumbers.length;
+                const maxDriverNumber = Math.max(...driverNumbers);
+                
+                // Check if the number of drivers matches expected
+                if (actualCount !== expectedCount) {
+                    errors.push(`[LERR016] Code type "${codeType}" expects exactly ${expectedCount} driver(s) but found ${actualCount} - ${codeString}`);
+                }
+                
+                // Check if driver numbers are sequential starting from 1
+                const expectedSequence = Array.from({length: expectedCount}, (_, i) => i + 1);
+                const sortedDriverNumbers = [...driverNumbers].sort((a, b) => a - b);
+                
+                if (JSON.stringify(sortedDriverNumbers) !== JSON.stringify(expectedSequence)) {
+                    errors.push(`[LERR017] Code type "${codeType}" has invalid driver sequence - expected driver1 to driver${expectedCount}, found: ${driverNumbers.map(n => `driver${n}`).join(', ')} - ${codeString}`);
+                }
+                
+                // Check for driver numbers beyond the expected count
+                if (maxDriverNumber > expectedCount) {
+                    const invalidDrivers = driverNumbers.filter(n => n > expectedCount);
+                    errors.push(`[LERR018] Code type "${codeType}" has invalid driver parameter(s): ${invalidDrivers.map(n => `driver${n}`).join(', ')} - maximum allowed is driver${expectedCount} - ${codeString}`);
+                }
+            }
+        }
+
         // Validate row format (LOGIC ERROR)
         const rowMatches = codeString.match(/row\d+="([^"]*)"/g);
         if (rowMatches) {
@@ -1249,6 +1315,228 @@ export async function runLogicValidationWorkflow(inputText) {
     }
     
     return workflowResults;
+}
+// <<< END ADDED FUNCTIONS
+
+// >>> ADDED: New function for format validation with retry mechanism (for post-FormatGPT validation)
+export async function validateFormatWithRetry(inputText, passNumber = 1) {
+    console.log("=".repeat(80));
+    console.log(`[FormatRetryValidation] STARTING FORMAT VALIDATION - PASS ${passNumber}`);
+    console.log(`[FormatRetryValidation] Maximum passes allowed: 2`);
+    console.log(`[FormatRetryValidation] Current pass: ${passNumber}`);
+    
+    // Run the format-only validation
+    const formatErrors = await validateFormatErrors(inputText);
+    
+    console.log(`[FormatRetryValidation] Pass ${passNumber} completed - Found ${formatErrors.length} format errors`);
+    
+    // Prepare the result object
+    const result = {
+        passNumber: passNumber,
+        formatErrors: formatErrors,
+        hasFormatErrors: formatErrors.length > 0,
+        shouldRetry: false,
+        isComplete: false,
+        summary: ''
+    };
+    
+    if (formatErrors.length === 0) {
+        // No format errors found - validation passed
+        result.isComplete = true;
+        result.summary = `Format validation passed on pass ${passNumber} - no format errors detected`;
+        console.log(`[FormatRetryValidation] ✓ SUCCESS: ${result.summary}`);
+    } else if (passNumber >= 2) {
+        // Maximum passes reached - stop retrying
+        result.isComplete = true;
+        result.summary = `Format validation completed after ${passNumber} passes - ${formatErrors.length} format errors remain (maximum passes reached)`;
+        console.log(`[FormatRetryValidation] ⚠ MAX PASSES REACHED: ${result.summary}`);
+    } else {
+        // Format errors found and we haven't reached max passes - should retry
+        result.shouldRetry = true;
+        result.summary = `Format validation pass ${passNumber} found ${formatErrors.length} format errors - will retry with FormatGPT`;
+        console.log(`[FormatRetryValidation] 🔄 RETRY NEEDED: ${result.summary}`);
+    }
+    
+    // Log error summary for this pass
+    if (formatErrors.length > 0) {
+        console.log(`[FormatRetryValidation] Format errors in pass ${passNumber}:`);
+        formatErrors.forEach((error, index) => {
+            console.log(`  ${index + 1}. ${error}`);
+        });
+        
+        // Group errors by type for better reporting
+        const errorTypes = {};
+        formatErrors.forEach(error => {
+            const errorCode = error.match(/\[FERR\d+\]/)?.[0] || 'Unknown';
+            errorTypes[errorCode] = (errorTypes[errorCode] || 0) + 1;
+        });
+        
+        console.log(`[FormatRetryValidation] Error summary for pass ${passNumber}:`);
+        Object.entries(errorTypes).forEach(([type, count]) => {
+            console.log(`  ${type}: ${count} error(s)`);
+        });
+    }
+    
+    console.log(`[FormatRetryValidation] Pass ${passNumber} result:`, result.summary);
+    console.log("=".repeat(80));
+    
+    return result;
+}
+
+// >>> ADDED: Helper function to manage the complete format validation retry workflow
+export async function runFormatValidationWorkflow(inputText) {
+    console.log("🚀 STARTING FORMAT VALIDATION WORKFLOW");
+    
+    const workflowResults = {
+        totalPasses: 0,
+        finalFormatErrors: [],
+        workflowComplete: false,
+        allPasses: []
+    };
+    
+    let currentPass = 1;
+    let shouldContinue = true;
+    
+    while (shouldContinue && currentPass <= 2) {
+        console.log(`\n📋 Running format validation workflow - Pass ${currentPass}`);
+        
+        // Run validation for this pass
+        const passResult = await validateFormatWithRetry(inputText, currentPass);
+        workflowResults.allPasses.push(passResult);
+        workflowResults.totalPasses = currentPass;
+        
+        if (passResult.isComplete) {
+            // Validation is complete (either no errors or max passes reached)
+            workflowResults.finalFormatErrors = passResult.formatErrors;
+            workflowResults.workflowComplete = true;
+            shouldContinue = false;
+            
+            if (passResult.formatErrors.length === 0) {
+                console.log(`✅ WORKFLOW COMPLETE: Format validation passed on pass ${currentPass}`);
+            } else {
+                console.log(`⚠️ WORKFLOW COMPLETE: Format validation completed with ${passResult.formatErrors.length} remaining errors after ${currentPass} passes`);
+            }
+        } else if (passResult.shouldRetry) {
+            // Need to retry - this would trigger FormatGPT to run again
+            console.log(`🔄 WORKFLOW CONTINUING: Pass ${currentPass} found errors, will proceed to pass ${currentPass + 1} after FormatGPT`);
+            currentPass++;
+            
+            // In a real implementation, FormatGPT would run here to fix the errors
+            // For now, we'll just continue to the next pass with the same input
+            // (In the actual workflow, the input would be the FormatGPT-corrected version)
+        } else {
+            // Unexpected state
+            console.error(`❌ WORKFLOW ERROR: Unexpected validation state on pass ${currentPass}`);
+            workflowResults.workflowComplete = true;
+            shouldContinue = false;
+        }
+    }
+    
+    // Final workflow summary
+    console.log("\n📊 FORMAT VALIDATION WORKFLOW SUMMARY:");
+    console.log(`Total passes completed: ${workflowResults.totalPasses}`);
+    console.log(`Final format errors: ${workflowResults.finalFormatErrors.length}`);
+    console.log(`Workflow status: ${workflowResults.workflowComplete ? 'Complete' : 'Incomplete'}`);
+    
+    if (workflowResults.finalFormatErrors.length > 0) {
+        console.log("\n❌ Remaining format errors:");
+        workflowResults.finalFormatErrors.forEach((error, index) => {
+            console.log(`  ${index + 1}. ${error}`);
+        });
+    } else {
+        console.log("\n✅ No format errors remaining!");
+    }
+    
+    return workflowResults;
+}
+
+// >>> ADDED: Format validation function that returns just the error array (for retry mechanism)
+export async function validateFormatErrors(inputText) {
+    console.log("=".repeat(80));
+    console.log("[FormatValidation] STARTING FORMAT VALIDATION");
+    console.log("[FormatValidation] Input type:", typeof inputText);
+    console.log("[FormatValidation] Input length:", inputText?.length || 0);
+    console.log("[FormatValidation] Input preview (first 200 chars):", 
+        typeof inputText === 'string' ? inputText.substring(0, 200) + '...' : 
+        Array.isArray(inputText) ? `Array with ${inputText.length} items` : 
+        'Unknown input type');
+    
+    // Extract all code strings using regex pattern /<[^>]+>/g
+    let inputCodeStrings = [];
+    if (typeof inputText === 'string') {
+        const codeStringMatches = inputText.match(/<[^>]+>/g);
+        inputCodeStrings = codeStringMatches || [];
+    } else if (Array.isArray(inputText)) {
+        inputCodeStrings = [];
+        for (const item of inputText) {
+            if (typeof item === 'string') {
+                const matches = item.match(/<[^>]+>/g);
+                if (matches) {
+                    inputCodeStrings.push(...matches);
+                }
+            }
+        }
+    }
+    
+    if (inputCodeStrings.length === 0) {
+        console.log("[FormatValidation] No code strings found in input");
+        console.log("[FormatValidation] VALIDATION COMPLETE - No code strings to validate");
+        console.log("=".repeat(80));
+        return []; // Return empty array for format errors
+    }
+    
+    console.log(`[FormatValidation] Found ${inputCodeStrings.length} code strings to validate`);
+    console.log("[FormatValidation] Extracted code strings:");
+    inputCodeStrings.forEach((codeString, index) => {
+        console.log(`  ${index + 1}. ${codeString.substring(0, 100)}${codeString.length > 100 ? '...' : ''}`);
+    });
+    
+    // Remove line breaks within angle brackets before processing
+    inputCodeStrings = inputCodeStrings.map(str => {
+        return str.replace(/<[^>]*>/g, match => {
+            return match.replace(/[\r\n]+/g, ' ');
+        });
+    });
+    
+    // Clean up input strings by removing anything outside angle brackets
+    inputCodeStrings = inputCodeStrings.map(str => {
+        const match = str.match(/<[^>]+>/);
+        return match ? match[0] : str;
+    });
+
+    console.log("[FormatValidation] Preprocessed code strings (removed line breaks and cleaned format)");
+    console.log(`[FormatValidation] Final count of code strings to validate: ${inputCodeStrings.length}`);
+
+    // Run format validation rules
+    console.log("[FormatValidation] Running format validation rules...");
+    const formatErrors = validateFormatRules(inputCodeStrings);
+    
+    // Log validation completion with output details
+    console.log("[FormatValidation] VALIDATION COMPLETE");
+    console.log(`[FormatValidation] Total format errors found: ${formatErrors.length}`);
+    
+    if (formatErrors.length > 0) {
+        console.log("[FormatValidation] Format errors found:");
+        formatErrors.forEach((error, index) => {
+            console.log(`  ${index + 1}. ${error}`);
+        });
+    } else {
+        console.log("[FormatValidation] No format errors detected - validation passed!");
+    }
+    
+    console.log("[FormatValidation] Error summary by type:");
+    const errorTypes = {};
+    formatErrors.forEach(error => {
+        const errorCode = error.match(/\[FERR\d+\]/)?.[0] || 'Unknown';
+        errorTypes[errorCode] = (errorTypes[errorCode] || 0) + 1;
+    });
+    
+    Object.entries(errorTypes).forEach(([type, count]) => {
+        console.log(`  ${type}: ${count} error(s)`);
+    });
+    
+    console.log("=".repeat(80));
+    return formatErrors; // Return array of format errors
 }
 // <<< END ADDED FUNCTIONS
 
