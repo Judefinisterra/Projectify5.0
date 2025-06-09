@@ -14,7 +14,7 @@ import { validateCodeStrings } from './Validation.js';
 // Import code collection functions
 import { populateCodeCollection, exportCodeCollectionToText, runCodes, processAssumptionTabs, collapseGroupingsAndNavigateToFinancials, hideColumnsAndNavigate, handleInsertWorksheetsFromBase64 } from './CodeCollection.js';
 // >>> ADDED: Import the new validation function
-import { validateCodeStringsForRun } from './Validation.js';
+import { validateCodeStringsForRun, validateLogicWithRetry } from './Validation.js';
 // >>> ADDED: Import the tab string generator function
 import { generateTabString } from './IndexWorksheet.js';
 // >>> ADDED: Import AIModelPlanner functions
@@ -1662,6 +1662,38 @@ export async function handleInitialConversation(clientprompt) {
     outputArray = await checkCodeStringsWithLogicChecker(outputArray);
     if (DEBUG) console.log("[handleInitialConversation] LogicCheckerGPT checking completed");
 
+    // >>> ADDED: Run logic validation retry mechanism (up to 2 passes total)
+    if (DEBUG) console.log("[handleInitialConversation] Running post-LogicGPT validation retry...");
+    let currentPassNumber = 1;
+    let maxPasses = 2;
+    let validationComplete = false;
+    
+    while (currentPassNumber <= maxPasses && !validationComplete) {
+        const codestringsForValidation = Array.isArray(outputArray) ? outputArray.join("\n") : String(outputArray);
+        const retryResult = await validateLogicWithRetry(codestringsForValidation, currentPassNumber);
+        
+        if (retryResult.logicErrors.length === 0) {
+            // No logic errors - validation passed
+            validationComplete = true;
+            if (DEBUG) console.log(`[handleInitialConversation] ✅ Logic validation passed on pass ${currentPassNumber}`);
+        } else if (currentPassNumber >= maxPasses) {
+            // Maximum passes reached - stop retrying
+            validationComplete = true;
+            if (DEBUG) console.log(`[handleInitialConversation] ⚠️ Logic validation completed after ${currentPassNumber} passes with ${retryResult.logicErrors.length} remaining errors`);
+        } else {
+            // Logic errors found and haven't reached max passes - retry with LogicGPT
+            if (DEBUG) console.log(`[handleInitialConversation] 🔄 Pass ${currentPassNumber} found ${retryResult.logicErrors.length} logic errors - retrying with LogicGPT...`);
+            
+            // Run LogicCheckerGPT again to fix the remaining errors
+            outputArray = await checkCodeStringsWithLogicChecker(outputArray);
+            if (DEBUG) console.log(`[handleInitialConversation] LogicCheckerGPT retry pass ${currentPassNumber + 1} completed`);
+            
+            currentPassNumber++;
+        }
+    }
+    
+    if (DEBUG) console.log(`[handleInitialConversation] Logic validation retry mechanism completed after ${currentPassNumber} pass(es)`);
+
     // >>> ADDED: Format the response using FormatGPT
     if (DEBUG) console.log("[handleInitialConversation] Formatting response with FormatGPT...");
     outputArray = await formatCodeStringsWithGPT(outputArray);
@@ -2089,6 +2121,38 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         if (DEBUG) console.log("[getAICallsProcessedResponse] Using stored original client prompt for LogicCheckerGPT:", originalClientPrompt.substring(0, 100) + "...");
         responseArray = await checkCodeStringsWithLogicChecker(responseArray);
         if (DEBUG) console.log("[getAICallsProcessedResponse] LogicCheckerGPT checking completed");
+
+        // >>> ADDED: Run logic validation retry mechanism (up to 2 passes total)
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Running post-LogicGPT validation retry...");
+        let currentPassNumber = 1;
+        let maxPasses = 2;
+        let validationComplete = false;
+        
+        while (currentPassNumber <= maxPasses && !validationComplete) {
+            const codestringsForValidation = Array.isArray(responseArray) ? responseArray.join("\n") : String(responseArray);
+            const retryResult = await validateLogicWithRetry(codestringsForValidation, currentPassNumber);
+            
+            if (retryResult.logicErrors.length === 0) {
+                // No logic errors - validation passed
+                validationComplete = true;
+                if (DEBUG) console.log(`[getAICallsProcessedResponse] ✅ Logic validation passed on pass ${currentPassNumber}`);
+            } else if (currentPassNumber >= maxPasses) {
+                // Maximum passes reached - stop retrying
+                validationComplete = true;
+                if (DEBUG) console.log(`[getAICallsProcessedResponse] ⚠️ Logic validation completed after ${currentPassNumber} passes with ${retryResult.logicErrors.length} remaining errors`);
+            } else {
+                // Logic errors found and haven't reached max passes - retry with LogicGPT
+                if (DEBUG) console.log(`[getAICallsProcessedResponse] 🔄 Pass ${currentPassNumber} found ${retryResult.logicErrors.length} logic errors - retrying with LogicGPT...`);
+                
+                // Run LogicCheckerGPT again to fix the remaining errors
+                responseArray = await checkCodeStringsWithLogicChecker(responseArray);
+                if (DEBUG) console.log(`[getAICallsProcessedResponse] LogicCheckerGPT retry pass ${currentPassNumber + 1} completed`);
+                
+                currentPassNumber++;
+            }
+        }
+        
+        if (DEBUG) console.log(`[getAICallsProcessedResponse] Logic validation retry mechanism completed after ${currentPassNumber} pass(es)`);
 
         // 5. Format the response using FormatGPT
         if (DEBUG) console.log("[getAICallsProcessedResponse] Formatting response with FormatGPT...");

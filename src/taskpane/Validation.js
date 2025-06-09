@@ -1119,3 +1119,138 @@ export async function validateLogicOnly(inputText) {
 }
 // <<< END ADDED FUNCTION
 
+// >>> ADDED: New function for logic validation with retry mechanism (for post-LogicGPT validation)
+export async function validateLogicWithRetry(inputText, passNumber = 1) {
+    console.log("=".repeat(80));
+    console.log(`[LogicRetryValidation] STARTING LOGIC VALIDATION - PASS ${passNumber}`);
+    console.log(`[LogicRetryValidation] Maximum passes allowed: 2`);
+    console.log(`[LogicRetryValidation] Current pass: ${passNumber}`);
+    
+    // Run the logic-only validation
+    const logicErrors = await validateLogicOnly(inputText);
+    
+    console.log(`[LogicRetryValidation] Pass ${passNumber} completed - Found ${logicErrors.length} logic errors`);
+    
+    // Prepare the result object
+    const result = {
+        passNumber: passNumber,
+        logicErrors: logicErrors,
+        hasLogicErrors: logicErrors.length > 0,
+        shouldRetry: false,
+        isComplete: false,
+        summary: ''
+    };
+    
+    if (logicErrors.length === 0) {
+        // No logic errors found - validation passed
+        result.isComplete = true;
+        result.summary = `Logic validation passed on pass ${passNumber} - no logic errors detected`;
+        console.log(`[LogicRetryValidation] ✓ SUCCESS: ${result.summary}`);
+    } else if (passNumber >= 2) {
+        // Maximum passes reached - stop retrying
+        result.isComplete = true;
+        result.summary = `Logic validation completed after ${passNumber} passes - ${logicErrors.length} logic errors remain (maximum passes reached)`;
+        console.log(`[LogicRetryValidation] ⚠ MAX PASSES REACHED: ${result.summary}`);
+    } else {
+        // Logic errors found and we haven't reached max passes - should retry
+        result.shouldRetry = true;
+        result.summary = `Logic validation pass ${passNumber} found ${logicErrors.length} logic errors - will retry with LogicGPT`;
+        console.log(`[LogicRetryValidation] 🔄 RETRY NEEDED: ${result.summary}`);
+    }
+    
+    // Log error summary for this pass
+    if (logicErrors.length > 0) {
+        console.log(`[LogicRetryValidation] Logic errors in pass ${passNumber}:`);
+        logicErrors.forEach((error, index) => {
+            console.log(`  ${index + 1}. ${error}`);
+        });
+        
+        // Group errors by type for better reporting
+        const errorTypes = {};
+        logicErrors.forEach(error => {
+            const errorCode = error.match(/\[LERR\d+\]/)?.[0] || 'Unknown';
+            errorTypes[errorCode] = (errorTypes[errorCode] || 0) + 1;
+        });
+        
+        console.log(`[LogicRetryValidation] Error summary for pass ${passNumber}:`);
+        Object.entries(errorTypes).forEach(([type, count]) => {
+            console.log(`  ${type}: ${count} error(s)`);
+        });
+    }
+    
+    console.log(`[LogicRetryValidation] Pass ${passNumber} result:`, result.summary);
+    console.log("=".repeat(80));
+    
+    return result;
+}
+
+// >>> ADDED: Helper function to manage the complete logic validation retry workflow
+export async function runLogicValidationWorkflow(inputText) {
+    console.log("🚀 STARTING LOGIC VALIDATION WORKFLOW");
+    
+    const workflowResults = {
+        totalPasses: 0,
+        finalLogicErrors: [],
+        workflowComplete: false,
+        allPasses: []
+    };
+    
+    let currentPass = 1;
+    let shouldContinue = true;
+    
+    while (shouldContinue && currentPass <= 2) {
+        console.log(`\n📋 Running logic validation workflow - Pass ${currentPass}`);
+        
+        // Run validation for this pass
+        const passResult = await validateLogicWithRetry(inputText, currentPass);
+        workflowResults.allPasses.push(passResult);
+        workflowResults.totalPasses = currentPass;
+        
+        if (passResult.isComplete) {
+            // Validation is complete (either no errors or max passes reached)
+            workflowResults.finalLogicErrors = passResult.logicErrors;
+            workflowResults.workflowComplete = true;
+            shouldContinue = false;
+            
+            if (passResult.logicErrors.length === 0) {
+                console.log(`✅ WORKFLOW COMPLETE: Logic validation passed on pass ${currentPass}`);
+            } else {
+                console.log(`⚠️ WORKFLOW COMPLETE: Logic validation completed with ${passResult.logicErrors.length} remaining errors after ${currentPass} passes`);
+            }
+        } else if (passResult.shouldRetry) {
+            // Need to retry - this would trigger LogicGPT to run again
+            console.log(`🔄 WORKFLOW CONTINUING: Pass ${currentPass} found errors, will proceed to pass ${currentPass + 1} after LogicGPT`);
+            currentPass++;
+            
+            // In a real implementation, LogicGPT would run here to fix the errors
+            // For now, we'll just continue to the next pass with the same input
+            // (In the actual workflow, the input would be the LogicGPT-corrected version)
+        } else {
+            // Unexpected state
+            console.error(`❌ WORKFLOW ERROR: Unexpected validation state on pass ${currentPass}`);
+            workflowResults.workflowComplete = true;
+            shouldContinue = false;
+        }
+    }
+    
+    // Final workflow summary
+    console.log("\n📊 LOGIC VALIDATION WORKFLOW SUMMARY:");
+    console.log(`Total passes completed: ${workflowResults.totalPasses}`);
+    console.log(`Final logic errors: ${workflowResults.finalLogicErrors.length}`);
+    console.log(`Workflow status: ${workflowResults.workflowComplete ? 'Complete' : 'Incomplete'}`);
+    
+    if (workflowResults.finalLogicErrors.length > 0) {
+        console.log("\n❌ Remaining logic errors:");
+        workflowResults.finalLogicErrors.forEach((error, index) => {
+            console.log(`  ${index + 1}. ${error}`);
+        });
+    } else {
+        console.log("\n✅ No logic errors remaining!");
+    }
+    
+    return workflowResults;
+}
+// <<< END ADDED FUNCTIONS
+
+// >>> MODIFIED: Optional format validation (only run once if requested)
+
