@@ -41,6 +41,8 @@ Factor: Use rarely. Only use for multiples. Use case: Exit multiple (EBITDA).
 The format parameter must be set for every seed and FORMULA-S code listed in this system prompt!
 Indent and spacing: All rates, prices, percents, and non-aggregate items should have indent="2", bold="false"; and topborder="false". Most aggregate dollar data (revenue, expense, gmv, TAM, etc.) should have format="dollar"; bold="true". If a codestring comes directly after another codestring with an indent of 2, it should have topborder="1". If it comes after another aggregate value that is bold and has an indent of 1, add a BR code between the two items. Aggregate volume items should generally be bold and have an indent of 1. 
 
+Note: format sets the Y1-Y6 annual columns, while columnformat sets the monthly columns, so the two can legitimately differ.
+
 Other formatting params:
 Bold: boolean. Turns all cells in code bold if true and unbold if false
 Topborder: Boolean: Adds a topborder above the code if true. 

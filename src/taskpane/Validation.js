@@ -698,6 +698,12 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
                     if (pipeCount !== 12) {
                         errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
                     }
+                    
+                    // Check that no values exist after the final pipe (LOGIC ERROR)
+                    const afterFinalPipe = parts[parts.length - 1];
+                    if (afterFinalPipe.trim() !== '') {
+                        errors.push(`[LERR021] No values allowed after final pipe symbol - found "${afterFinalPipe}" after final pipe in "${rowContent}" in ${codeString}`);
+                    }
                 });
             }
         } else {
@@ -717,6 +723,12 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
                     const pipeCount = (rowContent.match(/\|/g) || []).length;
                     if (pipeCount !== 12) {
                         errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
+                    }
+                    
+                    // Check that no values exist after the final pipe (LOGIC ERROR)
+                    const afterFinalPipe = parts[parts.length - 1];
+                    if (afterFinalPipe.trim() !== '') {
+                        errors.push(`[LERR021] No values allowed after final pipe symbol - found "${afterFinalPipe}" after final pipe in "${rowContent}" in ${codeString}`);
                     }
                 });
             }
@@ -957,10 +969,17 @@ export async function validateLogicOnly(inputText) {
                 // Check for exactly 12 pipe symbols (LOGIC ERROR)
                 const pipeCount = (rowContent.match(/\|/g) || []).length;
                 if (pipeCount !== 12) {
-                    errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
+                    errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|").  - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
                 }
                 
+                // Handle spaces before/after the pipe delimiter
                 const parts = rowContent.split('|');
+                
+                // Check that no values exist after the final pipe (LOGIC ERROR)
+                const afterFinalPipe = parts[parts.length - 1];
+                if (afterFinalPipe.trim() !== '') {
+                    errors.push(`[LERR021] No values allowed after final pipe symbol - found "${afterFinalPipe}" after final pipe in "${rowContent}" in ${codeString}`);
+                }
                 if (parts.length > 0) {
                     const driver = parts[0].trim();
                     
@@ -1199,6 +1218,12 @@ export async function validateLogicOnly(inputText) {
                 const pipeCount = (rowContent.match(/\|/g) || []).length;
                 if (pipeCount !== 12) {
                     errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
+                }
+                
+                // Check that no values exist after the final pipe (LOGIC ERROR)
+                const afterFinalPipe = parts[parts.length - 1];
+                if (afterFinalPipe.trim() !== '') {
+                    errors.push(`[LERR021] No values allowed after final pipe symbol - found "${afterFinalPipe}" after final pipe in "${rowContent}" in ${codeString}`);
                 }
             });
         }
