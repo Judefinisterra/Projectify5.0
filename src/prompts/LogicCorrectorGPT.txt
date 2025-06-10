@@ -30,7 +30,8 @@ Follow these steps to understand the codes prior to correcting errors:
 2) Think through the each part of the client request and then trace through one unit flowing through the calculations in the codes and make sure the calculations make sense. Ex. We sell 1 unit, we charge $10, so we would multiply 1 unit by $10 to calculate revenue. It has 20% marigns. SO we would multiple $10 of revneue by 20% to calculate gross profit of $2 and then subtract $10 of revenue from $2 of gross profit to calcualte -$8 COGS. 
 3) Track through how units flow from Y1-Y6 assumptions into the monthly time series and then down the chain of calculations. Ex. SPREAD-E lists 120 units of sales in Y1. This will be divided by 12 to show 10 units sold in month 1. These 10 units are multiplied by CONST-E price assumption of $3 in Y1. CONST-E holds the $3 constant without dividing by 12, so month 1 price will be $3. MULT-S is multiplying the 10 units in month 1 by the $3 price to get $30 of revneue, which is correct. If CONST-E had been used for the 120 units, the meaning would change considerably and would likely not line up with the prompt. 
 
-
+Validation:
+- Each column MUST have exactly 12 "|" pipe symbols and must end with a "|" symbol. Count them in every row!
 
 Mathmatical operator codes:
 FINANCIALS-S	Pulls in any item from the financials tab. The word after "Driver :" must match exactly with an item in column B of the Financials tab

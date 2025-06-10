@@ -479,7 +479,7 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
                 // Check for exactly 12 pipe symbols (LOGIC ERROR)
                 const pipeCount = (rowContent.match(/\|/g) || []).length;
                 if (pipeCount !== 12) {
-                    errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
+                    errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|"). For correction, you must end on a pipe symbol. Think through the location of each value relative to column mapping. It is likely that you will need to remove pipes from the middle.For correction, you must end on a pipe symbol. Think through the location of each value relative to column mapping. It is likely that you will need to remove pipes from the middle. - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
                 }
                 
                 // Handle spaces before/after the pipe delimiter
@@ -702,7 +702,7 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
                     // Check that no values exist after the final pipe (LOGIC ERROR)
                     const afterFinalPipe = parts[parts.length - 1];
                     if (afterFinalPipe.trim() !== '') {
-                        errors.push(`[LERR021] No values allowed after final pipe symbol - found "${afterFinalPipe}" after final pipe in "${rowContent}" in ${codeString}`);
+                        errors.push(`[LERR021] No values allowed after final pipe symbol. To correct, add a pipe to the end of the parameter and remove one from somewhere in the middle. Think through which column each value is being mapped to and remove a pipe from somewhere in the middle thoughtfully. To correct, add a pipe to the end of the parameter and remove one from somewhere in the middle. Think through which column each value is being mapped to and remove a pipe from somewhere in the middle thoughtfully. - found "${afterFinalPipe}" after final pipe in "${rowContent}" in ${codeString}`);
                     }
                 });
             }
@@ -969,7 +969,7 @@ export async function validateLogicOnly(inputText) {
                 // Check for exactly 12 pipe symbols (LOGIC ERROR)
                 const pipeCount = (rowContent.match(/\|/g) || []).length;
                 if (pipeCount !== 12) {
-                    errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|").  - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
+                    errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|"). For correction, you must end on a pipe symbol. Think through the location of each value relative to column mapping. It is likely that you will need to remove pipes from the middle. - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
                 }
                 
                 // Handle spaces before/after the pipe delimiter
@@ -1276,7 +1276,7 @@ export async function validateLogicOnly(inputText) {
 export async function validateLogicWithRetry(inputText, passNumber = 1) {
     console.log("=".repeat(80));
     console.log(`[LogicRetryValidation] STARTING LOGIC VALIDATION - PASS ${passNumber}`);
-    console.log(`[LogicRetryValidation] Maximum passes allowed: 2`);
+    console.log(`[LogicRetryValidation] Maximum passes allowed: 3`);
     console.log(`[LogicRetryValidation] Current pass: ${passNumber}`);
     
     // Run the logic-only validation
@@ -1299,7 +1299,7 @@ export async function validateLogicWithRetry(inputText, passNumber = 1) {
         result.isComplete = true;
         result.summary = `Logic validation passed on pass ${passNumber} - no logic errors detected`;
         console.log(`[LogicRetryValidation] ✓ SUCCESS: ${result.summary}`);
-    } else if (passNumber >= 2) {
+    } else if (passNumber >= 3) {
         // Maximum passes reached - stop retrying
         result.isComplete = true;
         result.summary = `Logic validation completed after ${passNumber} passes - ${logicErrors.length} logic errors remain (maximum passes reached)`;
@@ -1351,7 +1351,7 @@ export async function runLogicValidationWorkflow(inputText) {
     let currentPass = 1;
     let shouldContinue = true;
     
-    while (shouldContinue && currentPass <= 2) {
+    while (shouldContinue && currentPass <= 3) {
         console.log(`\n📋 Running logic validation workflow - Pass ${currentPass}`);
         
         // Run validation for this pass

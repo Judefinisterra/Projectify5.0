@@ -1661,10 +1661,10 @@ export async function handleInitialConversation(clientprompt) {
     console.log(outputArray);
     console.log("────────────────────────────────────────────────────────────────\n");
 
-    // >>> ADDED: Run logic validation and correction mechanism (up to 2 passes total)
+    // >>> ADDED: Run logic validation and correction mechanism (up to 3 passes total)
     if (DEBUG) console.log("[handleInitialConversation] Running logic validation and correction mechanism...");
     let currentPassNumber = 1;
-    let maxPasses = 2;
+    let maxPasses = 3;
     let validationComplete = false;
     
     while (currentPassNumber <= maxPasses && !validationComplete) {
@@ -2152,10 +2152,10 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         console.log(responseArray);
         console.log("────────────────────────────────────────────────────────────────\n");
 
-        // 4. Run logic validation and correction mechanism (up to 2 passes total)
+        // 4. Run logic validation and correction mechanism (up to 3 passes total)
         if (DEBUG) console.log("[getAICallsProcessedResponse] Running logic validation and correction mechanism...");
         let currentPassNumber = 1;
-        let maxPasses = 2;
+        let maxPasses = 3;
         let validationComplete = false;
         
         while (currentPassNumber <= maxPasses && !validationComplete) {
