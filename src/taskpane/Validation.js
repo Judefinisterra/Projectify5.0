@@ -440,6 +440,19 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
             continue;
         }
 
+        // >>> ADDED: Validate that all parameter values are wrapped in quotes
+        const parameterPattern = /(\w+)\s*=\s*(.+?)(?=\s*[;>]|$)/g;
+        let paramMatch;
+        while ((paramMatch = parameterPattern.exec(codeString)) !== null) {
+            const paramName = paramMatch[1];
+            const paramValue = paramMatch[2].trim();
+            
+            // Check if the parameter value is properly wrapped in quotes
+            if (!paramValue.startsWith('"') || !paramValue.endsWith('"')) {
+                errors.push(`[LERR019] Parameter "${paramName}" value must be wrapped in quotes - found "${paramName}=${paramValue}" but should be "${paramName}="..."" in ${codeString}`);
+            }
+        }
+
         // >>> ADDED: Validate customformula parameters
         const customFormulaMatches = codeString.match(/customformula\d*\s*=\s*"([^"]*)"/g);
         if (customFormulaMatches) {
@@ -883,6 +896,19 @@ export async function validateLogicOnly(inputText) {
         }
         if (codeString.startsWith('<BR>')) {
             continue;
+        }
+
+        // Validate that all parameter values are wrapped in quotes (LOGIC ERROR)
+        const parameterPattern = /(\w+)\s*=\s*(.+?)(?=\s*[;>]|$)/g;
+        let paramMatch;
+        while ((paramMatch = parameterPattern.exec(codeString)) !== null) {
+            const paramName = paramMatch[1];
+            const paramValue = paramMatch[2].trim();
+            
+            // Check if the parameter value is properly wrapped in quotes
+            if (!paramValue.startsWith('"') || !paramValue.endsWith('"')) {
+                errors.push(`[LERR019] Parameter "${paramName}" value must be wrapped in quotes - found "${paramName}=${paramValue}" but should be "${paramName}="..."" in ${codeString}`);
+            }
         }
 
         // Validate customformula parameters (LOGIC ERROR)

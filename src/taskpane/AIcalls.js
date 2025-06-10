@@ -1661,14 +1661,8 @@ export async function handleInitialConversation(clientprompt) {
     console.log(outputArray);
     console.log("────────────────────────────────────────────────────────────────\n");
 
-    // >>> ADDED: Check the response using LogicCheckerGPT (uses global originalClientPrompt variable)
-    if (DEBUG) console.log("[handleInitialConversation] Checking response with LogicCheckerGPT...");
-    if (DEBUG) console.log("[handleInitialConversation] Using stored original client prompt for LogicCheckerGPT:", originalClientPrompt.substring(0, 100) + "...");
-    outputArray = await checkCodeStringsWithLogicChecker(outputArray);
-    if (DEBUG) console.log("[handleInitialConversation] LogicCheckerGPT checking completed");
-
-    // >>> ADDED: Run logic validation retry mechanism (up to 2 passes total)
-    if (DEBUG) console.log("[handleInitialConversation] Running post-LogicGPT validation retry...");
+    // >>> ADDED: Run logic validation and correction mechanism (up to 2 passes total)
+    if (DEBUG) console.log("[handleInitialConversation] Running logic validation and correction mechanism...");
     let currentPassNumber = 1;
     let maxPasses = 2;
     let validationComplete = false;
@@ -1686,18 +1680,18 @@ export async function handleInitialConversation(clientprompt) {
             validationComplete = true;
             if (DEBUG) console.log(`[handleInitialConversation] ⚠️ Logic validation completed after ${currentPassNumber} passes with ${retryResult.logicErrors.length} remaining errors`);
         } else {
-            // Logic errors found and haven't reached max passes - retry with LogicGPT
-            if (DEBUG) console.log(`[handleInitialConversation] 🔄 Pass ${currentPassNumber} found ${retryResult.logicErrors.length} logic errors - retrying with LogicGPT...`);
+            // Logic errors found and haven't reached max passes - retry with LogicCorrectorGPT
+            if (DEBUG) console.log(`[handleInitialConversation] 🔄 Pass ${currentPassNumber} found ${retryResult.logicErrors.length} logic errors - retrying with LogicCorrectorGPT...`);
             
-            // Run LogicCheckerGPT again to fix the remaining errors
-            outputArray = await checkCodeStringsWithLogicChecker(outputArray);
-            if (DEBUG) console.log(`[handleInitialConversation] LogicCheckerGPT retry pass ${currentPassNumber + 1} completed`);
+            // Run LogicCorrectorGPT to fix the remaining errors
+            outputArray = await checkCodeStringsWithLogicCorrector(outputArray, retryResult.logicErrors);
+            if (DEBUG) console.log(`[handleInitialConversation] LogicCorrectorGPT pass ${currentPassNumber} completed`);
             
             currentPassNumber++;
         }
     }
     
-    if (DEBUG) console.log(`[handleInitialConversation] Logic validation retry mechanism completed after ${currentPassNumber} pass(es)`);
+    if (DEBUG) console.log(`[handleInitialConversation] Logic validation and correction mechanism completed after ${currentPassNumber} pass(es)`);
 
     // >>> ADDED: Format the response using FormatGPT
     if (DEBUG) console.log("[handleInitialConversation] Formatting response with FormatGPT...");
@@ -2158,14 +2152,8 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         console.log(responseArray);
         console.log("────────────────────────────────────────────────────────────────\n");
 
-        // 4. Check the response using LogicCheckerGPT (uses global originalClientPrompt variable)
-        if (DEBUG) console.log("[getAICallsProcessedResponse] Checking response with LogicCheckerGPT...");
-        if (DEBUG) console.log("[getAICallsProcessedResponse] Using stored original client prompt for LogicCheckerGPT:", originalClientPrompt.substring(0, 100) + "...");
-        responseArray = await checkCodeStringsWithLogicChecker(responseArray);
-        if (DEBUG) console.log("[getAICallsProcessedResponse] LogicCheckerGPT checking completed");
-
-        // >>> ADDED: Run logic validation retry mechanism (up to 2 passes total)
-        if (DEBUG) console.log("[getAICallsProcessedResponse] Running post-LogicGPT validation retry...");
+        // 4. Run logic validation and correction mechanism (up to 2 passes total)
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Running logic validation and correction mechanism...");
         let currentPassNumber = 1;
         let maxPasses = 2;
         let validationComplete = false;
@@ -2183,18 +2171,18 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
                 validationComplete = true;
                 if (DEBUG) console.log(`[getAICallsProcessedResponse] ⚠️ Logic validation completed after ${currentPassNumber} passes with ${retryResult.logicErrors.length} remaining errors`);
             } else {
-                // Logic errors found and haven't reached max passes - retry with LogicGPT
-                if (DEBUG) console.log(`[getAICallsProcessedResponse] 🔄 Pass ${currentPassNumber} found ${retryResult.logicErrors.length} logic errors - retrying with LogicGPT...`);
+                // Logic errors found and haven't reached max passes - retry with LogicCorrectorGPT
+                if (DEBUG) console.log(`[getAICallsProcessedResponse] 🔄 Pass ${currentPassNumber} found ${retryResult.logicErrors.length} logic errors - retrying with LogicCorrectorGPT...`);
                 
-                // Run LogicCheckerGPT again to fix the remaining errors
-                responseArray = await checkCodeStringsWithLogicChecker(responseArray);
-                if (DEBUG) console.log(`[getAICallsProcessedResponse] LogicCheckerGPT retry pass ${currentPassNumber + 1} completed`);
+                // Run LogicCorrectorGPT to fix the remaining errors
+                responseArray = await checkCodeStringsWithLogicCorrector(responseArray, retryResult.logicErrors);
+                if (DEBUG) console.log(`[getAICallsProcessedResponse] LogicCorrectorGPT pass ${currentPassNumber} completed`);
                 
                 currentPassNumber++;
             }
         }
         
-        if (DEBUG) console.log(`[getAICallsProcessedResponse] Logic validation retry mechanism completed after ${currentPassNumber} pass(es)`);
+        if (DEBUG) console.log(`[getAICallsProcessedResponse] Logic validation and correction mechanism completed after ${currentPassNumber} pass(es)`);
 
         // 5. Format the response using FormatGPT
         if (DEBUG) console.log("[getAICallsProcessedResponse] Formatting response with FormatGPT...");
@@ -2396,6 +2384,86 @@ async function loadReconTableContent() {
         console.error("[loadReconTableContent] Error loading ReconTable.txt:", error);
         // Return empty string on error to avoid breaking the flow
         return "";
+    }
+}
+
+// >>> ADDED: LogicCorrectorGPT function to correct codestrings when logic errors are found
+export async function checkCodeStringsWithLogicCorrector(responseArray, logicErrors) {
+    if (DEBUG) console.log("[checkCodeStringsWithLogicCorrector] Processing codestrings for logic correction...");
+
+    try {
+        // Ensure API keys are available
+        if (!INTERNAL_API_KEYS.OPENAI_API_KEY) {
+            throw new Error("OpenAI API key not initialized for LogicCorrectorGPT correction.");
+        }
+
+        // Extract clean client request from the original prompt
+        let cleanClientRequest = originalClientPrompt;
+        
+        // Remove "Client Request:" prefix if it exists
+        cleanClientRequest = cleanClientRequest.replace(/^Client [Rr]equest:\s*/, '');
+        
+        // Find where training data or context starts and cut it off
+        const contextStart = cleanClientRequest.search(/\n\n(Client request-specific Context|Training Data)/i);
+        if (contextStart !== -1) {
+            cleanClientRequest = cleanClientRequest.substring(0, contextStart).trim();
+        }
+
+        // Load the LogicCorrectorGPT system prompt
+        const logicCorrectorSystemPrompt = await getSystemPromptFromFile('LogicCorrectorGPT');
+        if (!logicCorrectorSystemPrompt) {
+            throw new Error("Failed to load LogicCorrectorGPT system prompt");
+        }
+
+        // Convert responseArray to string for processing
+        let codestringsInput = "";
+        if (Array.isArray(responseArray)) {
+            codestringsInput = responseArray.join("\n");
+        } else {
+            codestringsInput = String(responseArray);
+        }
+
+        // Format logic errors for the prompt
+        let logicErrorsFormatted = "";
+        if (logicErrors && logicErrors.length > 0) {
+            logicErrorsFormatted = "\n\nValidation Errors Found:\n" + logicErrors.join("\n");
+        }
+
+        // Create the main message with the clean client request + codestrings + logic errors
+        const logicCorrectorInput = `Original Client Request: ${cleanClientRequest}\n\nCodestrings to Correct:\n${codestringsInput}${logicErrorsFormatted}`;
+
+        if (DEBUG) {
+            console.log("[checkCodeStringsWithLogicCorrector] Final clean client request being sent:", cleanClientRequest.substring(0, 100) + "...");
+            console.log("[checkCodeStringsWithLogicCorrector] Input codestrings:", codestringsInput.substring(0, 200) + "...");
+            console.log("[checkCodeStringsWithLogicCorrector] Logic errors included:", logicErrors ? logicErrors.length : 0);
+            console.log("[checkCodeStringsWithLogicCorrector] Using LogicCorrectorGPT system prompt");
+        }
+
+        // Call processPrompt with LogicCorrectorGPT system prompt
+        const correctedResponseArray = await processPrompt({
+            userInput: logicCorrectorInput,
+            systemPrompt: logicCorrectorSystemPrompt,
+            model: GPT41, // Using same model as other calls
+            temperature: 0.3, // Lower temperature for logic correction consistency
+            history: [], // No history needed for logic correction
+            promptFiles: { system: 'LogicCorrectorGPT' }
+        });
+
+        if (DEBUG) {
+            console.log("[checkCodeStringsWithLogicCorrector] LogicCorrectorGPT processing completed");
+            console.log("[checkCodeStringsWithLogicCorrector] Corrected output:", correctedResponseArray);
+        }
+
+        // >>> ADDED: Compare before and after codestrings for LogicCorrectorGPT
+        logCodestringComparison(responseArray, correctedResponseArray, "LogicCorrectorGPT");
+
+        return correctedResponseArray;
+
+    } catch (error) {
+        console.error("[checkCodeStringsWithLogicCorrector] Error during LogicCorrectorGPT processing:", error);
+        // Return original response on error to avoid breaking the flow
+        console.warn("[checkCodeStringsWithLogicCorrector] Returning original response due to logic correction error");
+        return responseArray;
     }
 }
 
