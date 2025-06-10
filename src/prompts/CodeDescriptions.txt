@@ -1,0 +1,2 @@
+Codes:
+FAPPE-S: Depreciates a capex/investment in intangibles driver. Calculates Depreciation/Amortization and carrying balance. 
