@@ -424,8 +424,11 @@ async function handleSend() {
         firstUserInput = userInput;
     }
 
-    // Check if this is a response to a previous message (use session tracking instead of just history length)
-    isResponse = !isFirstMessageInSession;
+    // Check if this is a response to a previous message by looking at visible chat messages BEFORE adding the new message
+    const chatLog = document.getElementById('chat-log');
+    const existingMessages = chatLog ? chatLog.querySelectorAll('.chat-message') : [];
+    isResponse = existingMessages.length > 0;
+    console.log(`[handleSend] Found ${existingMessages.length} existing chat messages. isResponse: ${isResponse}`);
 
     // Add user message to chat
     appendMessage(userInput, true);
@@ -434,9 +437,6 @@ async function handleSend() {
     document.getElementById('user-input').value = '';
 
     setButtonLoading(true);
-    
-    // Create a progress message element that we can update
-    const chatLog = document.getElementById('chat-log');
     const progressMessageDiv = document.createElement('div');
     progressMessageDiv.className = 'chat-message assistant-message';
     const progressMessageContent = document.createElement('p');
@@ -1710,7 +1710,20 @@ Office.onReady((info) => {
         // >>> ADDED: Set the API keys in AIcalls module
         setAPIKeys(keys);
       }
-      conversationHistory = loadConversationHistory();
+      
+      // >>> ADDED: Clear conversation history on startup to ensure fresh start
+      console.log("Clearing conversation history on startup...");
+      conversationHistory = [];
+      saveConversationHistory(conversationHistory);
+      isResponse = false;
+      lastResponse = null;
+      isFirstMessageInSession = true;
+      firstUserInput = null;
+      lastUserInput = null;
+      persistedTrainingUserInput = null;
+      persistedTrainingAiResponse = null;
+      console.log("Conversation history cleared on startup");
+      // <<< END ADDED
 
       try {
           const storedCodes = localStorage.getItem('userCodeStrings');

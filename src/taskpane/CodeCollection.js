@@ -1265,14 +1265,16 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         return `(EOMONTH((${driver}),0)=AE$2)`;
     });
     
-    // Process SPREADDATES function: SPREADDATES(driver1,driver2) -> driver1/(EOMONTH(driver2,0)-(EOMONTH(driver1,0))*(12/AE$2*30)
+    // Process SPREADDATES function: SPREADDATES(driver1,driver2,driver3) -> IF(AND(EOMONTH(AE$2,0)>=EOMONTH(driver2,0),EOMONTH(driver3,0)<=EOMONTH($I12,0)),driver1/(DATEDIF(driver2,driver3,"m")+1),0)
     // Note: Need to handle nested parentheses and comma separation
-    result = result.replace(/SPREADDATES\(([^,]+),([^)]+)\)/g, (match, driver1, driver2) => {
+    result = result.replace(/SPREADDATES\(([^,]+),([^,]+),([^)]+)\)/g, (match, driver1, driver2, driver3) => {
         // Trim whitespace from drivers
         driver1 = driver1.trim();
         driver2 = driver2.trim();
-        console.log(`    Converting SPREADDATES(${driver1},${driver2}) to ${driver1}/(EOMONTH(${driver2},0)-(EOMONTH(${driver1},0))*(12/AE$2*30))`);
-        return `${driver1}/(EOMONTH(${driver2},0)-(EOMONTH(${driver1},0))*(12/AE$2*30))`;
+        driver3 = driver3.trim();
+        const newFormula = `IF(AND(EOMONTH(AE$2,0)>=EOMONTH(${driver2},0),EOMONTH(AE$2,0)<=EOMONTH(${driver3},0)),${driver1}/(DATEDIF(${driver2},${driver3},"m")+1),0)`;
+        console.log(`    Converting SPREADDATES(${driver1},${driver2},${driver3}) to ${newFormula}`);
+        return newFormula;
     });
 
 
@@ -3614,14 +3616,16 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                 return `(EOMONTH((${driver}),0)=AE$2)`;
             });
             
-            // Process SPREADDATES function: SPREADDATES(driver1,driver2) -> driver1/(EOMONTH(driver2,0)-(EOMONTH(driver1,0))*(12/AE$2*30)
+            // Process SPREADDATES function: SPREADDATES(driver1,driver2,driver3) -> IF(AND(EOMONTH(AE$2,0)>=EOMONTH(driver2,0),EOMONTH(driver3,0)<=EOMONTH($I12,0)),driver1/(DATEDIF(driver2,driver3,"m")+1),0)
             // Note: Need to handle nested parentheses and comma separation
-            formula = formula.replace(/SPREADDATES\(([^,]+),([^)]+)\)/g, (match, driver1, driver2) => {
+            formula = formula.replace(/SPREADDATES\(([^,]+),([^,]+),([^)]+)\)/g, (match, driver1, driver2, driver3) => {
                 // Trim whitespace from drivers
                 driver1 = driver1.trim();
                 driver2 = driver2.trim();
-                console.log(`    Converting SPREADDATES(${driver1},${driver2}) to ${driver1}/(EOMONTH(${driver2},0)-(EOMONTH(${driver1},0))*(12/AE$2*30))`);
-                return `${driver1}/(EOMONTH(${driver2},0)-(EOMONTH(${driver1},0))*(12/AE$2*30))`;
+                driver3 = driver3.trim();
+                const newFormula = `IF(AND(EOMONTH(AE$2,0)>=EOMONTH(${driver2},0),EOMONTH(AE$2,0)<=EOMONTH(${driver3},0)),${driver1}/(DATEDIF(${driver2},${driver3},"m")+1),0)`;
+                console.log(`    Converting SPREADDATES(${driver1},${driver2},${driver3}) to ${newFormula}`);
+                return newFormula;
             });
             
             // Ensure the formula starts with '='
