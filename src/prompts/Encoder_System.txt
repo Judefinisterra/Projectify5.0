@@ -44,6 +44,8 @@ Validation checks:
 3) each row has exactly 12 "|" symbols, unless a duplicate row has been added using the * symbol.
 4)	“F” columns must remain unchanged. Do not improvise “F” values that weren’t in the original codestring. Do not override any F values. If row1="|F|F|F|F| etc." row1 must keep those same F's.  
 5) You MUST not add or remove any of the rowx parameters. If the trianing data codestring has row1 and row2 parameters, your use of that codestring must also have row1 and row2. Removing row2 or adding a row3 will cause a runtime error.
+6) Fixed assumptions in columns 4, 5, and 6 must be filled in reverse order. Ex. if there are only two fixed assumptions, columns 5 and 6 should hold those assumptions, NOT columns 4 and 5. Only use column 4 when there are 3 fixed assumptions. 
+
 
 Seed codes: Any code ending with "E". These Codes used to begin chains. These are the common ones, but there are many others in the training data (ex. PAYROLLSALARY-E)
 CONST-E: value is chosen for each year and that same value is used in all the months of that year. Use when input is given for the year and held constant for all months/quarters of that year. Use cases: Prices, rates, etc.  Example: 2025 price = $10. Price in June 2025 = $10. CONST-E does not annualize or deannaulize, thus if the assumption is a rate per year, it will spread that rate per year to the monthly time series and any calculation downstream will need to divide by the timeseriesdivisor in order to deannualize it and use it on a monthly basis (ARR and TAM are examples of annual rates passed through to the monthly time series). When dealing with rates per period, ALWAYS include the per X period in the label when using CONST-E. Ex. Sales per Year. Churn per month. Etc. 

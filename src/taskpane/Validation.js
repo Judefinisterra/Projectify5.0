@@ -475,6 +475,13 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
                 const rowParam = match.match(/(row\d+)\s*=\s*"([^"]*)"/);
                 const rowName = rowParam[1];
                 const rowContent = rowParam[2];
+                
+                // Check for exactly 12 pipe symbols (LOGIC ERROR)
+                const pipeCount = (rowContent.match(/\|/g) || []).length;
+                if (pipeCount !== 12) {
+                    errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
+                }
+                
                 // Handle spaces before/after the pipe delimiter
                 const parts = rowContent.split('|');
                 if (parts.length > 0) {
@@ -685,6 +692,12 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
                             driversInThisTab.set(driver, rowName);
                         }
                     }
+                    
+                    // Check for exactly 12 pipe symbols (which creates 13 parts when split)
+                    const pipeCount = (rowContent.match(/\|/g) || []).length;
+                    if (pipeCount !== 12) {
+                        errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
+                    }
                 });
             }
         } else {
@@ -694,8 +707,16 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
                 rowMatches.forEach(match => {
                     const rowContent = match.match(/row\d+="([^"]*)"/)[1];
                     const parts = rowContent.split('|');
+                    
+                    // Check for minimum required fields
                     if (parts.length < 2) {
                         errors.push(`[LERR010] Invalid row format (missing required fields): "${rowContent}" in ${codeString}`);
+                    }
+                    
+                    // Check for exactly 12 pipe symbols (which creates 13 parts when split)
+                    const pipeCount = (rowContent.match(/\|/g) || []).length;
+                    if (pipeCount !== 12) {
+                        errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
                     }
                 });
             }
@@ -932,6 +953,13 @@ export async function validateLogicOnly(inputText) {
                 const rowParam = match.match(/(row\d+)\s*=\s*"([^"]*)"/);
                 const rowName = rowParam[1];
                 const rowContent = rowParam[2];
+                
+                // Check for exactly 12 pipe symbols (LOGIC ERROR)
+                const pipeCount = (rowContent.match(/\|/g) || []).length;
+                if (pipeCount !== 12) {
+                    errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
+                }
+                
                 const parts = rowContent.split('|');
                 if (parts.length > 0) {
                     const driver = parts[0].trim();
@@ -1161,8 +1189,16 @@ export async function validateLogicOnly(inputText) {
             rowMatches.forEach(match => {
                 const rowContent = match.match(/row\d+="([^"]*)"/)[1];
                 const parts = rowContent.split('|');
+                
+                // Check for minimum required fields
                 if (parts.length < 2) {
                     errors.push(`[LERR010] Invalid row format (missing required fields): "${rowContent}" in ${codeString}`);
+                }
+                
+                // Check for exactly 12 pipe symbols (which creates 13 parts when split)
+                const pipeCount = (rowContent.match(/\|/g) || []).length;
+                if (pipeCount !== 12) {
+                    errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
                 }
             });
         }
