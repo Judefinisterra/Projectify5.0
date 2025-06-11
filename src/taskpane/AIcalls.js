@@ -348,9 +348,15 @@ export async function* callOpenAI(messages, options = {}) {
 
     const body = {
       model: model,
-      messages: messages,
-      temperature: temperature
+      messages: messages
     };
+
+    // Only include temperature for models that support it
+    // o3-mini and gpt-o3 models don't support temperature parameter
+    const modelsWithoutTemperature = ['o3-mini', 'gpt-o3'];
+    if (!modelsWithoutTemperature.includes(model)) {
+      body.temperature = temperature;
+    }
 
     if (stream) {
       body.stream = true;
@@ -2138,7 +2144,7 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         let responseArray = await processPrompt({
             userInput: combinedInputForAI,
             systemPrompt: systemPrompt,
-            model: GPT_O3, // Using the same model as in other parts
+            model: GPT41, // Using the same model as in other parts
             temperature: 1, // Consistent temperature
             history: [], // Treat each call as independent for this processing
             promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
@@ -2715,7 +2721,7 @@ export async function formatCodeStringsWithGPT(responseArray) {
         const formattedResponseArray = await processPrompt({
             userInput: formatInput,
             systemPrompt: formatSystemPrompt,
-            model: GPT_O3, // Using same model as other calls
+            model: GPT41, // Using same model as other calls
             temperature: 0.3, // Lower temperature for formatting consistency
             history: [], // No history needed for formatting
             promptFiles: { system: 'FormatGPT' }
@@ -2788,7 +2794,7 @@ export async function checkLabelsWithGPT(responseArray) {
         const checkedResponseArray = await processPrompt({
             userInput: labelCheckerInput,
             systemPrompt: labelCheckerSystemPrompt,
-            model: GPT_O3, // Using same model as other calls
+            model: GPT41, // Using same model as other calls
             temperature: 0.3, // Lower temperature for label checking consistency
             history: [], // No history needed for label checking
             promptFiles: { system: 'LabelCheckerGPT' }
