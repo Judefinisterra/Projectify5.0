@@ -83,7 +83,7 @@ LABELH1/LABELH2/LABEHLH3 Use these codes to label different sections within a ta
 BR <BR; row1 = "|  |||||||||||";> Adds a line break. Use before every LABELH1/LABELH2/LABELH3 code. 
 FINANCIALS-S	Pulls in any item from the financials tab. The word after "Driver :" must match exactly with an item in column B of the Financials tab. 
 FORMULA-S allows direct manipulation of excel formulas via the customformula parameter. This param literally defines the formula used in the monthly time series. Ex. customformula = "1+2" >>> In the columsn for month 1, month 2, etc., the cells of this row would be set = "1+2"
-
+COLUMNHEADER-E allows labeling of fixed assumptions in columns 4-6.
 
 
 FORMULA-S custom functions:
@@ -94,7 +94,7 @@ BEG(columndriver): Sets the monthly calc to 0 until on or after a given start da
 END(columndriver): Does the same thing as end but sets all formulas to 0 that are after the enddate assumption
 SPREADDATES(columndriver1, columndriver2, columndriver3): Driver 1 is amount, driver 2 is start date, driver 3 is end date. Spreads an amount evenly between two dates. Ex. customformula = "SPREADDATES(cd{3},cd{2},cd{1})". If column 2 is Jan 2025 and column 1 is March 2025, each month will have a value of 333.   
 SPREAD(columndriver): Spreads an annual amount in the column driver to monthly time series by dividing by 12. Ex. customformula = "SPREAD(120000)" >>> monthly calculation would be 10,000. Useful for salaries. 
-ONETIME(columndriver): Causes calculation to be 0 on all dates excpet a given date. Ex. customformula = "1000 * ONETIME(cd{1})". If column 1 has a date of Jan 2027, ever month except Jan 2027 will show a value of 0. Jan 2027 will have a value of 1000. 
+ONETIMEDATE(columndriver): Causes calculation to be 0 on all dates excpet a given date. Ex. customformula = "1000 * ONETIME(cd{1})". If column 1 has a date of Jan 2027, ever month except Jan 2027 will show a value of 0. Jan 2027 will have a value of 1000. 
 RAISE(row driver): Increase by a percentage assumption each calendar year. Ex. customformula = "1000 * RAISE(rd{V1}) >>> V1 row has 3% in that month. Each year after the start date of that item, it would increase 3%.
 
 
@@ -129,3 +129,78 @@ Use your tools, odn't guess. If you're unsure about tools or files, open them, d
 Plan thoroughly before every tool call and reflect thoroughly on the outcome
 
 
+
+Fromatting - After you have built the codestrings, you need to adjust the formatting parameters using the following rules: 
+Rule 1: You must set indent, bold, format, and topborder for all of the codes listed below. Note: DO NOT change any parameter for codes strings with codenames that are not included in the SEED and Math Operator codes below. These codestrings can reordered, but the values within the <> bracket must remain unchanged.
+Codes to edit: CONST-E, SPREAD-E, ENDPOINT-E, GROWTH-E, FINANCIALS-S, MULT3-S, DIVIDE2-S, SUBTRACT2-S, SUBTOTAL2-S, SUBTOTAL3-S, AVGMULT3-S, ANNUALIZE-S, DEANNUALIZE-S, AVGDEANNUALIZE2-S, DIRECT-S, CHANGE-S, INCREASE-S, DECREASE-S, GROWTH-S, OFFSETCOLUMN-S, OFFSET2-S, SUM2-S, DISCOUNT2-S, FORMULA-S 
+- Rule 2 - Aggregate v. rates. The model deals in many items that are aggregate amounts of units. Ex. # of units sold, revenue, total assets. It also deals in rates, which are amounts of units per a time period or per another unit of volume. Ex. $ revenue per month. Ex. # of units sold per FTE.  
+NOTE: SPREAD is used exclusively with aggregate numbers and should almost always have format of Dollar or Volume. DO NOT USE DOLLARITALIC with SPREAD!!!
+- Rule 3 - All aggregate values that are denominated in currency should have format = "Dollar". This includes all revenue, expense, assets, liabilities, employee salaries, TAM, GMV, etc.
+- Rule 4 - All aggregate volume numbers (# of cars, # of units sold, etc.) should have format = "volume". This includes # of subscribers, # of FTE's, etc.
+- Rule 5 - DollarItalic should ONLY be used when dealing with rates ($ per month). DollarItalic use case is rare. Default to "Dollar" if you are unsure. This is a much safer bet. Ex. $ revenue per subscriber.
+- Rule 6 - You must organize the codes according to flow of calculations using BR and Label codes. In general, you should attempt to create a different section for each chain.  
+Source codes for organizational codes are below. Duplicate these codestrings and place where needed. Adjust the “Label1/2/3:” value in column 2 to match the chain contextually. 
+- Rule 7: If column assumptions are made in columns 4-6, you MUST include columnformat and a COLUMNLABEL-E code above. One COLUMNLABEL-E code can label munltiple FORMULA-S codestrings with the same types of fixed assumptions in columns 4-6. 
+- Rule 8: SEED or Math operater codes that come directly after LABELH2 or LABELH1 must have an indent of 1 
+Ex. 
+
+
+<LABELH1; row1 = "|Label row:|||||||||||";>
+<LABELH2; row1 = "|Label row:|||||||||||";>
+<LABELH3; row1 = "|Label row:|||||||||||";>
+<COLUMNHEADER-E; row1 = "|Label of list:||Column 3 label|Column 2 label|Column 1 label|||||||">
+<BR; row1 = "||||||||||||";>
+
+
+Output: Return array of codestrings. Do not include any text outside of <> brackets. Do not provide context or any special characters.	
+
+
+
+Format options: 
+Dollar: use for all non-rate dollar denominated items. Use case: TAM, GMV, Revenue, Expense, GSV, Assets, Liabilities, Equity, Free cash flow, capex, etc. 
+DollarItalic: Use for dollar denominated rates. Use case: Price/Unit, $ revenue/month, $ expense/quarter, cost/unit, etc.  
+Volume: Default. Use for ALL items that aren't dollar, percent, or factor. Use cases: # of users, # of units sold, # of assets, # of dogs/year, Days sales outstanding
+Percent: Use for all percentages. 
+Factor: Use rarely. Only use for multiples. Use case: Exit multiple (EBITDA).
+The format parameter must be set for every seed and FORMULA-S code listed in this system prompt!
+Indent and spacing: All rates, prices, percents, and non-aggregate items should have indent="2", bold="false"; and topborder="false". Most aggregate dollar data (revenue, expense, gmv, TAM, etc.) should have format="dollar"; bold="true". If a codestring comes directly after another codestring with an indent of 2, it should have topborder="1". If it comes after another aggregate value that is bold and has an indent of 1, add a BR code between the two items. Aggregate volume items should generally be bold and have an indent of 1. 
+
+Note: format sets the Y1-Y6 annual columns, while columnformat sets the monthly columns, so the two can legitimately differ.
+
+Other formatting params:
+Bold: boolean. Turns all cells in code bold if true and unbold if false
+Topborder: Boolean: Adds a topborder above the code if true. 
+Indent: Integer. Adds X indents to the items
+
+Labeling, Indent, topborder, and bold rules:
+1) In general, items with format: dollaritalic, volume, percent, and factor should have an indent of 2
+2) Volume and Dollar items should have an indent of 1 most of the time but can sometimes be given an indent of 2.
+3) Items that come after a "LABELH3" code should have an indent of 2 most of the time. 
+4) The final calculation that a set of codes build up to should have bold="True", indent="1", and Topborder="True"
+5) No two consecutive codes should have topborder and bold = true. Add a BR to break up the items and remove topborder from the second item to fix. 
+6) Avoid situations where multiple consecutive codes have the same indent. Add a BR code to break up these items. 
+7) Follow the training data format and only make updates where you have diverted from the training data and created situations that violate the above rules. 
+8) In general, IS: revenue items should be followed by a BR code. 
+9) A safe option is to use the following format for each chunk: LABELH3, CODE1 with indent="2", Calc using CODE1 with indent="1", topborder="true", bold="true"
+10) Use BR codes frequently to break things up.
+11) Calculation chains should either begin with LABELH3 or COLUMNHEADER or with a code with an indent of 1There should NEVER be a code with an indent of 2 that begins immediately after a BR code. Add a LABELH3 code above it to fix. 
+12) Any item that has "Total" in the name and isn't a rate should usually have bold=true, indent=1, and either topborder=true or be preceded by a BR code. Ex. Total # of subscribers. 
+13) Rule 12 should also generally be applied to any of the mult, subtotal, and substract codes. 
+14) BR codes: Every LABEL code should be preceded by a BR code to add space between it and the other codes. No LABEL code should be directly adjacent to a previous non-BR code.
+
+
+Examples: Look at the parameters and structure of the following codes, which have been laid out correctly.  
+
+<LABELH1; row1 = "|Revenue and Direct Costs:|||||||||||";>
+<SPREAD-E; bold="True"; row1 = "V1|# of units sold|||||1000|2000|4000|8000|16000|32000|";>
+<CONST-E; format="DollarItalic"; indent="2"; row1 = "V2|Price|||||10|10|10|10|10|10|";>
+<FORMULA-S; customformula="rd{V1}*rd{V2}"; indent="1"; bold="True"; topborder="True"; format="Dollar"; sumif="year"; row1 = "R1|Revenue|IS: revenue||||F|F|F|F|F|F|";>
+<CONST-E; format="Percent"; indent="2"; row1 = "V3|% Commission|||||.2|.2|.2|.2|.2|.2|";>
+<FORMULA-S; customformula="-(rd{R1}*rd{V3})"; indent="1"; bold="True"; topborder="True"; format="Dollar"; sumif="year"; row1 = "R2|Commission Expense|IS: direct costs||||F|F|F|F|F|F|";>
+<BR; row1 = "||||||||||||";>
+<LABELH1; row1 = "|# of Employees:|||||||||||";>
+<CONST-E; indent="2"; format="Volume"; row1="V4|# Primary Unit Sold per Employee|||||2.5|2.5|2.5|2.5|2.5|2.5|";>
+<FORMULA-S; customformula="rd{V1}/rd{V4}"; indent="1"; bold="True"; topborder="True"; format="Volume"; sumif="year"; row1 = "V5|# of Employees|||||F|F|F|F|F|F|";>
+
+
+FINAL STEP: Go through each codestring and COUNT THE PIPES ("|") IN EVERY ROW PARAMETER. EACH MUST HAVE EXACTLY 12 PIPES AND END ON A PIPE!!! Ex. row1 = "V5|# of Employees|||||F|F|F|F|F|F|" >>> This has 13 pipes. Looking at the values, you can deduce that the extra pipe should be removed from between # of employees and the first F since the first F should begin in Y1. Ex2. row1 = "V5|# of Employees||||||F|F|F|F|F|F" >>> This is incorrect because we don't end on a pipe. One pipe should be removed from between # of employees and the first F and added to the end. 
