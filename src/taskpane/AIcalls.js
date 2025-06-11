@@ -232,7 +232,7 @@ const GPT4O = "gpt-4o"
 const GPT41 = "gpt-4.1"
 const GPT45_TURBO = "gpt-4.5-turbo"
 const GPT35_TURBO = "gpt-3.5-turbo"
-const GPT_O3 = "o3-pro-2025-06-10"
+const GPT_O3 = "o3-mini"
 const GPT4_TURBO = "gpt-4-turbo"
 const GPTO3 = "gpt-o3"
 const GPTFT1 =  "ft:gpt-4.1-2025-04-14:personal:jun25gpt4-1:BeyDTNt1"
@@ -274,7 +274,7 @@ export function loadConversationHistory() {
 
 // Direct OpenAI API call function
 export async function* callOpenAI(messages, options = {}) {
-  const { model = GPT41, temperature = 0.7, stream = false, caller = "Unknown" } = options;
+  const { model = GPT_O3, temperature = 0.7, stream = false, caller = "Unknown" } = options;
 
   try {
     console.log(`Calling OpenAI API with model: ${model}, stream: ${stream}`);
@@ -1557,7 +1557,7 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
         ];
 
         const openaiCallOptions = { 
-            model: GPT41, 
+            model: GPT_O3, 
             temperature: 1, 
             stream: false,
             caller: "handleFollowUpConversation - Standalone"
@@ -1648,7 +1648,7 @@ export async function handleInitialConversation(clientprompt) {
             let outputArray = await processPrompt({
             userInput: initialCallPrompt,
             systemPrompt: systemPrompt,
-            model: GPT41,
+            model: GPT_O3,
             temperature: 1,
             history: [], // No history for initial call
             promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
@@ -1849,7 +1849,7 @@ export async function validationCorrection(clientprompt, initialResponse, valida
         const correctedResponseArray = await processPrompt({
             userInput: correctionPrompt,
             systemPrompt: validationSystemPrompt,
-            model: GPT41,
+            model: GPT_O3,
             temperature: 0.7, // Lower temperature for correction
             history: [],
             promptFiles: { system: `Validation_System|PASS_${validationPassCounter}|ERRORS:${validationResultsString}` }
@@ -2138,7 +2138,7 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         let responseArray = await processPrompt({
             userInput: combinedInputForAI,
             systemPrompt: systemPrompt,
-            model: GPT41, // Using the same model as in other parts
+            model: GPT_O3, // Using the same model as in other parts
             temperature: 1, // Consistent temperature
             history: [], // Treat each call as independent for this processing
             promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
@@ -2444,7 +2444,7 @@ export async function checkCodeStringsWithLogicCorrector(responseArray, logicErr
         const correctedResponseArray = await processPrompt({
             userInput: logicCorrectorInput,
             systemPrompt: logicCorrectorSystemPrompt,
-            model: GPT41, // Using same model as other calls
+            model: GPT_O3, // Using same model as other calls
             temperature: 0.3, // Lower temperature for logic correction consistency
             history: [], // No history needed for logic correction
             promptFiles: { system: 'LogicCorrectorGPT' }
@@ -2588,7 +2588,7 @@ export async function checkCodeStringsWithLogicChecker(responseArray) {
         const checkedResponseArray = await processPrompt({
             userInput: logicCheckerInput,
             systemPrompt: logicCheckerSystemPrompt,
-            model: GPT41, // Using same model as other calls
+            model: GPT_O3, // Using same model as other calls
             temperature: 0.3, // Lower temperature for logic checking consistency
             history: [], // No history needed for logic checking
             promptFiles: { system: 'LogicCheckerGPT' }
@@ -2715,7 +2715,7 @@ export async function formatCodeStringsWithGPT(responseArray) {
         const formattedResponseArray = await processPrompt({
             userInput: formatInput,
             systemPrompt: formatSystemPrompt,
-            model: GPT41, // Using same model as other calls
+            model: GPT_O3, // Using same model as other calls
             temperature: 0.3, // Lower temperature for formatting consistency
             history: [], // No history needed for formatting
             promptFiles: { system: 'FormatGPT' }
@@ -2788,7 +2788,7 @@ export async function checkLabelsWithGPT(responseArray) {
         const checkedResponseArray = await processPrompt({
             userInput: labelCheckerInput,
             systemPrompt: labelCheckerSystemPrompt,
-            model: GPT41, // Using same model as other calls
+            model: GPT_O3, // Using same model as other calls
             temperature: 0.3, // Lower temperature for label checking consistency
             history: [], // No history needed for label checking
             promptFiles: { system: 'LabelCheckerGPT' }
