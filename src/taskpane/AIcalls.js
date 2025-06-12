@@ -2109,157 +2109,7 @@ Office.onReady(async (info) => {
   }
 });
 
-// NEW FUNCTION to process text input like handleSend but without UI and main history side effects
-export async function getAICallsProcessedResponse(userInputString, progressCallback = null) {
-    if (DEBUG) console.log("[getAICallsProcessedResponse] Processing input:", userInputString.substring(0, 100) + "...");
 
-    // >>> ADDED: Store the original clean client prompt at the very start (global variable)
-    originalClientPrompt = userInputString;
-    if (DEBUG) console.log("[getAICallsProcessedResponse] Stored original client prompt:", originalClientPrompt.substring(0, 100) + "...");
-
-    // Reset validation pass counter for new processing
-    resetValidationPassCounter();
-
-    try {
-        // 1. Structure database queries
-        if (DEBUG) console.log("[getAICallsProcessedResponse] Calling structureDatabasequeries...");
-        const dbResults = await structureDatabasequeries(userInputString, progressCallback);
-        if (DEBUG) console.log("[getAICallsProcessedResponse] structureDatabasequeries completed. Results:", dbResults);
-
-        if (!dbResults || !Array.isArray(dbResults)) {
-            console.error("[getAICallsProcessedResponse] Invalid database results:", dbResults);
-            throw new Error("Failed to get valid database results from structureDatabasequeries");
-        }
-
-        // 2. Format database results into an enhanced prompt with consolidated training data and context
-        const consolidatedData = consolidateAndDeduplicateTrainingData(dbResults);
-
-        const enhancedPrompt = `Client request: ${userInputString}\n\n${consolidatedData}`;
-        if (DEBUG) console.log("[getAICallsProcessedResponse] Enhanced prompt created:", enhancedPrompt.substring(0, 200) + "...");
-
-        // 3. Call the AI using processPrompt (to avoid main history side effects of handleConversation)
-        if (DEBUG) console.log("[getAICallsProcessedResponse] Loading system and main prompts for AI call...");
-        const systemPrompt = await getSystemPromptFromFile('Encoder_System');
-        const mainPromptText = await getSystemPromptFromFile('Encoder_Main');
-
-        if (!systemPrompt || !mainPromptText) {
-            throw new Error("[getAICallsProcessedResponse] Failed to load 'Encoder_System' or 'Encoder_Main' prompt.");
-        }
-        
-        const combinedInputForAI = `Client request: ${enhancedPrompt}\nMain Prompt: ${mainPromptText}`; // This matches how handleInitialConversation constructs it
-        if (DEBUG) console.log("[getAICallsProcessedResponse] Calling processPrompt...");
-
-        let responseArray = await processPrompt({
-            userInput: combinedInputForAI,
-            systemPrompt: systemPrompt,
-            model: GPT41, // Using the same model as in other parts
-            temperature: 1, // Consistent temperature
-            history: [], // Treat each call as independent for this processing
-            promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
-        });
-        if (DEBUG) console.log("[getAICallsProcessedResponse] processPrompt completed. Response:", responseArray);
-
-        // >>> ADDED: Console log the main encoder output
-        console.log("\n╔════════════════════════════════════════════════════════════════╗");
-        console.log("║              MAIN ENCODER OUTPUT (getAICallsProcessedResponse)  ║");
-        console.log("╚════════════════════════════════════════════════════════════════╝");
-        console.log("Main Encoder Response Array:");
-        console.log(responseArray);
-        console.log("────────────────────────────────────────────────────────────────\n");
-
-        // 4. Run logic validation and correction mechanism (up to 3 passes total)
-        if (DEBUG) console.log("[getAICallsProcessedResponse] Running logic validation and correction mechanism...");
-        let currentPassNumber = 1;
-        let maxPasses = 3;
-        let validationComplete = false;
-        
-        while (currentPassNumber <= maxPasses && !validationComplete) {
-            const codestringsForValidation = Array.isArray(responseArray) ? responseArray.join("\n") : String(responseArray);
-            const retryResult = await validateLogicWithRetry(codestringsForValidation, currentPassNumber);
-            
-            if (retryResult.logicErrors.length === 0) {
-                // No logic errors - validation passed
-                validationComplete = true;
-                if (DEBUG) console.log(`[getAICallsProcessedResponse] ✅ Logic validation passed on pass ${currentPassNumber}`);
-            } else if (currentPassNumber >= maxPasses) {
-                // Maximum passes reached - stop retrying
-                validationComplete = true;
-                if (DEBUG) console.log(`[getAICallsProcessedResponse] ⚠️ Logic validation completed after ${currentPassNumber} passes with ${retryResult.logicErrors.length} remaining errors`);
-            } else {
-                // Logic errors found and haven't reached max passes - retry with LogicCorrectorGPT
-                if (DEBUG) console.log(`[getAICallsProcessedResponse] 🔄 Pass ${currentPassNumber} found ${retryResult.logicErrors.length} logic errors - retrying with LogicCorrectorGPT...`);
-                
-                // Run LogicCorrectorGPT to fix the remaining errors
-                responseArray = await checkCodeStringsWithLogicCorrector(responseArray, retryResult.logicErrors);
-                if (DEBUG) console.log(`[getAICallsProcessedResponse] LogicCorrectorGPT pass ${currentPassNumber} completed`);
-                
-                currentPassNumber++;
-            }
-        }
-        
-        if (DEBUG) console.log(`[getAICallsProcessedResponse] Logic validation and correction mechanism completed after ${currentPassNumber} pass(es)`);
-
-        // 5. Check for format errors and only call FormatGPT if errors exist
-        if (DEBUG) console.log("[getAICallsProcessedResponse] Checking for format validation errors...");
-        const codestringsForInitialFormatCheck = Array.isArray(responseArray) ? responseArray.join("\n") : String(responseArray);
-        const initialFormatErrors = await getFormatErrorsForPrompt(codestringsForInitialFormatCheck);
-        
-        if (initialFormatErrors && initialFormatErrors.trim() !== "") {
-            if (DEBUG) console.log("[getAICallsProcessedResponse] Format errors detected - calling FormatGPT...");
-            responseArray = await formatCodeStringsWithGPT(responseArray);
-            if (DEBUG) console.log("[getAICallsProcessedResponse] FormatGPT formatting completed");
-
-            // >>> ADDED: Run format validation retry mechanism (up to 2 passes total) only after FormatGPT was called
-            if (DEBUG) console.log("[getAICallsProcessedResponse] Running post-FormatGPT validation retry...");
-            let formatCurrentPassNumber = 1;
-            let formatMaxPasses = 2;
-            let formatValidationComplete = false;
-            
-            while (formatCurrentPassNumber <= formatMaxPasses && !formatValidationComplete) {
-                const codestringsForFormatValidation = Array.isArray(responseArray) ? responseArray.join("\n") : String(responseArray);
-                const formatRetryResult = await validateFormatWithRetry(codestringsForFormatValidation, formatCurrentPassNumber);
-                
-                if (formatRetryResult.formatErrors.length === 0) {
-                    // No format errors - validation passed
-                    formatValidationComplete = true;
-                    if (DEBUG) console.log(`[getAICallsProcessedResponse] ✅ Format validation passed on pass ${formatCurrentPassNumber}`);
-                } else if (formatCurrentPassNumber >= formatMaxPasses) {
-                    // Maximum passes reached - stop retrying
-                    formatValidationComplete = true;
-                    if (DEBUG) console.log(`[getAICallsProcessedResponse] ⚠️ Format validation completed after ${formatCurrentPassNumber} passes with ${formatRetryResult.formatErrors.length} remaining errors`);
-                } else {
-                    // Format errors found and haven't reached max passes - retry with FormatGPT
-                    if (DEBUG) console.log(`[getAICallsProcessedResponse] 🔄 Pass ${formatCurrentPassNumber} found ${formatRetryResult.formatErrors.length} format errors - retrying with FormatGPT...`);
-                    
-                    // Run FormatGPT again to fix the remaining errors
-                    responseArray = await formatCodeStringsWithGPT(responseArray);
-                    if (DEBUG) console.log(`[getAICallsProcessedResponse] FormatGPT retry pass ${formatCurrentPassNumber + 1} completed`);
-                    
-                    formatCurrentPassNumber++;
-                }
-            }
-            
-            if (DEBUG) console.log(`[getAICallsProcessedResponse] Format validation retry mechanism completed after ${formatCurrentPassNumber} pass(es)`);
-        } else {
-            if (DEBUG) console.log("[getAICallsProcessedResponse] ✅ No format errors detected - skipping FormatGPT");
-        }
-
-        // >>> ADDED: Check labels using LabelCheckerGPT
-        if (DEBUG) console.log("[getAICallsProcessedResponse] Checking labels with LabelCheckerGPT...");
-        responseArray = await checkLabelsWithGPT(responseArray);
-        if (DEBUG) console.log("[getAICallsProcessedResponse] LabelCheckerGPT checking completed");
-
-        // >>> ADDED: Save the complete enhanced prompt that was sent to AI to lastprompt.txt
-        // await saveEnhancedPrompt(combinedInputForAI);
-
-        return responseArray;
-
-    } catch (error) {
-        console.error("[getAICallsProcessedResponse] Error during processing:", error);
-        // Return an error message array, consistent with other function returns
-        return [`Error processing tab description: ${error.message}`];
-    }
-}
 
 // // >>> ADDED: Function to save the complete prompt sent to AI to lastprompt.txt
 // async function saveEnhancedPrompt(fullPrompt) {
@@ -2831,6 +2681,533 @@ export async function checkLabelsWithGPT(responseArray) {
         // Return original response on error to avoid breaking the flow
         console.warn("[checkLabelsWithGPT] Returning original response due to label checking error");
         return responseArray;
+    }
+}
+
+// >>> ADDED: Function to determine which prompt modules to include using PromptModulesGPT
+export async function determinePromptModules(clientRequest) {
+    const startTime = performance.now();
+    console.log("\n🔍 === PROMPT MODULE DETERMINATION STARTED ===");
+    console.log(`📝 Client request length: ${clientRequest.length} characters`);
+    console.log(`📝 Client request preview: ${clientRequest.substring(0, 150)}...`);
+    console.log(`⏰ Start time: ${new Date().toISOString()}`);
+    
+    if (DEBUG) console.log("[determinePromptModules] Starting prompt module determination...");
+    
+    try {
+        console.log("📋 Loading PromptModulesGPT system prompt...");
+        
+        // Load the PromptModulesGPT system prompt
+        const promptModulesSystemPrompt = await getSystemPromptFromFile('PromptModulesGPT');
+        if (!promptModulesSystemPrompt) {
+            console.warn("⚠️ [determinePromptModules] Failed to load PromptModulesGPT system prompt, returning empty modules");
+            console.log("❌ === PROMPT MODULE DETERMINATION FAILED ===\n");
+            return [];
+        }
+        
+        console.log(`✅ PromptModulesGPT system prompt loaded (${promptModulesSystemPrompt.length} chars)`);
+        console.log("🚀 Calling GPT-4.1 for prompt module analysis...");
+        
+        if (DEBUG) console.log("[determinePromptModules] Calling GPT-4 to determine required modules...");
+        
+        const gptStartTime = performance.now();
+        
+        // Call GPT-4 with the PromptModulesGPT system prompt
+        const moduleResponse = await processPrompt({
+            userInput: clientRequest,
+            systemPrompt: promptModulesSystemPrompt,
+            model: GPT41, // Using GPT-4.1 as requested
+            temperature: 0.3, // Lower temperature for more consistent module selection
+            history: [],
+            promptFiles: { system: 'PromptModulesGPT' }
+        });
+        
+        const gptEndTime = performance.now();
+        console.log(`⏱️ GPT-4.1 call completed in ${(gptEndTime - gptStartTime).toFixed(2)}ms`);
+        
+        if (DEBUG) {
+            console.log("[determinePromptModules] Raw response from PromptModulesGPT:");
+            console.log(moduleResponse);
+        }
+        
+        console.log("📊 Raw GPT response type:", Array.isArray(moduleResponse) ? "Array" : typeof moduleResponse);
+        console.log("📊 Raw GPT response:", moduleResponse);
+        
+        // Parse the response - expecting an array of section labels
+        let selectedModules = [];
+        console.log("🔍 Parsing GPT response for module selection...");
+        
+        if (Array.isArray(moduleResponse)) {
+            // If response is already an array, use it
+            selectedModules = moduleResponse.filter(item => item && item.trim());
+            console.log("✅ Response was already an array, filtered to:", selectedModules);
+        } else if (typeof moduleResponse === 'string') {
+            console.log("🔧 Response is string, attempting to parse...");
+            try {
+                // Try to parse as JSON array
+                const parsed = JSON.parse(moduleResponse);
+                if (Array.isArray(parsed)) {
+                    selectedModules = parsed.filter(item => item && typeof item === 'string' && item.trim());
+                    console.log("✅ Successfully parsed JSON array:", selectedModules);
+                } else {
+                    console.log("⚠️ Parsed JSON but not an array, falling back to string splitting");
+                    // If not JSON, split by lines/commas and clean up
+                    selectedModules = moduleResponse
+                        .split(/[\n,]/)
+                        .map(item => item.trim().replace(/["\[\]]/g, ''))
+                        .filter(item => item && item.length > 0);
+                    console.log("🔧 String split result:", selectedModules);
+                }
+            } catch (parseError) {
+                console.log("⚠️ JSON parsing failed, using string splitting fallback");
+                console.log("❌ Parse error:", parseError.message);
+                // If JSON parsing fails, treat as comma/line separated string
+                selectedModules = moduleResponse
+                    .split(/[\n,]/)
+                    .map(item => item.trim().replace(/["\[\]]/g, ''))
+                    .filter(item => item && item.length > 0);
+                console.log("🔧 Fallback string split result:", selectedModules);
+            }
+        }
+        
+        const endTime = performance.now();
+        const totalTime = endTime - startTime;
+        
+        console.log("\n🎯 === PROMPT MODULE DETERMINATION COMPLETED ===");
+        console.log(`📋 Selected modules: [${selectedModules.join(', ')}]`);
+        console.log(`📊 Number of modules selected: ${selectedModules.length}`);
+        console.log(`⏱️ Total execution time: ${totalTime.toFixed(2)}ms`);
+        console.log(`✅ End time: ${new Date().toISOString()}`);
+        
+        // Log each selected module with details
+        if (selectedModules.length > 0) {
+            console.log("📝 Module selection details:");
+            selectedModules.forEach((module, index) => {
+                console.log(`  ${index + 1}. "${module}"`);
+            });
+        } else {
+            console.log("📝 No modules were selected by GPT-4.1");
+        }
+        
+        console.log("🏁 === PROMPT MODULE DETERMINATION END ===\n");
+        
+        if (DEBUG) {
+            console.log("[determinePromptModules] Selected modules:", selectedModules);
+        }
+        
+        return selectedModules;
+        
+    } catch (error) {
+        const endTime = performance.now();
+        const totalTime = endTime - startTime;
+        
+        console.error("❌ === PROMPT MODULE DETERMINATION ERROR ===");
+        console.error(`💥 Error after ${totalTime.toFixed(2)}ms:`, error);
+        console.error(`🔍 Error stack:`, error.stack);
+        console.error("[determinePromptModules] Error determining prompt modules:", error);
+        console.log("🔄 Returning empty array to continue main flow");
+        console.log("❌ === PROMPT MODULE DETERMINATION END (ERROR) ===\n");
+        
+        // Return empty array on error to avoid breaking the main flow
+        return [];
+    }
+}
+
+// >>> ADDED: Function to load prompt module content based on selected modules
+export async function loadSelectedPromptModules(selectedModules) {
+    const startTime = performance.now();
+    console.log("\n📚 === PROMPT MODULE LOADING STARTED ===");
+    console.log(`📋 Modules to load: [${selectedModules.join(', ')}]`);
+    console.log(`📊 Total modules: ${selectedModules.length}`);
+    console.log(`⏰ Start time: ${new Date().toISOString()}`);
+    
+    if (DEBUG) console.log("[loadSelectedPromptModules] Loading content for selected modules:", selectedModules);
+    
+    const moduleContent = [];
+    const moduleMap = {
+        'Corporate Overhead': 'Corporate_Overhead',
+        'MarginCOGS': 'MarginCOGS', 
+        'Subscriber table': 'SubscriptionTable'
+    };
+    
+    console.log("🗺️ Available module mappings:");
+    Object.entries(moduleMap).forEach(([key, value]) => {
+        console.log(`  "${key}" → ${value}.txt`);
+    });
+    
+    let loadedCount = 0;
+    let failedCount = 0;
+    let totalContentLength = 0;
+    
+    for (const module of selectedModules) {
+        const moduleStartTime = performance.now();
+        console.log(`\n📁 Loading module: "${module}"`);
+        
+        const fileName = moduleMap[module];
+        if (fileName) {
+            console.log(`🔗 Mapped to file: ${fileName}.txt`);
+            try {
+                if (DEBUG) console.log(`[loadSelectedPromptModules] Loading ${fileName}.txt...`);
+                
+                console.log(`🌐 Fetching: https://localhost:3002/prompts/${fileName}.txt`);
+                const fetchStartTime = performance.now();
+                
+                const response = await fetch(`https://localhost:3002/prompts/${fileName}.txt`);
+                
+                const fetchEndTime = performance.now();
+                console.log(`📡 Fetch completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
+                console.log(`📊 Response status: ${response.status} ${response.statusText}`);
+                
+                if (response.ok) {
+                    const content = await response.text();
+                    const contentLength = content.length;
+                    totalContentLength += contentLength;
+                    
+                    const formattedContent = `\n\n=== ${module.toUpperCase()} MODULE ===\n${content}`;
+                    moduleContent.push(formattedContent);
+                    loadedCount++;
+                    
+                    const moduleEndTime = performance.now();
+                    console.log(`✅ Successfully loaded ${fileName}.txt`);
+                    console.log(`📏 Content length: ${contentLength} characters`);
+                    console.log(`⏱️ Module load time: ${(moduleEndTime - moduleStartTime).toFixed(2)}ms`);
+                    console.log(`📝 Content preview: ${content.substring(0, 100)}...`);
+                    
+                    if (DEBUG) console.log(`[loadSelectedPromptModules] Successfully loaded ${fileName}.txt (${content.length} chars)`);
+                } else {
+                    failedCount++;
+                    console.warn(`❌ Failed to load ${fileName}.txt: ${response.status} ${response.statusText}`);
+                    console.warn(`[loadSelectedPromptModules] Failed to load ${fileName}.txt: ${response.statusText}`);
+                }
+            } catch (error) {
+                failedCount++;
+                const moduleEndTime = performance.now();
+                console.error(`💥 Error loading ${fileName}.txt after ${(moduleEndTime - moduleStartTime).toFixed(2)}ms:`, error);
+                console.error(`[loadSelectedPromptModules] Error loading ${fileName}.txt:`, error);
+            }
+        } else {
+            failedCount++;
+            console.warn(`⚠️ Unknown module: "${module}" - no file mapping found`);
+            console.warn(`[loadSelectedPromptModules] Unknown module: ${module}`);
+            console.log("📋 Available modules:", Object.keys(moduleMap));
+        }
+    }
+    
+    const endTime = performance.now();
+    const totalTime = endTime - startTime;
+    const combinedContent = moduleContent.join('');
+    
+    console.log("\n📊 === PROMPT MODULE LOADING SUMMARY ===");
+    console.log(`✅ Successfully loaded: ${loadedCount} modules`);
+    console.log(`❌ Failed to load: ${failedCount} modules`);
+    console.log(`📏 Total content length: ${totalContentLength} characters`);
+    console.log(`📄 Combined content length: ${combinedContent.length} characters`);
+    console.log(`⏱️ Total loading time: ${totalTime.toFixed(2)}ms`);
+    console.log(`📈 Average time per module: ${selectedModules.length > 0 ? (totalTime / selectedModules.length).toFixed(2) : 0}ms`);
+    console.log(`✅ End time: ${new Date().toISOString()}`);
+    
+    if (combinedContent.length > 0) {
+        console.log("📝 Combined content preview:");
+        console.log(combinedContent.substring(0, 200) + "...");
+    }
+    
+    console.log("🏁 === PROMPT MODULE LOADING END ===\n");
+    
+    if (DEBUG) {
+        console.log(`[loadSelectedPromptModules] Loaded ${moduleContent.length} modules with total length: ${moduleContent.join('').length} chars`);
+    }
+    
+    return combinedContent;
+}
+
+export async function getAICallsProcessedResponse(userInputString, progressCallback = null) {
+    const overallStartTime = performance.now();
+    console.log("\n🚀 ============ AI PROCESSING PIPELINE STARTED ============");
+    console.log(`📝 Input length: ${userInputString.length} characters`);
+    console.log(`📝 Input preview: ${userInputString.substring(0, 100)}...`);
+    console.log(`⏰ Pipeline start time: ${new Date().toISOString()}`);
+    console.log("🔄 Initializing parallel processing...");
+    
+    if (DEBUG) console.log("[getAICallsProcessedResponse] Processing input:", userInputString.substring(0, 100) + "...");
+
+    // >>> ADDED: Store the original clean client prompt at the very start (global variable)
+    originalClientPrompt = userInputString;
+    if (DEBUG) console.log("[getAICallsProcessedResponse] Stored original client prompt:", originalClientPrompt.substring(0, 100) + "...");
+
+    // Reset validation pass counter for new processing
+    resetValidationPassCounter();
+
+    try {
+        // >>> ADDED: Start async prompt module determination in parallel with structure processing
+        console.log("\n⚡ === PARALLEL PROCESSING PHASE ===");
+        console.log("🎯 Starting two parallel processes:");
+        console.log("  1️⃣ Prompt Module Determination (GPT-4.1)");
+        console.log("  2️⃣ Structure Database Queries");
+        
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Starting parallel prompt module determination...");
+        const promptModulesStartTime = performance.now();
+        const promptModulesPromise = determinePromptModules(userInputString);
+        console.log(`🚀 Prompt module determination started at ${new Date().toISOString()}`);
+
+        // 1. Structure database queries (runs in parallel with prompt module determination)
+        console.log("\n📊 Starting structure database queries...");
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Calling structureDatabasequeries...");
+        const structureStartTime = performance.now();
+        const dbResults = await structureDatabasequeries(userInputString, progressCallback);
+        const structureEndTime = performance.now();
+        
+        console.log(`✅ Structure database queries completed in ${(structureEndTime - structureStartTime).toFixed(2)}ms`);
+        if (DEBUG) console.log("[getAICallsProcessedResponse] structureDatabasequeries completed. Results:", dbResults);
+
+        if (!dbResults || !Array.isArray(dbResults)) {
+            console.error("❌ [getAICallsProcessedResponse] Invalid database results:", dbResults);
+            throw new Error("Failed to get valid database results from structureDatabasequeries");
+        }
+
+        console.log(`📈 Database results: ${dbResults.length} result sets obtained`);
+
+        // 2. Format database results into an enhanced prompt with consolidated training data and context
+        console.log("\n🔄 Consolidating and deduplicating training data...");
+        const consolidationStartTime = performance.now();
+        const consolidatedData = consolidateAndDeduplicateTrainingData(dbResults);
+        const consolidationEndTime = performance.now();
+
+        console.log(`✅ Data consolidation completed in ${(consolidationEndTime - consolidationStartTime).toFixed(2)}ms`);
+        console.log(`📏 Consolidated data length: ${consolidatedData.length} characters`);
+
+        const enhancedPrompt = `Client request: ${userInputString}\n\n${consolidatedData}`;
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Enhanced prompt created:", enhancedPrompt.substring(0, 200) + "...");
+
+        // 3. Load system and main prompts for AI call
+        console.log("\n📋 Loading base prompts...");
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Loading system and main prompts for AI call...");
+        const promptLoadStartTime = performance.now();
+        
+        const systemPrompt = await getSystemPromptFromFile('Encoder_System');
+        const mainPromptText = await getSystemPromptFromFile('Encoder_Main');
+        
+        const promptLoadEndTime = performance.now();
+        console.log(`✅ Base prompts loaded in ${(promptLoadEndTime - promptLoadStartTime).toFixed(2)}ms`);
+
+        if (!systemPrompt || !mainPromptText) {
+            throw new Error("[getAICallsProcessedResponse] Failed to load 'Encoder_System' or 'Encoder_Main' prompt.");
+        }
+
+        console.log(`📏 System prompt length: ${systemPrompt.length} characters`);
+        console.log(`📏 Main prompt length: ${mainPromptText.length} characters`);
+
+        // >>> ADDED: Wait for prompt module determination and load selected modules
+        console.log("\n⏳ === WAITING FOR PROMPT MODULE DETERMINATION ===");
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Waiting for prompt module determination to complete...");
+        
+        const moduleWaitStartTime = performance.now();
+        const selectedModules = await promptModulesPromise;
+        const moduleWaitEndTime = performance.now();
+        const promptModulesEndTime = performance.now();
+        
+        console.log(`✅ Prompt module determination completed in ${(promptModulesEndTime - promptModulesStartTime).toFixed(2)}ms`);
+        console.log(`⏱️ Wait time for parallel process: ${(moduleWaitEndTime - moduleWaitStartTime).toFixed(2)}ms`);
+        console.log(`📋 Selected modules: [${selectedModules.join(', ')}]`);
+        
+        let additionalModuleContent = "";
+        if (selectedModules && selectedModules.length > 0) {
+            console.log("\n📚 Loading selected prompt modules...");
+            if (DEBUG) console.log("[getAICallsProcessedResponse] Loading selected prompt modules:", selectedModules);
+            
+            const moduleLoadStartTime = performance.now();
+            additionalModuleContent = await loadSelectedPromptModules(selectedModules);
+            const moduleLoadEndTime = performance.now();
+            
+            console.log(`✅ Module loading completed in ${(moduleLoadEndTime - moduleLoadStartTime).toFixed(2)}ms`);
+            console.log(`📏 Additional module content length: ${additionalModuleContent.length} characters`);
+        } else {
+            console.log("📝 No additional prompt modules selected - using base prompt only");
+            if (DEBUG) console.log("[getAICallsProcessedResponse] No additional prompt modules selected");
+        }
+
+        // >>> MODIFIED: Append selected prompt modules to the main prompt
+        console.log("\n🔧 === PROMPT ENHANCEMENT PHASE ===");
+        const enhancedMainPrompt = mainPromptText + additionalModuleContent;
+        
+        console.log(`📏 Base main prompt: ${mainPromptText.length} characters`);
+        console.log(`📏 Additional modules: ${additionalModuleContent.length} characters`);
+        console.log(`📏 Enhanced main prompt: ${enhancedMainPrompt.length} characters`);
+        console.log(`📈 Prompt enhancement: +${additionalModuleContent.length} characters (${additionalModuleContent.length > 0 ? '+' : ''}${((additionalModuleContent.length / mainPromptText.length) * 100).toFixed(1)}%)`);
+        
+        if (DEBUG && additionalModuleContent) {
+            console.log("[getAICallsProcessedResponse] Enhanced main prompt with modules, total length:", enhancedMainPrompt.length);
+            console.log("[getAICallsProcessedResponse] Added modules content preview:", additionalModuleContent.substring(0, 300) + "...");
+        }
+
+        // Create final combined input
+        const combinedInputForAI = `Client request: ${enhancedPrompt}\nMain Prompt: ${enhancedMainPrompt}`; // Using enhanced main prompt
+        console.log(`📏 Final combined input length: ${combinedInputForAI.length} characters`);
+        
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Calling processPrompt...");
+
+        // Main AI processing call
+        console.log("\n🤖 === MAIN AI PROCESSING CALL ===");
+        console.log("🚀 Calling main encoder with enhanced prompt...");
+        const mainAIStartTime = performance.now();
+        
+        let responseArray = await processPrompt({
+            userInput: combinedInputForAI,
+            systemPrompt: systemPrompt,
+            model: GPT41, // Using the same model as in other parts
+            temperature: 1, // Consistent temperature
+            history: [], // Treat each call as independent for this processing
+            promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
+        });
+        
+        const mainAIEndTime = performance.now();
+        console.log(`✅ Main AI processing completed in ${(mainAIEndTime - mainAIStartTime).toFixed(2)}ms`);
+        
+        if (DEBUG) console.log("[getAICallsProcessedResponse] processPrompt completed. Response:", responseArray);
+
+        // >>> ADDED: Console log the main encoder output
+        console.log("\n╔════════════════════════════════════════════════════════════════╗");
+        console.log("║              MAIN ENCODER OUTPUT (getAICallsProcessedResponse)  ║");
+        console.log("╚════════════════════════════════════════════════════════════════╝");
+        console.log("📊 Response type:", Array.isArray(responseArray) ? "Array" : typeof responseArray);
+        console.log("📊 Response length:", Array.isArray(responseArray) ? responseArray.length : "N/A");
+        console.log("Main Encoder Response Array:");
+        console.log(responseArray);
+        console.log("────────────────────────────────────────────────────────────────\n");
+
+        // 4. Run logic validation and correction mechanism (up to 3 passes total)
+        console.log("🔍 === LOGIC VALIDATION & CORRECTION PHASE ===");
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Running logic validation and correction mechanism...");
+        let currentPassNumber = 1;
+        let maxPasses = 3;
+        let validationComplete = false;
+        const validationStartTime = performance.now();
+        
+        while (currentPassNumber <= maxPasses && !validationComplete) {
+            console.log(`\n🔍 Logic validation pass ${currentPassNumber}/${maxPasses}...`);
+            const codestringsForValidation = Array.isArray(responseArray) ? responseArray.join("\n") : String(responseArray);
+            const retryResult = await validateLogicWithRetry(codestringsForValidation, currentPassNumber);
+            
+            if (retryResult.logicErrors.length === 0) {
+                // No logic errors - validation passed
+                validationComplete = true;
+                console.log(`✅ Logic validation passed on pass ${currentPassNumber}!`);
+                if (DEBUG) console.log(`[getAICallsProcessedResponse] ✅ Logic validation passed on pass ${currentPassNumber}`);
+            } else if (currentPassNumber >= maxPasses) {
+                // Maximum passes reached - stop retrying
+                validationComplete = true;
+                console.log(`⚠️ Logic validation completed after ${currentPassNumber} passes with ${retryResult.logicErrors.length} remaining errors`);
+                if (DEBUG) console.log(`[getAICallsProcessedResponse] ⚠️ Logic validation completed after ${currentPassNumber} passes with ${retryResult.logicErrors.length} remaining errors`);
+            } else {
+                // Logic errors found and haven't reached max passes - retry with LogicCorrectorGPT
+                console.log(`🔄 Pass ${currentPassNumber} found ${retryResult.logicErrors.length} logic errors - retrying with LogicCorrectorGPT...`);
+                if (DEBUG) console.log(`[getAICallsProcessedResponse] 🔄 Pass ${currentPassNumber} found ${retryResult.logicErrors.length} logic errors - retrying with LogicCorrectorGPT...`);
+                
+                // Run LogicCorrectorGPT to fix the remaining errors
+                responseArray = await checkCodeStringsWithLogicCorrector(responseArray, retryResult.logicErrors);
+                if (DEBUG) console.log(`[getAICallsProcessedResponse] LogicCorrectorGPT pass ${currentPassNumber} completed`);
+                
+                currentPassNumber++;
+            }
+        }
+        
+        const validationEndTime = performance.now();
+        console.log(`🏁 Logic validation phase completed in ${(validationEndTime - validationStartTime).toFixed(2)}ms`);
+        if (DEBUG) console.log(`[getAICallsProcessedResponse] Logic validation and correction mechanism completed after ${currentPassNumber} pass(es)`);
+
+        // 5. Check for format errors and only call FormatGPT if errors exist
+        console.log("\n✨ === FORMAT VALIDATION & CORRECTION PHASE ===");
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Checking for format validation errors...");
+        const formatStartTime = performance.now();
+        const codestringsForInitialFormatCheck = Array.isArray(responseArray) ? responseArray.join("\n") : String(responseArray);
+        const initialFormatErrors = await getFormatErrorsForPrompt(codestringsForInitialFormatCheck);
+        
+        if (initialFormatErrors && initialFormatErrors.trim() !== "") {
+            console.log("🔧 Format errors detected - calling FormatGPT...");
+            if (DEBUG) console.log("[getAICallsProcessedResponse] Format errors detected - calling FormatGPT...");
+            responseArray = await formatCodeStringsWithGPT(responseArray);
+            if (DEBUG) console.log("[getAICallsProcessedResponse] FormatGPT formatting completed");
+
+            // >>> ADDED: Run format validation retry mechanism (up to 2 passes total) only after FormatGPT was called
+            if (DEBUG) console.log("[getAICallsProcessedResponse] Running post-FormatGPT validation retry...");
+            let formatCurrentPassNumber = 1;
+            let formatMaxPasses = 2;
+            let formatValidationComplete = false;
+            
+            while (formatCurrentPassNumber <= formatMaxPasses && !formatValidationComplete) {
+                console.log(`\n✨ Format validation retry pass ${formatCurrentPassNumber}/${formatMaxPasses}...`);
+                const codestringsForFormatValidation = Array.isArray(responseArray) ? responseArray.join("\n") : String(responseArray);
+                const formatRetryResult = await validateFormatWithRetry(codestringsForFormatValidation, formatCurrentPassNumber);
+                
+                if (formatRetryResult.formatErrors.length === 0) {
+                    // No format errors - validation passed
+                    formatValidationComplete = true;
+                    console.log(`✅ Format validation passed on retry pass ${formatCurrentPassNumber}!`);
+                    if (DEBUG) console.log(`[getAICallsProcessedResponse] ✅ Format validation passed on pass ${formatCurrentPassNumber}`);
+                } else if (formatCurrentPassNumber >= formatMaxPasses) {
+                    // Maximum passes reached - stop retrying
+                    formatValidationComplete = true;
+                    console.log(`⚠️ Format validation completed after ${formatCurrentPassNumber} retry passes with ${formatRetryResult.formatErrors.length} remaining errors`);
+                    if (DEBUG) console.log(`[getAICallsProcessedResponse] ⚠️ Format validation completed after ${formatCurrentPassNumber} passes with ${formatRetryResult.formatErrors.length} remaining errors`);
+                } else {
+                    // Format errors found and haven't reached max passes - retry with FormatGPT
+                    console.log(`🔄 Retry pass ${formatCurrentPassNumber} found ${formatRetryResult.formatErrors.length} format errors - retrying with FormatGPT...`);
+                    if (DEBUG) console.log(`[getAICallsProcessedResponse] 🔄 Pass ${formatCurrentPassNumber} found ${formatRetryResult.formatErrors.length} format errors - retrying with FormatGPT...`);
+                    
+                    // Run FormatGPT again to fix the remaining errors
+                    responseArray = await formatCodeStringsWithGPT(responseArray);
+                    if (DEBUG) console.log(`[getAICallsProcessedResponse] FormatGPT retry pass ${formatCurrentPassNumber + 1} completed`);
+                    
+                    formatCurrentPassNumber++;
+                }
+            }
+            
+            if (DEBUG) console.log(`[getAICallsProcessedResponse] Format validation retry mechanism completed after ${formatCurrentPassNumber} pass(es)`);
+        } else {
+            console.log("✅ No format errors detected - skipping FormatGPT");
+            if (DEBUG) console.log("[getAICallsProcessedResponse] ✅ No format errors detected - skipping FormatGPT");
+        }
+        
+        const formatEndTime = performance.now();
+        console.log(`🏁 Format validation phase completed in ${(formatEndTime - formatStartTime).toFixed(2)}ms`);
+
+        // >>> ADDED: Check labels using LabelCheckerGPT
+        console.log("\n🏷️ === LABEL CHECKING PHASE ===");
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Checking labels with LabelCheckerGPT...");
+        const labelStartTime = performance.now();
+        responseArray = await checkLabelsWithGPT(responseArray);
+        const labelEndTime = performance.now();
+        console.log(`✅ Label checking completed in ${(labelEndTime - labelStartTime).toFixed(2)}ms`);
+        if (DEBUG) console.log("[getAICallsProcessedResponse] LabelCheckerGPT checking completed");
+
+        // >>> ADDED: Save the complete enhanced prompt that was sent to AI to lastprompt.txt
+        // await saveEnhancedPrompt(combinedInputForAI);
+
+        // Final summary
+        const overallEndTime = performance.now();
+        const totalProcessingTime = overallEndTime - overallStartTime;
+        
+        console.log("\n🎉 ============ AI PROCESSING PIPELINE COMPLETED ============");
+        console.log(`⏱️ Total processing time: ${totalProcessingTime.toFixed(2)}ms`);
+        console.log(`📊 Final response length: ${Array.isArray(responseArray) ? responseArray.length : 1} items`);
+        console.log(`✅ Pipeline end time: ${new Date().toISOString()}`);
+        console.log(`🎯 Modules used: ${selectedModules.length > 0 ? selectedModules.join(', ') : 'None'}`);
+        console.log("🎉 ============ PROCESSING COMPLETE ============\n");
+
+        return responseArray;
+
+    } catch (error) {
+        const overallEndTime = performance.now();
+        const totalProcessingTime = overallEndTime - overallStartTime;
+        
+        console.error("💥 ============ AI PROCESSING PIPELINE ERROR ============");
+        console.error(`❌ Error after ${totalProcessingTime.toFixed(2)}ms:`, error);
+        console.error(`🔍 Error stack:`, error.stack);
+        console.error("[getAICallsProcessedResponse] Error during processing:", error);
+        console.log("🔄 Returning error message array");
+        console.error("💥 ============ PROCESSING FAILED ============\n");
+        
+        // Return an error message array, consistent with other function returns
+        return [`Error processing tab description: ${error.message}`];
     }
 }
 

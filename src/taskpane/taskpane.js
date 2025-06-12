@@ -1,5 +1,3 @@
-
-
 import { populateCodeCollection, exportCodeCollectionToText, runCodes, processAssumptionTabs, collapseGroupingsAndNavigateToFinancials, hideColumnsAndNavigate, handleInsertWorksheetsFromBase64, parseFormulaSCustomFormula } from './CodeCollection.js';
 // >>> ADDED: Import the new validation function
 import { validateCodeStringsForRun } from './Validation.js';
@@ -25,7 +23,7 @@ import { queryVectorDB } from './AIcalls.js';
 import { safeJsonForPrompt } from './AIcalls.js';
 // >>> ADDED: Import conversation handling and validation functions from AIcalls
 // Make sure handleConversation is included here
-import { handleFollowUpConversation, handleInitialConversation, handleConversation, validationCorrection, formatCodeStringsWithGPT, consolidateAndDeduplicateTrainingData } from './AIcalls.js';
+import { handleFollowUpConversation, handleInitialConversation, handleConversation, validationCorrection, formatCodeStringsWithGPT, consolidateAndDeduplicateTrainingData, getAICallsProcessedResponse } from './AIcalls.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -155,7 +153,7 @@ export async function initializeAPIKeys() {
 let conversationHistory = [];
 
 // Add this variable to track if the current message is a response
-let isResponse = false;
+// Removed isResponse - using isFirstMessageInSession instead
 
 // Track if this is the first message in the current session
 let isFirstMessageInSession = true;
@@ -424,11 +422,11 @@ async function handleSend() {
         firstUserInput = userInput;
     }
 
-    // Check if this is a response to a previous message by looking at visible chat messages BEFORE adding the new message
+    // Check if this is the first message in the session by looking at visible chat messages BEFORE adding the new message
     const chatLog = document.getElementById('chat-log');
     const existingMessages = chatLog ? chatLog.querySelectorAll('.chat-message') : [];
-    isResponse = existingMessages.length > 0;
-    console.log(`[handleSend] Found ${existingMessages.length} existing chat messages. isResponse: ${isResponse}`);
+    isFirstMessageInSession = existingMessages.length === 0;
+    console.log(`[handleSend] Found ${existingMessages.length} existing chat messages. isFirstMessageInSession: ${isFirstMessageInSession}`);
 
     // Add user message to chat
     appendMessage(userInput, true);
@@ -449,37 +447,45 @@ async function handleSend() {
     try {
         let conversationResult;
         
-        if (!isResponse) {
-            // Initial conversation: do full database processing
-            console.log("Starting structureDatabasequeries (initial conversation)");
+        if (isFirstMessageInSession) {
+            // First message in conversation: query database and create enhanced prompt
+            console.log("Database queries starting...");
             
-            // Define progress callback to update the progress message
+            // Set progress message to indicate database querying
+            progressMessageContent.textContent = 'Searching training database...';
+            chatLog.scrollTop = chatLog.scrollHeight;
+
+            // Create progress callback function
             const progressCallback = (message) => {
+                console.log("Progress:", message);
                 progressMessageContent.textContent = message;
                 chatLog.scrollTop = chatLog.scrollHeight;
             };
-            
+
             const dbResults = await structureDatabasequeries(userInput, progressCallback);
             console.log("Database queries completed");
-            
-            // Update progress message to show next step
-            progressMessageContent.textContent = 'Processing AI response...';
-            chatLog.scrollTop = chatLog.scrollHeight;
-            
-            if (!dbResults || !Array.isArray(dbResults)) {
-                console.error("Invalid database results:", dbResults);
-                throw new Error("Failed to get valid database results");
-            }
-            
-            // Import and use the consolidated training data and context function from AIcalls.js
+
+            // Format database results into an enhanced prompt with consolidated training data and context
             const consolidatedData = consolidateAndDeduplicateTrainingData(dbResults);
 
             const enhancedPrompt = `Client Request: ${userInput}\n\n${consolidatedData}`;
             console.log("Enhanced prompt created");
             console.log("Enhanced prompt:", enhancedPrompt);
 
-            console.log("Starting handleConversation (initial)");
-            conversationResult = await handleConversation(enhancedPrompt, conversationHistory);
+            console.log("Starting getAICallsProcessedResponse (initial - with prompt module determination)");
+            
+            // Update progress message
+            progressMessageContent.textContent = 'Processing with AI (including prompt module analysis)...';
+            chatLog.scrollTop = chatLog.scrollHeight;
+            
+            // Use the new function that includes prompt module determination
+            const responseArray = await getAICallsProcessedResponse(userInput, progressCallback);
+            
+            // Create conversation result compatible with existing code
+            conversationResult = {
+                response: responseArray,
+                history: [...conversationHistory, ['human', userInput], ['assistant', responseArray.join('\n')]]
+            };
         } else {
             // Follow-up conversation: skip database queries, use simple prompt
             console.log("Starting handleConversation (follow-up - no database queries)");
@@ -671,8 +677,7 @@ function resetChat() {
     conversationHistory = [];
     saveConversationHistory(conversationHistory);
     
-    // Reset the response flag and last response
-    isResponse = false;
+    // Reset the last response
     lastResponse = null;
     
     // Reset the session tracking
@@ -1715,7 +1720,6 @@ Office.onReady((info) => {
       console.log("Clearing conversation history on startup...");
       conversationHistory = [];
       saveConversationHistory(conversationHistory);
-      isResponse = false;
       lastResponse = null;
       isFirstMessageInSession = true;
       firstUserInput = null;
