@@ -1556,6 +1556,35 @@ async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSeq
 }
 
 /**
+ * Copies formatting from column P to columns S through CX for a specific row
+ * @param {Excel.Worksheet} worksheet - The worksheet containing the cells
+ * @param {number} rowNum - The row number to copy formatting for
+ * @returns {Promise<void>}
+ */
+async function copyColumnPFormattingToSCX(worksheet, rowNum) {
+    console.log(`Copying column P formatting to S:CX for row ${rowNum}`);
+    
+    try {
+        // Get the source cell (column P)
+        const sourceCellP = worksheet.getRange(`P${rowNum}`);
+        
+        // Get the target range (columns S through CX)
+        const targetRange = worksheet.getRange(`S${rowNum}:CX${rowNum}`);
+        
+        // Copy formatting from P to S:CX
+        targetRange.copyFrom(sourceCellP, Excel.RangeCopyType.formats);
+        
+        // Sync the formatting changes
+        await worksheet.context.sync();
+        console.log(`Successfully copied column P formatting to S${rowNum}:CX${rowNum}`);
+        
+    } catch (error) {
+        console.error(`Error copying column P formatting to S:CX for row ${rowNum}: ${error.message}`);
+        throw error;
+    }
+}
+
+/**
  * Processes driver and assumption inputs for a worksheet based on code parameters,
  * replicating the logic from the VBA Driver_and_Assumption_Inputs function.
  * @param {Excel.Worksheet} worksheet - The initial Excel worksheet object.
@@ -1955,6 +1984,13 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         await applyRowSymbolFormatting(currentWorksheet, currentRowNum, splitArray, columnSequence);
                     } catch (formatError) {
                         console.error(`  Error applying symbol-based formatting: ${formatError.message}`);
+                    }
+
+                    // Copy column P formatting to columns S through CX
+                    try {
+                        await copyColumnPFormattingToSCX(currentWorksheet, currentRowNum);
+                    } catch (copyFormatError) {
+                        console.error(`  Error copying column P formatting to S:CX: ${copyFormatError.message}`);
                     }
 
                     // Apply columnformula parameter to column AE for row1 (all code types)
