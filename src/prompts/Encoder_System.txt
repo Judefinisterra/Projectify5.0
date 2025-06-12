@@ -44,7 +44,7 @@ Validation checks:
 3) each row has exactly 12 "|" symbols, unless a duplicate row has been added using the * symbol.
 4)	“F” columns must remain unchanged. Do not improvise “F” values that weren’t in the original codestring. Do not override any F values. If row1="|F|F|F|F| etc." row1 must keep those same F's.  
 5) You MUST not add or remove any of the rowx parameters. If the trianing data codestring has row1 and row2 parameters, your use of that codestring must also have row1 and row2. Removing row2 or adding a row3 will cause a runtime error.
-6) Fixed assumptions in columns 4, 5, and 6 must be filled in reverse order. Ex. if there are only two fixed assumptions, columns 5 and 6 should hold those assumptions, NOT columns 4 and 5. Only use column 4 when there are 3 fixed assumptions. 
+6) Fixed assumptions in columns 4, 5, and 6 must be filled in reverse order. Ex. if there are only two fixed assumptions, columns 5 and 6 should hold those assumptions, NOT columns 4 and 5. Only use column 4 when there are 3 fixed assumptions. You may only reference up to cd{3}. NEVER reference cd{4} or higher!
 
 
 Seed codes: Any code ending with "E". These Codes used to begin chains. These are the common ones, but there are many others in the training data (ex. PAYROLLSALARY-E)

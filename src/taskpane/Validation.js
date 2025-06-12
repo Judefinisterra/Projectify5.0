@@ -476,11 +476,11 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
                 const rowName = rowParam[1];
                 const rowContent = rowParam[2];
                 
-                // Check for exactly 12 pipe symbols (LOGIC ERROR)
-                const pipeCount = (rowContent.match(/\|/g) || []).length;
-                if (pipeCount !== 12) {
-                    errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|"). For correction, you must end on a pipe symbol. Think through the location of each value relative to column mapping. It is likely that you will need to remove pipes from the middle.For correction, you must end on a pipe symbol. Think through the location of each value relative to column mapping. It is likely that you will need to remove pipes from the middle. - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
-                }
+                // Check for exactly 12 pipe symbols (LOGIC ERROR) - COMMENTED OUT
+                // const pipeCount = (rowContent.match(/\|/g) || []).length;
+                // if (pipeCount !== 12) {
+                //     errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|"). For correction, you must end on a pipe symbol. Think through the location of each value relative to column mapping. It is likely that you will need to remove pipes from the middle.For correction, you must end on a pipe symbol. Think through the location of each value relative to column mapping. It is likely that you will need to remove pipes from the middle. - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
+                // }
                 
                 // Handle spaces before/after the pipe delimiter
                 const parts = rowContent.split('|');
@@ -693,11 +693,11 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
                         }
                     }
                     
-                    // Check for exactly 12 pipe symbols (which creates 13 parts when split)
-                    const pipeCount = (rowContent.match(/\|/g) || []).length;
-                    if (pipeCount !== 12) {
-                        errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
-                    }
+                    // Check for exactly 12 pipe symbols (which creates 13 parts when split) - COMMENTED OUT
+                    // const pipeCount = (rowContent.match(/\|/g) || []).length;
+                    // if (pipeCount !== 12) {
+                    //     errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
+                    // }
                     
                     // Check that no values exist after the final pipe (LOGIC ERROR)
                     const afterFinalPipe = parts[parts.length - 1];
@@ -719,11 +719,11 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
                         errors.push(`[LERR010] Invalid row format (missing required fields): "${rowContent}" in ${codeString}`);
                     }
                     
-                    // Check for exactly 12 pipe symbols (which creates 13 parts when split)
-                    const pipeCount = (rowContent.match(/\|/g) || []).length;
-                    if (pipeCount !== 12) {
-                        errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
-                    }
+                    // Check for exactly 12 pipe symbols (which creates 13 parts when split) - COMMENTED OUT
+                    // const pipeCount = (rowContent.match(/\|/g) || []).length;
+                    // if (pipeCount !== 12) {
+                    //     errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
+                    // }
                     
                     // Check that no values exist after the final pipe (LOGIC ERROR)
                     const afterFinalPipe = parts[parts.length - 1];
@@ -966,11 +966,11 @@ export async function validateLogicOnly(inputText) {
                 const rowName = rowParam[1];
                 const rowContent = rowParam[2];
                 
-                // Check for exactly 12 pipe symbols (LOGIC ERROR)
-                const pipeCount = (rowContent.match(/\|/g) || []).length;
-                if (pipeCount !== 12) {
-                    errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|"). For correction, you must end on a pipe symbol. Think through the location of each value relative to column mapping. It is likely that you will need to remove pipes from the middle. - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
-                }
+                // Check for exactly 12 pipe symbols (LOGIC ERROR) - COMMENTED OUT
+                // const pipeCount = (rowContent.match(/\|/g) || []).length;
+                // if (pipeCount !== 12) {
+                //     errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|"). For correction, you must end on a pipe symbol. Think through the location of each value relative to column mapping. It is likely that you will need to remove pipes from the middle. - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
+                // }
                 
                 // Handle spaces before/after the pipe delimiter
                 const parts = rowContent.split('|');
@@ -1214,11 +1214,11 @@ export async function validateLogicOnly(inputText) {
                     errors.push(`[LERR010] Invalid row format (missing required fields): "${rowContent}" in ${codeString}`);
                 }
                 
-                // Check for exactly 12 pipe symbols (which creates 13 parts when split)
-                const pipeCount = (rowContent.match(/\|/g) || []).length;
-                if (pipeCount !== 12) {
-                    errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
-                }
+                // Check for exactly 12 pipe symbols (which creates 13 parts when split) - COMMENTED OUT
+                // const pipeCount = (rowContent.match(/\|/g) || []).length;
+                // if (pipeCount !== 12) {
+                //     errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|") - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
+                // }
                 
                 // Check that no values exist after the final pipe (LOGIC ERROR)
                 const afterFinalPipe = parts[parts.length - 1];

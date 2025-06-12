@@ -872,7 +872,6 @@ export function deduplicateTrainingDataByOutput(results) {
             
             if (!outputCodestrings) {
                 // If we can't extract output codestrings, keep the entry
-                if (DEBUG) console.log(`[deduplicateTrainingDataByOutput] Could not extract output from entry ${entryIndex}, keeping it`);
                 return true;
             }
 

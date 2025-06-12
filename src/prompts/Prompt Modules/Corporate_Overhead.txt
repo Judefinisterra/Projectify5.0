@@ -3,7 +3,8 @@ Corporate overhead should typically be split into two sections with each having 
 Employee-related Expense best practices:
 - Create separate tables for salaried employees, hourly employees, and contractors (unless the contractor is salaried or hourly, in which case they shuld be included in those tables)
 - For common size employees situations (i.e. "I will hire 200 engineers"), you should list every employee if the amount is under 30 across the projection period. If the number is >30, switch to forecasting # of FTE's - Type A with ENDPOINT-E and then multiply by a salary assumption. When using the second approach, you must not use the SUM2-S formula for the subtotal, as it will sum the # of FTE's into the payroll expense. Use FORMULA-S and add each row individually use rd{} instead.
-
+- Always include a COLUMNHEADER-E code at the top of each table
+- Double check the columns in columns 4-6 values in row parameters agains the COLUMNHEADERS-E row parameter in columns 4-6 and customformula parameter references and the columnformat parameters. These all need to line up.  
 
 
 Non-employee related expense:
