@@ -1450,20 +1450,25 @@ async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSeq
         
         const cellRange = worksheet.getRange(`${colLetter}${rowNum}`);
         
-        // Apply number format if specified
-        if (parsed.formatType && formatConfigs[parsed.formatType]) {
-            const config = formatConfigs[parsed.formatType];
-            cellRange.numberFormat = [[config.numberFormat]];
-            cellRange.format.font.italic = config.italic;
-            cellRange.format.font.bold = config.bold;
-            console.log(`    Applied ${parsed.formatType} formatting to ${colLetter}${rowNum}`);
-        }
-        
-        // Apply italic formatting if ~ symbol was present (overrides format config)
-        if (parsed.isItalic) {
-            cellRange.format.font.italic = true;
-            console.log(`    Applied italic to ${colLetter}${rowNum} due to ~ symbol`);
-        }
+                 // Apply number format if specified
+         if (parsed.formatType && formatConfigs[parsed.formatType]) {
+             const config = formatConfigs[parsed.formatType];
+             cellRange.numberFormat = [[config.numberFormat]];
+             cellRange.format.font.italic = config.italic;
+             cellRange.format.font.bold = config.bold;
+             console.log(`    Applied ${parsed.formatType} formatting to ${colLetter}${rowNum}`);
+         }
+         
+         // Apply italic formatting if ~ symbol was present (overrides format config)
+         if (parsed.isItalic) {
+             cellRange.format.font.italic = true;
+             console.log(`    Applied italic to ${colLetter}${rowNum} due to ~ symbol`);
+         }
+         // For regular text with no symbols and no specific format, ensure it's not italic
+         else if (!parsed.formatType) {
+             cellRange.format.font.italic = false;
+             console.log(`    Set non-italic for regular text in ${colLetter}${rowNum}`);
+         }
     }
     
     // Sync the formatting changes
