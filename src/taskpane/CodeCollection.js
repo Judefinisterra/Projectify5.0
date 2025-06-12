@@ -1719,7 +1719,7 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
             }
             // END NEW SECTION
 
-            const columnSequence = ['A', 'B', 'C', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'O', 'P', 'R'];
+            const columnSequence = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'O', 'P', 'R'];
             
             // Get the code value
             const codeValue = code.type;

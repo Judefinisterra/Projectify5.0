@@ -63,6 +63,29 @@ Function GetCellValueWithFormatSymbol(cell As Range) As String
     GetCellValueWithFormatSymbol = formatSymbol & cellValue
 End Function
 
+Function GetCellValueIgnoreAllCaps(cell As Range) As String
+    'Returns the cell value with formatting symbols, but ignores all-caps values
+    Dim cellValue As String
+    
+    cellValue = CStr(cell.Value)
+    
+    ' Check if cell is empty or contains only spaces
+    If Trim(cellValue) = "" Then
+        GetCellValueIgnoreAllCaps = ""
+        Exit Function
+    End If
+    
+    ' Check if value is all caps (and not just numbers/symbols)
+    If UCase(cellValue) = cellValue And LCase(cellValue) <> cellValue Then
+        ' Value is all caps, return empty string
+        GetCellValueIgnoreAllCaps = ""
+        Exit Function
+    End If
+    
+    ' Not all caps, return formatted value
+    GetCellValueIgnoreAllCaps = GetCellValueWithFormatSymbol(cell)
+End Function
+
 Sub Populate_Code_DB_V3()
     'Add rowLabels and columnLabels
     
@@ -165,6 +188,11 @@ Sub Populate_Code_DB_V3()
                         rowarray = GetCellValueWithFormatSymbol(.Cells(L, "A"))
                         rowarray = rowarray & "|" & GetCellValueWithFormatSymbol(.Cells(L, "B"))
                         rowarray = rowarray & "|" & GetCellValueWithFormatSymbol(.Cells(L, "C"))
+                        
+                        ' Columns D, E, F (ignore all-caps values)
+                        rowarray = rowarray & "|" & GetCellValueIgnoreAllCaps(.Cells(L, "D"))
+                        rowarray = rowarray & "|" & GetCellValueIgnoreAllCaps(.Cells(L, "E"))
+                        rowarray = rowarray & "|" & GetCellValueIgnoreAllCaps(.Cells(L, "F"))
                         
                         ' Column G
                         On Error Resume Next
