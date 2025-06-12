@@ -2824,35 +2824,38 @@ export async function loadSelectedPromptModules(selectedModules) {
     if (DEBUG) console.log("[loadSelectedPromptModules] Loading content for selected modules:", selectedModules);
     
     const moduleContent = [];
-    const moduleMap = {
-        'Corporate Overhead': 'Corporate_Overhead',
-        'MarginCOGS': 'MarginCOGS', 
-        'Subscriber table': 'SubscriptionTable'
-    };
-    
-    console.log("🗺️ Available module mappings:");
-    Object.entries(moduleMap).forEach(([key, value]) => {
-        console.log(`  "${key}" → ${value}.txt`);
-    });
+    const basePath = 'https://localhost:3002/prompts/';
+    const folderName = encodeURIComponent('Prompt Modules');
+    const fullBasePath = `${basePath}${folderName}/`;
     
     let loadedCount = 0;
     let failedCount = 0;
     let totalContentLength = 0;
     
+    console.log(`🗂️ Base path: ${fullBasePath}`);
+    console.log("🔍 Using dynamic filename matching for modules in Prompt Modules folder");
+    
     for (const module of selectedModules) {
         const moduleStartTime = performance.now();
         console.log(`\n📁 Loading module: "${module}"`);
         
-        const fileName = moduleMap[module];
-        if (fileName) {
-            console.log(`🔗 Mapped to file: ${fileName}.txt`);
+        // Generate possible filename variants for the module
+        const possibleFilenames = generateFilenameVariants(module);
+        console.log(`🔗 Trying filename variants: [${possibleFilenames.join(', ')}]`);
+        
+        let fileLoaded = false;
+        
+        for (const fileName of possibleFilenames) {
+            if (fileLoaded) break; // Skip remaining variants if we already found the file
+            
             try {
-                if (DEBUG) console.log(`[loadSelectedPromptModules] Loading ${fileName}.txt...`);
+                if (DEBUG) console.log(`[loadSelectedPromptModules] Trying ${fileName}...`);
                 
-                console.log(`🌐 Fetching: https://localhost:3002/prompts/${fileName}.txt`);
+                const fullUrl = `${fullBasePath}${fileName}`;
+                console.log(`🌐 Fetching: ${fullUrl}`);
                 const fetchStartTime = performance.now();
                 
-                const response = await fetch(`https://localhost:3002/prompts/${fileName}.txt`);
+                const response = await fetch(fullUrl);
                 
                 const fetchEndTime = performance.now();
                 console.log(`📡 Fetch completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
@@ -2866,30 +2869,34 @@ export async function loadSelectedPromptModules(selectedModules) {
                     const formattedContent = `\n\n=== ${module.toUpperCase()} MODULE ===\n${content}`;
                     moduleContent.push(formattedContent);
                     loadedCount++;
+                    fileLoaded = true;
                     
                     const moduleEndTime = performance.now();
-                    console.log(`✅ Successfully loaded ${fileName}.txt`);
+                    console.log(`✅ Successfully loaded ${fileName}`);
                     console.log(`📏 Content length: ${contentLength} characters`);
                     console.log(`⏱️ Module load time: ${(moduleEndTime - moduleStartTime).toFixed(2)}ms`);
                     console.log(`📝 Content preview: ${content.substring(0, 100)}...`);
                     
-                    if (DEBUG) console.log(`[loadSelectedPromptModules] Successfully loaded ${fileName}.txt (${content.length} chars)`);
+                    if (DEBUG) console.log(`[loadSelectedPromptModules] Successfully loaded ${fileName} (${content.length} chars)`);
+                    break; // Exit the filename variant loop since we found the file
+                } else if (response.status === 404) {
+                    console.log(`⚠️ File not found: ${fileName} (trying next variant...)`);
                 } else {
-                    failedCount++;
-                    console.warn(`❌ Failed to load ${fileName}.txt: ${response.status} ${response.statusText}`);
-                    console.warn(`[loadSelectedPromptModules] Failed to load ${fileName}.txt: ${response.statusText}`);
+                    console.warn(`❌ Failed to load ${fileName}: ${response.status} ${response.statusText}`);
                 }
             } catch (error) {
-                failedCount++;
-                const moduleEndTime = performance.now();
-                console.error(`💥 Error loading ${fileName}.txt after ${(moduleEndTime - moduleStartTime).toFixed(2)}ms:`, error);
-                console.error(`[loadSelectedPromptModules] Error loading ${fileName}.txt:`, error);
+                console.log(`💥 Error trying ${fileName}: ${error.message} (trying next variant...)`);
+                if (DEBUG) console.log(`[loadSelectedPromptModules] Error trying ${fileName}:`, error);
             }
-        } else {
+        }
+        
+        if (!fileLoaded) {
             failedCount++;
-            console.warn(`⚠️ Unknown module: "${module}" - no file mapping found`);
+            const moduleEndTime = performance.now();
+            console.warn(`❌ Could not load module "${module}" - none of the filename variants worked`);
+            console.warn(`⏱️ Failed after ${(moduleEndTime - moduleStartTime).toFixed(2)}ms`);
+            console.warn(`📋 Tried variants: [${possibleFilenames.join(', ')}]`);
             console.warn(`[loadSelectedPromptModules] Unknown module: ${module}`);
-            console.log("📋 Available modules:", Object.keys(moduleMap));
         }
     }
     
@@ -2918,6 +2925,64 @@ export async function loadSelectedPromptModules(selectedModules) {
     }
     
     return combinedContent;
+}
+
+// >>> ADDED: Helper function to generate possible filename variants for a module
+function generateFilenameVariants(moduleName) {
+    const variants = [];
+    
+    // Convert module name to different filename formats
+    const baseName = moduleName.trim();
+    
+    // 1. Exact match with .txt extension
+    variants.push(`${baseName}.txt`);
+    
+    // 2. Replace spaces with underscores
+    if (baseName.includes(' ')) {
+        variants.push(`${baseName.replace(/\s+/g, '_')}.txt`);
+    }
+    
+    // 3. Remove spaces entirely (camelCase-like)
+    if (baseName.includes(' ')) {
+        const noSpaces = baseName.replace(/\s+/g, '');
+        variants.push(`${noSpaces}.txt`);
+    }
+    
+    // 4. PascalCase (capitalize first letter of each word, remove spaces)
+    if (baseName.includes(' ')) {
+        const pascalCase = baseName
+            .split(/\s+/)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join('');
+        variants.push(`${pascalCase}.txt`);
+    }
+    
+    // 5. Snake_case (lowercase with underscores)
+    if (baseName.includes(' ')) {
+        const snakeCase = baseName.toLowerCase().replace(/\s+/g, '_');
+        variants.push(`${snakeCase}.txt`);
+    }
+    
+    // 6. kebab-case (lowercase with hyphens)
+    if (baseName.includes(' ')) {
+        const kebabCase = baseName.toLowerCase().replace(/\s+/g, '-');
+        variants.push(`${kebabCase}.txt`);
+    }
+    
+    // 7. All lowercase
+    const lowercase = baseName.toLowerCase();
+    if (lowercase !== baseName) {
+        variants.push(`${lowercase}.txt`);
+    }
+    
+    // 8. All uppercase
+    const uppercase = baseName.toUpperCase();
+    if (uppercase !== baseName) {
+        variants.push(`${uppercase}.txt`);
+    }
+    
+    // Remove duplicates while preserving order
+    return [...new Set(variants)];
 }
 
 export async function getAICallsProcessedResponse(userInputString, progressCallback = null) {
