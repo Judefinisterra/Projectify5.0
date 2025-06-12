@@ -1839,6 +1839,69 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                             console.error(`  Error applying columnformat: ${columnFormatError.message}`);
                         }
                     }
+
+                    // NEW: Apply columncomment parameter to specified columns for row1
+                    if (g === 1 && yy === 0 && code.params.columncomment) {
+                        try {
+                            console.log(`  Applying columncomment to row ${currentRowNum}: ${code.params.columncomment}`);
+                            
+                            // Split the comment string by backslash
+                            const comments = code.params.columncomment.split('\\');
+                            console.log(`  Comment array: [${comments.join(', ')}]`);
+                            
+                            // Define column mapping (same as for columnformat)
+                            const columnMapping = {
+                                '1': 'I',
+                                '2': 'H',
+                                '3': 'G',
+                                '4': 'F',
+                                '5': 'E',
+                                '6': 'D',
+                                '7': 'C',
+                                '8': 'B',
+                                '9': 'A'
+                            };
+                            
+                            // Apply each comment to its corresponding column
+                            for (let i = 0; i < comments.length && i < 9; i++) {
+                                const commentText = comments[i].trim();
+                                const columnNum = String(i + 1);
+                                const columnLetter = columnMapping[columnNum];
+                                
+                                if (!columnLetter) {
+                                    console.warn(`    Column number ${columnNum} exceeds mapping range, skipping`);
+                                    continue;
+                                }
+                                
+                                // Skip empty comments
+                                if (!commentText) {
+                                    console.log(`    Empty comment for column ${columnNum}, skipping`);
+                                    continue;
+                                }
+                                
+                                const cellAddress = `${columnLetter}${currentRowNum}`;
+                                
+                                // Get the cell to verify it exists and has content
+                                const targetCell = currentWorksheet.getRange(cellAddress);
+                                targetCell.load(["values"]);
+                                await context.sync();
+                                
+                                const currentValue = targetCell.values[0][0];
+                                console.log(`    Cell ${cellAddress}: Current value = '${currentValue}', Adding comment: '${commentText}'`);
+                                
+                                // Add comment to the cell using the worksheet's comments collection
+                                currentWorksheet.comments.add(cellAddress, commentText);
+                                
+                                console.log(`    Added comment '${commentText}' to ${cellAddress}`);
+                            }
+                            
+                            await context.sync(); // Sync the comment changes
+                            console.log(`  Finished applying columncomment to row ${currentRowNum}`);
+                            
+                        } catch (columnCommentError) {
+                            console.error(`  Error applying columncomment: ${columnCommentError.message}`);
+                        }
+                    }
                 }
                 await context.sync(); // Sync after populating each 'g' group
 

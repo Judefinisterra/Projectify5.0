@@ -39,9 +39,12 @@ Volume: Default. Use for ALL items that aren't dollar, percent, or factor. Use c
 Percent: Use for all percentages. 
 Factor: Use rarely. Only use for multiples. Use case: Exit multiple (EBITDA).
 The format parameter must be set for every seed and FORMULA-S code listed in this system prompt!
+
+Comment options:
+columncomment: Use to add comments to specific monthly columns. Syntax: columncomment="Comment1\Comment2\Comment3" where each comment corresponds to columns 1-9 (I, H, G, F, E, D, C, B, A). Use backslash (\) to separate comments for different columns. Empty positions can be left blank. Example: columncomment="Monthly\Start Date" adds "Monthly" to column 1 and "Start Date" to column 2.
 Indent and spacing: All rates, prices, percents, and non-aggregate items should have indent="2", bold="false"; and topborder="false". Most aggregate dollar data (revenue, expense, gmv, TAM, etc.) should have format="dollar"; bold="true". If a codestring comes directly after another codestring with an indent of 2, it should have topborder="1". If it comes after another aggregate value that is bold and has an indent of 1, add a BR code between the two items. Aggregate volume items should generally be bold and have an indent of 1. 
 
-Note: format sets the Y1-Y6 annual columns, while columnformat sets the monthly columns, so the two can legitimately differ.
+Note: format sets the Y1-Y6 annual columns, while columnformat sets the monthly columns, so the two can legitimately differ. columncomment adds comments to the monthly columns using the same syntax as columnformat.
 
 Other formatting params:
 Bold: boolean. Turns all cells in code bold if true and unbold if false
@@ -59,7 +62,7 @@ Labeling, Indent, topborder, and bold rules:
 8) In general, IS: revenue items should be followed by a BR code. 
 9) A safe option is to use the following format for each chunk: LABELH3, CODE1 with indent="2", Calc using CODE1 with indent="1", topborder="true", bold="true"
 10) Use BR codes frequently to break things up.
-11) Calculation chains should either begin with LABELH3 or with a code with an indent of 1There should NEVER be a code with an indent of 2 that begins immediately after a BR code. Add a LABELH3 code above it to fix. 
+11) Calculation chains should either begin with LABELH3 or COLUMNHEADER or with a code with an indent of 1There should NEVER be a code with an indent of 2 that begins immediately after a BR code. Add a LABELH3 code above it to fix. 
 12) Any item that has "Total" in the name and isn't a rate should usually have bold=true, indent=1, and either topborder=true or be preceded by a BR code. Ex. Total # of subscribers. 
 13) Rule 12 should also generally be applied to any of the mult, subtotal, and substract codes. 
 14) BR codes: Every LABEL code should be preceded by a BR code to add space between it and the other codes. No LABEL code should be directly adjacent to a previous non-BR code.

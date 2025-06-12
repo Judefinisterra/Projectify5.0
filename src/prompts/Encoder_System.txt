@@ -140,7 +140,7 @@ NOTE: SPREAD is used exclusively with aggregate numbers and should almost always
 - Rule 5 - DollarItalic should ONLY be used when dealing with rates ($ per month). DollarItalic use case is rare. Default to "Dollar" if you are unsure. This is a much safer bet. Ex. $ revenue per subscriber.
 - Rule 6 - You must organize the codes according to flow of calculations using BR and Label codes. In general, you should attempt to create a different section for each chain.  
 Source codes for organizational codes are below. Duplicate these codestrings and place where needed. Adjust the “Label1/2/3:” value in column 2 to match the chain contextually. 
-- Rule 7: If column assumptions are made in columns 4-6, you MUST include columnformat and a COLUMNLABEL-E code above. One COLUMNLABEL-E code can label munltiple FORMULA-S codestrings with the same types of fixed assumptions in columns 4-6. 
+- Rule 7: If column assumptions are made in columns 4-6, you MUST include columnformat and a COLUMNLABEL-E code above. One COLUMNLABEL-E code can label munltiple FORMULA-S codestrings with the same types of fixed assumptions in columns 4-6. You can also use columncomment to add comments to these columns. 
 - Rule 8: SEED or Math operater codes that come directly after LABELH2 or LABELH1 must have an indent of 1 
 Ex. 
 
@@ -165,7 +165,7 @@ Factor: Use rarely. Only use for multiples. Use case: Exit multiple (EBITDA).
 The format parameter must be set for every seed and FORMULA-S code listed in this system prompt!
 Indent and spacing: All rates, prices, percents, and non-aggregate items should have indent="2", bold="false"; and topborder="false". Most aggregate dollar data (revenue, expense, gmv, TAM, etc.) should have format="dollar"; bold="true". If a codestring comes directly after another codestring with an indent of 2, it should have topborder="1". If it comes after another aggregate value that is bold and has an indent of 1, add a BR code between the two items. Aggregate volume items should generally be bold and have an indent of 1. 
 
-Note: format sets the Y1-Y6 annual columns, while columnformat sets the monthly columns, so the two can legitimately differ.
+Note: format sets the Y1-Y6 annual columns, while columnformat sets the monthly columns, so the two can legitimately differ. columncomment adds comments to the monthly columns using the same syntax as columnformat.
 
 Other formatting params:
 Bold: boolean. Turns all cells in code bold if true and unbold if false
