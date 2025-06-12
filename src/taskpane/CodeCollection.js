@@ -1556,30 +1556,42 @@ async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSeq
 }
 
 /**
- * Copies formatting from column P to columns S through CX for a specific row
+ * Copies complete formatting from column P to column J and columns S through CX for a specific row
+ * This includes number format (currency) and all font formatting (italic, bold, etc.)
  * @param {Excel.Worksheet} worksheet - The worksheet containing the cells
  * @param {number} rowNum - The row number to copy formatting for
  * @returns {Promise<void>}
  */
-async function copyColumnPFormattingToSCX(worksheet, rowNum) {
-    console.log(`Copying column P formatting to S:CX for row ${rowNum}`);
+async function copyColumnPFormattingToJAndSCX(worksheet, rowNum) {
+    console.log(`Copying complete column P formatting to J and S:CX for row ${rowNum}`);
     
     try {
-        // Get the source cell (column P)
+        // Get the source cell and target ranges
         const sourceCellP = worksheet.getRange(`P${rowNum}`);
+        const targetCellJ = worksheet.getRange(`J${rowNum}`);
+        const targetRangeSCX = worksheet.getRange(`S${rowNum}:CX${rowNum}`);
         
-        // Get the target range (columns S through CX)
-        const targetRange = worksheet.getRange(`S${rowNum}:CX${rowNum}`);
+        // Load complete formatting from source cell P
+        sourceCellP.load(["numberFormat", "format"]);
+        await worksheet.context.sync();
         
-        // Copy formatting from P to S:CX
-        targetRange.copyFrom(sourceCellP, Excel.RangeCopyType.formats);
+        // Copy complete formatting from P to J
+        targetCellJ.copyFrom(sourceCellP, Excel.RangeCopyType.formats);
+        
+        // Copy complete formatting from P to S:CX range
+        targetRangeSCX.copyFrom(sourceCellP, Excel.RangeCopyType.formats);
         
         // Sync the formatting changes
         await worksheet.context.sync();
-        console.log(`Successfully copied column P formatting to S${rowNum}:CX${rowNum}`);
+        
+        const numberFormat = sourceCellP.numberFormat[0][0];
+        console.log(`Successfully copied complete column P formatting to J${rowNum} and S${rowNum}:CX${rowNum}`);
+        console.log(`  Applied number format: ${numberFormat}`);
+        console.log(`  Applied font italic: ${sourceCellP.format.font.italic}`);
+        console.log(`  Applied font bold: ${sourceCellP.format.font.bold}`);
         
     } catch (error) {
-        console.error(`Error copying column P formatting to S:CX for row ${rowNum}: ${error.message}`);
+        console.error(`Error copying column P formatting to J and S:CX for row ${rowNum}: ${error.message}`);
         throw error;
     }
 }
@@ -1986,13 +1998,6 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         console.error(`  Error applying symbol-based formatting: ${formatError.message}`);
                     }
 
-                    // Copy column P formatting to columns S through CX
-                    try {
-                        await copyColumnPFormattingToSCX(currentWorksheet, currentRowNum);
-                    } catch (copyFormatError) {
-                        console.error(`  Error copying column P formatting to S:CX: ${copyFormatError.message}`);
-                    }
-
                     // Apply columnformula parameter to column AE for row1 (all code types)
                     if (g === 1 && yy === 0 && code.params.columnformula && code.params.columnformula !== "0") {
                         try {
@@ -2089,6 +2094,13 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         } catch (columnCommentError) {
                             console.error(`  Error applying columncomment: ${columnCommentError.message}`);
                         }
+                    }
+
+                    // FINAL STEP: Copy complete column P formatting to J and S:CX (after all other formatting)
+                    try {
+                        await copyColumnPFormattingToJAndSCX(currentWorksheet, currentRowNum);
+                    } catch (copyFormatError) {
+                        console.error(`  Error copying column P formatting to J and S:CX: ${copyFormatError.message}`);
                     }
                 }
                 await context.sync(); // Sync after populating each 'g' group
