@@ -1337,17 +1337,53 @@ function parseValueWithSymbols(valueString) {
     let cleanValue = valueString;
     let formatType = null;
     let isItalic = false;
+    let currencySymbol = null;
 
-    // Check for ~$ prefix (dollaritalic)
+    // Check for ~currency prefix (currency with italic)
     if (cleanValue.startsWith('~$')) {
         formatType = 'dollaritalic';
+        currencySymbol = '$';
         isItalic = true;
-        cleanValue = cleanValue.substring(2); // Remove ~$ prefix
+        cleanValue = cleanValue.substring(2);
     }
-    // Check for $ prefix (dollar)
+    else if (cleanValue.startsWith('~£')) {
+        formatType = 'pounditalic';
+        currencySymbol = '£';
+        isItalic = true;
+        cleanValue = cleanValue.substring(2);
+    }
+    else if (cleanValue.startsWith('~€')) {
+        formatType = 'euroitalic';
+        currencySymbol = '€';
+        isItalic = true;
+        cleanValue = cleanValue.substring(2);
+    }
+    else if (cleanValue.startsWith('~¥')) {
+        formatType = 'yenitalic';
+        currencySymbol = '¥';
+        isItalic = true;
+        cleanValue = cleanValue.substring(2);
+    }
+    // Check for currency prefixes (currency without italic)
     else if (cleanValue.startsWith('$')) {
         formatType = 'dollar';
-        cleanValue = cleanValue.substring(1); // Remove $ prefix
+        currencySymbol = '$';
+        cleanValue = cleanValue.substring(1);
+    }
+    else if (cleanValue.startsWith('£')) {
+        formatType = 'pound';
+        currencySymbol = '£';
+        cleanValue = cleanValue.substring(1);
+    }
+    else if (cleanValue.startsWith('€')) {
+        formatType = 'euro';
+        currencySymbol = '€';
+        cleanValue = cleanValue.substring(1);
+    }
+    else if (cleanValue.startsWith('¥')) {
+        formatType = 'yen';
+        currencySymbol = '¥';
+        cleanValue = cleanValue.substring(1);
     }
     // Check for ~ prefix (italic)
     else if (cleanValue.startsWith('~')) {
@@ -1363,6 +1399,14 @@ function parseValueWithSymbols(valueString) {
     else if (cleanValue === 'F') {
         formatType = 'volume';
     }
+    // Check if it ends with "x" for factor formatting (e.g., "10x")
+    else if (cleanValue.toLowerCase().endsWith('x') && cleanValue.length > 1) {
+        const numberPart = cleanValue.substring(0, cleanValue.length - 1);
+        if (!isNaN(Number(numberPart)) && numberPart.trim() !== '') {
+            formatType = 'factor';
+            cleanValue = numberPart; // Remove the 'x' from the clean value
+        }
+    }
     // Check if it's a number without symbols (volume formatting)
     else if (!isNaN(Number(cleanValue)) && cleanValue.trim() !== '' && cleanValue !== '') {
         formatType = 'volume';
@@ -1372,7 +1416,7 @@ function parseValueWithSymbols(valueString) {
         formatType = 'date';
     }
 
-    return { cleanValue, formatType, isItalic };
+    return { cleanValue, formatType, isItalic, currencySymbol };
 }
 
 /**
@@ -1426,6 +1470,36 @@ async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSeq
             italic: false,
             bold: false
         },
+        'pounditalic': {
+            numberFormat: '_(* [$£-809] #,##0_);_(* [$£-809] (#,##0);_(* [$£-809] "-"?_);_(@_)',
+            italic: true,
+            bold: false
+        },
+        'pound': {
+            numberFormat: '_(* [$£-809] #,##0_);_(* [$£-809] (#,##0);_(* [$£-809] "-"?_);_(@_)',
+            italic: false,
+            bold: false
+        },
+        'euroitalic': {
+            numberFormat: '_(* [$€-407] #,##0_);_(* [$€-407] (#,##0);_(* [$€-407] "-"?_);_(@_)',
+            italic: true,
+            bold: false
+        },
+        'euro': {
+            numberFormat: '_(* [$€-407] #,##0_);_(* [$€-407] (#,##0);_(* [$€-407] "-"?_);_(@_)',
+            italic: false,
+            bold: false
+        },
+        'yenitalic': {
+            numberFormat: '_(* [$¥-411] #,##0_);_(* [$¥-411] (#,##0);_(* [$¥-411] "-"?_);_(@_)',
+            italic: true,
+            bold: false
+        },
+        'yen': {
+            numberFormat: '_(* [$¥-411] #,##0_);_(* [$¥-411] (#,##0);_(* [$¥-411] "-"?_);_(@_)',
+            italic: false,
+            bold: false
+        },
         'volume': {
             numberFormat: '_(* #,##0_);_(* (#,##0);_(* " -"?_);_(@_)',
             italic: true,
@@ -1434,6 +1508,11 @@ async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSeq
         'date': {
             numberFormat: 'mmm-yy',
             italic: false,
+            bold: false
+        },
+        'factor': {
+            numberFormat: '_(* #,##0.0x;_(* (#,##0.0)x;_(* "   -"?_)',
+            italic: true,
             bold: false
         }
     };
@@ -1446,7 +1525,7 @@ async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSeq
         
         // Parse the value and extract formatting information
         const parsed = parseValueWithSymbols(originalValue);
-        console.log(`  Column ${colLetter}: "${originalValue}" -> cleanValue: "${parsed.cleanValue}", format: ${parsed.formatType}, italic: ${parsed.isItalic}`);
+        console.log(`  Column ${colLetter}: "${originalValue}" -> cleanValue: "${parsed.cleanValue}", format: ${parsed.formatType}, italic: ${parsed.isItalic}, currency: ${parsed.currencySymbol || 'none'}`);
         
         const cellRange = worksheet.getRange(`${colLetter}${rowNum}`);
         
