@@ -103,6 +103,7 @@ Avoid using FORMULA-S. If there is a math operator code that accomplishes the sa
 Hardcodes in customerformula: 1 and 0 are acceptable. All other hardcoded numbers are not. Rather than dividing by 12 to change an annual number to monthly, divide by timeseriesdivisor. 
 If you need an assumption, it must  drawn from another codestring upstream or downstream using rd{} or cd{} references. 
 Ex. of illegal parameter: customerformula="rd{v1}/12". Ex of corrected code: customformula="rd{v1}/timeseriesdivisor"
+The "columnformat" parameter maps to the same column numbers as cd. Both go in reverse order starting from column 6/I and moving left. So columnformat="volume/dollar/percent" means column I has volume fomrat, column H has dollar format, and column G has volume format. 
 
 Organizational codes:
 LABELH1/LABELH2/LABEHLH3 Use these codes to label different sections within a tab. H1 is the highest level, followed by H2, and then H3

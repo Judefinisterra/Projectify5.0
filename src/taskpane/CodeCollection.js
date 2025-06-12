@@ -1325,6 +1325,153 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
 }
 
 /**
+ * Parses a value string and extracts formatting information based on symbols
+ * @param {string} valueString - The value string that may contain formatting symbols
+ * @returns {Object} - Object containing cleaned value, format type, and italic setting
+ */
+function parseValueWithSymbols(valueString) {
+    if (!valueString || typeof valueString !== 'string') {
+        return { cleanValue: valueString, formatType: null, isItalic: false };
+    }
+
+    let cleanValue = valueString;
+    let formatType = null;
+    let isItalic = false;
+
+    // Check for ~$ prefix (dollaritalic)
+    if (cleanValue.startsWith('~$')) {
+        formatType = 'dollaritalic';
+        isItalic = true;
+        cleanValue = cleanValue.substring(2); // Remove ~$ prefix
+    }
+    // Check for $ prefix (dollar)
+    else if (cleanValue.startsWith('$')) {
+        formatType = 'dollar';
+        cleanValue = cleanValue.substring(1); // Remove $ prefix
+    }
+    // Check for ~ prefix (italic)
+    else if (cleanValue.startsWith('~')) {
+        isItalic = true;
+        cleanValue = cleanValue.substring(1); // Remove ~ prefix
+        
+        // If after removing ~, it's a number or "F", apply volume formatting
+        if (cleanValue === 'F' || (!isNaN(Number(cleanValue)) && cleanValue.trim() !== '')) {
+            formatType = 'volume';
+        }
+    }
+    // Check if it's just "F" (volume formatting)
+    else if (cleanValue === 'F') {
+        formatType = 'volume';
+    }
+    // Check if it's a number without symbols (volume formatting)
+    else if (!isNaN(Number(cleanValue)) && cleanValue.trim() !== '' && cleanValue !== '') {
+        formatType = 'volume';
+    }
+    // Check if it's a date (basic date pattern check)
+    else if (isDateString(cleanValue)) {
+        formatType = 'date';
+    }
+
+    return { cleanValue, formatType, isItalic };
+}
+
+/**
+ * Enhanced date string detection
+ * @param {string} value - The value to check
+ * @returns {boolean} - True if the value appears to be a date
+ */
+function isDateString(value) {
+    if (!value || typeof value !== 'string') return false;
+    
+    // Check for common date patterns
+    const datePatterns = [
+        /^\d{1,2}\/\d{1,2}\/\d{4}$/,        // MM/DD/YYYY or M/D/YYYY
+        /^\d{1,2}-\d{1,2}-\d{4}$/,          // MM-DD-YYYY or M-D-YYYY
+        /^\d{4}\/\d{1,2}\/\d{1,2}$/,        // YYYY/MM/DD or YYYY/M/D
+        /^\d{4}-\d{1,2}-\d{1,2}$/,          // YYYY-MM-DD or YYYY-M-D
+        /^\d{1,2}\/\d{1,2}\/\d{2}$/,        // MM/DD/YY or M/D/YY
+        /^\d{1,2}-\d{1,2}-\d{2}$/           // MM-DD-YY or M-D-YY
+    ];
+    
+    for (const pattern of datePatterns) {
+        if (pattern.test(value)) {
+            const date = new Date(value);
+            return !isNaN(date.getTime()) && date.getFullYear() > 1900 && date.getFullYear() < 2100;
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Applies symbol-based formatting to a row of cells
+ * @param {Excel.Worksheet} worksheet - The worksheet containing the cells
+ * @param {number} rowNum - The row number to format
+ * @param {Array} splitArray - Array of values from the row parameter
+ * @param {Array} columnSequence - Array of column letters
+ * @returns {Promise<void>}
+ */
+async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSequence) {
+    console.log(`Applying symbol-based formatting to row ${rowNum}`);
+    
+    // Define format configurations
+    const formatConfigs = {
+        'dollaritalic': {
+            numberFormat: '_(* $ #,##0_);_(* $ (#,##0);_(* "$" -""?_);_(@_)',
+            italic: true,
+            bold: false
+        },
+        'dollar': {
+            numberFormat: '_(* $ #,##0_);_(* $ (#,##0);_(* "$" -""?_);_(@_)',
+            italic: false,
+            bold: false
+        },
+        'volume': {
+            numberFormat: '_(* #,##0_);_(* (#,##0);_(* " -"?_);_(@_)',
+            italic: true,
+            bold: false
+        },
+        'date': {
+            numberFormat: 'mmm-yy',
+            italic: false,
+            bold: false
+        }
+    };
+
+    for (let x = 0; x < splitArray.length && x < columnSequence.length; x++) {
+        const originalValue = splitArray[x];
+        const colLetter = columnSequence[x];
+        
+        if (!originalValue) continue; // Skip empty values
+        
+        // Parse the value and extract formatting information
+        const parsed = parseValueWithSymbols(originalValue);
+        console.log(`  Column ${colLetter}: "${originalValue}" -> cleanValue: "${parsed.cleanValue}", format: ${parsed.formatType}, italic: ${parsed.isItalic}`);
+        
+        const cellRange = worksheet.getRange(`${colLetter}${rowNum}`);
+        
+        // Apply number format if specified
+        if (parsed.formatType && formatConfigs[parsed.formatType]) {
+            const config = formatConfigs[parsed.formatType];
+            cellRange.numberFormat = [[config.numberFormat]];
+            cellRange.format.font.italic = config.italic;
+            cellRange.format.font.bold = config.bold;
+            console.log(`    Applied ${parsed.formatType} formatting to ${colLetter}${rowNum}`);
+        }
+        
+        // Apply italic formatting if ~ symbol was present (overrides format config)
+        if (parsed.isItalic) {
+            cellRange.format.font.italic = true;
+            console.log(`    Applied italic to ${colLetter}${rowNum} due to ~ symbol`);
+        }
+    }
+    
+    // Sync the formatting changes
+    await worksheet.context.sync();
+    console.log(`Completed symbol-based formatting for row ${rowNum}`);
+}
+
+/**
  * Processes driver and assumption inputs for a worksheet based on code parameters,
  * replicating the logic from the VBA Driver_and_Assumption_Inputs function.
  * @param {Excel.Worksheet} worksheet - The initial Excel worksheet object.
@@ -1673,9 +1820,13 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                             continue;
                         }
 
-                        const valueToWrite = splitArray[x];
+                        const originalValue = splitArray[x];
                         const colLetter = columnSequence[x];
                         const cellToWrite = currentWorksheet.getRange(`${colLetter}${currentRowNum}`);
+                        
+                        // Parse the value to extract clean value without formatting symbols
+                        const parsed = parseValueWithSymbols(originalValue);
+                        const valueToWrite = parsed.cleanValue;
                         
                         // VBA check: If splitArray(x) <> "" And splitArray(x) <> "F" Then
                         // 'F' likely means "Formula", so we don't overwrite if the value is 'F'.
@@ -1715,6 +1866,13 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         }
                     }
 
+                    // Apply symbol-based formatting for each cell in the row
+                    try {
+                        await applyRowSymbolFormatting(currentWorksheet, currentRowNum, splitArray, columnSequence);
+                    } catch (formatError) {
+                        console.error(`  Error applying symbol-based formatting: ${formatError.message}`);
+                    }
+
                     // Apply columnformula parameter to column AE for row1 (all code types)
                     if (g === 1 && yy === 0 && code.params.columnformula && code.params.columnformula !== "0") {
                         try {
@@ -1747,98 +1905,8 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         }
                     }
 
-                    // NEW: Apply columnformat parameter to specified columns for row1
-                    if (g === 1 && yy === 0 && code.params.columnformat) {
-                        try {
-                            console.log(`  Applying columnformat to row ${currentRowNum}: ${code.params.columnformat}`);
-                            
-                            // Split the format string by backslash
-                            const formats = code.params.columnformat.split('\\');
-                            console.log(`  Format array: [${formats.join(', ')}]`);
-                            
-                            // Define format configurations
-                            const formatConfigs = {
-                                'dollaritalic': {
-                                    numberFormat: '_(* $ #,##0_);_(* $ (#,##0);_(* "$  -"?_);_(@_)',
-                                    italic: true
-                                },
-                                'dollar': {
-                                    numberFormat: '_(* $ #,##0_);_(* $ (#,##0);_(* "$  -"?_);_(@_)',
-                                    italic: false
-                                },
-                                'volume': {
-                                    numberFormat: '_(* #,##0_);_(* (#,##0);_(* "   -"?_);_(@_)',
-                                    italic: true
-                                },
-                                'percent': {
-                                    numberFormat: '_(* #,##0.0%;_(* (#,##0.0)%;_(* "   -"?_)',
-                                    italic: true
-                                },
-                                'factor': {
-                                    numberFormat: '_(* #,##0.0x;_(* (#,##0.0)x;_(* "   -"?_)',
-                                    italic: true
-                                },
-                                'date': {
-                                    numberFormat: 'mmm-yy',
-                                    italic: false
-                                }
-                            };
-                            
-                            // Define column mapping (same as for cd)
-                            const columnMapping = {
-                                '1': 'I',
-                                '2': 'H',
-                                '3': 'G',
-                                '4': 'F',
-                                '5': 'E',
-                                '6': 'D',
-                                '7': 'C',
-                                '8': 'B',
-                                '9': 'A'
-                            };
-                            
-                            // Apply each format to its corresponding column
-                            for (let i = 0; i < formats.length && i < 9; i++) {
-                                const formatName = formats[i].toLowerCase().trim();
-                                const columnNum = String(i + 1);
-                                const columnLetter = columnMapping[columnNum];
-                                
-                                if (!columnLetter) {
-                                    console.warn(`    Column number ${columnNum} exceeds mapping range, skipping`);
-                                    continue;
-                                }
-                                
-                                const cellAddress = `${columnLetter}${currentRowNum}`;
-                                const formatConfig = formatConfigs[formatName];
-                                
-                                if (!formatConfig) {
-                                    console.warn(`    Format '${formatName}' not recognized for cell ${cellAddress}, skipping`);
-                                    continue;
-                                }
-                                
-                                // Get the cell and load its current value
-                                const targetCell = currentWorksheet.getRange(cellAddress);
-                                targetCell.load(["values", "numberFormat", "format"]);
-                                await context.sync();
-                                
-                                const currentValue = targetCell.values[0][0];
-                                const currentNumberFormat = targetCell.numberFormat[0][0];
-                                console.log(`    Cell ${cellAddress}: Current value = '${currentValue}', Current format = '${currentNumberFormat}'`);
-                                
-                                // Apply the format
-                                targetCell.numberFormat = [[formatConfig.numberFormat]];
-                                targetCell.format.font.italic = formatConfig.italic;
-                                
-                                console.log(`    Applied ${formatName} format to ${cellAddress}: numberFormat = '${formatConfig.numberFormat}', italic = ${formatConfig.italic}`);
-                            }
-                            
-                            await context.sync(); // Sync the format changes
-                            console.log(`  Finished applying columnformat to row ${currentRowNum}`);
-                            
-                        } catch (columnFormatError) {
-                            console.error(`  Error applying columnformat: ${columnFormatError.message}`);
-                        }
-                    }
+                    // NOTE: columnformat parameter replaced by symbol-based formatting
+                    // The formatting is now applied through symbols in row data (e.g., ~$120000, $F, etc.)
 
                     // NEW: Apply columncomment parameter to specified columns for row1
                     if (g === 1 && yy === 0 && code.params.columncomment) {
