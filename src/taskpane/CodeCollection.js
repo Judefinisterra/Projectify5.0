@@ -1534,7 +1534,8 @@ async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSeq
              const config = formatConfigs[parsed.formatType];
              cellRange.numberFormat = [[config.numberFormat]];
              cellRange.format.font.italic = config.italic;
-             cellRange.format.font.bold = config.bold;
+             // Don't override bold formatting - preserve existing bold setting
+             // cellRange.format.font.bold = config.bold;  // Removed to preserve existing bold
              console.log(`    Applied ${parsed.formatType} formatting to ${colLetter}${rowNum}`);
          }
          
@@ -1572,7 +1573,7 @@ async function copyColumnPFormattingToJAndSCX(worksheet, rowNum) {
         const targetRangeSCX = worksheet.getRange(`S${rowNum}:CX${rowNum}`);
         
         // Load complete formatting from source cell P
-        sourceCellP.load(["numberFormat", "format"]);
+        sourceCellP.load(["numberFormat", "format/font/italic", "format/font/bold"]);
         await worksheet.context.sync();
         
         // Copy complete formatting from P to J
