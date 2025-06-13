@@ -215,118 +215,13 @@ function validateFormatRules(inputCodeStrings) {
             }
         }
         
-        // Check LABELH3 must be followed by indent="2"
-        if (codeType === 'LABELH3' && i < inputCodeStrings.length - 1) {
-            const nextCodeString = inputCodeStrings[i + 1];
-            const nextCodeMatch = nextCodeString.match(/<([^;]+);/);
-            
-            if (nextCodeMatch) {
-                const nextCodeType = nextCodeMatch[1].trim();
-                // Skip BR codes when checking the next code
-                let nextNonBRIndex = i + 1;
-                while (nextNonBRIndex < inputCodeStrings.length && 
-                       inputCodeStrings[nextNonBRIndex].match(/<BR[>;]/)) {
-                    nextNonBRIndex++;
-                }
-                
-                if (nextNonBRIndex < inputCodeStrings.length) {
-                    const nextNonBRCode = inputCodeStrings[nextNonBRIndex];
-                    const hasIndent2 = /indent\s*=\s*["']?2["']?/i.test(nextNonBRCode);
-                    
-                    if (!hasIndent2) {
-                        formatErrors.push(`[FERR003] Format validation: LABELH3 must be followed by a code with indent="2". Use LABELH2 instead - ${codeString} followed by ${nextNonBRCode}`);
-                    }
-                }
-            }
-        }
+
         
         // MULT, SUBTRACT, SUM, SUBTOTAL codes have no format validation requirements
         
-        // Check rows with column 2 beginning with "Total"
-        const rowMatch = codeString.match(/row\d+\s*=\s*"([^"]*)"/);
-        if (rowMatch) {
-            const rowContent = rowMatch[1];
-            const parts = rowContent.split('|');
-            if (parts.length >= 2) {
-                const column2 = parts[1].trim();
-                if (column2.startsWith('Total')) {
-                    // Check if previous code is BR
-                    const prevIsBR = i > 0 && inputCodeStrings[i - 1].match(/<BR[>;]/);
-                    
-                    // Check required parameters
-                    const hasBoldTrue = /bold\s*=\s*["']?true["']?/i.test(codeString);
-                    const hasIndent1 = /indent\s*=\s*["']?1["']?/i.test(codeString);
-                    const hasTopBorderTrue = /topborder\s*=\s*["']?true["']?/i.test(codeString);
-                    
-                    const issues = [];
-                    
-                    // Both cases need bold="true" and indent="1"
-                    if (!hasBoldTrue) {
-                        issues.push('missing or incorrect bold="true"');
-                    }
-                    if (!hasIndent1) {
-                        issues.push('missing or incorrect indent="1"');
-                    }
-                    
-                    // Check topborder based on whether it follows BR
-                    if (prevIsBR) {
-                        // Should NOT have topborder="True" after BR
-                        if (hasTopBorderTrue) {
-                            issues.push('should not have topborder="True" when following BR code');
-                        }
-                    } else {
-                        // Should have topborder="True" when not after BR
-                        if (!hasTopBorderTrue) {
-                            issues.push('missing topborder="True" (required when not following BR code)');
-                        }
-                    }
-                    
-                    if (issues.length > 0) {
-                        const expectedParams = prevIsBR 
-                            ? 'bold="true" and indent="1"' 
-                            : 'bold="true", indent="1", and topborder="True"';
-                        formatErrors.push(`[FERR009] Format validation: Row with column 2 beginning with "Total" must have ${expectedParams} - ${codeString} ${issues.join(', ')}`);
-                    }
-                }
-            }
-        }
+
         
-        // Rules 2, 3, 4: Check adjacency rules
-        if (i > 0) {
-            const prevCodeString = inputCodeStrings[i - 1];
-            const prevCodeMatch = prevCodeString.match(/<([^;]+);/);
-            const prevCodeType = prevCodeMatch ? prevCodeMatch[1].trim() : '';
-            
-            // Rule 2: Check adjacent topborder or bold
-            const currTopBorder = /topborder\s*=\s*["']?true["']?/i.test(codeString);
-            const prevTopBorder = /topborder\s*=\s*["']?true["']?/i.test(prevCodeString);
-            const currBold = /bold\s*=\s*["']?true["']?/i.test(codeString);
-            const prevBold = /bold\s*=\s*["']?true["']?/i.test(prevCodeString);
-            
-            if (currTopBorder && prevTopBorder) {
-                formatErrors.push(`[FERR004] Format validation: Adjacent codes both have topborder="true" - ${prevCodeString} followed by ${codeString}`);
-            }
-            
-            if (currBold && prevBold) {
-                formatErrors.push(`[FERR005] Format validation: Adjacent codes both have bold="true" - ${prevCodeString} followed by ${codeString}`);
-            }
-            
-            // Rule 3: Check adjacent indent="1"
-            const currIndent1 = /indent\s*=\s*["']?1["']?/i.test(codeString);
-            const prevIndent1 = /indent\s*=\s*["']?1["']?/i.test(prevCodeString);
-            
-            if (currIndent1 && prevIndent1) {
-                formatErrors.push(`[FERR006] Format validation: Adjacent codes both have indent="1" - ${prevCodeString} followed by ${codeString}`);
-            }
-            
-            // Rule 4: BR followed by indent="2"
-            if (prevCodeType === 'BR') {
-                const currIndent2 = /indent\s*=\s*["']?2["']?/i.test(codeString);
-                if (currIndent2) {
-                    formatErrors.push(`[FERR007] Format validation: BR code followed by code with indent="2" - ${prevCodeString} followed by ${codeString}`);
-                }
-            }
-        }
+
     }
     
     return formatErrors;

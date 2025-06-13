@@ -1,7 +1,9 @@
 Sub ConvertColumnFormatToInline()
     'Converts legacy columnformat parameters to new inline symbol-based approach
     'Processes codestrings in Training Data sheet column B and outputs results to column C
+    'Each columnformat parameter applies only to the next row parameter that follows it
     'Example: columnformat="dollaritalic/date" applies dollaritalic to column 1 and date to column 2
+    'Multiple columnformat parameters: columnformat="dollar"; row1="..."; columnformat="volume"; row1="...";
     
     Dim ws As Worksheet
     Dim lastRow As Long
@@ -64,30 +66,136 @@ End Sub
 
 Function ConvertColumnFormatParameters(codestring As String) As String
     'Converts legacy columnformat parameters to inline symbols in specific columns
+    'Handles multiple columnformat parameters - each applies only to the next row1 parameter
     
     Dim result As String
-    Dim columnFormatValue As String
+    result = codestring
+    
+    ' Process columnformat parameters and their corresponding row parameters sequentially
+    result = ProcessSequentialColumnFormatAndRowParameters(result)
+    
+    ConvertColumnFormatParameters = result
+End Function
+
+Function ProcessSequentialColumnFormatAndRowParameters(codestring As String) As String
+    'Processes columnformat parameters and row parameters in sequence
+    'Each columnformat parameter applies only to the next row parameter that follows it
+    
+    Dim result As String
+    Dim formatRegex As Object
+    Dim rowRegex As Object
+    Dim formatMatches As Object
+    Dim rowMatches As Object
+    Dim i As Long, j As Long
     
     result = codestring
     
-    ' Extract columnformat parameter
-    columnFormatValue = ExtractColumnFormatParameter(result, "columnformat")
+    ' Create regex objects
+    Set formatRegex = CreateObject("VBScript.RegExp")
+    Set rowRegex = CreateObject("VBScript.RegExp")
     
-    ' If no columnformat parameter found, return as is
-    If columnFormatValue = "" Then
-        ConvertColumnFormatParameters = result
-        Exit Function
+    ' Setup columnformat parameter regex
+    formatRegex.Global = True
+    formatRegex.IgnoreCase = True
+    formatRegex.pattern = "\bcolumnformat\s*=\s*""[^""]*""[;,]?|\bcolumnformat\s*=\s*[^;,\s]*[;,]?"
+    
+    ' Setup row parameter regex  
+    rowRegex.Global = True
+    rowRegex.IgnoreCase = True
+    rowRegex.pattern = "row\d+\s*=\s*""[^""]*"""
+    
+    ' Get all matches
+    Set formatMatches = formatRegex.Execute(codestring)
+    Set rowMatches = rowRegex.Execute(codestring)
+    
+    Debug.Print "  Found " & formatMatches.Count & " columnformat parameters and " & rowMatches.Count & " row parameters"
+    
+    ' Process columnformat-row pairs
+    For i = 0 To formatMatches.Count - 1
+        Dim formatMatch As Object
+        Dim formatValue As String
+        Dim formatPosition As Long
+        
+        Set formatMatch = formatMatches(i)
+        formatValue = ExtractColumnFormatValueFromMatch(formatMatch.Value)
+        formatPosition = formatMatch.FirstIndex
+        
+        Debug.Print "    Processing columnformat parameter: '" & formatValue & "' at position " & formatPosition
+        
+        ' Find the next row parameter that comes after this columnformat parameter
+        For j = 0 To rowMatches.Count - 1
+            Dim rowMatch As Object
+            Set rowMatch = rowMatches(j)
+            
+            If rowMatch.FirstIndex > formatPosition Then
+                ' This row parameter comes after the current columnformat parameter
+                Debug.Print "      Applying to row at position " & rowMatch.FirstIndex
+                
+                ' Apply the columnformat to this specific row
+                Dim originalRowContent As String
+                Dim formattedRowContent As String
+                Dim originalRowParam As String
+                Dim formattedRowParam As String
+                
+                originalRowContent = ExtractColumnFormatRowContentFromMatch(rowMatch.Value)
+                formattedRowContent = ApplyColumnFormatsToRow(originalRowContent, formatValue)
+                
+                ' Replace the entire row parameter (not just the content) to be more precise
+                originalRowParam = rowMatch.Value
+                formattedRowParam = Replace(originalRowParam, originalRowContent, formattedRowContent)
+                
+                ' Replace the specific row parameter in the result
+                result = Replace(result, originalRowParam, formattedRowParam, 1, 1)
+                
+                Exit For ' Move to next columnformat parameter
+            End If
+        Next j
+    Next i
+    
+    ' Remove all columnformat parameters from the result
+    result = formatRegex.Replace(result, "")
+    
+    ProcessSequentialColumnFormatAndRowParameters = result
+End Function
+
+Function ExtractColumnFormatValueFromMatch(formatMatch As String) As String
+    'Extracts the columnformat value from a columnformat parameter match
+    
+    Dim regex As Object
+    Dim matches As Object
+    
+    Set regex = CreateObject("VBScript.RegExp")
+    regex.Global = False
+    regex.IgnoreCase = True
+    regex.pattern = "\bcolumnformat\s*=\s*""([^""]*)""|columnformat\s*=\s*([^;,\s]*)"
+    
+    Set matches = regex.Execute(formatMatch)
+    
+    If matches.Count > 0 Then
+        If matches(0).SubMatches(0) <> "" Then
+            ExtractColumnFormatValueFromMatch = matches(0).SubMatches(0)
+        Else
+            ExtractColumnFormatValueFromMatch = matches(0).SubMatches(1)
+        End If
+    Else
+        ExtractColumnFormatValueFromMatch = ""
     End If
+End Function
+
+Function ExtractColumnFormatRowContentFromMatch(rowMatch As String) As String
+    'Extracts the content between quotes from a row parameter match
     
-    Debug.Print "  Found columnformat parameter: '" & columnFormatValue & "'"
+    Dim startQuote As Long
+    Dim endQuote As Long
     
-    ' Remove the columnformat parameter from the codestring
-    result = RemoveColumnFormatParameter(result, "columnformat")
+    startQuote = InStr(rowMatch, """")
+    endQuote = InStrRev(rowMatch, """")
     
-    ' Apply formatting symbols to row parameters based on columnformat
-    result = ApplyColumnFormattingToRowParameters(result, columnFormatValue)
-    
-    ConvertColumnFormatParameters = result
+    If startQuote > 0 And endQuote > startQuote Then
+        ExtractColumnFormatRowContentFromMatch = Mid(rowMatch, startQuote + 1, endQuote - startQuote - 1)
+    Else
+        ExtractColumnFormatRowContentFromMatch = ""
+    End If
 End Function
 
 Function ExtractColumnFormatParameter(codestring As String, paramName As String) As String
@@ -298,17 +406,19 @@ Function ApplyColumnFormatToValue(value As String, formatType As String) As Stri
 End Function
 
 Sub TestColumnFormatConversion()
-    'Test function to verify the column format conversion logic
+    'Test function to verify the column format conversion logic including multiple columnformat parameters
     
     Dim testCases() As String
     Dim i As Long
     
-    ' Define test cases
-    ReDim testCases(3)
+    ' Define test cases including multiple columnformat scenarios
+    ReDim testCases(5)
     testCases(0) = "<CODE; columnformat=""dollaritalic/date""; row1=""V1|Employee 1||||||1/1/2025|10|1000|2000|4000|8000|16000|32000|"";>"
     testCases(1) = "<CODE; columnformat=""dollar/volume/percent""; row1=""AS|Description|Count||||||||500|1000|2000|F|F|F|"";>"
     testCases(2) = "<CODE; columnformat=""volume\factor\date""; row1=""V|Items|Growth||||||1/1/2025|2.5|10|20|30|40|50|60|"";>"
     testCases(3) = "<CODE; columnformat=""dollaritalic""; row1=""V1|Single Format||||||||||1000|2000|4000|8000|16000|32000|"";>"
+    testCases(4) = "columnformat=""dollar/date""; row1=""V1|Revenue||||||1/1/2025|10|100|200|300|400|500|600|""; columnformat=""volume""; row1=""V2|Count||||||||||5|10|15|20|25|30|"";"
+    testCases(5) = "indent=""2""; columnformat=""dollaritalic/volume""; bold=""true""; row1=""V3|Price||||||||||50|100|150|200|250|300|"";"
     
     Debug.Print "=== Testing Column Format Conversion ==="
     
@@ -318,4 +428,23 @@ Sub TestColumnFormatConversion()
         Debug.Print "Result: " & ConvertColumnFormatParameters(testCases(i))
         Debug.Print ""
     Next i
+End Sub
+
+Sub QuickColumnFormatTest()
+    'Quick test to verify multiple columnformat parameters work correctly
+    
+    Dim testString As String
+    Dim result As String
+    
+    Debug.Print "=== Quick Column Format Test ==="
+    
+    ' Test multiple columnformat parameters in one codestring
+    testString = "columnformat=""dollaritalic""; row1=""V1|Test||||||||||||100|200|300|400|500|600|""; columnformat=""volume/date""; row1=""V2|Items||||||1/1/2025|50|10|20|30|40|50|60|"";"
+    result = ConvertColumnFormatParameters(testString)
+    Debug.Print "Multiple ColumnFormats Test:"
+    Debug.Print "Input:  " & testString
+    Debug.Print "Output: " & result
+    Debug.Print "Expected: First row gets dollaritalic in column 1 (pos 8), second row gets volume in column 1 (pos 8) and date formatting in column 2 (pos 7)"
+    Debug.Print ""
+    
 End Sub 
