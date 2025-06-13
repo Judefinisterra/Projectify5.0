@@ -1922,7 +1922,8 @@ export async function handleInitialConversation(clientprompt) {
     console.log(outputArray);
     console.log("────────────────────────────────────────────────────────────────\n");
 
-    // >>> ADDED: Run pipe correction before validation
+    // >>> ADDED: Run pipe correction before validation - COMMENTED OUT
+    /*
     if (DEBUG) console.log("[handleInitialConversation] Running automatic pipe correction...");
     const { autoCorrectPipeCounts } = await import('./PipeValidation.js');
     const pipeResult = autoCorrectPipeCounts(outputArray);
@@ -1932,6 +1933,7 @@ export async function handleInitialConversation(clientprompt) {
     } else {
         console.log("✅ Pipe correction: No changes needed");
     }
+    */
 
     // >>> ADDED: Run logic validation and correction mechanism (up to 3 passes total)
     if (DEBUG) console.log("[handleInitialConversation] Running logic validation and correction mechanism...");
@@ -3427,7 +3429,8 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         console.log(responseArray);
         console.log("────────────────────────────────────────────────────────────────\n");
 
-        // 4. PIPE CORRECTION PHASE (runs before validation)
+        // 4. PIPE CORRECTION PHASE (runs before validation) - COMMENTED OUT
+        /*
         console.log("🔧 === PIPE CORRECTION PHASE ===");
         if (DEBUG) console.log("[getAICallsProcessedResponse] Running automatic pipe correction...");
         const pipeStartTime = performance.now();
@@ -3446,6 +3449,7 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         
         const pipeEndTime = performance.now();
         console.log(`🏁 Pipe correction phase completed in ${(pipeEndTime - pipeStartTime).toFixed(2)}ms`);
+        */
 
         // 5. Run logic validation and correction mechanism (up to 3 passes total)
         console.log("🔍 === LOGIC VALIDATION & CORRECTION PHASE ===");
