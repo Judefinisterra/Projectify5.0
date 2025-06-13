@@ -363,7 +363,8 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
             }
         }
 
-        // >>> ADDED: Validate customformula parameters
+        // >>> ADDED: Validate customformula parameters - COMMENTED OUT
+        /*
         const customFormulaMatches = codeString.match(/customformula\d*\s*=\s*"([^"]*)"/g);
         if (customFormulaMatches) {
             customFormulaMatches.forEach(match => {
@@ -377,6 +378,7 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
                 }
             });
         }
+        */
         // <<< END ADDED
 
         const rowMatches = codeString.match(/row\d+\s*=\s*"([^"]*)"/g);
@@ -854,7 +856,8 @@ export async function validateLogicOnly(inputText) {
             }
         }
 
-        // Validate customformula parameters (LOGIC ERROR)
+        // Validate customformula parameters (LOGIC ERROR) - COMMENTED OUT
+        /*
         const customFormulaMatches = codeString.match(/customformula\d*\s*=\s*"([^"]*)"/g);
         if (customFormulaMatches) {
             customFormulaMatches.forEach(match => {
@@ -868,6 +871,7 @@ export async function validateLogicOnly(inputText) {
                 }
             });
         }
+        */
 
         const rowMatches = codeString.match(/row\d+\s*=\s*"([^"]*)"/g);
         if (rowMatches) {
