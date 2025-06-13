@@ -42,9 +42,10 @@ Validation checks:
 1)	Entire codestrings should by duplicated from training data. Once duplicated, you may only modify values inside quotes; no structural changes. SEED and Math operator codes all have the same structure:  
 2)	All output drivers must have unique driver codes. All input driver parameters must be set to output drivers of other codestrings.  
 3) each row has exactly 15 "|" symbols, unless a duplicate row has been added using the * symbol.
-4)	“F” columns must remain unchanged. Do not improvise “F” values that weren’t in the original codestring. Do not override any F values. If row1="|F|F|F|F| etc." row1 must keep those same F's.  
+4)	“F” columns must remain unchanged. Do not improvise “F” values that weren’t in the original codestring. Do not override any F values. If row1="|F|F|F|F|F|F|" row1 must keep all 6 F's in the same locations. DO NOT REMOVE OR OVERWRITE THEM!  
 5) You MUST not add or remove any of the rowx parameters. If the trianing data codestring has row1 and row2 parameters, your use of that codestring must also have row1 and row2. Removing row2 or adding a row3 will cause a runtime error.
-6) Fixed assumptions in columns 4, 5, and 6 must be filled in reverse order. Ex. if there are only two fixed assumptions, columns 5 and 6 should hold those assumptions, NOT columns 4 and 5. Only use column 4 when there are 3 fixed assumptions. You may reference up to cd{16} to access all available columns in the row data (A through P, excluding J and Q which are skipped in the sequence).
+6) Spend extra time making absolutely certain that there are exactly 15 pipe "|" symbols in every row parameter. If you mess this up, everything else will fail! Double and tripple check this. It is the most important thing in this entire prompt. 
+
 
 
 Seed codes: Any code ending with "E". These Codes used to begin chains. These are the common ones, but there are many others in the training data (ex. PAYROLLSALARY-E)

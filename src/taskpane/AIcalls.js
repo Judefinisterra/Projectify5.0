@@ -68,6 +68,33 @@ export function resetValidationPassCounter() {
 // let searchResultIndices = []; // Stores indices of all matches for Replace All
 // let currentHighlightIndex = -1; // Index within searchResultIndices for Find Next
 
+/*
+ * OPENAI API ARCHITECTURE:
+ * 
+ * This module supports two OpenAI API endpoints:
+ * 
+ * 1. Chat Completions API (default): /v1/chat/completions
+ *    - Uses message arrays with roles (system, user, assistant)
+ *    - Supports all OpenAI models including GPT-4, GPT-3.5, etc.
+ *    - Function: callOpenAIChatCompletions()
+ * 
+ * 2. Responses API (optional): /v1/responses  
+ *    - Uses single input string for single-turn prompts
+ *    - Specifically designed for o3 model
+ *    - Supports reasoning effort control and built-in tools
+ *    - Function: callOpenAIResponses()
+ * 
+ * 3. Unified Interface: callOpenAI()
+ *    - Automatically chooses between the two APIs based on configuration
+ *    - For main encoder calls: controlled by USE_RESPONSES_API_FOR_ENCODER flag
+ *    - For other calls: uses Chat Completions API by default
+ *    - Can be overridden per-call with useResponsesAPI option
+ * 
+ * Configuration:
+ *    - setUseResponsesAPIForEncoder(true/false): Enable/disable responses API for encoder
+ *    - getUseResponsesAPIForEncoder(): Check current setting
+ */
+
 // API keys storage - initialized by initializeAPIKeys
 let INTERNAL_API_KEYS = {
   OPENAI_API_KEY: "",
@@ -232,10 +259,52 @@ const GPT4O = "gpt-4o"
 const GPT41 = "gpt-4.1"
 const GPT45_TURBO = "gpt-4.5-turbo"
 const GPT35_TURBO = "gpt-3.5-turbo"
-const GPT_O3 = "o3-mini"
+const GPT_O3mini = "o3-mini"
 const GPT4_TURBO = "gpt-4-turbo"
 const GPTO3 = "gpt-o3"
+const GPT_O3 = "o3"  // Added for responses API
 const GPTFT1 =  "ft:gpt-4.1-2025-04-14:personal:jun25gpt4-1:BeyDTNt1"
+
+// API Configuration
+let USE_RESPONSES_API_FOR_ENCODER = false; // Set to true to use responses API for main encoder calls
+
+// Functions to control API configuration
+export function setUseResponsesAPIForEncoder(useResponsesAPI) {
+  USE_RESPONSES_API_FOR_ENCODER = useResponsesAPI;
+  console.log(`[setUseResponsesAPIForEncoder] Responses API for encoder set to: ${useResponsesAPI}`);
+}
+
+export function getUseResponsesAPIForEncoder() {
+  return USE_RESPONSES_API_FOR_ENCODER;
+}
+
+// Helper function to test responses API with a simple call
+export async function testResponsesAPI(input, options = {}) {
+  console.log("[testResponsesAPI] Testing OpenAI Responses API...");
+  
+  const testOptions = {
+    model: GPT_O3,
+    reasoning: { effort: "medium" },
+    stream: false,
+    caller: "testResponsesAPI",
+    ...options
+  };
+  
+  try {
+    let response = "";
+    for await (const contentPart of callOpenAIResponses(input, testOptions)) {
+      response += contentPart;
+    }
+    
+    console.log("[testResponsesAPI] Test completed successfully");
+    console.log("[testResponsesAPI] Response length:", response.length);
+    
+    return response;
+  } catch (error) {
+    console.error("[testResponsesAPI] Test failed:", error);
+    throw error;
+  }
+}
 
 // Conversation history storage
 let conversationHistory = [];
@@ -272,8 +341,8 @@ export function loadConversationHistory() {
     }
 }
 
-// Direct OpenAI API call function
-export async function* callOpenAI(messages, options = {}) {
+// Direct OpenAI Chat Completions API call function
+export async function* callOpenAIChatCompletions(messages, options = {}) {
   const { model = GPT_O3, temperature = 0.7, stream = false, caller = "Unknown" } = options;
 
   try {
@@ -431,6 +500,185 @@ export async function* callOpenAI(messages, options = {}) {
     // For a stream, the error breaks the generator. Consider yielding an error object if preferred.
     // For now, just log and let the generator terminate.
     // yield { error: error.message }; // Optional: yield an error object
+  }
+}
+
+// Direct OpenAI Responses API call function (for o3 model)
+export async function* callOpenAIResponses(input, options = {}) {
+  const { model = GPT_O3, reasoning = { effort: "medium" }, stream = false, caller = "Unknown", tools = [] } = options;
+
+  try {
+    console.log(`Calling OpenAI Responses API with model: ${model}, stream: ${stream}`);
+    
+    // >>> ADDED: Comprehensive logging for Responses API calls
+    let callName = "Unknown";
+    
+    if (caller.includes("Structure_System")) {
+      callName = "Prompt Breakup";
+    } else if (caller.includes("Encoder_System") || caller.includes("Followup_System")) {
+      callName = "Main Encoder";
+    } else if (caller.includes("LogicCheckerGPT")) {
+      callName = "Logic Checker GPT";
+    } else if (caller.includes("FormatGPT")) {
+      callName = "Format GPT";
+    } else if (caller.includes("Validation_System")) {
+      const passMatch = caller.match(/PASS_(\d+)/);
+      const passNumber = passMatch ? passMatch[1] : "1";
+      callName = `Validation Pass ${passNumber}`;
+    }
+    
+    console.log("\n╔════════════════════════════════════════════════════════════════╗");
+    console.log(`║           OPENAI RESPONSES API CALL - ${callName.padEnd(25)} ║`);
+    console.log("╠════════════════════════════════════════════════════════════════╣");
+    console.log(`║ CALLER: ${caller.padEnd(54)} ║`);
+    console.log(`║ FILE: AIcalls.js                                               ║`);
+    console.log(`║ FUNCTION: callOpenAIResponses()                                ║`);
+    console.log("╚════════════════════════════════════════════════════════════════╝");
+    console.log(`Model: ${model}`);
+    console.log(`Reasoning Effort: ${reasoning.effort}`);
+    console.log(`Stream: ${stream}`);
+    console.log(`Tools: ${tools.length > 0 ? tools.length : 'None'}`);
+    console.log("────────────────────────────────────────────────────────────────");
+    
+    console.log("\n[Input]");
+    console.log("────────────────────────────────────────────────────────────────");
+    console.log(input);
+    console.log("────────────────────────────────────────────────────────────────");
+    
+    console.log("\n╔════════════════════════════════════════════════════════════════╗");
+    console.log(`║              END OF ${callName.toUpperCase()} CALL${' '.repeat(Math.max(0, 25 - callName.length))}║`);
+    console.log("╚════════════════════════════════════════════════════════════════╝\n");
+
+    if (!INTERNAL_API_KEYS.OPENAI_API_KEY) {
+      throw new Error("OpenAI API key not found. Please check your API keys.");
+    }
+
+    const body = {
+      model: model,
+      input: input,
+      reasoning: reasoning
+    };
+
+    if (tools.length > 0) {
+      body.tools = tools;
+    }
+
+    if (stream) {
+      body.stream = true;
+    }
+
+    const response = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${INTERNAL_API_KEYS.OPENAI_API_KEY}`
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: "Failed to parse error JSON." }));
+      console.error("OpenAI Responses API error response:", errorData);
+      throw new Error(`OpenAI Responses API error: ${response.status} ${response.statusText} - ${errorData.message || JSON.stringify(errorData)}`);
+    }
+
+    if (stream) {
+      console.log("OpenAI Responses API response received (stream)");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          console.log("Stream finished.");
+          break;
+        }
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+        const parsedLines = lines
+          .map((line) => line.replace(/^data: /, "").trim())
+          .filter((line) => line !== "" && line !== "[DONE]")
+          .map((line) => {
+            try {
+              return JSON.parse(line);
+            } catch (e) {
+              console.warn("Could not parse JSON line from stream:", line, e);
+              return null;
+            }
+          })
+          .filter(line => line !== null);
+
+        for (const parsedLine of parsedLines) {
+          yield parsedLine;
+        }
+      }
+    } else {
+      const data = await response.json();
+      console.log("OpenAI Responses API response received (non-stream)");
+      // For responses API, the response structure is different
+      // Yield the content from the response
+      if (data.choices && data.choices[0] && data.choices[0].message) {
+        yield data.choices[0].message.content;
+      } else if (data.output) {
+        yield data.output;
+      } else {
+        yield JSON.stringify(data); // Fallback to full response
+      }
+      return;
+    }
+
+  } catch (error) {
+    console.error("Error calling OpenAI Responses API:", error);
+    if (!stream) throw error;
+  }
+}
+
+// Unified OpenAI API call function that chooses between Chat Completions and Responses API
+export async function* callOpenAI(messagesOrInput, options = {}) {
+  const { useResponsesAPI = false, model = GPT_O3, caller = "Unknown" } = options;
+  
+  // Determine if this is a main encoder call and should use responses API
+  const isMainEncoderCall = caller.includes("Encoder_System") || caller.includes("Encoder_Main") || 
+                           caller.includes("processPrompt() - Encoder_System") ||
+                           caller.includes("processPrompt() - Encoder_Main");
+  
+  const shouldUseResponsesAPI = useResponsesAPI || (USE_RESPONSES_API_FOR_ENCODER && isMainEncoderCall);
+  
+  if (shouldUseResponsesAPI && (model === GPT_O3 || model === GPTO3)) {
+    // Use Responses API - convert messages to single input string
+    let input = "";
+    
+    if (Array.isArray(messagesOrInput)) {
+      // Convert messages array to single input string
+      for (const message of messagesOrInput) {
+        if (message.role === "system") {
+          input += `System: ${message.content}\n\n`;
+        } else if (message.role === "user") {
+          input += `User: ${message.content}\n\n`;
+        } else if (message.role === "assistant") {
+          input += `Assistant: ${message.content}\n\n`;
+        }
+      }
+      input = input.trim();
+    } else {
+      // Already a string input
+      input = messagesOrInput;
+    }
+    
+    console.log(`[callOpenAI] Using Responses API for ${caller} with model ${model}`);
+    yield* callOpenAIResponses(input, options);
+  } else {
+    // Use Chat Completions API
+    console.log(`[callOpenAI] Using Chat Completions API for ${caller} with model ${model}`);
+    
+    // Ensure we have messages array for chat completions
+    let messages = messagesOrInput;
+    if (typeof messagesOrInput === 'string') {
+      // Convert string to messages array
+      messages = [{ role: "user", content: messagesOrInput }];
+    }
+    
+    yield* callOpenAIChatCompletions(messages, options);
   }
 }
 
@@ -1562,7 +1810,7 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
         ];
 
         const openaiCallOptions = { 
-            model: GPT_O3, 
+            model: GPT_O3mini, 
             temperature: 1, 
             stream: false,
             caller: "handleFollowUpConversation - Standalone"
@@ -1650,14 +1898,21 @@ export async function handleInitialConversation(clientprompt) {
                            `Main Prompt: ${mainPromptText}`;
 
     // Call the LLM (processPrompt uses OpenAI key internally)
-            let outputArray = await processPrompt({
-            userInput: initialCallPrompt,
-            systemPrompt: systemPrompt,
-            model: GPT_O3,
-            temperature: 1,
-            history: [], // No history for initial call
-            promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
-        });
+    // Use o3 model if responses API is enabled for encoder, otherwise use o3-mini
+    const encoderModel = USE_RESPONSES_API_FOR_ENCODER ? GPT_O3 : GPT_O3mini;
+    const apiType = USE_RESPONSES_API_FOR_ENCODER ? "Responses API" : "Chat Completions API";
+    
+    console.log(`🔧 Initial conversation using ${apiType} with model: ${encoderModel}`);
+    console.log(`📊 Responses API for encoder: ${USE_RESPONSES_API_FOR_ENCODER ? 'ENABLED' : 'DISABLED'}`);
+    
+    let outputArray = await processPrompt({
+        userInput: initialCallPrompt,
+        systemPrompt: systemPrompt,
+        model: encoderModel,
+        temperature: 1,
+        history: [], // No history for initial call
+        promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
+    });
 
     // >>> ADDED: Console log the main encoder output
     console.log("\n╔════════════════════════════════════════════════════════════════╗");
@@ -3138,12 +3393,20 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         // Main AI processing call
         console.log("\n🤖 === MAIN AI PROCESSING CALL ===");
         console.log("🚀 Calling main encoder with enhanced prompt...");
+        
+        // Use o3 model if responses API is enabled for encoder, otherwise use o3-mini
+        const encoderModel = USE_RESPONSES_API_FOR_ENCODER ? GPT_O3 : GPT_O3mini;
+        const apiType = USE_RESPONSES_API_FOR_ENCODER ? "Responses API" : "Chat Completions API";
+        
+        console.log(`🔧 Using ${apiType} with model: ${encoderModel}`);
+        console.log(`📊 Responses API for encoder: ${USE_RESPONSES_API_FOR_ENCODER ? 'ENABLED' : 'DISABLED'}`);
+        
         const mainAIStartTime = performance.now();
         
         let responseArray = await processPrompt({
             userInput: combinedInputForAI,
             systemPrompt: systemPrompt,
-            model: GPT41, // Using the same model as in other parts
+            model: encoderModel,
             temperature: 1, // Consistent temperature
             history: [], // Treat each call as independent for this processing
             promptFiles: { system: 'Encoder_System', main: 'Encoder_Main' }
