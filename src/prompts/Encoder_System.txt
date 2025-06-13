@@ -106,19 +106,19 @@ Ex. of illegal parameter: customerformula="rd{v1}/12". Ex of corrected code: cus
 
 Organizational codes:
 LABELH1/LABELH2/LABEHLH3 Use these codes to label different sections within a tab. H1 is the highest level, followed by H2, and then H3
-BR <BR; row1 = "|  |||||||||||";> Adds a line break. Use before every LABELH1/LABELH2/LABELH3 code. 
+BR <BR; row1 = "|||||||||||||||";> Adds a line break. Use before every LABELH1/LABELH2/LABELH3 code. 
 
 Source codes for seed, operator, and organizational codes:
-<CODENAME; sumif=””; row1 = "V1|# of units |||||1000|1000|1000|1000|1000|1000|";>
+<CODENAME; sumif=””; row1 = "V1|# of units ||||||||1000|1000|1000|1000|1000|1000|";>
 1 input operator codes:
-<CODENAME; sumif=””; driver1=””; row1 = "V1|# of units|||||1000|1000|1000|1000|1000|1000|";>
+<CODENAME; sumif=””; driver1=””; row1 = "V1|# of units||||||||1000|1000|1000|1000|1000|1000|";>
 2 input operator codes:
-<CODENAME2; sumif=””; driver1=””; drover2=””; row1 = "V1|# of units |||||F|F|F|F|F|F|";>
+<CODENAME2; sumif=””; driver1=””; drover2=””; row1 = "V1|# of units ||||||||F|F|F|F|F|F|";>
 3 input operator codes:
-<CODENAME3; sumif=””; driver1=””; drover2=””; row1 = "V1|# of units |||||F|F|F|F|F|F|";>
+<CODENAME3; sumif=””; driver1=””; drover2=””; row1 = "V1|# of units ||||||||F|F|F|F|F|F|";>
 Note: you must not improvise operator codes with different numbers of drivers. You may only use the ones that are listed. Use FORMULA-S and customformula if you need to perform a calculation on a greater number of input drivers than is available in the other operator codes.  
 FORMULA-S codes:
-<CODENAME; sumif=””; customformula=”” row1 = "V1|# of units |||||F|F|F|F|F|F|";>
+<CODENAME; sumif=””; customformula=”” row1 = "V1|# of units ||||||||F|F|F|F|F|F|";>
 
 
 
@@ -140,11 +140,11 @@ Source codes for organizational codes are below. Duplicate these codestrings and
 Ex. 
 
 
-<LABELH1; row1 = "|Label row:|||||||||||";>
-<LABELH2; row1 = "|Label row:|||||||||||";>
-<LABELH3; row1 = "|Label row:|||||||||||";>
-<COLUMNHEADER-E; row1 = "|Label of list:||Column 3 label|Column 2 label|Column 1 label|||||||">
-<BR; row1 = "||||||||||||";>
+<LABELH1; row1 = "|Label row:||||||||||||||";>
+<LABELH2; row1 = "|Label row:||||||||||||||";>
+<LABELH3; row1 = "|Label row:||||||||||||||";>
+<COLUMNHEADER-E; row1 = "|Label of list:|||||Column 3 label|Column 2 label|Column 1 label|||||||">
+<BR; row1 = "|||||||||||||||";>
 
 
 Output: Return array of codestrings. Do not include any text outside of <> brackets. Do not provide context or any special characters.	
@@ -176,6 +176,4 @@ Labeling, Indent, topborder, and bold rules:
 
 
 
-FINAL STEP: Go through each codestring and COUNT THE PIPES ("|") IN EVERY ROW PARAMETER. EACH MUST HAVE EXACTLY 12 PIPES AND END ON A PIPE!!! Ex. row1 = "V5|# of Employees|||||F|F|F|F|F|F|" >>> This has 13 pipes. Looking at the values, you can deduce that the extra pipe should be removed from between # of employees and the first F since the first F should begin in Y1. Ex2. row1 = "V5|# of Employees||||||F|F|F|F|F|F" >>> This is incorrect because we don't end on a pipe. One pipe should be removed from between # of employees and the first F and added to the end. 
-
-
+FINAL STEP: Go through each codestring and COUNT THE PIPES ("|") IN EVERY ROW PARAMETER. EACH MUST HAVE EXACTLY 15 PIPES AND END ON A PIPE!!! Ex. row1 = "V5|# of Employees|||||F|F|F|F|F|F|" >>> This has 12 pipes. To correct, add pipes after column 3. Corrected codestring: row1 = "V5|# of Employees||||||||F|F|F|F|F|F|"

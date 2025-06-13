@@ -1667,6 +1667,17 @@ export async function handleInitialConversation(clientprompt) {
     console.log(outputArray);
     console.log("────────────────────────────────────────────────────────────────\n");
 
+    // >>> ADDED: Run pipe correction before validation
+    if (DEBUG) console.log("[handleInitialConversation] Running automatic pipe correction...");
+    const { autoCorrectPipeCounts } = await import('./PipeValidation.js');
+    const pipeResult = autoCorrectPipeCounts(outputArray);
+    if (pipeResult.changesMade > 0) {
+        console.log(`✅ Pipe correction: ${pipeResult.changesMade} codestrings corrected`);
+        outputArray = pipeResult.correctedText;
+    } else {
+        console.log("✅ Pipe correction: No changes needed");
+    }
+
     // >>> ADDED: Run logic validation and correction mechanism (up to 3 passes total)
     if (DEBUG) console.log("[handleInitialConversation] Running logic validation and correction mechanism...");
     let currentPassNumber = 1;
@@ -1745,9 +1756,9 @@ export async function handleInitialConversation(clientprompt) {
     }
 
     // >>> ADDED: Check labels using LabelCheckerGPT
-    if (DEBUG) console.log("[handleInitialConversation] Checking labels with LabelCheckerGPT...");
-    outputArray = await checkLabelsWithGPT(outputArray);
-    if (DEBUG) console.log("[handleInitialConversation] LabelCheckerGPT checking completed");
+    // if (DEBUG) console.log("[handleInitialConversation] Checking labels with LabelCheckerGPT...");
+    // outputArray = await checkLabelsWithGPT(outputArray);
+    // if (DEBUG) console.log("[handleInitialConversation] LabelCheckerGPT checking completed");
 
     // Create the initial history
     const initialHistory = [
@@ -3138,7 +3149,27 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         console.log(responseArray);
         console.log("────────────────────────────────────────────────────────────────\n");
 
-        // 4. Run logic validation and correction mechanism (up to 3 passes total)
+        // 4. PIPE CORRECTION PHASE (runs before validation)
+        console.log("🔧 === PIPE CORRECTION PHASE ===");
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Running automatic pipe correction...");
+        const pipeStartTime = performance.now();
+        
+        // Import pipe correction function
+        const { autoCorrectPipeCounts } = await import('./PipeValidation.js');
+        
+        // Apply pipe corrections to the response array
+        const pipeResult = autoCorrectPipeCounts(responseArray);
+        if (pipeResult.changesMade > 0) {
+            console.log(`✅ Pipe correction completed: ${pipeResult.changesMade} codestrings corrected`);
+            responseArray = pipeResult.correctedText; // Update responseArray with corrected version
+        } else {
+            console.log("✅ Pipe correction completed: No changes needed");
+        }
+        
+        const pipeEndTime = performance.now();
+        console.log(`🏁 Pipe correction phase completed in ${(pipeEndTime - pipeStartTime).toFixed(2)}ms`);
+
+        // 5. Run logic validation and correction mechanism (up to 3 passes total)
         console.log("🔍 === LOGIC VALIDATION & CORRECTION PHASE ===");
         if (DEBUG) console.log("[getAICallsProcessedResponse] Running logic validation and correction mechanism...");
         let currentPassNumber = 1;
@@ -3178,7 +3209,7 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         console.log(`🏁 Logic validation phase completed in ${(validationEndTime - validationStartTime).toFixed(2)}ms`);
         if (DEBUG) console.log(`[getAICallsProcessedResponse] Logic validation and correction mechanism completed after ${currentPassNumber} pass(es)`);
 
-        // 5. Check for format errors and only call FormatGPT if errors exist
+        // 6. Check for format errors and only call FormatGPT if errors exist
         console.log("\n✨ === FORMAT VALIDATION & CORRECTION PHASE ===");
         if (DEBUG) console.log("[getAICallsProcessedResponse] Checking for format validation errors...");
         const formatStartTime = performance.now();
@@ -3235,13 +3266,13 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         console.log(`🏁 Format validation phase completed in ${(formatEndTime - formatStartTime).toFixed(2)}ms`);
 
         // >>> ADDED: Check labels using LabelCheckerGPT
-        console.log("\n🏷️ === LABEL CHECKING PHASE ===");
-        if (DEBUG) console.log("[getAICallsProcessedResponse] Checking labels with LabelCheckerGPT...");
-        const labelStartTime = performance.now();
-        responseArray = await checkLabelsWithGPT(responseArray);
-        const labelEndTime = performance.now();
-        console.log(`✅ Label checking completed in ${(labelEndTime - labelStartTime).toFixed(2)}ms`);
-        if (DEBUG) console.log("[getAICallsProcessedResponse] LabelCheckerGPT checking completed");
+        // console.log("\n🏷️ === LABEL CHECKING PHASE ===");
+        // if (DEBUG) console.log("[getAICallsProcessedResponse] Checking labels with LabelCheckerGPT...");
+        // const labelStartTime = performance.now();
+        // responseArray = await checkLabelsWithGPT(responseArray);
+        // const labelEndTime = performance.now();
+        // console.log(`✅ Label checking completed in ${(labelEndTime - labelStartTime).toFixed(2)}ms`);
+        // if (DEBUG) console.log("[getAICallsProcessedResponse] LabelCheckerGPT checking completed");
 
         // >>> ADDED: Save the complete enhanced prompt that was sent to AI to lastprompt.txt
         // await saveEnhancedPrompt(combinedInputForAI);
