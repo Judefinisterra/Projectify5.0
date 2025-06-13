@@ -1233,25 +1233,25 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
     });
     
     // Process SPREAD function: SPREAD(driver) -> driver/AE$7
-    result = result.replace(/SPREAD\(([^)]+)\)/g, (match, driver) => {
+    result = result.replace(/SPREAD\(([^)]+)\)/gi, (match, driver) => {
         console.log(`    Converting SPREAD(${driver}) to ${driver}/AE$7`);
         return `(${driver}/AE$7)`;
     });
     
     // Process BEG function: BEG(driver) -> (EOMONTH(driver,0)<=AE$2)
-    result = result.replace(/BEG\(([^)]+)\)/g, (match, driver) => {
+    result = result.replace(/BEG\(([^)]+)\)/gi, (match, driver) => {
         console.log(`    Converting BEG(${driver}) to (EOMONTH(${driver},0)<=AE$2)`);
         return `(EOMONTH(${driver},0)<=AE$2)`;
     });
     
     // Process END function: END(driver) -> (EOMONTH(driver,0)>AE$2)
-    result = result.replace(/END\(([^)]+)\)/g, (match, driver) => {
+    result = result.replace(/END\(([^)]+)\)/gi, (match, driver) => {
         console.log(`    Converting END(${driver}) to (EOMONTH(${driver},0)>AE$2)`);
         return `(EOMONTH(${driver},0)>AE$2)`;
     });
     
     // Process RAISE function: RAISE(driver1,driver2) -> (1 + (driver1)) ^ (AE$3 - max(year(driver2), $AE3))
-    result = result.replace(/RAISE\(([^,]+),([^)]+)\)/g, (match, driver1, driver2) => {
+    result = result.replace(/RAISE\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
         // Trim whitespace from drivers
         driver1 = driver1.trim();
         driver2 = driver2.trim();
@@ -1260,14 +1260,14 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
     });
     
     // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=AE$2)
-    result = result.replace(/ONETIMEDATE\(([^)]+)\)/g, (match, driver) => {
+    result = result.replace(/ONETIMEDATE\(([^)]+)\)/gi, (match, driver) => {
         console.log(`    Converting ONETIMEDATE(${driver}) to (EOMONTH((${driver}),0)=AE$2)`);
         return `(EOMONTH((${driver}),0)=AE$2)`;
     });
     
     // Process SPREADDATES function: SPREADDATES(driver1,driver2,driver3) -> IF(AND(EOMONTH(AE$2,0)>=EOMONTH(driver2,0),EOMONTH(driver3,0)<=EOMONTH($I12,0)),driver1/(DATEDIF(driver2,driver3,"m")+1),0)
     // Note: Need to handle nested parentheses and comma separation
-    result = result.replace(/SPREADDATES\(([^,]+),([^,]+),([^)]+)\)/g, (match, driver1, driver2, driver3) => {
+    result = result.replace(/SPREADDATES\(([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3) => {
         // Trim whitespace from drivers
         driver1 = driver1.trim();
         driver2 = driver2.trim();
@@ -1280,44 +1280,44 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
 
     
     // Replace timeseriesdivisor with AE$7
-    result = result.replace(/timeseriesdivisor/g, (match) => {
+    result = result.replace(/timeseriesdivisor/gi, (match) => {
         const replacement = 'AE$7';
-        console.log(`    Replacing timeseriesdivisor with ${replacement}`);
+        console.log(`    Replacing ${match} with ${replacement}`);
         return replacement;
     });
     
     // Replace currentmonth with AE$2
-    result = result.replace(/currentmonth/g, (match) => {
+    result = result.replace(/currentmonth/gi, (match) => {
         const replacement = 'AE$2';
-        console.log(`    Replacing currentmonth with ${replacement}`);
+        console.log(`    Replacing ${match} with ${replacement}`);
         return replacement;
     });
     
     // Replace beginningmonth with $AE$2
-    result = result.replace(/beginningmonth/g, (match) => {
+    result = result.replace(/beginningmonth/gi, (match) => {
         const replacement = '$AE$2';
-        console.log(`    Replacing beginningmonth with ${replacement}`);
+        console.log(`    Replacing ${match} with ${replacement}`);
         return replacement;
     });
     
     // Replace currentyear with AE$3
-    result = result.replace(/currentyear/g, (match) => {
+    result = result.replace(/currentyear/gi, (match) => {
         const replacement = 'AE$3';
-        console.log(`    Replacing currentyear with ${replacement}`);
+        console.log(`    Replacing ${match} with ${replacement}`);
         return replacement;
     });
     
     // Replace yearend with AE$4
-    result = result.replace(/yearend/g, (match) => {
+    result = result.replace(/yearend/gi, (match) => {
         const replacement = 'AE$4';
-        console.log(`    Replacing yearend with ${replacement}`);
+        console.log(`    Replacing ${match} with ${replacement}`);
         return replacement;
     });
     
     // Replace beginningyear with $AE$2
-    result = result.replace(/beginningyear/g, (match) => {
+    result = result.replace(/beginningyear/gi, (match) => {
         const replacement = '$AE$2';
-        console.log(`    Replacing beginningyear with ${replacement}`);
+        console.log(`    Replacing ${match} with ${replacement}`);
         return replacement;
     });
     
@@ -3685,13 +3685,34 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
         const colAValues = colARange.values;
         const driverMap = new Map();
         
-        // Build driver map: driver name -> row number
+        // Check each row individually for green background color to filter driver map
+        const greenRows = new Set();
+        for (let i = 0; i < colAValues.length; i++) {
+            const rowNum = startRow + i;
+            try {
+                const cellB = worksheet.getRange(`B${rowNum}`);
+                cellB.load('format/fill/color');
+                await worksheet.context.sync();
+                
+                if (cellB.format && cellB.format.fill && cellB.format.fill.color === '#CCFFCC') {
+                    greenRows.add(rowNum);
+                }
+            } catch (colorError) {
+                // If we can't check color, assume it's not green
+                console.warn(`  Could not check color for row ${rowNum}, assuming not green`);
+            }
+        }
+        
+        // Build driver map: driver name -> row number (excluding green rows)
         for (let i = 0; i < colAValues.length; i++) {
             const value = colAValues[i][0];
-            if (value !== null && value !== "") {
-                const rowNum = startRow + i;
+            const rowNum = startRow + i;
+            
+            if (value !== null && value !== "" && !greenRows.has(rowNum)) {
                 driverMap.set(String(value), rowNum);
-                console.log(`  Driver map: ${value} -> row ${rowNum}`);
+                console.log(`  Driver map: ${value} -> row ${rowNum} (non-green)`);
+            } else if (value !== null && value !== "" && greenRows.has(rowNum)) {
+                console.log(`  Skipping green row driver: ${value} at row ${rowNum} (will be deleted)`);
             }
         }
         
@@ -3802,44 +3823,44 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
         });
             
             // Replace timeseriesdivisor with AE$7
-            formula = formula.replace(/timeseriesdivisor/g, (match) => {
+            formula = formula.replace(/timeseriesdivisor/gi, (match) => {
                 const replacement = 'AE$7';
-                console.log(`    Replacing timeseriesdivisor with ${replacement}`);
+                console.log(`    Replacing ${match} with ${replacement}`);
                 return replacement;
             });
             
             // Replace currentmonth with AE$2
-            formula = formula.replace(/currentmonth/g, (match) => {
+            formula = formula.replace(/currentmonth/gi, (match) => {
                 const replacement = 'AE$2';
-                console.log(`    Replacing currentmonth with ${replacement}`);
+                console.log(`    Replacing ${match} with ${replacement}`);
                 return replacement;
             });
             
             // Replace beginningmonth with $AE$2
-            formula = formula.replace(/beginningmonth/g, (match) => {
+            formula = formula.replace(/beginningmonth/gi, (match) => {
                 const replacement = '$AE$2';
-                console.log(`    Replacing beginningmonth with ${replacement}`);
+                console.log(`    Replacing ${match} with ${replacement}`);
                 return replacement;
             });
             
             // Replace currentyear with AE$3
-            formula = formula.replace(/currentyear/g, (match) => {
+            formula = formula.replace(/currentyear/gi, (match) => {
                 const replacement = 'AE$3';
-                console.log(`    Replacing currentyear with ${replacement}`);
+                console.log(`    Replacing ${match} with ${replacement}`);
                 return replacement;
             });
             
             // Replace yearend with AE$4
-            formula = formula.replace(/yearend/g, (match) => {
+            formula = formula.replace(/yearend/gi, (match) => {
                 const replacement = 'AE$4';
-                console.log(`    Replacing yearend with ${replacement}`);
+                console.log(`    Replacing ${match} with ${replacement}`);
                 return replacement;
             });
             
             // Replace beginningyear with $AE$2
-            formula = formula.replace(/beginningyear/g, (match) => {
+            formula = formula.replace(/beginningyear/gi, (match) => {
                 const replacement = '$AE$3';
-                console.log(`    Replacing beginningyear with ${replacement}`);
+                console.log(`    Replacing ${match} with ${replacement}`);
                 return replacement;
             });
             
@@ -3847,25 +3868,25 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             console.log(`  Parsing special functions in formula...`);
             
             // Process SPREAD function: SPREAD(driver) -> driver/AE$7
-            formula = formula.replace(/SPREAD\(([^)]+)\)/g, (match, driver) => {
+            formula = formula.replace(/SPREAD\(([^)]+)\)/gi, (match, driver) => {
                 console.log(`    Converting SPREAD(${driver}) to ${driver}/AE$7`);
                 return `(${driver}/AE$7)`;
             });
             
             // Process BEG function: BEG(driver) -> (EOMONTH(driver,0)<=AE$2)
-            formula = formula.replace(/BEG\(([^)]+)\)/g, (match, driver) => {
+            formula = formula.replace(/BEG\(([^)]+)\)/gi, (match, driver) => {
                 console.log(`    Converting BEG(${driver}) to (EOMONTH(${driver},0)<=AE$2)`);
                 return `(EOMONTH(${driver},0)<=AE$2)`;
             });
             
             // Process END function: END(driver) -> (EOMONTH(driver,0)>AE$2)
-            formula = formula.replace(/END\(([^)]+)\)/g, (match, driver) => {
+            formula = formula.replace(/END\(([^)]+)\)/gi, (match, driver) => {
                 console.log(`    Converting END(${driver}) to (EOMONTH(${driver},0)>AE$2)`);
                 return `(EOMONTH(${driver},0)>AE$2)`;
             });
             
             // Process RAISE function: RAISE(driver1,driver2) -> (1 + (driver1)) ^ (AE$3 - max(year(driver2), $AE3))
-            formula = formula.replace(/RAISE\(([^,]+),([^)]+)\)/g, (match, driver1, driver2) => {
+            formula = formula.replace(/RAISE\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
                 // Trim whitespace from drivers
                 driver1 = driver1.trim();
                 driver2 = driver2.trim();
@@ -3874,14 +3895,14 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             });
             
             // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=AE$2)
-            formula = formula.replace(/ONETIMEDATE\(([^)]+)\)/g, (match, driver) => {
+            formula = formula.replace(/ONETIMEDATE\(([^)]+)\)/gi, (match, driver) => {
                 console.log(`    Converting ONETIMEDATE(${driver}) to (EOMONTH((${driver}),0)=AE$2)`);
                 return `(EOMONTH((${driver}),0)=AE$2)`;
             });
             
             // Process SPREADDATES function: SPREADDATES(driver1,driver2,driver3) -> IF(AND(EOMONTH(AE$2,0)>=EOMONTH(driver2,0),EOMONTH(driver3,0)<=EOMONTH($I12,0)),driver1/(DATEDIF(driver2,driver3,"m")+1),0)
             // Note: Need to handle nested parentheses and comma separation
-            formula = formula.replace(/SPREADDATES\(([^,]+),([^,]+),([^)]+)\)/g, (match, driver1, driver2, driver3) => {
+            formula = formula.replace(/SPREADDATES\(([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3) => {
                 // Trim whitespace from drivers
                 driver1 = driver1.trim();
                 driver2 = driver2.trim();
