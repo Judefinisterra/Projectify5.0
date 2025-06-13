@@ -1557,42 +1557,42 @@ async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSeq
 }
 
 /**
- * Copies complete formatting from column P to column J and columns S through CX for a specific row
+ * Copies complete formatting from column O to column J and columns S through CX for a specific row
  * This includes number format (currency) and all font formatting (italic, bold, etc.)
  * @param {Excel.Worksheet} worksheet - The worksheet containing the cells
  * @param {number} rowNum - The row number to copy formatting for
  * @returns {Promise<void>}
  */
 async function copyColumnPFormattingToJAndSCX(worksheet, rowNum) {
-    console.log(`Copying complete column P formatting to J and S:CX for row ${rowNum}`);
+    console.log(`Copying complete column O formatting to J and S:CX for row ${rowNum}`);
     
     try {
         // Get the source cell and target ranges
-        const sourceCellP = worksheet.getRange(`P${rowNum}`);
+        const sourceCellO = worksheet.getRange(`O${rowNum}`);
         const targetCellJ = worksheet.getRange(`J${rowNum}`);
         const targetRangeSCX = worksheet.getRange(`S${rowNum}:CX${rowNum}`);
         
-        // Load complete formatting from source cell P
-        sourceCellP.load(["numberFormat", "format/font/italic", "format/font/bold"]);
+        // Load complete formatting from source cell O
+        sourceCellO.load(["numberFormat", "format/font/italic", "format/font/bold"]);
         await worksheet.context.sync();
         
-        // Copy complete formatting from P to J
-        targetCellJ.copyFrom(sourceCellP, Excel.RangeCopyType.formats);
+        // Copy complete formatting from O to J
+        targetCellJ.copyFrom(sourceCellO, Excel.RangeCopyType.formats);
         
-        // Copy complete formatting from P to S:CX range
-        targetRangeSCX.copyFrom(sourceCellP, Excel.RangeCopyType.formats);
+        // Copy complete formatting from O to S:CX range
+        targetRangeSCX.copyFrom(sourceCellO, Excel.RangeCopyType.formats);
         
         // Sync the formatting changes
         await worksheet.context.sync();
         
-        const numberFormat = sourceCellP.numberFormat[0][0];
-        console.log(`Successfully copied complete column P formatting to J${rowNum} and S${rowNum}:CX${rowNum}`);
+        const numberFormat = sourceCellO.numberFormat[0][0];
+        console.log(`Successfully copied complete column O formatting to J${rowNum} and S${rowNum}:CX${rowNum}`);
         console.log(`  Applied number format: ${numberFormat}`);
-        console.log(`  Applied font italic: ${sourceCellP.format.font.italic}`);
-        console.log(`  Applied font bold: ${sourceCellP.format.font.bold}`);
+        console.log(`  Applied font italic: ${sourceCellO.format.font.italic}`);
+        console.log(`  Applied font bold: ${sourceCellO.format.font.bold}`);
         
     } catch (error) {
-        console.error(`Error copying column P formatting to J and S:CX for row ${rowNum}: ${error.message}`);
+        console.error(`Error copying column O formatting to J and S:CX for row ${rowNum}: ${error.message}`);
         throw error;
     }
 }

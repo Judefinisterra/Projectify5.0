@@ -20,15 +20,15 @@ function validateCustomFormula(formula) {
         testFormula = '=' + testFormula;
     }
     
-    // >>> ADDED: Validate cd{} references - flag any cd{4} or greater
+    // >>> ADDED: Validate cd{} references - flag any cd{10} or greater
     const cdMatches = testFormula.match(/cd\{(\d+)\}/g);
     if (cdMatches) {
         cdMatches.forEach(match => {
             const numberMatch = match.match(/cd\{(\d+)\}/);
             if (numberMatch) {
                 const columnNumber = parseInt(numberMatch[1]);
-                if (columnNumber >= 4) {
-                    errors.push(`Invalid cd{${columnNumber}} reference found - column references of 4 or greater are not allowed. Think through the formula and compare against the values in columns 4-6 in the row parameter. Based on what makes the most sense, either remove the reference altogether or change to 3 or lower.`);
+                if (columnNumber >= 10) {
+                    errors.push(`Invalid cd{${columnNumber}} reference found - column references of 10 or greater are not allowed. Think through the formula and compare against the values in columns 4-12 in the row parameter. Based on what makes the most sense, either remove the reference altogether or change to 9 or lower.`);
                 }
             }
         });
