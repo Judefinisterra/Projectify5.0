@@ -1,0 +1,23 @@
+Whenever you are given % margin as an assumption. Ex. "I have a business that has 20% gross profit margins", special things need to be checked:
+
+1) The % margin assumption should be at the end of the calculation chain (see "% gross margin" row at the end of exmample)
+2) Gross Profit should not have a fincode. Make sure to check column 3 and delete any fincode if there is one. 
+3) COGS should be in between Revenue and Gross Profit rows. It is common for encoder to put COGS at the end. This is wrong. Move it so that it sits between revenue and gross profit. 
+4) COGS input driver1 should be the gross profit row (in example, R1) and driver2 should be revenue (V3). That way, COGS is backed into given gross profit and revenue by deducting revenue from gross profit and ending up with a negative value equal to COGS.  
+5) THIS STRUCTURE IS INCORRECT: <REVENUE><% MARGIN><GROSSPROFIT><BR><COGS>!!!!! It needs to be reordered.
+
+Example of correct chain:
+<LABELH1; row1 = "|Pizza Sales:|||||||||||">
+<SPREAD-E; format="Volume"; indent="1"; bold="true"; topborder="false"; row1 = "V1|# of Pizza Slices Sold|||||1000|1000|1000|1000|1000|1000|">
+<CONST-E; format="DollarItalic"; indent="2"; bold="false"; topborder="false"; row1 = "V2|Price per Slice|||||10|10|10|10|10|10|">
+<MULT2-S; driver1="V1"; driver2="V2"; indent="1"; bold="True"; topborder="True"; format="Dollar"; sumif="Year"; row1 = "R1|Revenue - Pizza|IS: revenue||||F|F|F|F|F|F|">
+<SUBTRACT2-S; driver1="R2"; driver2="R1"; indent="2"; bold="false"; topborder="false"; format="Dollar"; sumif="Year"; row1 = "R3|COGS - Pizza|IS: direct costs||||F|F|F|F|F|F|">
+<MULT2-S; driver1="R1"; driver2="V3"; indent="1"; bold="True"; topborder="true"; format="Dollar"; sumif="Year"; row1 = "R2|Gross Profit|||||F|F|F|F|F|F|">
+<CONST-E; format="Percent"; indent="2"; bold="false"; topborder="false"; row1 = "V3|% Gross Margin|||||.2|.2|.2|.2|.2|.2|">
+<BR; row1 = "||||||||||||">
+
+
+Validation:
+1) Is the last code in the chain that calculates COGS and Gross Profit the % margin assumption? If not, it is not correct. Move the % margin row to the end.
+2) Does the codestring that calculates COGS come after Gross Profit? If so, this is not correct. Reorder so that the COGS calculation comes before the Gross Profit calculation. 
+3) Does Gross Profit come after % Gross Margin? If so, this is incorrect. Reorder so that Gross Profit comes after % gross margin.

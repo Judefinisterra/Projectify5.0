@@ -2834,16 +2834,11 @@ export async function loadSelectedPromptModules(selectedModules) {
     if (DEBUG) console.log("[loadSelectedPromptModules] Loading content for selected modules:", selectedModules);
     
     const moduleContent = [];
-    const basePath = 'http://localhost:3003/src/prompts/';
-    const folderName = encodeURIComponent('Prompt Modules');
-    const fullBasePath = `${basePath}${folderName}/`;
-    
     let loadedCount = 0;
     let failedCount = 0;
     let totalContentLength = 0;
     
-    console.log(`🗂️ Base path: ${fullBasePath}`);
-    console.log("🔍 Using dynamic filename matching for modules in Prompt Modules folder");
+    console.log("🔍 Using same loading pattern as working prompt functions");
     
     for (const module of selectedModules) {
         const moduleStartTime = performance.now();
@@ -2858,20 +2853,44 @@ export async function loadSelectedPromptModules(selectedModules) {
         for (const fileName of possibleFilenames) {
             if (fileLoaded) break; // Skip remaining variants if we already found the file
             
-            try {
-                if (DEBUG) console.log(`[loadSelectedPromptModules] Trying ${fileName}...`);
-                
-                const fullUrl = `${fullBasePath}${fileName}`;
-                console.log(`🌐 Fetching: ${fullUrl}`);
-                const fetchStartTime = performance.now();
-                
-                const response = await fetch(fullUrl);
-                
-                const fetchEndTime = performance.now();
-                console.log(`📡 Fetch completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
-                console.log(`📊 Response status: ${response.status} ${response.statusText}`);
-                
-                if (response.ok) {
+            // Use the same path patterns as the working functions
+            const paths = [
+                `https://localhost:3002/prompts/${fileName}`, // Primary path (same as loadPromptFromFile)
+                `https://localhost:3002/src/prompts/${fileName}`, // Fallback path (same as srcPaths)
+                `https://localhost:3002/src/prompts/Prompt Modules/${fileName}`, // Specific module subfolder
+                `https://localhost:3002/prompts/Prompt Modules/${fileName}` // Alternative module subfolder
+            ];
+            
+            let response = null;
+            for (const path of paths) {
+                try {
+                    if (DEBUG) console.log(`[loadSelectedPromptModules] Trying ${fileName} at ${path}...`);
+                    console.log(`🌐 Fetching: ${path}`);
+                    const fetchStartTime = performance.now();
+                    
+                    response = await fetch(path);
+                    
+                    const fetchEndTime = performance.now();
+                    console.log(`📡 Fetch completed in ${(fetchEndTime - fetchStartTime).toFixed(2)}ms`);
+                    console.log(`📊 Response status: ${response.status} ${response.statusText}`);
+                    
+                    if (response.ok) {
+                        if (DEBUG) console.log(`[loadSelectedPromptModules] Successfully loaded from: ${path}`);
+                        console.log(`✅ Successfully found ${fileName} at: ${path}`);
+                        break;
+                    } else if (response.status === 404) {
+                        console.log(`⚠️ File not found at: ${path} (trying next path...)`);
+                    } else {
+                        console.warn(`❌ Failed to load from ${path}: ${response.status} ${response.statusText}`);
+                    }
+                } catch (err) {
+                    console.log(`💥 Error fetching from ${path}: ${err.message} (trying next path...)`);
+                    if (DEBUG) console.log(`[loadSelectedPromptModules] Error trying ${path}:`, err);
+                }
+            }
+            
+            if (response && response.ok) {
+                try {
                     const content = await response.text();
                     const contentLength = content.length;
                     totalContentLength += contentLength;
@@ -2889,14 +2908,10 @@ export async function loadSelectedPromptModules(selectedModules) {
                     
                     if (DEBUG) console.log(`[loadSelectedPromptModules] Successfully loaded ${fileName} (${content.length} chars)`);
                     break; // Exit the filename variant loop since we found the file
-                } else if (response.status === 404) {
-                    console.log(`⚠️ File not found: ${fileName} (trying next variant...)`);
-                } else {
-                    console.warn(`❌ Failed to load ${fileName}: ${response.status} ${response.statusText}`);
+                } catch (contentError) {
+                    console.error(`❌ Error reading content from ${fileName}:`, contentError);
+                    if (DEBUG) console.log(`[loadSelectedPromptModules] Content reading error:`, contentError);
                 }
-            } catch (error) {
-                console.log(`💥 Error trying ${fileName}: ${error.message} (trying next variant...)`);
-                if (DEBUG) console.log(`[loadSelectedPromptModules] Error trying ${fileName}:`, error);
             }
         }
         
