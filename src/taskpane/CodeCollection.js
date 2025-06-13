@@ -1986,6 +1986,9 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                             const customFormulaCell = currentWorksheet.getRange(`AE${currentRowNum}`);
                             customFormulaCell.values = [[code.params.customformula]];
                             console.log(`  Set customformula as value for FORMULA-S processing`);
+                            
+                            // Track this row for processFormulaSRows since column D will be overwritten
+                            addFormulaSRow(worksheetName, currentRowNum);
                         } catch (customFormulaError) {
                             console.error(`  Error applying customformula: ${customFormulaError.message}`);
                         }
@@ -3011,16 +3014,19 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      // Run Index Growth *before* deleting rows. Use updatedLastRow as the boundary.
                      await applyIndexGrowthCurveJS(currentWorksheet, updatedLastRow); 
                      
-                     // 7. Delete rows with green background (#CCFFCC) - AFTER Index Growth
+                     // 6.9 Process FORMULA-S rows - Convert driver references to cell references BEFORE deleting green rows
+                     console.log(`Processing FORMULA-S rows in ${worksheetName} (before green row deletion)...`);
+                     await processFormulaSRows(currentWorksheet, START_ROW, updatedLastRow);
+                     console.log(`Finished processing FORMULA-S rows`);
+                     
+                     // Clear the tracked FORMULA-S rows for this worksheet (cleanup)
+                     clearFormulaSRows(worksheetName);
+                     
+                     // 7. Delete rows with green background (#CCFFCC) - AFTER FORMULA-S processing
                      console.log(`Deleting green rows in ${worksheetName}...`);
                      // Changed START_ROW to START_ROW - 1 to include row 9
                      const finalLastRow = await deleteGreenRows(currentWorksheet, START_ROW - 1, updatedLastRow); // Get the new last row AFTER deletions
                      console.log(`After deleting green rows, last row is now: ${finalLastRow}`);
- 
-                     // 7.5 Process FORMULA-S rows - Convert driver references to cell references
-                     console.log(`Processing FORMULA-S rows in ${worksheetName}...`);
-                     await processFormulaSRows(currentWorksheet, START_ROW, finalLastRow);
-                     console.log(`Finished processing FORMULA-S rows`);
  
                      // 8. Autofill AE9:AE<lastRow> -> CX<lastRow> on Assumption Tab - Use finalLastRow
                      console.log(`Autofilling ${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow} to ${AUTOFILL_END_COLUMN} on ${worksheetName}`);
@@ -3660,24 +3666,11 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
     console.log(`Processing FORMULA-S rows in ${worksheet.name} from row ${startRow} to ${lastRow}`);
     
     try {
-        // Load values from column D to find FORMULA-S rows
-        const searchRangeAddress = `D${startRow}:D${lastRow}`;
-        const searchRange = worksheet.getRange(searchRangeAddress);
-        searchRange.load("values");
-        await worksheet.context.sync();
-        
-        // Find all rows with FORMULA-S in column D
-        const formulaSRows = [];
-        const searchValues = searchRange.values;
-        
-        for (let i = 0; i < searchValues.length; i++) {
-            if (searchValues[i][0] === "FORMULA-S") {
-                formulaSRows.push(startRow + i);
-            }
-        }
+        // Get stored FORMULA-S row positions (since column D may have been overwritten)
+        const formulaSRows = getFormulaSRows(worksheet.name);
         
         if (formulaSRows.length === 0) {
-            console.log("No FORMULA-S rows found");
+            console.log("No FORMULA-S rows found in tracker");
             return;
         }
         
@@ -3702,17 +3695,24 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             }
         }
         
-        // Define column mapping for cd: 1=I, 2=H, 3=G, etc.
+        // Define column mapping for cd: 1=A, 2=B, 3=C, etc. (matching columnSequence)
         const columnMapping = {
-            '1': 'I',
-            '2': 'H',
-            '3': 'G',
-            '4': 'F',
+            '1': 'A',
+            '2': 'B',
+            '3': 'C',
+            '4': 'D',
             '5': 'E',
-            '6': 'D',
-            '7': 'C',
-            '8': 'B',
-            '9': 'A'
+            '6': 'F',
+            '7': 'G',
+            '8': 'H',
+            '9': 'I',
+            '10': 'K',
+            '11': 'L',
+            '12': 'M',
+            '13': 'N',
+            '14': 'O',
+            '15': 'P',
+            '16': 'R'
         };
         
         // Process each FORMULA-S row
@@ -3779,7 +3779,7 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             
             const column = columnMapping[columnNum];
             if (!column) {
-                console.warn(`    Column number '${columnNum}' not valid (must be 1-9), keeping as is`);
+                console.warn(`    Column number '${columnNum}' not valid (must be 1-16), keeping as is`);
                 return match; // Keep the original if column number not valid
             }
             
@@ -4228,4 +4228,38 @@ export async function hideColumnsAndNavigate(assumptionTabNames) { // Renamed an
         console.error("Critical error in hideColumnsAndNavigate:", error);
         throw error; // Re-throw critical errors
     }
+}
+
+// Global storage for FORMULA-S row positions per worksheet
+const formulaSRowTracker = new Map(); // Map<worksheetName, Set<rowNumber>>
+
+/**
+ * Stores a FORMULA-S row position for later processing
+ * @param {string} worksheetName - Name of the worksheet
+ * @param {number} rowNumber - Row number containing customformula
+ */
+function addFormulaSRow(worksheetName, rowNumber) {
+    if (!formulaSRowTracker.has(worksheetName)) {
+        formulaSRowTracker.set(worksheetName, new Set());
+    }
+    formulaSRowTracker.get(worksheetName).add(rowNumber);
+    console.log(`  Tracked FORMULA-S row ${rowNumber} for worksheet ${worksheetName}`);
+}
+
+/**
+ * Gets stored FORMULA-S row positions for a worksheet
+ * @param {string} worksheetName - Name of the worksheet
+ * @returns {number[]} Array of row numbers
+ */
+function getFormulaSRows(worksheetName) {
+    const rows = formulaSRowTracker.get(worksheetName);
+    return rows ? Array.from(rows) : [];
+}
+
+/**
+ * Clears stored FORMULA-S row positions for a worksheet (cleanup)
+ * @param {string} worksheetName - Name of the worksheet
+ */
+function clearFormulaSRows(worksheetName) {
+    formulaSRowTracker.delete(worksheetName);
 }
