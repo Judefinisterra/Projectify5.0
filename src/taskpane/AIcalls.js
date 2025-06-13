@@ -2823,7 +2823,7 @@ export async function loadSelectedPromptModules(selectedModules) {
     if (DEBUG) console.log("[loadSelectedPromptModules] Loading content for selected modules:", selectedModules);
     
     const moduleContent = [];
-    const basePath = 'https://localhost:3002/prompts/';
+    const basePath = 'http://localhost:3003/src/prompts/';
     const folderName = encodeURIComponent('Prompt Modules');
     const fullBasePath = `${basePath}${folderName}/`;
     
