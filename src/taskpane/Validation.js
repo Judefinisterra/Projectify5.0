@@ -416,19 +416,23 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
                             }
                             
                             if (columnB) {
+                                // Remove column identifiers in parentheses (e.g., (L), (D), (C1), etc.) before tracking duplicates
+                                const columnBWithoutIdentifiers = columnB.replace(/\([^)]*\)/g, '');
                                 // Track this financial statement item for duplicate checking
-                                if (financialStatementItems.has(columnB)) {
-                                    const existing = financialStatementItems.get(columnB);
+                                if (financialStatementItems.has(columnBWithoutIdentifiers)) {
+                                    const existing = financialStatementItems.get(columnBWithoutIdentifiers);
                                     existing.push({ codeString, rowName, driver });
                                 } else {
-                                    financialStatementItems.set(columnB, [{ codeString, rowName, driver }]);
+                                    financialStatementItems.set(columnBWithoutIdentifiers, [{ codeString, rowName, driver }]);
                                 }
                             }
                         }
                     }
                     
                     // Track row drivers per tab
-                    if (driver && !driver.startsWith('*') && tabRowDrivers.has(currentTabForCode)) {
+                    // Skip drivers that are entirely within parentheses (column identifiers like (D), (L), etc.)
+                    const isColumnIdentifier = driver.startsWith('(') && driver.endsWith(')');
+                    if (driver && !driver.startsWith('*') && !isColumnIdentifier && tabRowDrivers.has(currentTabForCode)) {
                         const driversInThisTab = tabRowDrivers.get(currentTabForCode);
                         if (driversInThisTab.has(driver)) {
                             const existing = driversInThisTab.get(driver);
@@ -448,11 +452,15 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
                             // Add the ID after the asterisk
                             const afterAsterisk = trimmedPart.substring(1).trim();
                             if (afterAsterisk) {
-                                rowValues.add(afterAsterisk);
+                                // Remove column identifiers before adding to rowValues
+                                const cleanedValue = afterAsterisk.replace(/\([^)]*\)/g, '');
+                                rowValues.add(cleanedValue);
                             }
                         } else if (trimmedPart) {
+                            // Remove column identifiers before adding to rowValues
+                            const cleanedValue = trimmedPart.replace(/\([^)]*\)/g, '');
                             // Add regular IDs
-                            rowValues.add(trimmedPart);
+                            rowValues.add(cleanedValue);
                         }
                     });
                 }
@@ -600,12 +608,17 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
                         // Extract the driver (first part before |)
                         const driver = parts[0].trim();
                         
+                        // Skip drivers that are entirely within parentheses (column identifiers like (D), (L), etc.)
+                        const isColumnIdentifier = driver.startsWith('(') && driver.endsWith(')');
+                        
                         // Check if this driver already exists in this TAB
-                        if (driversInThisTab.has(driver)) {
-                            const existingRow = driversInThisTab.get(driver);
-                            errors.push(`[LERR003] Duplicate row driver "${driver}" found in ${codeString} - appears in both ${existingRow} and ${rowName}`);
-                        } else {
-                            driversInThisTab.set(driver, rowName);
+                        if (!isColumnIdentifier) {
+                            if (driversInThisTab.has(driver)) {
+                                const existingRow = driversInThisTab.get(driver);
+                                errors.push(`[LERR003] Duplicate row driver "${driver}" found in ${codeString} - appears in both ${existingRow} and ${rowName}`);
+                            } else {
+                                driversInThisTab.set(driver, rowName);
+                            }
                         }
                     }
                     
@@ -913,25 +926,31 @@ export async function validateLogicOnly(inputText) {
                         const columnC = parts[2].trim();
                         
                         if (columnC && (columnC.startsWith('IS:') || columnC.startsWith('BS:') || columnC.startsWith('CF:'))) {
+                            // Remove column identifiers in parentheses (e.g., (C1), (C2), etc.) before validation
+                            const columnCWithoutIdentifiers = columnC.replace(/\([^)]*\)/g, '');
                             // Validate against approved financial codes
-                            if (!validFinancialCodes.has(columnC.toLowerCase())) {
-                                errors.push(`[LERR013] Invalid financial statement code "${columnC}" in ${codeString} at ${rowName}. Must be one of the approved codes.`);
+                            if (!validFinancialCodes.has(columnCWithoutIdentifiers.toLowerCase())) {
+                                errors.push(`[LERR013] Invalid financial statement code "${columnCWithoutIdentifiers}" in ${codeString} at ${rowName}. Must be one of the approved codes.`);
                             }
                             
                             if (columnB) {
+                                // Remove column identifiers in parentheses (e.g., (L), (D), (C1), etc.) before tracking duplicates
+                                const columnBWithoutIdentifiers = columnB.replace(/\([^)]*\)/g, '');
                                 // Track this financial statement item for duplicate checking
-                                if (financialStatementItems.has(columnB)) {
-                                    const existing = financialStatementItems.get(columnB);
+                                if (financialStatementItems.has(columnBWithoutIdentifiers)) {
+                                    const existing = financialStatementItems.get(columnBWithoutIdentifiers);
                                     existing.push({ codeString, rowName, driver });
                                 } else {
-                                    financialStatementItems.set(columnB, [{ codeString, rowName, driver }]);
+                                    financialStatementItems.set(columnBWithoutIdentifiers, [{ codeString, rowName, driver }]);
                                 }
                             }
                         }
                     }
                     
                     // Track row drivers per tab (LOGIC ERROR - duplicates)
-                    if (driver && !driver.startsWith('*') && tabRowDrivers.has(currentTabForCode)) {
+                    // Skip drivers that are entirely within parentheses (column identifiers like (D), (L), etc.)
+                    const isColumnIdentifier = driver.startsWith('(') && driver.endsWith(')');
+                    if (driver && !driver.startsWith('*') && !isColumnIdentifier && tabRowDrivers.has(currentTabForCode)) {
                         const driversInThisTab = tabRowDrivers.get(currentTabForCode);
                         if (driversInThisTab.has(driver)) {
                             const existing = driversInThisTab.get(driver);
@@ -950,10 +969,14 @@ export async function validateLogicOnly(inputText) {
                         if (trimmedPart.startsWith('*')) {
                             const afterAsterisk = trimmedPart.substring(1).trim();
                             if (afterAsterisk) {
-                                rowValues.add(afterAsterisk);
+                                // Remove column identifiers before adding to rowValues
+                                const cleanedValue = afterAsterisk.replace(/\([^)]*\)/g, '');
+                                rowValues.add(cleanedValue);
                             }
                         } else if (trimmedPart) {
-                            rowValues.add(trimmedPart);
+                            // Remove column identifiers before adding to rowValues
+                            const cleanedValue = trimmedPart.replace(/\([^)]*\)/g, '');
+                            rowValues.add(cleanedValue);
                         }
                     });
                 }
