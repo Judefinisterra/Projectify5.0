@@ -200,7 +200,8 @@ function validateFormatRules(inputCodeStrings) {
         
         const codeType = codeMatch[1].trim();
         
-        // Check LABELH1/H2/H3 column 2 must end with colon
+        // Check LABELH1/H2/H3 column 2 must end with colon - COMMENTED OUT
+        /*
         if (codeType === 'LABELH1' || codeType === 'LABELH2' || codeType === 'LABELH3') {
             const rowMatch = codeString.match(/row1\s*=\s*"([^"]*)"/);
             if (rowMatch) {
@@ -210,12 +211,14 @@ function validateFormatRules(inputCodeStrings) {
                     const column2 = parts[1].trim();
                     // Remove column identifiers in parentheses (e.g., (L), (D), (C1), etc.) before checking colon
                     const column2WithoutIdentifiers = column2.replace(/\([^)]*\)/g, '');
+                    
                     if (column2WithoutIdentifiers && !column2WithoutIdentifiers.endsWith(':')) {
                         formatErrors.push(`[FERR002] Format validation: ${codeType} code column 2 must end with colon - ${codeString} should have "${column2WithoutIdentifiers}:" in column 2`);
                     }
                 }
             }
         }
+        */
         
 
         

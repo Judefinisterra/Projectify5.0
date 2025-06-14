@@ -4299,3 +4299,442 @@ function getFormulaSRows(worksheetName) {
 function clearFormulaSRows(worksheetName) {
     formulaSRowTracker.delete(worksheetName);
 }
+
+/**
+ * Adds missing column labels to row parameters in code strings
+ * Ensures all row parameters have the complete sequence: (D), (L), (F), (C1), (C2), (C3), (C4), (C5), (C6), (Y1), (Y2), (Y3), (Y4), (Y5), (Y6)
+ * @param {string} inputText - The input text containing code strings
+ * @returns {string} - The text with missing column labels added
+ */
+export function addMissingColumnLabels(inputText) {
+    try {
+        console.log("=".repeat(80));
+        console.log("[AddColumnLabels] STARTING MISSING COLUMN LABEL ADDITION");
+        console.log("[AddColumnLabels] Input type:", typeof inputText);
+        console.log("[AddColumnLabels] Input length:", inputText?.length || 0);
+        
+        // Define the expected column label sequence (15 positions total)
+        const expectedLabels = ['(D)', '(L)', '(F)', '(C1)', '(C2)', '(C3)', '(C4)', '(C5)', '(C6)', '(Y1)', '(Y2)', '(Y3)', '(Y4)', '(Y5)', '(Y6)'];
+        console.log(`[AddColumnLabels] Expected sequence: ${expectedLabels.join(' | ')}`);
+        
+        // Extract all code strings using regex pattern /<[^>]+>/g
+        const codeStringMatches = inputText.match(/<[^>]+>/g);
+        if (!codeStringMatches) {
+            console.log("[AddColumnLabels] No code strings found in input");
+            console.log("=".repeat(80));
+            return inputText;
+        }
+        
+        console.log(`[AddColumnLabels] Found ${codeStringMatches.length} code strings to process`);
+        
+        let modifiedText = inputText;
+        let totalModifications = 0;
+        
+        // Process each code string
+        for (const codeString of codeStringMatches) {
+            const originalCodeString = codeString;
+            let modifiedCodeString = codeString;
+            let codeStringModified = false;
+            
+            // Find all row parameters in this code string
+            const rowMatches = codeString.matchAll(/row(\d+)\s*=\s*"([^"]*)"/g);
+            
+            for (const match of rowMatches) {
+                const rowNum = match[1];
+                const originalRowValue = match[2];
+                const rowParameterFull = match[0]; // The full "row1="..." string
+                
+                // Split the row value by pipes
+                const parts = originalRowValue.split('|');
+                console.log(`[AddColumnLabels] Processing row${rowNum} with ${parts.length} parts`);
+                
+                // Create a new parts array with missing labels added
+                const newParts = [];
+                let partsIndex = 0;
+                let addedLabels = [];
+                
+                for (let expectedIndex = 0; expectedIndex < expectedLabels.length; expectedIndex++) {
+                    const expectedLabel = expectedLabels[expectedIndex];
+                    const currentPart = partsIndex < parts.length ? parts[partsIndex] : '';
+                    
+                    // Check if the current part contains the expected label
+                    if (currentPart.includes(expectedLabel)) {
+                        // Expected label is present, use the current part
+                        newParts.push(currentPart);
+                        partsIndex++;
+                    } else {
+                        // Expected label is missing, check if any content at this position should have the label
+                        if (currentPart.trim() !== '' && !currentPart.startsWith('(') && !currentPart.endsWith(')')) {
+                            // There's content but no label, add the label to the content
+                            newParts.push(currentPart + expectedLabel);
+                            partsIndex++;
+                            addedLabels.push(expectedLabel);
+                        } else {
+                            // No content at this position, insert just the label
+                            newParts.push(expectedLabel);
+                            addedLabels.push(expectedLabel);
+                            // Don't increment partsIndex since we're inserting, not replacing
+                        }
+                    }
+                }
+                
+                // Add any remaining parts (shouldn't happen with proper 15-part structure)
+                while (partsIndex < parts.length) {
+                    newParts.push(parts[partsIndex]);
+                    partsIndex++;
+                }
+                
+                // Ensure we have exactly 15 parts (or adjust if needed)
+                while (newParts.length < expectedLabels.length) {
+                    const missingLabel = expectedLabels[newParts.length];
+                    newParts.push(missingLabel);
+                    addedLabels.push(missingLabel);
+                }
+                
+                // Add final empty part if needed (to maintain pipe count)
+                if (newParts.length === expectedLabels.length) {
+                    newParts.push('');
+                }
+                
+                // Create the new row value
+                const newRowValue = newParts.join('|');
+                
+                // Check if modifications were made
+                if (originalRowValue !== newRowValue) {
+                    console.log(`[AddColumnLabels] Modified row${rowNum}:`);
+                    console.log(`  Before: "${originalRowValue}"`);
+                    console.log(`  After:  "${newRowValue}"`);
+                    console.log(`  Added labels: ${addedLabels.join(', ')}`);
+                    
+                    // Replace the row parameter in the code string
+                    const newRowParameter = `row${rowNum}="${newRowValue}"`;
+                    modifiedCodeString = modifiedCodeString.replace(rowParameterFull, newRowParameter);
+                    codeStringModified = true;
+                    totalModifications++;
+                }
+            }
+            
+            // Replace the original code string with the modified one in the full text
+            if (codeStringModified) {
+                modifiedText = modifiedText.replace(originalCodeString, modifiedCodeString);
+                console.log(`[AddColumnLabels] Code string modified: ${originalCodeString.substring(0, 50)}...`);
+            }
+        }
+        
+        console.log(`[AddColumnLabels] Processing complete. Total modifications: ${totalModifications}`);
+        console.log("=".repeat(80));
+        
+        return modifiedText;
+        
+    } catch (error) {
+        console.error("[AddColumnLabels] Error adding missing column labels:", error);
+        console.log("=".repeat(80));
+        return inputText; // Return original text if there's an error
+    }
+}
+
+/**
+ * Enhanced version that more intelligently detects and adds missing column labels
+ * @param {string} inputText - The input text containing code strings
+ * @returns {string} - The text with missing column labels added
+ */
+export function addMissingColumnLabelsEnhanced(inputText) {
+    try {
+        console.log("=".repeat(80));
+        console.log("[AddColumnLabelsEnhanced] STARTING ENHANCED MISSING COLUMN LABEL ADDITION");
+        
+        // Define the expected column label sequence (15 positions total)
+        const expectedLabels = ['(D)', '(L)', '(F)', '(C1)', '(C2)', '(C3)', '(C4)', '(C5)', '(C6)', '(Y1)', '(Y2)', '(Y3)', '(Y4)', '(Y5)', '(Y6)'];
+        
+        // Extract all code strings using regex pattern /<[^>]+>/g
+        const codeStringMatches = inputText.match(/<[^>]+>/g);
+        if (!codeStringMatches) {
+            console.log("[AddColumnLabelsEnhanced] No code strings found in input");
+            return inputText;
+        }
+        
+        let modifiedText = inputText;
+        let totalModifications = 0;
+        
+        // Process each code string
+        for (const codeString of codeStringMatches) {
+            let modifiedCodeString = codeString;
+            
+            // Find all row parameters in this code string
+            const rowMatches = codeString.matchAll(/row(\d+)\s*=\s*"([^"]*)"/g);
+            
+            for (const match of rowMatches) {
+                const rowNum = match[1];
+                const originalRowValue = match[2];
+                const rowParameterFull = match[0];
+                
+                // Split by pipes
+                const parts = originalRowValue.split('|');
+                
+                // Check which expected labels are present
+                const presentLabels = new Set();
+                parts.forEach(part => {
+                    expectedLabels.forEach(label => {
+                        if (part.includes(label)) {
+                            presentLabels.add(label);
+                        }
+                    });
+                });
+                
+                // Find missing labels
+                const missingLabels = expectedLabels.filter(label => !presentLabels.has(label));
+                
+                if (missingLabels.length > 0) {
+                    console.log(`[AddColumnLabelsEnhanced] Row${rowNum} missing labels: ${missingLabels.join(', ')}`);
+                    
+                    // Reconstruct the parts array with missing labels
+                    const newParts = [];
+                    
+                    for (let i = 0; i < expectedLabels.length; i++) {
+                        const expectedLabel = expectedLabels[i];
+                        
+                        // Find if this label exists in any part
+                        const partWithLabel = parts.find(part => part.includes(expectedLabel));
+                        
+                        if (partWithLabel) {
+                            newParts.push(partWithLabel);
+                        } else {
+                            // Check if there's content at this position without a label
+                            if (i < parts.length && parts[i] && !parts[i].startsWith('(')) {
+                                // There's content, but it might be meant for this position
+                                // Check if this content doesn't belong to a later expected label
+                                const hasLaterLabel = expectedLabels.slice(i + 1).some(laterLabel => 
+                                    parts[i].includes(laterLabel));
+                                
+                                if (!hasLaterLabel) {
+                                    // This content belongs here, add the label to it
+                                    newParts.push(parts[i] + expectedLabel);
+                                } else {
+                                    // This content belongs to a later position, insert empty label
+                                    newParts.push(expectedLabel);
+                                }
+                            } else {
+                                // No content, insert just the label
+                                newParts.push(expectedLabel);
+                            }
+                        }
+                    }
+                    
+                    // Ensure we end with empty string if needed
+                    if (newParts.length === expectedLabels.length && !originalRowValue.endsWith('|')) {
+                        newParts.push('');
+                    }
+                    
+                    const newRowValue = newParts.join('|');
+                    
+                    if (originalRowValue !== newRowValue) {
+                        console.log(`[AddColumnLabelsEnhanced] Modified row${rowNum}:`);
+                        console.log(`  Before: "${originalRowValue}"`);
+                        console.log(`  After:  "${newRowValue}"`);
+                        
+                        const newRowParameter = `row${rowNum}="${newRowValue}"`;
+                        modifiedCodeString = modifiedCodeString.replace(rowParameterFull, newRowParameter);
+                        totalModifications++;
+                    }
+                }
+            }
+            
+            // Replace in the full text
+            if (modifiedCodeString !== codeString) {
+                modifiedText = modifiedText.replace(codeString, modifiedCodeString);
+            }
+        }
+        
+        console.log(`[AddColumnLabelsEnhanced] Total modifications: ${totalModifications}`);
+        console.log("=".repeat(80));
+        
+        return modifiedText;
+        
+    } catch (error) {
+        console.error("[AddColumnLabelsEnhanced] Error:", error);
+        return inputText;
+    }
+}
+
+/**
+ * Simple wrapper function to add missing column labels after main encoder
+ * This function processes the text to ensure all row parameters have complete column label sequences
+ * @param {string} encodedText - The text output from the main encoder
+ * @returns {string} - The text with missing column labels added
+ */
+export function postProcessColumnLabels(encodedText) {
+    console.log("🏷️  [POST-PROCESSOR] Adding missing column labels to encoded text...");
+    
+    try {
+        // Use the enhanced version for better accuracy
+        const result = addMissingColumnLabelsEnhanced(encodedText);
+        console.log("✅ [POST-PROCESSOR] Column label post-processing complete");
+        return result;
+    } catch (error) {
+        console.error("❌ [POST-PROCESSOR] Error in column label post-processing:", error);
+        console.log("⚠️  [POST-PROCESSOR] Returning original text due to error");
+        return encodedText;
+    }
+}
+
+/**
+ * Targeted function that handles the specific missing label scenario like the user's example
+ * Focuses on ensuring C1-C6 and Y1-Y6 sequences are complete
+ * @param {string} inputText - The input text containing code strings
+ * @returns {string} - The text with missing column labels added
+ */
+export function fixMissingColumnLabels(inputText) {
+    try {
+        console.log("🔧 [COLUMN LABEL FIX] Starting targeted column label fix");
+        
+        let modifiedText = inputText;
+        let totalFixes = 0;
+        
+        // Process each code string
+        const codeStringPattern = /<[^>]+>/g;
+        const codeStrings = inputText.match(codeStringPattern) || [];
+        
+        for (const codeString of codeStrings) {
+            let updatedCodeString = codeString;
+            
+            // Find row parameters
+            const rowPattern = /row(\d+)\s*=\s*"([^"]*)"/g;
+            let match;
+            
+            while ((match = rowPattern.exec(codeString)) !== null) {
+                const rowNum = match[1];
+                const rowValue = match[2];
+                const fullMatch = match[0];
+                
+                // Split by pipes
+                const parts = rowValue.split('|');
+                
+                // Check for missing column labels in the sequence
+                const updatedParts = insertMissingLabelsInSequence(parts);
+                
+                if (updatedParts.join('|') !== rowValue) {
+                    const newRowValue = updatedParts.join('|');
+                    const newRowParam = `row${rowNum}="${newRowValue}"`;
+                    
+                    console.log(`🔧 [COLUMN LABEL FIX] Fixed row${rowNum}:`);
+                    console.log(`   Before: "${rowValue}"`);
+                    console.log(`   After:  "${newRowValue}"`);
+                    
+                    updatedCodeString = updatedCodeString.replace(fullMatch, newRowParam);
+                    totalFixes++;
+                }
+            }
+            
+            // Update the main text
+            if (updatedCodeString !== codeString) {
+                modifiedText = modifiedText.replace(codeString, updatedCodeString);
+            }
+        }
+        
+        console.log(`✅ [COLUMN LABEL FIX] Complete. Total fixes: ${totalFixes}`);
+        return modifiedText;
+        
+    } catch (error) {
+        console.error("❌ [COLUMN LABEL FIX] Error:", error);
+        return inputText;
+    }
+}
+
+/**
+ * Helper function to insert missing labels in the correct sequence
+ * @param {string[]} parts - Array of pipe-separated parts
+ * @returns {string[]} - Updated array with missing labels inserted
+ */
+function insertMissingLabelsInSequence(parts) {
+    // Expected sequence: (D), (L), (F), (C1), (C2), (C3), (C4), (C5), (C6), (Y1), (Y2), (Y3), (Y4), (Y5), (Y6)
+    const expectedSequence = ['(D)', '(L)', '(F)', '(C1)', '(C2)', '(C3)', '(C4)', '(C5)', '(C6)', '(Y1)', '(Y2)', '(Y3)', '(Y4)', '(Y5)', '(Y6)'];
+    
+    const result = [];
+    let partIndex = 0;
+    
+    for (let seqIndex = 0; seqIndex < expectedSequence.length; seqIndex++) {
+        const expectedLabel = expectedSequence[seqIndex];
+        
+        if (partIndex < parts.length) {
+            const currentPart = parts[partIndex];
+            
+            // Check if current part has the expected label
+            if (currentPart.includes(expectedLabel)) {
+                // Label is present, use this part
+                result.push(currentPart);
+                partIndex++;
+            } else {
+                // Check if current part has content but wrong/missing label
+                if (currentPart.trim() !== '' && !currentPart.match(/\([A-Z]\d*\)/)) {
+                    // Content without proper label - this might be meant for this position
+                    // But first check if it belongs to a later position
+                    const belongsToLaterPosition = expectedSequence.slice(seqIndex + 1).some(laterLabel =>
+                        currentPart.includes(laterLabel));
+                    
+                    if (!belongsToLaterPosition) {
+                        // Content belongs here, add the expected label
+                        result.push(currentPart + expectedLabel);
+                        partIndex++;
+                    } else {
+                        // Content belongs later, insert missing label
+                        result.push(expectedLabel);
+                        // Don't increment partIndex
+                    }
+                } else {
+                    // Insert missing label
+                    result.push(expectedLabel);
+                    // Don't increment partIndex
+                }
+            }
+        } else {
+            // No more parts, insert missing label
+            result.push(expectedLabel);
+        }
+    }
+    
+    // Add any remaining parts (like the final empty string)
+    while (partIndex < parts.length) {
+        result.push(parts[partIndex]);
+        partIndex++;
+    }
+    
+    return result;
+}
+
+/**
+ * Test function to demonstrate column label fixing with the user's example
+ * This shows how the missing (C4) label gets added automatically
+ */
+export function testColumnLabelFix() {
+    console.log("🧪 [TEST] Testing column label fix functionality");
+    
+    // User's original example - missing (C4)
+    const testInput = `<COLUMNHEADER-E; row1="(D)|~Hourly Employees:(L)|(F)|(C1)|(C2)|(C3)|~# of hours per week(C5)|~Hourly rate(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">`;
+    
+    console.log("📝 [TEST] Input:");
+    console.log(`   ${testInput}`);
+    
+    // Apply the fix
+    const result = fixMissingColumnLabels(testInput);
+    
+    console.log("📝 [TEST] Output:");
+    console.log(`   ${result}`);
+    
+    // Expected output should have (C4) inserted
+    const expected = `<COLUMNHEADER-E; row1="(D)|~Hourly Employees:(L)|(F)|(C1)|(C2)|(C3)|(C4)|~# of hours per week(C5)|~Hourly rate(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">`;
+    
+    console.log("🎯 [TEST] Expected:");
+    console.log(`   ${expected}`);
+    
+    // Check if it matches
+    const success = result === expected;
+    console.log(`${success ? '✅' : '❌'} [TEST] Test ${success ? 'PASSED' : 'FAILED'}`);
+    
+    if (!success) {
+        console.log("🔍 [TEST] Difference analysis:");
+        console.log(`   Result length: ${result.length}`);
+        console.log(`   Expected length: ${expected.length}`);
+    }
+    
+    return { input: testInput, result, expected, success };
+}

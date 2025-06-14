@@ -5,9 +5,11 @@ Employee-related Expense best practices:
 - Create separate tables for salaried employees, hourly employees, and contractors (unless the contractor is salaried or hourly, in which case they shuld be included in those tables)
 - For common size employees situations (i.e. "I will hire 200 engineers"), you should list every employee if the amount is under 30 across the projection period. If the number is >30, switch to forecasting # of FTE's - Type A with ENDPOINT-E and then multiply by a salary assumption. When using the second approach, you must not use the SUM2-S formula for the subtotal, as it will sum the # of FTE's into the payroll expense. Use FORMULA-S and add each row individually use rd{} instead.
 - Always include a COLUMNHEADER-E code at the top of each table
-- - Don't include things that aren't asked for. If no start date is given, assume the employee is already working and remove BEG from the formula. If no raise assumption is given, don't include a raise row or RAISE in the formula. 
+- Don't include things that aren't asked for. If no start date is given, assume the employee is already working and remove BEG from the formula. If no raise assumption is given, don't include a raise row or RAISE in the formula. 
+- Likewise, don't include column values that aren't used. If no start date is given, do not include a start date, even if the training data has a start date column.
+- The row for each employee is an expense and should include $ signs in front of each of the 6 F's (or another currency) but it must include SOME currency. Do not use naked F's. Likewise, these are aggregate values and should not include the ~ which would make them italic. 
+- If you create multiple lists for hourly, salary, contractors, etc., each should include its own subtotal and they must be separated from eachother with a BR code. 
 
-Non-employee related expense:
-- Create a single table for all items. Don't use a 
+
 
 

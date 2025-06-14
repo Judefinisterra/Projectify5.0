@@ -3429,7 +3429,55 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         console.log(responseArray);
         console.log("────────────────────────────────────────────────────────────────\n");
 
-        // 4. PIPE CORRECTION PHASE (runs before validation) - COMMENTED OUT
+        // 4. COLUMN LABEL POST-PROCESSING PHASE (runs after main encoder, before validation)
+        console.log("🏷️ === COLUMN LABEL POST-PROCESSING PHASE ===");
+        if (DEBUG) console.log("[getAICallsProcessedResponse] Running column label post-processing...");
+        const columnLabelStartTime = performance.now();
+        
+        try {
+            // Import the post-processing function
+            const { postProcessColumnLabels } = await import('./CodeCollection.js');
+            
+            // Convert responseArray to string for processing
+            const responseString = Array.isArray(responseArray) ? responseArray.join("\n") : String(responseArray);
+            
+            // Apply column label post-processing
+            const correctedResponseString = postProcessColumnLabels(responseString);
+            
+            // Convert back to array format to match expected format
+            if (Array.isArray(responseArray)) {
+                // Split back into array, handling both single and multiple code strings
+                const codeStringPattern = /<[^>]+>/g;
+                const correctedCodeStrings = correctedResponseString.match(codeStringPattern) || [];
+                
+                if (correctedCodeStrings.length > 0) {
+                    responseArray = correctedCodeStrings;
+                    console.log("✅ Column label post-processing completed - updated responseArray");
+                } else {
+                    console.log("⚠️ Column label post-processing: No code strings found in corrected output, keeping original");
+                }
+            } else {
+                responseArray = correctedResponseString;
+                console.log("✅ Column label post-processing completed - updated response string");
+            }
+            
+            // Log the corrected output for comparison
+            console.log("📊 Post-processed response length:", Array.isArray(responseArray) ? responseArray.length : "1 string");
+            if (DEBUG) {
+                console.log("Post-processed Response Array:");
+                console.log(responseArray);
+            }
+            
+        } catch (columnLabelError) {
+            console.error("❌ Error during column label post-processing:", columnLabelError);
+            console.log("⚠️ Continuing with original response due to post-processing error");
+            // Continue with original responseArray if post-processing fails
+        }
+        
+        const columnLabelEndTime = performance.now();
+        console.log(`🏁 Column label post-processing completed in ${(columnLabelEndTime - columnLabelStartTime).toFixed(2)}ms`);
+
+        // 6. PIPE CORRECTION PHASE (runs before validation) - COMMENTED OUT
         /*
         console.log("🔧 === PIPE CORRECTION PHASE ===");
         if (DEBUG) console.log("[getAICallsProcessedResponse] Running automatic pipe correction...");
@@ -3451,7 +3499,7 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         console.log(`🏁 Pipe correction phase completed in ${(pipeEndTime - pipeStartTime).toFixed(2)}ms`);
         */
 
-        // 5. Run logic validation and correction mechanism (up to 3 passes total)
+        // 6. Run logic validation and correction mechanism (up to 3 passes total)
         console.log("🔍 === LOGIC VALIDATION & CORRECTION PHASE ===");
         if (DEBUG) console.log("[getAICallsProcessedResponse] Running logic validation and correction mechanism...");
         let currentPassNumber = 1;
@@ -3491,7 +3539,7 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         console.log(`🏁 Logic validation phase completed in ${(validationEndTime - validationStartTime).toFixed(2)}ms`);
         if (DEBUG) console.log(`[getAICallsProcessedResponse] Logic validation and correction mechanism completed after ${currentPassNumber} pass(es)`);
 
-        // 6. Check for format errors and only call FormatGPT if errors exist
+        // 7. Check for format errors and only call FormatGPT if errors exist
         console.log("\n✨ === FORMAT VALIDATION & CORRECTION PHASE ===");
         if (DEBUG) console.log("[getAICallsProcessedResponse] Checking for format validation errors...");
         const formatStartTime = performance.now();

@@ -49,20 +49,20 @@ export async function validateFormatErrors(inputText) {
         
         const codeType = codeMatch[1].trim();
         
-        // Check LABELH1/H2/H3 column 2 must end with colon
-        if (codeType === 'LABELH1' || codeType === 'LABELH2' || codeType === 'LABELH3') {
-            const rowMatch = codeString.match(/row1\s*=\s*"([^"]*)"/);
-            if (rowMatch) {
-                const rowContent = rowMatch[1];
-                const parts = rowContent.split('|');
-                if (parts.length >= 2) {
-                    const column2 = parts[1].trim();
-                    if (column2 && !column2.endsWith(':')) {
-                        errors.push(`[FERR002] Format validation: ${codeType} code column 2 must end with colon - ${codeString} should have "${column2}:" in column 2`);
-                    }
-                }
-            }
-        }
+        // // Check LABELH1/H2/H3 column 2 must end with colon
+        // if (codeType === 'LABELH1' || codeType === 'LABELH2' || codeType === 'LABELH3') {
+        //     const rowMatch = codeString.match(/row1\s*=\s*"([^"]*)"/);
+        //     if (rowMatch) {
+        //         const rowContent = rowMatch[1];
+        //         const parts = rowContent.split('|');
+        //         if (parts.length >= 2) {
+        //             const column2 = parts[1].trim();
+        //             if (column2 && !column2.endsWith(':')) {
+        //                 errors.push(`[FERR002] Format validation: ${codeType} code column 2 must end with colon - ${codeString} should have "${column2}:" in column 2`);
+        //             }
+        //         }
+        //     }
+        // }
         
 
         
