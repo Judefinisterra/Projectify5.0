@@ -208,8 +208,10 @@ function validateFormatRules(inputCodeStrings) {
                 const parts = rowContent.split('|');
                 if (parts.length >= 2) {
                     const column2 = parts[1].trim();
-                    if (column2 && !column2.endsWith(':')) {
-                        formatErrors.push(`[FERR002] Format validation: ${codeType} code column 2 must end with colon - ${codeString} should have "${column2}:" in column 2`);
+                    // Remove column identifiers in parentheses (e.g., (L), (D), (C1), etc.) before checking colon
+                    const column2WithoutIdentifiers = column2.replace(/\([^)]*\)/g, '');
+                    if (column2WithoutIdentifiers && !column2WithoutIdentifiers.endsWith(':')) {
+                        formatErrors.push(`[FERR002] Format validation: ${codeType} code column 2 must end with colon - ${codeString} should have "${column2WithoutIdentifiers}:" in column 2`);
                     }
                 }
             }
@@ -406,9 +408,11 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
                         
                         // Check if column 3 starts with IS, BS, or CF
                         if (columnC && (columnC.startsWith('IS:') || columnC.startsWith('BS:') || columnC.startsWith('CF:'))) {
+                            // Remove column identifiers in parentheses (e.g., (C1), (C2), etc.) before validation
+                            const columnCWithoutIdentifiers = columnC.replace(/\([^)]*\)/g, '');
                             // Validate against approved financial codes
-                            if (!validFinancialCodes.has(columnC.toLowerCase())) {
-                                errors.push(`[LERR013] Invalid financial statement code "${columnC}" in ${codeString} at ${rowName}. Must be one of the approved codes.`);
+                            if (!validFinancialCodes.has(columnCWithoutIdentifiers.toLowerCase())) {
+                                errors.push(`[LERR013] Invalid financial statement code "${columnCWithoutIdentifiers}" in ${codeString} at ${rowName}. Must be one of the approved codes.`);
                             }
                             
                             if (columnB) {

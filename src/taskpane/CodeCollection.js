@@ -1175,17 +1175,17 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
     }
 
     // Process cd{} references before functions too
-    // Define column mapping for cd: 1=I, 2=H, 3=G, etc.
+    // Define column mapping for cd: 1=D, 2=E, 3=F, etc. (excluding A, B, C)
     const columnMapping = {
-        '1': 'I',
-        '2': 'H',
-        '3': 'G',
-        '4': 'F',
-        '5': 'E',
-        '6': 'D',
-        '7': 'C',
-        '8': 'B',
-        '9': 'A'
+        '1': 'D',
+        '2': 'E',
+        '3': 'F',
+        '4': 'G',
+        '5': 'H',
+        '6': 'I',
+        '7': 'J',
+        '8': 'K',
+        '9': 'L'
     };
     
     // Replace all cd{number} or cd{number-driverName} or cd{driverName-number} patterns with column references
@@ -2060,17 +2060,17 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                             const comments = code.params.columncomment.split('\\');
                             console.log(`  Comment array: [${comments.join(', ')}]`);
                             
-                            // Define column mapping (same as for columnformat)
+                            // Define column mapping (excluding A, B, C columns)
                             const columnMapping = {
-                                '1': 'I',
-                                '2': 'H',
-                                '3': 'G',
-                                '4': 'F',
-                                '5': 'E',
-                                '6': 'D',
-                                '7': 'C',
-                                '8': 'B',
-                                '9': 'A'
+                                '1': 'D',
+                                '2': 'E',
+                                '3': 'F',
+                                '4': 'G',
+                                '5': 'H',
+                                '6': 'I',
+                                '7': 'J',
+                                '8': 'K',
+                                '9': 'L'
                             };
                             
                             // Apply each comment to its corresponding column
@@ -3731,24 +3731,24 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             }
         }
         
-        // Define column mapping for cd: 1=A, 2=B, 3=C, etc. (matching columnSequence)
+        // Define column mapping for cd: 1=D, 2=E, 3=F, etc. (excluding A, B, C)
         const columnMapping = {
-            '1': 'A',
-            '2': 'B',
-            '3': 'C',
-            '4': 'D',
-            '5': 'E',
-            '6': 'F',
-            '7': 'G',
-            '8': 'H',
-            '9': 'I',
-            '10': 'K',
-            '11': 'L',
-            '12': 'M',
-            '13': 'N',
-            '14': 'O',
-            '15': 'P',
-            '16': 'R'
+            '1': 'D',
+            '2': 'E',
+            '3': 'F',
+            '4': 'G',
+            '5': 'H',
+            '6': 'I',
+            '7': 'J',
+            '8': 'K',
+            '9': 'L',
+            '10': 'M',
+            '11': 'N',
+            '12': 'O',
+            '13': 'P',
+            '14': 'Q',
+            '15': 'R',
+            '16': 'S'
         };
         
         // Process each FORMULA-S row

@@ -103,13 +103,13 @@ COLUMNHEADER-E allows labeling of fixed assumptions in columns 4-6.
 
 FORMULA-S custom functions:
 rd{row driver}: Allows reference of the same column in rows in other codestrings. Ex. customformula = "rd{V1}" >>> in month 1 (which is in column AE), if V1 is on row 15, the formula on this row will be "= AE15"
-cd{column driver}: Allows reference to column of the same row or other rows. The mapping follows the data column sequence: cd{1} = Column A, cd{2} = Column B, cd{3} = Column C, cd{4} = Column D, cd{5} = Column E, cd{6} = Column F, cd{7} = Column G, cd{8} = Column H, cd{9} = Column I, cd{10} = Column K, cd{11} = Column L, cd{12} = Column M, cd{13} = Column N, cd{14} = Column O, cd{15} = Column P, cd{16} = Column R. Ex. customformula = "cd{1}" >>> if we are on row 10, transforms to = $A10
+cd{column driver}: Allows reference to column of the same row or other rows. The mapping follows the data column labels: cd{1} = (C1), cd{2} = (C2). etc.
 
 IMPORTANT NOTE: The current system supports 16 columns with 15 pipe separators. Each row1 parameter must have exactly 15 "|" symbols and end with a "|". The columns map sequentially to Excel columns A, B, C, D, E, F, G, H, I, K, L, M, N, O, P, R (skipping J and Q).
-cd{column driver-row driver}: Set reference to column of other rows. Ex. customformula = "cd{1-V1}" >>> V1 is on row 10, formula set to "=$A10" 
-BEG(columndriver): Sets the monthly calc to 0 until on or after a given start date. Ex. customerfomrula = "1000 * BEG(cd{1})"
+cd{column driver-row driver}: Set reference to column of other rows. Ex. customformula = "cd{6-V1}" >>> V1 is on row 10, formula set to "=$I10" since (C6) = column I 
+BEG(columndriver): Sets the monthly calc to 0 until on or after a given start date. Ex. customerfomrula = "1000 * BEG(cd{6})" >>> If (C6) has a value of "1/1/2026", the monthly time series would show 0 until after 1/1/2026, at which point it would show 1000. 
 END(columndriver): Does the same thing as end but sets all formulas to 0 that are after the enddate assumption
-SPREADDATES(columndriver1, columndriver2, columndriver3): Driver 1 is amount, driver 2 is start date, driver 3 is end date. Spreads an amount evenly between two dates. Ex. customformula = "SPREADDATES(cd{3},cd{2},cd{1})". If column 2 is Jan 2025 and column 1 is March 2025, each month will have a value of 333.   
+SPREADDATES(columndriver1, columndriver2, columndriver3): Driver 1 is amount, driver 2 is start date, driver 3 is end date. Spreads an amount evenly between two dates. Ex. customformula = "SPREADDATES(cd{6},cd{5},cd{4})". If CD(5) is Jan 2025 and CD(4) is March 2025, and CD(6) is 1000 each month will have a value of 333.   
 SPREAD(columndriver): Spreads an annual amount in the column driver to monthly time series by dividing by 12. Ex. customformula = "SPREAD(120000)" >>> monthly calculation would be 10,000. Useful for salaries. 
 ONETIMEDATE(columndriver): Causes calculation to be 0 on all dates excpet a given date. Ex. customformula = "1000 * ONETIME(cd{1})". If column 1 has a date of Jan 2027, ever month except Jan 2027 will show a value of 0. Jan 2027 will have a value of 1000. 
 RAISE(row driver): Increase by a percentage assumption each calendar year. Ex. customformula = "1000 * RAISE(rd{V1}) >>> V1 row has 3% in that month. Each year after the start date of that item, it would increase 3%.
