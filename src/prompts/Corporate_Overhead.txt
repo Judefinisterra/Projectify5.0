@@ -12,7 +12,14 @@ Employee-related Expense best practices:
 
 
 Employee specific custom formula codes:
-- RAISE(% calendar year growth, start date): Takes % calendar year increase as driver 1 and start date as driver 2. Creates a factor that increases by x% each calendar year after the start date. Note: A START DATE COLUMN MUST BE INCLUDED WHEN USING RAISE. If no start date is mentioned in the prompt for an employee, default to Jan 1 2025. 
+- RAISE(% calendar year growth, start date): Takes % calendar year increase as driver 1 and start date as driver 2. Creates a factor that increases by x% each calendar year after the start date. Note: A START DATE COLUMN MUST BE INCLUDED WHEN USING RAISE. If no start date is mentioned in the prompt for an employee, default to Jan 1 2025.
+- ANNBONUS(amount, month #): Takes an amount as driver 1 and month number as driver 2. Creates an annual bonus that pays out each calendar year during the specified month. Driver 1 should be an amount and driver 2 should be the month # of the bonus (i.e. 12 for December). If the month is 12 (December), you can use a hard code. All other months must reference a column or row driver. The purpose is an annual bonus paid out each calendar year.
+- QUARTERBONUS(amount): Takes an amount as driver 1. Creates a quarterly bonus that pays out at the end of each quarter (March, June, September, December). Driver 1 should be an amount. The purpose is a quarterly bonus paid out each quarter end.
+- BEG(start date): Takes a start date as driver and creates a condition that is true (1) when the current month is at or after the start date, false (0) otherwise. Used to start an expense from a specific date forward. Multiply your base amount by BEG to have expenses begin at the specified date.
+- END(end date): Takes an end date as driver and creates a condition that is true (1) when the current month is before or at the end date, false (0) otherwise. Used to stop an expense at a specific date. Multiply your base amount by END to have expenses end at the specified date.
+- ONETIMEDATE(specific date): Takes a specific date as driver and creates a condition that is true (1) only during the exact month of that date, false (0) otherwise. Used for one-time expenses that occur in a specific month (e.g., signing bonuses, equipment purchases).
+- SPREAD(annual amount): Takes an annual amount and spreads it evenly across the time series divisor period. Used to convert annual amounts to monthly amounts when the model uses monthly periods.
+- SPREADDATES(total amount, start date, end date): Takes a total amount and spreads it evenly across the months between start date and end date (inclusive). Used for expenses that should be distributed over a specific time period rather than paid in one lump sum. 
 
 
 

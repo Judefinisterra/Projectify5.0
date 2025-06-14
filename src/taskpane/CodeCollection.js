@@ -1271,6 +1271,23 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         return `(1 + (${driver1})) ^ (AE$3 - max(year(${driver2}), $AE3))`;
     });
     
+    // Process ANNBONUS function: ANNBONUS(driver1,driver2) -> (driver1*(MONTH(AE$2)=driver2))
+    result = result.replace(/ANNBONUS\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
+        // Trim whitespace from drivers
+        driver1 = driver1.trim();
+        driver2 = driver2.trim();
+        console.log(`    Converting ANNBONUS(${driver1},${driver2}) to (${driver1}*(MONTH(AE$2)=${driver2}))`);
+        return `(${driver1}*(MONTH(AE$2)=${driver2}))`;
+    });
+    
+    // Process QUARTERBONUS function: QUARTERBONUS(driver1) -> (driver1*(AE$6<>0))
+    result = result.replace(/QUARTERBONUS\(([^)]+)\)/gi, (match, driver1) => {
+        // Trim whitespace from driver
+        driver1 = driver1.trim();
+        console.log(`    Converting QUARTERBONUS(${driver1}) to (${driver1}*(AE$6<>0))`);
+        return `(${driver1}*(AE$6<>0))`;
+    });
+    
     // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=AE$2)
     result = result.replace(/ONETIMEDATE\(([^)]+)\)/gi, (match, driver) => {
         console.log(`    Converting ONETIMEDATE(${driver}) to (EOMONTH((${driver}),0)=AE$2)`);
@@ -3961,6 +3978,23 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                 driver2 = driver2.trim();
                 console.log(`    Converting RAISE(${driver1},${driver2}) to (1 + (${driver1})) ^ (AE$3 - max(year(${driver2}), $AE3))`);
                 return `(1 + (${driver1})) ^ (AE$3 - max(year(${driver2}), $AE3))`;
+            });
+            
+            // Process ANNBONUS function: ANNBONUS(driver1,driver2) -> (driver1*(MONTH(AE$2)=driver2))
+            formula = formula.replace(/ANNBONUS\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
+                // Trim whitespace from drivers
+                driver1 = driver1.trim();
+                driver2 = driver2.trim();
+                console.log(`    Converting ANNBONUS(${driver1},${driver2}) to (${driver1}*(MONTH(AE$2)=${driver2}))`);
+                return `(${driver1}*(MONTH(AE$2)=${driver2}))`;
+            });
+            
+            // Process QUARTERBONUS function: QUARTERBONUS(driver1) -> (driver1*(AE$6<>0))
+            formula = formula.replace(/QUARTERBONUS\(([^)]+)\)/gi, (match, driver1) => {
+                // Trim whitespace from driver
+                driver1 = driver1.trim();
+                console.log(`    Converting QUARTERBONUS(${driver1}) to (${driver1}*(AE$6<>0))`);
+                return `(${driver1}*(AE$6<>0))`;
             });
             
             // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=AE$2)
