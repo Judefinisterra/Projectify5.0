@@ -84,21 +84,28 @@ export function resetValidationPassCounter() {
  *    - Supports reasoning effort control and built-in tools
  *    - Function: callOpenAIResponses()
  * 
- * 3. Unified Interface: callOpenAI()
- *    - Automatically chooses between the two APIs based on configuration
- *    - For main encoder calls: controlled by USE_RESPONSES_API_FOR_ENCODER flag
+ * 3. Claude API (Anthropic): /v1/messages
+ *    - Uses message arrays with separate system prompt and user messages
+ *    - Supports Claude models (claude-sonnet-4-20250514, etc.)
+ *    - Function: callClaudeAPI()
+ *
+ * 4. Unified Interface: callOpenAI()
+ *    - Automatically chooses between the three APIs based on configuration
+ *    - For main encoder calls: controlled by ENCODER_API_TYPE setting
  *    - For other calls: uses Chat Completions API by default
- *    - Can be overridden per-call with useResponsesAPI option
+ *    - Can be overridden per-call with useResponsesAPI or useClaudeAPI options
  * 
  * Configuration:
- *    - setUseResponsesAPIForEncoder(true/false): Enable/disable responses API for encoder
- *    - getUseResponsesAPIForEncoder(): Check current setting
+ *    - setEncoderAPIType(ENCODER_API_TYPES.CHAT_COMPLETIONS|RESPONSES|CLAUDE): Set encoder API type
+ *    - getEncoderAPIType(): Get current encoder API type
+ *    - Backward compatibility functions also available
  */
 
 // API keys storage - initialized by initializeAPIKeys
 let INTERNAL_API_KEYS = {
   OPENAI_API_KEY: "",
-  PINECONE_API_KEY: ""
+  PINECONE_API_KEY: "",
+  CLAUDE_API_KEY: ""
 };
 
 // Function to set API keys from outside this module
@@ -111,6 +118,10 @@ export function setAPIKeys(keys) {
     if (keys.PINECONE_API_KEY) {
       INTERNAL_API_KEYS.PINECONE_API_KEY = keys.PINECONE_API_KEY;
       console.log("AIcalls.js: Pinecone API key set externally");
+    }
+    if (keys.CLAUDE_API_KEY) {
+      INTERNAL_API_KEYS.CLAUDE_API_KEY = keys.CLAUDE_API_KEY;
+      console.log("AIcalls.js: Claude API key set externally");
     }
   }
 }
@@ -178,8 +189,15 @@ export async function initializeAPIKeys() {
          console.warn("Pinecone API key not found in config.js.");
     }
 
+    if (configApiKeys?.CLAUDE_API_KEY) {
+        INTERNAL_API_KEYS.CLAUDE_API_KEY = configApiKeys.CLAUDE_API_KEY;
+        console.log("Claude API key loaded from config.js");
+    } else {
+         console.warn("Claude API key not found in config.js.");
+    }
+
     // Fallback: try fetching from the old location if config.js didn't provide them
-    if (!INTERNAL_API_KEYS.OPENAI_API_KEY || !INTERNAL_API_KEYS.PINECONE_API_KEY) {
+    if (!INTERNAL_API_KEYS.OPENAI_API_KEY || !INTERNAL_API_KEYS.PINECONE_API_KEY || !INTERNAL_API_KEYS.CLAUDE_API_KEY) {
         console.log("Attempting fallback API key loading from https://localhost:3002/config.js");
         try {
             const configResponse = await fetch('https://localhost:3002/config.js');
@@ -188,6 +206,7 @@ export async function initializeAPIKeys() {
                 // Extract keys from the config text using regex
                 const openaiKeyMatch = configText.match(/OPENAI_API_KEY\s*=\s*["']([^"']+)["']/);
                 const pineconeKeyMatch = configText.match(/PINECONE_API_KEY\s*=\s*["']([^"']+)["']/);
+                const claudeKeyMatch = configText.match(/CLAUDE_API_KEY\s*=\s*["']([^"']+)["']/);
 
                 if (!INTERNAL_API_KEYS.OPENAI_API_KEY && openaiKeyMatch && openaiKeyMatch[1]) {
                     INTERNAL_API_KEYS.OPENAI_API_KEY = openaiKeyMatch[1];
@@ -198,6 +217,11 @@ export async function initializeAPIKeys() {
                 if (!INTERNAL_API_KEYS.PINECONE_API_KEY && pineconeKeyMatch && pineconeKeyMatch[1]) {
                     INTERNAL_API_KEYS.PINECONE_API_KEY = pineconeKeyMatch[1];
                     console.log("Pinecone API key loaded via fetch fallback.");
+                }
+
+                if (!INTERNAL_API_KEYS.CLAUDE_API_KEY && claudeKeyMatch && claudeKeyMatch[1]) {
+                    INTERNAL_API_KEYS.CLAUDE_API_KEY = claudeKeyMatch[1];
+                    console.log("Claude API key loaded via fetch fallback.");
                 }
             } else {
                  console.warn("Fallback fetch for config.js failed or returned non-OK status.");
@@ -215,8 +239,11 @@ export async function initializeAPIKeys() {
     console.log("  PINECONE_API_KEY:", INTERNAL_API_KEYS.PINECONE_API_KEY ?
       `${INTERNAL_API_KEYS.PINECONE_API_KEY.substring(0, 3)}...${INTERNAL_API_KEYS.PINECONE_API_KEY.substring(INTERNAL_API_KEYS.PINECONE_API_KEY.length - 3)}` :
       "Not found");
+    console.log("  CLAUDE_API_KEY:", INTERNAL_API_KEYS.CLAUDE_API_KEY ?
+      `${INTERNAL_API_KEYS.CLAUDE_API_KEY.substring(0, 3)}...${INTERNAL_API_KEYS.CLAUDE_API_KEY.substring(INTERNAL_API_KEYS.CLAUDE_API_KEY.length - 3)}` :
+      "Not found");
 
-    const keysFound = !!(INTERNAL_API_KEYS.OPENAI_API_KEY && INTERNAL_API_KEYS.PINECONE_API_KEY);
+    const keysFound = !!(INTERNAL_API_KEYS.OPENAI_API_KEY && INTERNAL_API_KEYS.PINECONE_API_KEY && INTERNAL_API_KEYS.CLAUDE_API_KEY);
     console.log("API Keys Initialized:", keysFound);
     // Return a copy to prevent external modification of the internal state
     return { ...INTERNAL_API_KEYS };
@@ -224,7 +251,7 @@ export async function initializeAPIKeys() {
   } catch (error) {
     console.error("Error initializing API keys:", error);
     // Return empty keys on error
-    return { OPENAI_API_KEY: "", PINECONE_API_KEY: "" };
+    return { OPENAI_API_KEY: "", PINECONE_API_KEY: "", CLAUDE_API_KEY: "" };
   }
 }
 
@@ -265,18 +292,50 @@ const GPTO3 = "gpt-o3"
 const GPT_O3 = "o3"  // Added for responses API
 const GPTFT1 =  "ft:gpt-4.1-2025-04-14:personal:jun25gpt4-1:BeyDTNt1"
 
-// API Configuration
-let USE_RESPONSES_API_FOR_ENCODER = false; // Set to true to use responses API for main encoder calls
+// API Configuration - Encoder API Type Selection
+const ENCODER_API_TYPES = {
+  CHAT_COMPLETIONS: 'chat_completions',
+  RESPONSES: 'responses',
+  CLAUDE: 'claude'
+};
+
+let ENCODER_API_TYPE = ENCODER_API_TYPES.CLAUDE; // Default to chat completions API
 
 // Functions to control API configuration
+export function setEncoderAPIType(apiType) {
+  if (Object.values(ENCODER_API_TYPES).includes(apiType)) {
+    ENCODER_API_TYPE = apiType;
+    console.log(`[setEncoderAPIType] Encoder API type set to: ${apiType}`);
+  } else {
+    console.error(`[setEncoderAPIType] Invalid API type: ${apiType}. Valid options: ${Object.values(ENCODER_API_TYPES).join(', ')}`);
+  }
+}
+
+export function getEncoderAPIType() {
+  return ENCODER_API_TYPE;
+}
+
+// Backward compatibility functions
 export function setUseResponsesAPIForEncoder(useResponsesAPI) {
-  USE_RESPONSES_API_FOR_ENCODER = useResponsesAPI;
-  console.log(`[setUseResponsesAPIForEncoder] Responses API for encoder set to: ${useResponsesAPI}`);
+  ENCODER_API_TYPE = useResponsesAPI ? ENCODER_API_TYPES.RESPONSES : ENCODER_API_TYPES.CHAT_COMPLETIONS;
+  console.log(`[setUseResponsesAPIForEncoder] Encoder API type set to: ${ENCODER_API_TYPE} (backward compatibility)`);
 }
 
 export function getUseResponsesAPIForEncoder() {
-  return USE_RESPONSES_API_FOR_ENCODER;
+  return ENCODER_API_TYPE === ENCODER_API_TYPES.RESPONSES;
 }
+
+export function setUseClaudeAPIForEncoder(useClaudeAPI) {
+  ENCODER_API_TYPE = useClaudeAPI ? ENCODER_API_TYPES.CLAUDE : ENCODER_API_TYPES.CHAT_COMPLETIONS;
+  console.log(`[setUseClaudeAPIForEncoder] Encoder API type set to: ${ENCODER_API_TYPE}`);
+}
+
+export function getUseClaudeAPIForEncoder() {
+  return ENCODER_API_TYPE === ENCODER_API_TYPES.CLAUDE;
+}
+
+// Export the constants for external use
+export { ENCODER_API_TYPES };
 
 // Helper function to test responses API with a simple call
 export async function testResponsesAPI(input, options = {}) {
@@ -302,6 +361,39 @@ export async function testResponsesAPI(input, options = {}) {
     return response;
   } catch (error) {
     console.error("[testResponsesAPI] Test failed:", error);
+    throw error;
+  }
+}
+
+// Helper function to test Claude API with a simple call
+export async function testClaudeAPI(input, options = {}) {
+  console.log("[testClaudeAPI] Testing Claude API...");
+  
+  const testMessages = [
+    { role: "system", content: "You are a helpful assistant." },
+    { role: "user", content: input }
+  ];
+  
+  const testOptions = {
+    model: "claude-sonnet-4-20250514",
+    temperature: 1,
+    stream: false,
+    caller: "testClaudeAPI",
+    ...options
+  };
+  
+  try {
+    let response = "";
+    for await (const contentPart of callClaudeAPI(testMessages, testOptions)) {
+      response += contentPart;
+    }
+    
+    console.log("[testClaudeAPI] Test completed successfully");
+    console.log("[testClaudeAPI] Response length:", response.length);
+    
+    return response;
+  } catch (error) {
+    console.error("[testClaudeAPI] Test failed:", error);
     throw error;
   }
 }
@@ -633,24 +725,203 @@ export async function* callOpenAIResponses(input, options = {}) {
   }
 }
 
-// Unified OpenAI API call function that chooses between Chat Completions and Responses API
+// Direct Claude API call function (for Anthropic models)
+export async function* callClaudeAPI(messages, options = {}) {
+  const { model = "claude-sonnet-4-20250514", temperature = 1, stream = false, caller = "Unknown" } = options;
+
+  try {
+    console.log(`Calling Claude API with model: ${model}, stream: ${stream}`);
+    
+    // >>> ADDED: Comprehensive logging for Claude API calls
+    let callName = "Unknown";
+    
+    if (caller.includes("Structure_System")) {
+      callName = "Prompt Breakup";
+    } else if (caller.includes("Encoder_System") || caller.includes("Encoder_Main")) {
+      callName = "Main Encoder";
+    } else if (caller.includes("LogicCheckerGPT")) {
+      callName = "Logic Checker GPT";
+    } else if (caller.includes("FormatGPT")) {
+      callName = "Format GPT";
+    } else if (caller.includes("Validation_System")) {
+      const passMatch = caller.match(/PASS_(\d+)/);
+      const passNumber = passMatch ? passMatch[1] : "1";
+      callName = `Validation Pass ${passNumber}`;
+    }
+    
+    console.log("\n╔════════════════════════════════════════════════════════════════╗");
+    console.log(`║              CLAUDE API CALL - ${callName.padEnd(25)} ║`);
+    console.log("╠════════════════════════════════════════════════════════════════╣");
+    console.log(`║ CALLER: ${caller.padEnd(54)} ║`);
+    console.log(`║ FILE: AIcalls.js                                               ║`);
+    console.log(`║ FUNCTION: callClaudeAPI()                                      ║`);
+    console.log("╚════════════════════════════════════════════════════════════════╝");
+    console.log(`Model: ${model}`);
+    console.log(`Temperature: ${temperature}`);
+    console.log(`Stream: ${stream}`);
+    console.log(`Total Messages: ${messages.length}`);
+    console.log("────────────────────────────────────────────────────────────────");
+    
+    messages.forEach((message, index) => {
+      console.log(`\n[Message ${index + 1}] Role: ${message.role.toUpperCase()}`);
+      console.log("────────────────────────────────────────────────────────────────");
+      console.log(message.content);
+      console.log("────────────────────────────────────────────────────────────────");
+    });
+    
+    console.log("\n╔════════════════════════════════════════════════════════════════╗");
+    console.log(`║              END OF ${callName.toUpperCase()} CALL${' '.repeat(Math.max(0, 25 - callName.length))}║`);
+    console.log("╚════════════════════════════════════════════════════════════════╝\n");
+
+    if (!INTERNAL_API_KEYS.CLAUDE_API_KEY) {
+      throw new Error("Claude API key not found. Please check your API keys.");
+    }
+
+    // Extract system message and user messages for Claude API format
+    let systemMessage = "";
+    const userMessages = [];
+    
+    for (const message of messages) {
+      if (message.role === "system") {
+        systemMessage = message.content;
+      } else if (message.role === "user" || message.role === "assistant") {
+        userMessages.push({
+          role: message.role,
+          content: [
+            {
+              type: "text",
+              text: message.content
+            }
+          ]
+        });
+      }
+    }
+
+    const body = {
+      model: model,
+      max_tokens: 20000,
+      temperature: temperature,
+      system: systemMessage,
+      messages: userMessages
+    };
+
+    if (stream) {
+      body.stream = true;
+    }
+
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': INTERNAL_API_KEYS.CLAUDE_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: "Failed to parse error JSON." }));
+      console.error("Claude API error response:", errorData);
+      throw new Error(`Claude API error: ${response.status} ${response.statusText} - ${errorData.message || JSON.stringify(errorData)}`);
+    }
+
+    if (stream) {
+      console.log("Claude API response received (stream)");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          console.log("Stream finished.");
+          break;
+        }
+        const chunk = decoder.decode(value);
+        const lines = chunk.split("\n");
+        const parsedLines = lines
+          .map((line) => line.replace(/^data: /, "").trim())
+          .filter((line) => line !== "" && line !== "[DONE]")
+          .map((line) => {
+            try {
+              return JSON.parse(line);
+            } catch (e) {
+              console.warn("Could not parse JSON line from stream:", line, e);
+              return null;
+            }
+          })
+          .filter(line => line !== null);
+
+        for (const parsedLine of parsedLines) {
+          yield parsedLine;
+        }
+      }
+    } else {
+      const data = await response.json();
+      console.log("Claude API response received (non-stream)");
+      
+      // Extract content from Claude API response
+      if (data.content && Array.isArray(data.content) && data.content.length > 0) {
+        const textContent = data.content
+          .filter(item => item.type === "text")
+          .map(item => item.text)
+          .join("");
+        yield textContent;
+      } else {
+        yield JSON.stringify(data); // Fallback to full response
+      }
+      return;
+    }
+
+  } catch (error) {
+    console.error("Error calling Claude API:", error);
+    if (!stream) throw error;
+  }
+}
+
+// Unified API call function that chooses between Chat Completions, Responses, and Claude APIs
 export async function* callOpenAI(messagesOrInput, options = {}) {
-  const { useResponsesAPI = false, model = GPT_O3, caller = "Unknown" } = options;
+  const { useResponsesAPI = false, useClaudeAPI = false, model = GPT_O3, caller = "Unknown" } = options;
   
-  // Determine if this is a main encoder call and should use responses API
+  // Determine if this is a main encoder call and should use the configured encoder API
   const isMainEncoderCall = caller.includes("Encoder_System") || caller.includes("Encoder_Main") || 
                            caller.includes("processPrompt() - Encoder_System") ||
                            caller.includes("processPrompt() - Encoder_Main");
   
-  const shouldUseResponsesAPI = useResponsesAPI || (USE_RESPONSES_API_FOR_ENCODER && isMainEncoderCall);
+  let apiTypeToUse = null;
   
-  if (shouldUseResponsesAPI && (model === GPT_O3 || model === GPTO3)) {
+  if (isMainEncoderCall) {
+    // Use the configured encoder API type for main encoder calls
+    apiTypeToUse = ENCODER_API_TYPE;
+  } else {
+    // For non-encoder calls, use explicit options or default to chat completions
+    if (useClaudeAPI) {
+      apiTypeToUse = ENCODER_API_TYPES.CLAUDE;
+    } else if (useResponsesAPI) {
+      apiTypeToUse = ENCODER_API_TYPES.RESPONSES;
+    } else {
+      apiTypeToUse = ENCODER_API_TYPES.CHAT_COMPLETIONS;
+    }
+  }
+  
+  // Ensure we have messages array format for all APIs
+  let messages = messagesOrInput;
+  if (typeof messagesOrInput === 'string') {
+    // Convert string to messages array
+    messages = [{ role: "user", content: messagesOrInput }];
+  }
+  
+  if (apiTypeToUse === ENCODER_API_TYPES.CLAUDE) {
+    // Use Claude API
+    console.log(`[callOpenAI] Using Claude API for ${caller} with model ${model}`);
+    yield* callClaudeAPI(messages, options);
+  } else if (apiTypeToUse === ENCODER_API_TYPES.RESPONSES && (model === GPT_O3 || model === GPTO3)) {
     // Use Responses API - convert messages to single input string
     let input = "";
     
-    if (Array.isArray(messagesOrInput)) {
+    if (Array.isArray(messages)) {
       // Convert messages array to single input string
-      for (const message of messagesOrInput) {
+      for (const message of messages) {
         if (message.role === "system") {
           input += `System: ${message.content}\n\n`;
         } else if (message.role === "user") {
@@ -668,16 +939,8 @@ export async function* callOpenAI(messagesOrInput, options = {}) {
     console.log(`[callOpenAI] Using Responses API for ${caller} with model ${model}`);
     yield* callOpenAIResponses(input, options);
   } else {
-    // Use Chat Completions API
+    // Use Chat Completions API (default)
     console.log(`[callOpenAI] Using Chat Completions API for ${caller} with model ${model}`);
-    
-    // Ensure we have messages array for chat completions
-    let messages = messagesOrInput;
-    if (typeof messagesOrInput === 'string') {
-      // Convert string to messages array
-      messages = [{ role: "user", content: messagesOrInput }];
-    }
-    
     yield* callOpenAIChatCompletions(messages, options);
   }
 }
@@ -957,11 +1220,8 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
           }
       }
 
-      for (let i = 0; i < queryStrings.length; i++) {
-          const queryString = queryStrings[i];
-          const chunkNumber = i + 1;
-          
-          // Call progress callback if provided
+      // Create async function to process each chunk
+      const processChunk = async (queryString, chunkNumber) => {
           if (progressCallback) {
               progressCallback(`Processing chunk ${chunkNumber} of ${queryStrings.length}: "${queryString.substring(0, 50)}${queryString.length > 50 ? '...' : ''}"`);
           }
@@ -973,52 +1233,82 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
           }
           
           try {
-              // Make sure queryVectorDB uses the internal API keys
-              const queryResults = {
-                  query: queryString,
-                  trainingData: await queryVectorDB({
+              // Process both database queries in parallel for each chunk
+              const [trainingData, call2Context] = await Promise.all([
+                  queryVectorDB({
                       queryPrompt: queryString,
                       similarityThreshold: .4,
                       indexName: 'call2trainingdata',
                       numResults: 30
                   }),
-                  call2Context: await queryVectorDB({
+                  queryVectorDB({
                       queryPrompt: queryString,
                       similarityThreshold: .2,
                       indexName: 'call2context',
                       numResults: 20
-                  }),
+                  })
+              ]);
 
-                //   codeOptions: await queryVectorDB({
-                //       queryPrompt: queryString,
-                //       indexName: 'codes',
-                //       numResults: 3,
-                //       similarityThreshold: .1
-                //   })
+              const queryResults = {
+                  query: queryString,
+                  trainingData,
+                  call2Context
               };
-
-              results.push(queryResults);
               
               if (DEBUG) {
                   console.log(`Chunk ${chunkNumber} results summary:`);
                   console.log(`  - Training data: ${queryResults.trainingData.length} items`);
                   console.log(`  - Context: ${queryResults.call2Context.length} items`);
-                //   console.log(`  - Call1 context: ${queryResults.call1Context.length} items`);
-                //   console.log(`  - Code options: ${queryResults.codeOptions.length} items`);
                   console.log(`=== END CHUNK ${chunkNumber} ===`);
               }
               
-              // Call progress callback for completion of this chunk
               if (progressCallback) {
                   progressCallback(`Completed chunk ${chunkNumber} of ${queryStrings.length}`);
               }
+
+              return queryResults;
           } catch (error) {
               console.error(`Error processing query "${queryString}":`, error);
-              // Continue with next query instead of failing completely
               if (progressCallback) {
                   progressCallback(`Error in chunk ${chunkNumber}: ${error.message}`);
               }
+              // Return null for failed chunks, we'll filter them out later
+              return null;
           }
+      };
+
+      // Process all chunks in parallel
+      if (progressCallback) {
+          progressCallback(`Starting parallel processing of ${queryStrings.length} chunks...`);
+      }
+      
+      if (DEBUG) {
+          console.log(`=== PROCESSING ${queryStrings.length} CHUNKS IN PARALLEL ===`);
+      }
+
+      const chunkPromises = queryStrings.map((queryString, index) => 
+          processChunk(queryString, index + 1)
+      );
+
+      // Wait for all chunks to complete (using allSettled to handle partial failures)
+      const chunkResults = await Promise.allSettled(chunkPromises);
+      
+      // Process results and handle any failures
+      chunkResults.forEach((result, index) => {
+          if (result.status === 'fulfilled' && result.value !== null) {
+              results.push(result.value);
+          } else if (result.status === 'rejected') {
+              console.error(`Chunk ${index + 1} failed with error:`, result.reason);
+              if (progressCallback) {
+                  progressCallback(`Chunk ${index + 1} failed: ${result.reason.message}`);
+              }
+          }
+          // Note: fulfilled but null results (handled errors) are already logged in processChunk
+      });
+
+      if (DEBUG) {
+          console.log(`=== PARALLEL PROCESSING COMPLETED ===`);
+          console.log(`Successfully processed ${results.length - 1} out of ${queryStrings.length} chunks`); // -1 to exclude full prompt query
       }
 
       if (results.length === 0 && queryStrings.length > 0) {
@@ -1898,12 +2188,20 @@ export async function handleInitialConversation(clientprompt) {
                            `Main Prompt: ${mainPromptText}`;
 
     // Call the LLM (processPrompt uses OpenAI key internally)
-    // Use o3 model if responses API is enabled for encoder, otherwise use o3-mini
-    const encoderModel = USE_RESPONSES_API_FOR_ENCODER ? GPT_O3 : GPT_O3mini;
-    const apiType = USE_RESPONSES_API_FOR_ENCODER ? "Responses API" : "Chat Completions API";
+    // Use appropriate model and API based on encoder configuration
+    let encoderModel = GPT_O3mini;
+    let apiType = "Chat Completions API";
+    
+    if (ENCODER_API_TYPE === ENCODER_API_TYPES.RESPONSES) {
+        encoderModel = GPT_O3;
+        apiType = "Responses API";
+    } else if (ENCODER_API_TYPE === ENCODER_API_TYPES.CLAUDE) {
+        encoderModel = "claude-sonnet-4-20250514";
+        apiType = "Claude API";
+    }
     
     console.log(`🔧 Initial conversation using ${apiType} with model: ${encoderModel}`);
-    console.log(`📊 Responses API for encoder: ${USE_RESPONSES_API_FOR_ENCODER ? 'ENABLED' : 'DISABLED'}`);
+    console.log(`📊 Current encoder API type: ${ENCODER_API_TYPE}`);
     
     let outputArray = await processPrompt({
         userInput: initialCallPrompt,
@@ -3396,12 +3694,20 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
         console.log("\n🤖 === MAIN AI PROCESSING CALL ===");
         console.log("🚀 Calling main encoder with enhanced prompt...");
         
-        // Use o3 model if responses API is enabled for encoder, otherwise use o3-mini
-        const encoderModel = USE_RESPONSES_API_FOR_ENCODER ? GPT_O3 : GPT_O3mini;
-        const apiType = USE_RESPONSES_API_FOR_ENCODER ? "Responses API" : "Chat Completions API";
+        // Use appropriate model and API based on encoder configuration
+        let encoderModel = GPT_O3mini;
+        let apiType = "Chat Completions API";
+        
+        if (ENCODER_API_TYPE === ENCODER_API_TYPES.RESPONSES) {
+            encoderModel = GPT_O3;
+            apiType = "Responses API";
+        } else if (ENCODER_API_TYPE === ENCODER_API_TYPES.CLAUDE) {
+            encoderModel = "claude-sonnet-4-20250514";
+            apiType = "Claude API";
+        }
         
         console.log(`🔧 Using ${apiType} with model: ${encoderModel}`);
-        console.log(`📊 Responses API for encoder: ${USE_RESPONSES_API_FOR_ENCODER ? 'ENABLED' : 'DISABLED'}`);
+        console.log(`📊 Current encoder API type: ${ENCODER_API_TYPE}`);
         
         const mainAIStartTime = performance.now();
         

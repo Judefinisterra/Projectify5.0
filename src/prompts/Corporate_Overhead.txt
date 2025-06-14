@@ -11,5 +11,9 @@ Employee-related Expense best practices:
 - If you create multiple lists for hourly, salary, contractors, etc., each should include its own subtotal and they must be separated from eachother with a BR code. 
 
 
+Employee specific custom formula codes:
+- RAISE(% calendar year growth, start date): Takes % calendar year increase as driver 1 and start date as driver 2. Creates a factor that increases by x% each calendar year after the start date. 
+
+
 
 

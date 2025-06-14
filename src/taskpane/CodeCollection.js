@@ -1402,8 +1402,13 @@ function parseValueWithSymbols(valueString) {
         isItalic = true;
         cleanValue = cleanValue.substring(1); // Remove ~ prefix
         
+        // Check if it ends with % for percentage formatting
+        if (cleanValue.endsWith('%')) {
+            formatType = 'percent';
+            cleanValue = cleanValue.substring(0, cleanValue.length - 1); // Remove % from clean value
+        }
         // If after removing ~, it's a number or "F", apply volume formatting
-        if (cleanValue === 'F' || (!isNaN(Number(cleanValue)) && cleanValue.trim() !== '')) {
+        else if (cleanValue === 'F' || (!isNaN(Number(cleanValue)) && cleanValue.trim() !== '')) {
             formatType = 'volume';
         }
     }
