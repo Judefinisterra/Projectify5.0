@@ -2093,21 +2093,22 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
             console.log("User prompt preview:", followupPrompt.substring(0, 300) + "...");
         }
 
-        // Make direct OpenAI call (not using processPrompt to avoid any history manipulation)
+        // Make direct Claude API call (not using processPrompt to avoid any history manipulation)
         const messages = [
             { role: "system", content: followupSystemPrompt },
             { role: "user", content: followupPrompt }
         ];
 
-        const openaiCallOptions = { 
-            model: GPT_O3mini, 
+        const claudeCallOptions = { 
+            model: "claude-sonnet-4-20250514", 
             temperature: 1, 
             stream: false,
+            useClaudeAPI: true,
             caller: "handleFollowUpConversation - Standalone"
         };
 
         let responseContent = "";
-        for await (const contentPart of callOpenAI(messages, openaiCallOptions)) {
+        for await (const contentPart of callOpenAI(messages, claudeCallOptions)) {
             responseContent += contentPart;
         }
 
