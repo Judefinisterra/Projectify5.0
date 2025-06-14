@@ -18,6 +18,9 @@ Column Label Requirements: Every row parameter must include the proper column la
 - The final column (16) should end with "|" and remain empty
 
 These column labels are essential for the system to properly process and clean the row parameters before execution. ALL must be present, even if there is no value in that column! Double and tripple check at the end to make sure that every column label is included. Ex. <COLUMNHEADER-E; row1="(D)|~Hourly Employees:(L)|(F)|(C1)|(C2)|(C3)|~# of hours per week(C5)|~Hourly rate(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"> is incorrect because it is missing (C4). The correct codrestring would be <COLUMNHEADER-E; row1="(D)|~Hourly Employees:(L)|(F)|(C1)|(C2)|(C3)|(C4)|~# of hours per week(C5)|~Hourly rate(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+YOU ARE NOT ALLOWED TO ADD COLUMNS! Ex. adding (CD7) is not allowed any will cause the model to break and you to be fired by your MD! Instead, use columns 1-6 to add new assumptions. 
+
+
 
 Monthly columns: The monthly columns exist to the right of Y1-Y6 and contain formulas that can generally not be changed. The only exception is the customformula parameter in FORMULA-S, discussed in more detail below, which directly inputs the formulas used in the monthly columns. 
 Output driver: this is the driver of the current codestring, found in column 1. The output driver of one codestring can by used as the input driver of another codestring. Ex. <SUM2-S; driver1="V3"; driver2="R4"; bold="true"; topborder="true"; format="Dollar"; indent="1"; italic="true"; sumif="Yearend"; row1 = "R5|Ending |0||||~F|~F|~F|~F|~F|~F|"> "R5" is the output driver of this codestring. 
@@ -57,6 +60,11 @@ Validation checks:
 4)	"F" columns must remain unchanged. Do not improvise "F" values that weren't in the original codestring. Do not override any F values. If row1="|~F|~F|~F|~F|~F|~F|" row1 must keep all 6 F's in the same locations. DO NOT REMOVE OR OVERWRITE THEM!  
 5) You MUST not add or remove any of the rowx parameters. If the trianing data codestring has row1 and row2 parameters, your use of that codestring must also have row1 and row2. Removing row2 or adding a row3 will cause a runtime error.
 6) Column Label Structure: Every row parameter must have the proper column labels in parentheses: (D)|(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|. This is critical - the system automatically removes these labels before processing, so they MUST be present for proper functionality. If they are missing, the entire system will fail!
+7) Are (D), (L), (F), (C1), (C2), (C3), (C4), (C5), (C6), (Y1), (Y2), (Y3), (Y4), (Y5), and (Y6) present in every row parameter? If not, add the missing column! They must be present or the codes will not work!
+8) Are any extra column labels present? I.e (C7) or greater or (Y7) or greater? If so, remove these! Including them will cause the code to break!
+9) Double check 7 and 8.
+10) Tripple check 7 and 8.
+
 
 IMPORTANT NOTE: The current system supports 16 columns with 15 pipe separators. Each row1 parameter must have the required column labels (D), (L), (F), (C1)-(C6), (Y1)-(Y6) in parentheses with exactly 15 "|" symbols and end with a "|". The columns map sequentially to Excel columns A, B, C, D, E, F, G, H, I, K, L, M, N, O, P, R (skipping J and Q).
 

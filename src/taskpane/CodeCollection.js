@@ -4344,8 +4344,18 @@ export function addMissingColumnLabels(inputText) {
                 const originalRowValue = match[2];
                 const rowParameterFull = match[0]; // The full "row1="..." string
                 
-                // Split the row value by pipes
-                const parts = originalRowValue.split('|');
+                // Clean up extra pipes before processing
+                const cleanedRowValue = originalRowValue.replace(/\|\|+/g, '|'); // Replace double+ pipes with single
+                
+                // Log pipe cleanup if changes were made
+                if (originalRowValue !== cleanedRowValue) {
+                    console.log(`[AddColumnLabels] Cleaned extra pipes in row${rowNum}:`);
+                    console.log(`  Before: "${originalRowValue}"`);
+                    console.log(`  After:  "${cleanedRowValue}"`);
+                }
+                
+                // Split the cleaned row value by pipes
+                const parts = cleanedRowValue.split('|');
                 console.log(`[AddColumnLabels] Processing row${rowNum} with ${parts.length} parts`);
                 
                 // Create a new parts array with missing labels added
@@ -4399,12 +4409,17 @@ export function addMissingColumnLabels(inputText) {
                 // Create the new row value
                 const newRowValue = newParts.join('|');
                 
-                // Check if modifications were made
-                if (originalRowValue !== newRowValue) {
+                // Check if modifications were made (either pipe cleanup or label additions)
+                if (cleanedRowValue !== newRowValue || originalRowValue !== cleanedRowValue) {
                     console.log(`[AddColumnLabels] Modified row${rowNum}:`);
-                    console.log(`  Before: "${originalRowValue}"`);
-                    console.log(`  After:  "${newRowValue}"`);
-                    console.log(`  Added labels: ${addedLabels.join(', ')}`);
+                    console.log(`  Original: "${originalRowValue}"`);
+                    if (originalRowValue !== cleanedRowValue) {
+                        console.log(`  Pipe cleaned: "${cleanedRowValue}"`);
+                    }
+                    console.log(`  Final: "${newRowValue}"`);
+                    if (addedLabels.length > 0) {
+                        console.log(`  Added labels: ${addedLabels.join(', ')}`);
+                    }
                     
                     // Replace the row parameter in the code string
                     const newRowParameter = `row${rowNum}="${newRowValue}"`;
@@ -4468,8 +4483,18 @@ export function addMissingColumnLabelsEnhanced(inputText) {
                 const originalRowValue = match[2];
                 const rowParameterFull = match[0];
                 
+                // Clean up extra pipes before processing
+                const cleanedRowValue = originalRowValue.replace(/\|\|+/g, '|'); // Replace double+ pipes with single
+                
+                // Log pipe cleanup if changes were made
+                if (originalRowValue !== cleanedRowValue) {
+                    console.log(`[AddColumnLabelsEnhanced] Cleaned extra pipes in row${rowNum}:`);
+                    console.log(`  Before: "${originalRowValue}"`);
+                    console.log(`  After:  "${cleanedRowValue}"`);
+                }
+                
                 // Split by pipes
-                const parts = originalRowValue.split('|');
+                const parts = cleanedRowValue.split('|');
                 
                 // Check which expected labels are present
                 const presentLabels = new Set();
@@ -4527,10 +4552,13 @@ export function addMissingColumnLabelsEnhanced(inputText) {
                     
                     const newRowValue = newParts.join('|');
                     
-                    if (originalRowValue !== newRowValue) {
+                    if (cleanedRowValue !== newRowValue || originalRowValue !== cleanedRowValue) {
                         console.log(`[AddColumnLabelsEnhanced] Modified row${rowNum}:`);
-                        console.log(`  Before: "${originalRowValue}"`);
-                        console.log(`  After:  "${newRowValue}"`);
+                        console.log(`  Original: "${originalRowValue}"`);
+                        if (originalRowValue !== cleanedRowValue) {
+                            console.log(`  Pipe cleaned: "${cleanedRowValue}"`);
+                        }
+                        console.log(`  Final: "${newRowValue}"`);
                         
                         const newRowParameter = `row${rowNum}="${newRowValue}"`;
                         modifiedCodeString = modifiedCodeString.replace(rowParameterFull, newRowParameter);
@@ -4557,18 +4585,19 @@ export function addMissingColumnLabelsEnhanced(inputText) {
 }
 
 /**
- * Simple wrapper function to add missing column labels after main encoder
+ * Simple wrapper function to add missing column labels and clean up extra pipes after main encoder
  * This function processes the text to ensure all row parameters have complete column label sequences
+ * and removes any extra consecutive pipe symbols (|| becomes |)
  * @param {string} encodedText - The text output from the main encoder
- * @returns {string} - The text with missing column labels added
+ * @returns {string} - The text with missing column labels added and extra pipes cleaned up
  */
 export function postProcessColumnLabels(encodedText) {
-    console.log("🏷️  [POST-PROCESSOR] Adding missing column labels to encoded text...");
+    console.log("🏷️  [POST-PROCESSOR] Adding missing column labels and cleaning pipes in encoded text...");
     
     try {
         // Use the enhanced version for better accuracy
         const result = addMissingColumnLabelsEnhanced(encodedText);
-        console.log("✅ [POST-PROCESSOR] Column label post-processing complete");
+        console.log("✅ [POST-PROCESSOR] Column label and pipe cleanup post-processing complete");
         return result;
     } catch (error) {
         console.error("❌ [POST-PROCESSOR] Error in column label post-processing:", error);
@@ -4606,19 +4635,32 @@ export function fixMissingColumnLabels(inputText) {
                 const rowValue = match[2];
                 const fullMatch = match[0];
                 
+                // Clean up extra pipes before processing
+                const cleanedRowValue = rowValue.replace(/\|\|+/g, '|'); // Replace double+ pipes with single
+                
+                // Log pipe cleanup if changes were made
+                if (rowValue !== cleanedRowValue) {
+                    console.log(`🔧 [COLUMN LABEL FIX] Cleaned extra pipes in row${rowNum}:`);
+                    console.log(`   Before: "${rowValue}"`);
+                    console.log(`   After:  "${cleanedRowValue}"`);
+                }
+                
                 // Split by pipes
-                const parts = rowValue.split('|');
+                const parts = cleanedRowValue.split('|');
                 
                 // Check for missing column labels in the sequence
                 const updatedParts = insertMissingLabelsInSequence(parts);
                 
-                if (updatedParts.join('|') !== rowValue) {
+                if (updatedParts.join('|') !== cleanedRowValue || rowValue !== cleanedRowValue) {
                     const newRowValue = updatedParts.join('|');
                     const newRowParam = `row${rowNum}="${newRowValue}"`;
                     
                     console.log(`🔧 [COLUMN LABEL FIX] Fixed row${rowNum}:`);
-                    console.log(`   Before: "${rowValue}"`);
-                    console.log(`   After:  "${newRowValue}"`);
+                    console.log(`   Original: "${rowValue}"`);
+                    if (rowValue !== cleanedRowValue) {
+                        console.log(`   Pipe cleaned: "${cleanedRowValue}"`);
+                    }
+                    console.log(`   Final: "${newRowValue}"`);
                     
                     updatedCodeString = updatedCodeString.replace(fullMatch, newRowParam);
                     totalFixes++;
@@ -4729,6 +4771,44 @@ export function testColumnLabelFix() {
     // Check if it matches
     const success = result === expected;
     console.log(`${success ? '✅' : '❌'} [TEST] Test ${success ? 'PASSED' : 'FAILED'}`);
+    
+    if (!success) {
+        console.log("🔍 [TEST] Difference analysis:");
+        console.log(`   Result length: ${result.length}`);
+        console.log(`   Expected length: ${expected.length}`);
+    }
+    
+    return { input: testInput, result, expected, success };
+}
+
+/**
+ * Test function to demonstrate both missing column labels and extra pipe cleanup
+ * This shows the new functionality of removing extra pipes
+ */
+export function testColumnLabelAndPipeCleanup() {
+    console.log("🧪 [TEST] Testing column label fix and pipe cleanup functionality");
+    
+    // Test case with both missing labels and extra pipes
+    const testInput = `<FORMULA-S; row1="V1(D)|Revenue(L)||(C1)||(C2)||(C3)||~$120000(C5)|~Hourly rate(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">`;
+    
+    console.log("📝 [TEST] Input (missing C4 and extra pipes):");
+    console.log(`   ${testInput}`);
+    
+    // Apply the fix
+    const result = fixMissingColumnLabels(testInput);
+    
+    console.log("📝 [TEST] Output:");
+    console.log(`   ${result}`);
+    
+    // Expected output should have extra pipes removed and (C4) inserted
+    const expected = `<FORMULA-S; row1="V1(D)|Revenue(L)|(F)|(C1)|(C2)|(C3)|(C4)|~$120000(C5)|~Hourly rate(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">`;
+    
+    console.log("🎯 [TEST] Expected (pipes cleaned and C4 added):");
+    console.log(`   ${expected}`);
+    
+    // Check if it matches
+    const success = result === expected;
+    console.log(`${success ? '✅' : '❌'} [TEST] Pipe cleanup test ${success ? 'PASSED' : 'FAILED'}`);
     
     if (!success) {
         console.log("🔍 [TEST] Difference analysis:");

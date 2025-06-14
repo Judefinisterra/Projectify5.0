@@ -910,6 +910,41 @@ export async function validateLogicOnly(inputText) {
                 //     errors.push(`[LERR020] Row parameter must have exactly 12 pipe symbols ("|"). For correction, you must end on a pipe symbol. Think through the location of each value relative to column mapping. It is likely that you will need to remove pipes from the middle. - found ${pipeCount} pipes in "${rowContent}" in ${codeString}`);
                 // }
                 
+                // >>> ADDED: Check for extra/invalid column labels (LOGIC ERROR)
+                const expectedLabels = ['(D)', '(L)', '(F)', '(C1)', '(C2)', '(C3)', '(C4)', '(C5)', '(C6)', '(Y1)', '(Y2)', '(Y3)', '(Y4)', '(Y5)', '(Y6)'];
+                const validColumnLabels = new Set(expectedLabels);
+                
+                // Extract all column labels from the row content
+                const columnLabelPattern = /\(([A-Z]\d*|[A-Z]+)\)/g;
+                let labelMatch;
+                const foundLabels = [];
+                while ((labelMatch = columnLabelPattern.exec(rowContent)) !== null) {
+                    foundLabels.push(labelMatch[0]); // Full match including parentheses
+                }
+                
+                // Check each found label against the valid set
+                foundLabels.forEach(label => {
+                    if (!validColumnLabels.has(label)) {
+                        // Determine the specific error message based on the label type
+                        let fixMessage = "";
+                        if (label.match(/\(C[7-9]\d*\)/)) {
+                            // C7, C8, C9, etc. - beyond valid C1-C6 range
+                            const columnNum = label.match(/\(C(\d+)\)/)[1];
+                            fixMessage = `To fix, remove the ${label} column and move its assumption to a column in C1-C6 and adjust customformula reference from ${label} to the new column`;
+                        } else if (label.match(/\(Y[7-9]\d*\)/)) {
+                            // Y7, Y8, Y9, etc. - beyond valid Y1-Y6 range
+                            const columnNum = label.match(/\(Y(\d+)\)/)[1];
+                            fixMessage = `To fix, remove the ${label} column and move its assumption to a column in Y1-Y6 and adjust any formula references from ${label} to the new column`;
+                        } else {
+                            // Other invalid labels
+                            fixMessage = `To fix, remove the invalid ${label} column label or replace it with a valid column label from the expected sequence: ${expectedLabels.join(', ')}`;
+                        }
+                        
+                        errors.push(`[LERR022] Invalid column label "${label}" found in ${rowName} - valid labels are: ${expectedLabels.join(', ')}. ${fixMessage} - in ${codeString}`);
+                    }
+                });
+                // <<< END ADDED
+                
                 // Handle spaces before/after the pipe delimiter
                 const parts = rowContent.split('|');
                 
