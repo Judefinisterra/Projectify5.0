@@ -1044,7 +1044,7 @@ export async function getSystemPromptFromFile(promptKey) {
 };
 
 // Function: OpenAI Call with conversation history support
-export async function processPrompt({ userInput, systemPrompt, model, temperature, history = [], promptFiles = {} }) {
+export async function processPrompt({ userInput, systemPrompt, model, temperature, history = [], promptFiles = {}, useClaudeAPI = false }) {
     if (DEBUG) console.log("API Key being used for processPrompt:", INTERNAL_API_KEYS.OPENAI_API_KEY ? `${INTERNAL_API_KEYS.OPENAI_API_KEY.substring(0, 3)}...` : "None");
 
     // >>> ADDED: Log the function call details with prompt file info
@@ -1085,6 +1085,7 @@ export async function processPrompt({ userInput, systemPrompt, model, temperatur
             model: model, 
             temperature: temperature, 
             stream: false,
+            useClaudeAPI: useClaudeAPI,
             caller: `processPrompt() - ${promptFiles.system || 'Unknown System Prompt'}`
         };
         let responseContent = "";
@@ -1132,10 +1133,11 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
               const queryStrings = await processPrompt({
             userInput: clientprompt,
             systemPrompt: systemStructurePrompt,
-            model: GPT41,
+            model: "claude-sonnet-4-20250514",
             temperature: 1,
             history: [], // Explicitly empty
-            promptFiles: { system: 'Structure_System' }
+            promptFiles: { system: 'Structure_System' },
+            useClaudeAPI: true
         });
 
       // >>> ADDED: Console log the full response array from Prompt Breakup call
@@ -2424,15 +2426,16 @@ export async function validationCorrection(clientprompt, initialResponse, valida
         // Increment validation pass counter
         validationPassCounter++;
         
-        // Call LLM for correction (processPrompt uses OpenAI key)
+        // Call LLM for correction (processPrompt uses Claude API)
         // Pass an empty history, as correction likely doesn't need chat context
         const correctedResponseArray = await processPrompt({
             userInput: correctionPrompt,
             systemPrompt: validationSystemPrompt,
-            model: GPT41,
+            model: "claude-sonnet-4-20250514",
             temperature: 0.7, // Lower temperature for correction
             history: [],
-            promptFiles: { system: `Validation_System|PASS_${validationPassCounter}|ERRORS:${validationResultsString}` }
+            promptFiles: { system: `Validation_System|PASS_${validationPassCounter}|ERRORS:${validationResultsString}` },
+            useClaudeAPI: true
         });
 
         // Save the output using the mock fs (as per original logic)
@@ -2882,10 +2885,11 @@ export async function checkCodeStringsWithLogicCorrector(responseArray, logicErr
         const correctedResponseArray = await processPrompt({
             userInput: logicCorrectorInput,
             systemPrompt: logicCorrectorSystemPrompt,
-            model: GPT41, // Using same model as other calls
+            model: "claude-sonnet-4-20250514", // Using Claude model
             temperature: 0.3, // Lower temperature for logic correction consistency
             history: [], // No history needed for logic correction
-            promptFiles: { system: 'LogicCorrectorGPT' }
+            promptFiles: { system: 'LogicCorrectorGPT' },
+            useClaudeAPI: true
         });
 
         if (DEBUG) {
@@ -3026,10 +3030,11 @@ export async function checkCodeStringsWithLogicChecker(responseArray) {
         const checkedResponseArray = await processPrompt({
             userInput: logicCheckerInput,
             systemPrompt: logicCheckerSystemPrompt,
-            model: GPT41, // Using same model as other calls
+            model: "claude-sonnet-4-20250514", // Using Claude model
             temperature: 0.3, // Lower temperature for logic checking consistency
             history: [], // No history needed for logic checking
-            promptFiles: { system: 'LogicCheckerGPT' }
+            promptFiles: { system: 'LogicCheckerGPT' },
+            useClaudeAPI: true
         });
 
         if (DEBUG) {
@@ -3153,10 +3158,11 @@ export async function formatCodeStringsWithGPT(responseArray) {
         const formattedResponseArray = await processPrompt({
             userInput: formatInput,
             systemPrompt: formatSystemPrompt,
-            model: GPT41, // Using same model as other calls
+            model: "claude-sonnet-4-20250514", // Using Claude model
             temperature: 0.3, // Lower temperature for formatting consistency
             history: [], // No history needed for formatting
-            promptFiles: { system: 'FormatGPT' }
+            promptFiles: { system: 'FormatGPT' },
+            useClaudeAPI: true
         });
 
         if (DEBUG) {
@@ -3226,10 +3232,11 @@ export async function checkLabelsWithGPT(responseArray) {
         const checkedResponseArray = await processPrompt({
             userInput: labelCheckerInput,
             systemPrompt: labelCheckerSystemPrompt,
-            model: GPT41, // Using same model as other calls
+            model: "claude-sonnet-4-20250514", // Using Claude model
             temperature: 0.3, // Lower temperature for label checking consistency
             history: [], // No history needed for label checking
-            promptFiles: { system: 'LabelCheckerGPT' }
+            promptFiles: { system: 'LabelCheckerGPT' },
+            useClaudeAPI: true
         });
 
         if (DEBUG) {
@@ -3272,36 +3279,37 @@ export async function determinePromptModules(clientRequest) {
         }
         
         console.log(`✅ PromptModulesGPT system prompt loaded (${promptModulesSystemPrompt.length} chars)`);
-        console.log("🚀 Calling GPT-4.1 for prompt module analysis...");
+        console.log("🚀 Calling Claude for prompt module analysis...");
         
-        if (DEBUG) console.log("[determinePromptModules] Calling GPT-4 to determine required modules...");
+        if (DEBUG) console.log("[determinePromptModules] Calling Claude to determine required modules...");
         
         const gptStartTime = performance.now();
         
-        // Call GPT-4 with the PromptModulesGPT system prompt
+        // Call Claude with the PromptModulesGPT system prompt
         const moduleResponse = await processPrompt({
             userInput: clientRequest,
             systemPrompt: promptModulesSystemPrompt,
-            model: GPT41, // Using GPT-4.1 as requested
+            model: "claude-sonnet-4-20250514", // Using Claude model
             temperature: 0.3, // Lower temperature for more consistent module selection
             history: [],
-            promptFiles: { system: 'PromptModulesGPT' }
+            promptFiles: { system: 'PromptModulesGPT' },
+            useClaudeAPI: true
         });
         
         const gptEndTime = performance.now();
-        console.log(`⏱️ GPT-4.1 call completed in ${(gptEndTime - gptStartTime).toFixed(2)}ms`);
+        console.log(`⏱️ Claude call completed in ${(gptEndTime - gptStartTime).toFixed(2)}ms`);
         
         if (DEBUG) {
             console.log("[determinePromptModules] Raw response from PromptModulesGPT:");
             console.log(moduleResponse);
         }
         
-        console.log("📊 Raw GPT response type:", Array.isArray(moduleResponse) ? "Array" : typeof moduleResponse);
-        console.log("📊 Raw GPT response:", moduleResponse);
+        console.log("📊 Raw Claude response type:", Array.isArray(moduleResponse) ? "Array" : typeof moduleResponse);
+        console.log("📊 Raw Claude response:", moduleResponse);
         
         // Parse the response - expecting an array of section labels
         let selectedModules = [];
-        console.log("🔍 Parsing GPT response for module selection...");
+        console.log("🔍 Parsing Claude response for module selection...");
         
         if (Array.isArray(moduleResponse)) {
             // If response is already an array, use it
@@ -3352,7 +3360,7 @@ export async function determinePromptModules(clientRequest) {
                 console.log(`  ${index + 1}. "${module}"`);
             });
         } else {
-            console.log("📝 No modules were selected by GPT-4.1");
+            console.log("📝 No modules were selected by Claude");
         }
         
         console.log("🏁 === PROMPT MODULE DETERMINATION END ===\n");
