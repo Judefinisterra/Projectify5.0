@@ -1574,6 +1574,42 @@ async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSeq
 }
 
 /**
+ * Re-applies percentage formatting to cells that should have it after column P formatting copy
+ * This prevents percentage formatting from being overridden
+ * @param {Excel.Worksheet} worksheet - The worksheet containing the cells
+ * @param {number} rowNum - The row number to process
+ * @param {Array} splitArray - Array of values from the row parameter
+ * @param {Array} columnSequence - Array of column letters
+ * @returns {Promise<void>}
+ */
+async function reapplyPercentageFormatting(worksheet, rowNum, splitArray, columnSequence) {
+    console.log(`Re-applying percentage formatting to row ${rowNum} after column P copy`);
+    
+    const PERCENTAGE_FORMAT = '_(* #,##0.0%;_(* (#,##0.0)%;_(* " -"?_)';
+    
+    for (let x = 0; x < splitArray.length && x < columnSequence.length; x++) {
+        const originalValue = splitArray[x];
+        const colLetter = columnSequence[x];
+        
+        if (!originalValue) continue; // Skip empty values
+        
+        // Parse the value to check if it should have percentage formatting
+        const parsed = parseValueWithSymbols(originalValue);
+        
+        if (parsed.formatType === 'percent') {
+            console.log(`  Re-applying percentage format to ${colLetter}${rowNum} for value "${originalValue}"`);
+            const cellRange = worksheet.getRange(`${colLetter}${rowNum}`);
+            cellRange.numberFormat = [[PERCENTAGE_FORMAT]];
+            cellRange.format.font.italic = true; // Percentage values with ~ should be italic
+        }
+    }
+    
+    // Sync the formatting changes
+    await worksheet.context.sync();
+    console.log(`Completed re-applying percentage formatting for row ${rowNum}`);
+}
+
+/**
  * Copies complete formatting from column O to column J and columns S through CX for a specific row
  * This includes number format (currency) and all font formatting (italic, bold, etc.)
  * @param {Excel.Worksheet} worksheet - The worksheet containing the cells
@@ -1977,8 +2013,14 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         // 'F' likely means "Formula", so we don't overwrite if the value is 'F'.
                         if (valueToWrite && valueToWrite.toUpperCase() !== 'F') {
                             // Attempt to infer data type (basic number check)
-                            const numValue = Number(valueToWrite);
+                            let numValue = Number(valueToWrite);
                             if (!isNaN(numValue) && valueToWrite.trim() !== '') {
+                                // Special handling for percentage values
+                                if (parsed.formatType === 'percent') {
+                                    // Convert percentage to decimal (5% -> 0.05)
+                                    numValue = numValue / 100;
+                                    console.log(`  Converting percentage: ${valueToWrite}% -> ${numValue} (decimal)`);
+                                }
                                 cellToWrite.values = [[numValue]];
                             } else {
                                 // Write text value if not empty
@@ -2124,6 +2166,13 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         await copyColumnPFormattingToJAndSCX(currentWorksheet, currentRowNum);
                     } catch (copyFormatError) {
                         console.error(`  Error copying column P formatting to J and S:CX: ${copyFormatError.message}`);
+                    }
+
+                    // RE-APPLY percentage formatting after column P copy (to prevent override)
+                    try {
+                        await reapplyPercentageFormatting(currentWorksheet, currentRowNum, splitArray, columnSequence);
+                    } catch (percentFormatError) {
+                        console.error(`  Error reapplying percentage formatting: ${percentFormatError.message}`);
                     }
                 }
                 await context.sync(); // Sync after populating each 'g' group
