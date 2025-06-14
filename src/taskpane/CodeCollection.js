@@ -331,7 +331,19 @@ export function populateCodeCollection(inputText) {
             const rowMatches = paramsString.matchAll(/row(\d+)\s*=\s*"([^"]*)"/g);
             for (const match of rowMatches) {
                 const rowNum = match[1];
-                const rowValue = match[2];
+                const originalRowValue = match[2];
+                let rowValue = originalRowValue;
+                
+                // Remove column identifiers in parentheses (e.g., (D), (L), (C1), (Y1), etc.)
+                rowValue = rowValue.replace(/\([^)]*\)/g, '');
+                
+                // Console log the cleaning process
+                if (originalRowValue !== rowValue) {
+                    console.log(`Cleaned row${rowNum}:`);
+                    console.log(`  Before: "${originalRowValue}"`);
+                    console.log(`  After:  "${rowValue}"`);
+                }
+                
                 params[`row${rowNum}`] = rowValue;
             }
             
@@ -1596,6 +1608,8 @@ async function copyColumnPFormattingToJAndSCX(worksheet, rowNum) {
         throw error;
     }
 }
+
+
 
 /**
  * Processes driver and assumption inputs for a worksheet based on code parameters,
