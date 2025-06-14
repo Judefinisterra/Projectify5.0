@@ -12,7 +12,7 @@ Employee-related Expense best practices:
 
 
 Employee specific custom formula codes:
-- RAISE(% calendar year growth, start date): Takes % calendar year increase as driver 1 and start date as driver 2. Creates a factor that increases by x% each calendar year after the start date. 
+- RAISE(% calendar year growth, start date): Takes % calendar year increase as driver 1 and start date as driver 2. Creates a factor that increases by x% each calendar year after the start date. Note: A START DATE COLUMN MUST BE INCLUDED WHEN USING RAISE. If no start date is mentioned in the prompt for an employee, default to Jan 1 2025. 
 
 
 
