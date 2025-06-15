@@ -1,5 +1,7 @@
 Corporate overhead should typically be split into two sections with each having its own LABELH1 heading: 1) Employee-related Expense and 2) Non-employee Related Expense
 
+IMPORTANT: For both sections, all assumptions in columns C1-C6 must either have a COLUMNHEADER-E code above with a corresponding label in the same column, OR include a comment in square brackets explaining what the unit represents. Example: |~$10000[Per month](C6)| adds "Per month" as a cell comment explaining the unit.
+
 Employee-related Expense best practices:
 - Column assumptions should begin on column 9 and work backwards, so if there is only one column assumption, it should be on column 9. If there are two, they should be on column 8 and 9. If there are 3, column 7, 8, and 9. Etc. etc.
 - Create separate tables for salaried employees, hourly employees, and contractors (unless the contractor is salaried or hourly, in which case they shuld be included in those tables)
@@ -8,7 +10,12 @@ Employee-related Expense best practices:
 - Don't include things that aren't asked for. If no start date is given, assume the employee is already working and remove BEG from the formula. If no raise assumption is given, don't include a raise row or RAISE in the formula. 
 - Likewise, don't include column values that aren't used. If no start date is given, do not include a start date, even if the training data has a start date column.
 - The row for each employee is an expense and should include $ signs in front of each of the 6 F's (or another currency) but it must include SOME currency. Do not use naked F's. Likewise, these are aggregate values and should not include the ~ which would make them italic. 
-- If you create multiple lists for hourly, salary, contractors, etc., each should include its own subtotal and they must be separated from eachother with a BR code. 
+- If you create multiple lists for hourly, salary, contractors, etc., each should include its own subtotal and they must be separated from eachother with a BR code.
+
+Column Assumption Documentation Requirements:
+- All assumptions in columns C1-C6 must either have a COLUMNHEADER-E code above with a corresponding label in the same column, OR include a comment in square brackets explaining what the unit represents
+- Example: If monthly rent is $10,000, use |~$10000[Per month](C6)| - this adds "Per month" as a cell comment explaining the unit
+- This ensures all column assumptions are properly documented and understood by users reviewing the model 
 
 
 Employee specific custom formula codes:
