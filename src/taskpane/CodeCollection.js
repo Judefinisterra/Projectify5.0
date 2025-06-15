@@ -1354,6 +1354,29 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
 }
 
 /**
+ * Parses a value string and extracts comments from square brackets
+ * @param {string} valueString - The value string that may contain comments in square brackets
+ * @returns {Object} - Object containing cleaned value and extracted comment
+ */
+function parseCommentFromBrackets(valueString) {
+    if (!valueString || typeof valueString !== 'string') {
+        return { cleanValue: valueString, comment: null };
+    }
+
+    // Look for content in square brackets [comment]
+    const bracketMatch = valueString.match(/\[([^\]]+)\]/);
+    if (bracketMatch) {
+        const comment = bracketMatch[1].trim();
+        const cleanValue = valueString.replace(/\[[^\]]+\]/, ''); // Remove the bracket content
+        console.log(`    Extracted comment: "${comment}" from value: "${valueString}"`);
+        console.log(`    Clean value after comment removal: "${cleanValue}"`);
+        return { cleanValue, comment };
+    }
+
+    return { cleanValue: valueString, comment: null };
+}
+
+/**
  * Parses a value string and extracts formatting information based on symbols
  * @param {string} valueString - The value string that may contain formatting symbols
  * @returns {Object} - Object containing cleaned value, format type, and italic setting
@@ -2011,6 +2034,9 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                     const splitArray = rowItems[yy].split('|');
                     console.log(`Populating row ${currentRowNum} with items: ${rowItems[yy]}`);
 
+                    // Storage for comments to be added after cell population
+                    const cellComments = new Map(); // Map<columnLetter, comment>
+
                     for (let x = 0; x < splitArray.length; x++) {
                         // Check bounds for columnSequence
                         if (x >= columnSequence.length) {
@@ -2022,8 +2048,18 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         const colLetter = columnSequence[x];
                         const cellToWrite = currentWorksheet.getRange(`${colLetter}${currentRowNum}`);
                         
+                        // Parse the value to extract comments from square brackets first
+                        const commentParsed = parseCommentFromBrackets(originalValue);
+                        const valueAfterCommentRemoval = commentParsed.cleanValue;
+                        
+                        // Store comment for later application if one exists
+                        if (commentParsed.comment) {
+                            cellComments.set(colLetter, commentParsed.comment);
+                            console.log(`  Stored comment for ${colLetter}${currentRowNum}: "${commentParsed.comment}"`);
+                        }
+                        
                         // Parse the value to extract clean value without formatting symbols
-                        const parsed = parseValueWithSymbols(originalValue);
+                        const parsed = parseValueWithSymbols(valueAfterCommentRemoval);
                         const valueToWrite = parsed.cleanValue;
                         
                         // VBA check: If splitArray(x) <> "" And splitArray(x) <> "F" Then
@@ -2061,10 +2097,26 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         try {
                             console.log(`  Applying customformula to AE${currentRowNum} for FORMULA-S: ${code.params.customformula}`);
                             
+                            // Parse comments from square brackets in customformula
+                            const customFormulaParsed = parseCommentFromBrackets(code.params.customformula);
+                            const cleanCustomFormula = customFormulaParsed.cleanValue;
+                            
                             // For FORMULA-S, set it as a value that will be converted to formula later by processFormulaSRows
                             const customFormulaCell = currentWorksheet.getRange(`AE${currentRowNum}`);
-                            customFormulaCell.values = [[code.params.customformula]];
-                            console.log(`  Set customformula as value for FORMULA-S processing`);
+                            customFormulaCell.values = [[cleanCustomFormula]];
+                            console.log(`  Set customformula as value for FORMULA-S processing (cleaned of comments)`);
+                            
+                            // Apply comment to AE cell if one was extracted
+                            if (customFormulaParsed.comment) {
+                                console.log(`  Adding customformula comment "${customFormulaParsed.comment}" to AE${currentRowNum}`);
+                                try {
+                                    currentWorksheet.comments.add(`AE${currentRowNum}`, customFormulaParsed.comment);
+                                    await context.sync(); // Sync the comment addition
+                                    console.log(`  Successfully applied customformula comment to AE${currentRowNum}`);
+                                } catch (commentError) {
+                                    console.error(`  Error applying customformula comment: ${commentError.message}`);
+                                }
+                            }
                             
                             // Track this row for processFormulaSRows since column D will be overwritten
                             addFormulaSRow(worksheetName, currentRowNum);
@@ -2075,9 +2127,30 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
 
                     // Apply symbol-based formatting for each cell in the row
                     try {
-                        await applyRowSymbolFormatting(currentWorksheet, currentRowNum, splitArray, columnSequence);
+                        // Create a cleaned split array without square bracket comments for formatting
+                        const cleanedSplitArray = splitArray.map(value => {
+                            const commentParsed = parseCommentFromBrackets(value);
+                            return commentParsed.cleanValue;
+                        });
+                        await applyRowSymbolFormatting(currentWorksheet, currentRowNum, cleanedSplitArray, columnSequence);
                     } catch (formatError) {
                         console.error(`  Error applying symbol-based formatting: ${formatError.message}`);
+                    }
+
+                    // Apply comments extracted from square brackets in row data
+                    if (cellComments.size > 0) {
+                        console.log(`  Applying ${cellComments.size} comments extracted from row data for row ${currentRowNum}`);
+                        try {
+                            for (const [columnLetter, comment] of cellComments) {
+                                const cellAddress = `${columnLetter}${currentRowNum}`;
+                                console.log(`    Adding comment "${comment}" to ${cellAddress}`);
+                                currentWorksheet.comments.add(cellAddress, comment);
+                            }
+                            await context.sync(); // Sync the comment additions
+                            console.log(`  Successfully applied all row data comments for row ${currentRowNum}`);
+                        } catch (commentError) {
+                            console.error(`  Error applying row data comments: ${commentError.message}`);
+                        }
                     }
 
                     // Apply columnformula parameter to column AE for row1 (all code types)
@@ -2085,8 +2158,12 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         try {
                             console.log(`  Processing columnformula for AE${currentRowNum}: ${code.params.columnformula}`);
                             
+                            // Parse comments from square brackets in columnformula
+                            const columnFormulaParsed = parseCommentFromBrackets(code.params.columnformula);
+                            const cleanColumnFormula = columnFormulaParsed.cleanValue;
+                            
                             // Process the formula through parseFormulaSCustomFormula to handle BEG, END, etc.
-                            let processedFormula = await parseFormulaSCustomFormula(code.params.columnformula, currentRowNum, currentWorksheet, context);
+                            let processedFormula = await parseFormulaSCustomFormula(cleanColumnFormula, currentRowNum, currentWorksheet, context);
                             console.log(`  Processed columnformula result: ${processedFormula}`);
                             
                             // Check for negative parameter and apply it to the processed formula
@@ -2098,14 +2175,26 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                             
                             // Apply the processed formula to the cell
                             const columnFormulaCell = currentWorksheet.getRange(`AE${currentRowNum}`);
-                            if (processedFormula && processedFormula !== code.params.columnformula) {
+                            if (processedFormula && processedFormula !== cleanColumnFormula) {
                                 // If the formula was modified, set it as a formula
                                 columnFormulaCell.formulas = [['=' + processedFormula]];
                                 console.log(`  Set processed columnformula as formula: =${processedFormula}`);
                             } else {
                                 // If no processing occurred, set as original value
-                                columnFormulaCell.values = [[code.params.columnformula]];
-                                console.log(`  Set original columnformula as value: ${code.params.columnformula}`);
+                                columnFormulaCell.values = [[cleanColumnFormula]];
+                                console.log(`  Set original columnformula as value: ${cleanColumnFormula}`);
+                            }
+                            
+                            // Apply comment to AE cell if one was extracted
+                            if (columnFormulaParsed.comment) {
+                                console.log(`  Adding columnformula comment "${columnFormulaParsed.comment}" to AE${currentRowNum}`);
+                                try {
+                                    currentWorksheet.comments.add(`AE${currentRowNum}`, columnFormulaParsed.comment);
+                                    await context.sync(); // Sync the comment addition
+                                    console.log(`  Successfully applied columnformula comment to AE${currentRowNum}`);
+                                } catch (commentError) {
+                                    console.error(`  Error applying columnformula comment: ${commentError.message}`);
+                                }
                             }
                         } catch (columnFormulaError) {
                             console.error(`  Error applying columnformula: ${columnFormulaError.message}`);
@@ -2187,7 +2276,12 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
 
                     // RE-APPLY percentage formatting after column P copy (to prevent override)
                     try {
-                        await reapplyPercentageFormatting(currentWorksheet, currentRowNum, splitArray, columnSequence);
+                        // Use the same cleaned split array without square bracket comments for percentage formatting
+                        const cleanedSplitArray = splitArray.map(value => {
+                            const commentParsed = parseCommentFromBrackets(value);
+                            return commentParsed.cleanValue;
+                        });
+                        await reapplyPercentageFormatting(currentWorksheet, currentRowNum, cleanedSplitArray, columnSequence);
                     } catch (percentFormatError) {
                         console.error(`  Error reapplying percentage formatting: ${percentFormatError.message}`);
                     }
@@ -4867,6 +4961,81 @@ export function testColumnLabelFix() {
     }
     
     return { input: testInput, result, expected, success };
+}
+
+/**
+ * Test function to demonstrate comment parsing from square brackets
+ * Shows extraction of comments from both row data and formula fields
+ */
+export function testCommentParsing() {
+    console.log("🧪 [TEST] Testing comment parsing from square brackets");
+    
+    // Test row data with comments
+    const testRowData = "~# of Bookings[Per year](L)";
+    console.log(`📝 [TEST] Testing row data: "${testRowData}"`);
+    
+    const rowResult = parseCommentFromBrackets(testRowData);
+    console.log(`📝 [TEST] Row parsing result:`);
+    console.log(`   Clean value: "${rowResult.cleanValue}"`);
+    console.log(`   Comment: "${rowResult.comment}"`);
+    
+    // Test customformula with comments
+    const testFormula = "rd{V1}*rd{V2}*30[Monthly calculation]";
+    console.log(`📝 [TEST] Testing formula: "${testFormula}"`);
+    
+    const formulaResult = parseCommentFromBrackets(testFormula);
+    console.log(`📝 [TEST] Formula parsing result:`);
+    console.log(`   Clean value: "${formulaResult.cleanValue}"`);
+    console.log(`   Comment: "${formulaResult.comment}"`);
+    
+    // Test value without comments
+    const testNoComment = "~$120000(C5)";
+    console.log(`📝 [TEST] Testing value without comments: "${testNoComment}"`);
+    
+    const noCommentResult = parseCommentFromBrackets(testNoComment);
+    console.log(`📝 [TEST] No comment parsing result:`);
+    console.log(`   Clean value: "${noCommentResult.cleanValue}"`);
+    console.log(`   Comment: "${noCommentResult.comment}"`);
+    
+    // Expected results validation
+    const tests = [
+        {
+            input: testRowData,
+            expectedClean: "~# of Bookings(L)",
+            expectedComment: "Per year",
+            result: rowResult
+        },
+        {
+            input: testFormula,
+            expectedClean: "rd{V1}*rd{V2}*30",
+            expectedComment: "Monthly calculation",
+            result: formulaResult
+        },
+        {
+            input: testNoComment,
+            expectedClean: "~$120000(C5)",
+            expectedComment: null,
+            result: noCommentResult
+        }
+    ];
+    
+    let allPassed = true;
+    tests.forEach((test, index) => {
+        const cleanMatch = test.result.cleanValue === test.expectedClean;
+        const commentMatch = test.result.comment === test.expectedComment;
+        const passed = cleanMatch && commentMatch;
+        
+        console.log(`${passed ? '✅' : '❌'} [TEST] Test ${index + 1}: ${passed ? 'PASSED' : 'FAILED'}`);
+        if (!passed) {
+            console.log(`   Expected clean: "${test.expectedClean}", got: "${test.result.cleanValue}"`);
+            console.log(`   Expected comment: "${test.expectedComment}", got: "${test.result.comment}"`);
+            allPassed = false;
+        }
+    });
+    
+    console.log(`${allPassed ? '✅' : '❌'} [TEST] Overall comment parsing test: ${allPassed ? 'PASSED' : 'FAILED'}`);
+    
+    return { tests, allPassed };
 }
 
 /**
