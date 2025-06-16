@@ -1810,93 +1810,96 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
             // USE calcsPasteRow in console log
             console.log(`Processing driver/assumption inputs for worksheet: ${worksheetName}, Code: ${code.type}, Start Row: ${calcsPasteRow}, Using Last Row: ${determinedLastRow}`);
 
-            // NEW SECTION: Convert row references to absolute for columns >= AE
-            // First, load all formulas from columns AE to CX for the range of interest
-            console.log("Making row references absolute for cell references in columns >= AE before row insertion");
+                    // COMMENTED OUT: Convert row references to absolute for columns >= AE
+        // This section was making row references absolute, but user requested it to be disabled
+        /*
+        // First, load all formulas from columns AE to CX for the range of interest
+        console.log("Making row references absolute for cell references in columns >= AE before row insertion");
+        
+        const START_ROW = 10;
+        const TARGET_COL = "AE";
+        const END_COL = "CX";
+        
+        // Define range to process
+        let processStartRow = Math.min(calcsPasteRow, START_ROW);
+        let processEndRow = determinedLastRow;
+        
+        const formulaRangeAddress = `${TARGET_COL}${processStartRow}:${END_COL}${processEndRow}`;
+        console.log(`Loading formulas from range: ${formulaRangeAddress}`);
+        
+        try {
+            const formulaRange = currentWorksheet.getRange(formulaRangeAddress);
+            formulaRange.load("formulas");
+            await context.sync();
             
-            const START_ROW = 10;
-            const TARGET_COL = "AE";
-            const END_COL = "CX";
+            // Calculate TARGET_COL index for reference comparisons
+            const targetColIndex = columnLetterToIndex(TARGET_COL);
+            console.log(`Target column ${TARGET_COL} has index ${targetColIndex}`);
             
-            // Define range to process
-            let processStartRow = Math.min(calcsPasteRow, START_ROW);
-            let processEndRow = determinedLastRow;
+            let formulasUpdated = false;
+            const origFormulas = formulaRange.formulas;
+            const newFormulas = [];
             
-            const formulaRangeAddress = `${TARGET_COL}${processStartRow}:${END_COL}${processEndRow}`;
-            console.log(`Loading formulas from range: ${formulaRangeAddress}`);
-            
-            try {
-                const formulaRange = currentWorksheet.getRange(formulaRangeAddress);
-                formulaRange.load("formulas");
-                await context.sync();
+            // Process each formula in the range
+            for (let r = 0; r < origFormulas.length; r++) {
+                const rowFormulas = [];
                 
-                // Calculate TARGET_COL index for reference comparisons
-                const targetColIndex = columnLetterToIndex(TARGET_COL);
-                console.log(`Target column ${TARGET_COL} has index ${targetColIndex}`);
-                
-                let formulasUpdated = false;
-                const origFormulas = formulaRange.formulas;
-                const newFormulas = [];
-                
-                // Process each formula in the range
-                for (let r = 0; r < origFormulas.length; r++) {
-                    const rowFormulas = [];
+                for (let c = 0; c < origFormulas[r].length; c++) {
+                    let formula = origFormulas[r][c];
                     
-                    for (let c = 0; c < origFormulas[r].length; c++) {
-                        let formula = origFormulas[r][c];
-                        
-                        // Only process string formulas
-                        if (typeof formula === 'string') {
-                            // Skip if it's not a formula
-                            if (!formula.startsWith('=')) {
-                                rowFormulas.push(formula);
-                                continue;
-                            }
-                            
-                            // Find cell references (e.g., A1, B2, AA34) but exclude already absolute refs (e.g., A$1, $A$1)
-                            // This regex captures: group 1 = column letter(s), group 2 = row number
-                            // It skips references that already have $ before the row number
-                            const cellRefRegex = /([A-Z]+)(\d+)(?![^\W_])/g;
-                            
-                            // Replace with absolute row references where needed
-                            const originalFormula = formula;
-                            formula = formula.replace(cellRefRegex, (match, col, row) => {
-                                // Get column index
-                                const colIndex = columnLetterToIndex(col);
-                                
-                                // If column index is >= target column index, make row reference absolute
-                                if (colIndex >= targetColIndex) {
-                                    return `${col}$${row}`;
-                                }
-                                return match; // Keep as is for columns before TARGET_COL
-                            });
-                            
-                            if (formula !== originalFormula) {
-                                formulasUpdated = true;
-                                //console.log(`  Row ${processStartRow + r}, Col ${columnIndexToLetter(c + targetColIndex)}: Formula changed from '${originalFormula}' to '${formula}'`);
-                            }
+                    // Only process string formulas
+                    if (typeof formula === 'string') {
+                        // Skip if it's not a formula
+                        if (!formula.startsWith('=')) {
+                            rowFormulas.push(formula);
+                            continue;
                         }
                         
-                        rowFormulas.push(formula);
+                        // Find cell references (e.g., A1, B2, AA34) but exclude already absolute refs (e.g., A$1, $A$1)
+                        // This regex captures: group 1 = column letter(s), group 2 = row number
+                        // It skips references that already have $ before the row number
+                        const cellRefRegex = /([A-Z]+)(\d+)(?![^\W_])/g;
+                        
+                        // Replace with absolute row references where needed
+                        const originalFormula = formula;
+                        formula = formula.replace(cellRefRegex, (match, col, row) => {
+                            // Get column index
+                            const colIndex = columnLetterToIndex(col);
+                            
+                            // If column index is >= target column index, make row reference absolute
+                            if (colIndex >= targetColIndex) {
+                                return `${col}$${row}`;
+                            }
+                            return match; // Keep as is for columns before TARGET_COL
+                        });
+                        
+                        if (formula !== originalFormula) {
+                            formulasUpdated = true;
+                            //console.log(`  Row ${processStartRow + r}, Col ${columnIndexToLetter(c + targetColIndex)}: Formula changed from '${originalFormula}' to '${formula}'`);
+                        }
                     }
                     
-                    newFormulas.push(rowFormulas);
+                    rowFormulas.push(formula);
                 }
                 
-                // Only update if changes were made
-                if (formulasUpdated) {
-                    console.log(`Updating formulas with absolute row references in range ${formulaRangeAddress}`);
-                    formulaRange.formulas = newFormulas;
-                    await context.sync();
-                    console.log("Formula updates completed");
-                } else {
-                    console.log("No formulas needed absolute row reference updates");
-                }
-            } catch (formulaError) {
-                console.error(`Error processing formulas for absolute row references: ${formulaError.message}`, formulaError);
-                // Continue with the function, don't let this conversion stop the flow
+                newFormulas.push(rowFormulas);
             }
-            // END NEW SECTION
+            
+            // Only update if changes were made
+            if (formulasUpdated) {
+                console.log(`Updating formulas with absolute row references in range ${formulaRangeAddress}`);
+                formulaRange.formulas = newFormulas;
+                await context.sync();
+                console.log("Formula updates completed");
+            } else {
+                console.log("No formulas needed absolute row reference updates");
+            }
+        } catch (formulaError) {
+            console.error(`Error processing formulas for absolute row references: ${formulaError.message}`, formulaError);
+            // Continue with the function, don't let this conversion stop the flow
+        }
+        */
+        // END COMMENTED OUT SECTION
 
             const columnSequence = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L', 'M', 'N', 'O', 'P', 'R'];
             
@@ -2676,7 +2679,9 @@ async function replaceIndirectsJS(worksheet, lastRow) {
                     console.warn(`Row ${START_ROW + item.index}: Max replacement loops reached for formula. Result might be incomplete: ${currentFormula}`);
                 }
                 
-                // NEW SECTION: Convert row references to absolute for columns >= TARGET_COL
+                // COMMENTED OUT: Convert row references to absolute for columns >= TARGET_COL
+                // This section was making row references absolute, but user requested it to be disabled
+                /*
                 if (typeof currentFormula === 'string') {
                     console.log(`Making row references absolute for cell references in columns >= ${TARGET_COL} in row ${START_ROW + item.index}`);
                     
@@ -2699,7 +2704,8 @@ async function replaceIndirectsJS(worksheet, lastRow) {
                     
                     console.log(`  Formula after converting to absolute row refs: ${currentFormula}`);
                 }
-                // END NEW SECTION
+                */
+                // END COMMENTED OUT SECTION
             }
             
             // Add the processed formula (or original if not string/no INDIRECT) to the result array
@@ -3786,10 +3792,10 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
                  }
              }
              
-             if (driverRow !== -1) {
-                 // Create driver range using the found row
-                 driverRangeString = `$${MONTHS_START_COL}$${driverRow}:$${MONTHS_END_COL}$${driverRow}`;
-                 console.log(`Created driver range from driver row: ${driverRangeString}`);
+                           if (driverRow !== -1) {
+                  // Create driver range using the found row (modified format: $AE$11:AE$11)
+                  driverRangeString = `$${MONTHS_START_COL}$${driverRow}:${MONTHS_START_COL}$${driverRow}`;
+                  console.log(`Created driver range from driver row: ${driverRangeString}`);
              } else {
                  console.warn(`Driver "${driverName}" not found in column A. Will use default range.`);
              }
@@ -3800,7 +3806,7 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
          // Fallback to default range if no driver found
          if (!driverRangeString) {
              console.log(`Using default driver range (row 1 headers)`);
-             driverRangeString = `$${MONTHS_START_COL}$1:$${MONTHS_END_COL}$1`;
+             driverRangeString = `$${MONTHS_START_COL}$1:${MONTHS_START_COL}1`;
          }
          
          console.log(`Final driver range to use: ${driverRangeString}`);
@@ -3810,7 +3816,12 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
          for (let i = 0; i < indexRows.length; i++) {
              const originalRow = indexRows[i];
              const targetRow = newRowStart + i;
-             const dataRangeString = `$${MONTHS_START_COL}$${originalRow}:$${MONTHS_END_COL}$${originalRow}`;
+             
+             // Debug logging for data range construction
+             console.log(`  DEBUG: MONTHS_START_COL = "${MONTHS_START_COL}", MONTHS_END_COL = "${MONTHS_END_COL}", originalRow = ${originalRow}`);
+             const dataRangeString = `$${MONTHS_START_COL}$${originalRow}:${MONTHS_START_COL}${originalRow}`;
+             console.log(`  DEBUG: dataRangeString = "${dataRangeString}"`);
+             
              // Formula: =SUMPRODUCT(INDEX(driverRange, N(IF({1}, MAX(COLUMN(driverRange)) - COLUMN(driverRange) + 1))), dataRange)
              const sumproductFormula = `=SUMPRODUCT(INDEX(${driverRangeString},N(IF({1},MAX(COLUMN(${driverRangeString}))-COLUMN(${driverRangeString})+1))), ${dataRangeString})`;
 
