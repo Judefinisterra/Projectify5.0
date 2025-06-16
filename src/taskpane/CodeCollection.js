@@ -1305,6 +1305,48 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         console.log(`    Converting SPREADDATES(${driver1},${driver2},${driver3}) to ${newFormula}`);
         return newFormula;
     });
+    
+    // Process AMORT function: AMORT(driver1,driver2,driver3,driver4) -> IFERROR(PMT(driver1/AE$7,driver2-AE$8+1,SUM(driver3,OFFSET(driver4,-1,0),0,0),0),0)
+    result = result.replace(/AMORT\(([^,]+),([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3, driver4) => {
+        // Trim whitespace from drivers
+        driver1 = driver1.trim();
+        driver2 = driver2.trim();
+        driver3 = driver3.trim();
+        driver4 = driver4.trim();
+        const newFormula = `IFERROR(PMT(${driver1}/AE$7,${driver2}-AE$8+1,SUM(${driver3},OFFSET(${driver4},-1,0),0,0),0),0)`;
+        console.log(`    Converting AMORT(${driver1},${driver2},${driver3},${driver4}) to ${newFormula}`);
+        return newFormula;
+    });
+    
+    // Process BULLET function: BULLET(driver1,driver2,driver3) -> IF(driver2=AE$8,SUM(driver1,OFFSET(driver3,-1,0)),0)
+    result = result.replace(/BULLET\(([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3) => {
+        // Trim whitespace from drivers
+        driver1 = driver1.trim();
+        driver2 = driver2.trim();
+        driver3 = driver3.trim();
+        const newFormula = `IF(${driver2}=AE$8,SUM(${driver1},OFFSET(${driver3},-1,0)),0)`;
+        console.log(`    Converting BULLET(${driver1},${driver2},${driver3}) to ${newFormula}`);
+        return newFormula;
+    });
+    
+    // Process PBULLET function: PBULLET(driver1,driver2) -> (driver1*(driver2=AE$8)) (Fixed partial principal payment)
+    result = result.replace(/PBULLET\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
+        // Trim whitespace from drivers
+        driver1 = driver1.trim();
+        driver2 = driver2.trim();
+        const newFormula = `(${driver1}*(${driver2}=AE$8))`;
+        console.log(`    Converting PBULLET(${driver1},${driver2}) to ${newFormula}`);
+        return newFormula;
+    });
+    
+    // Process INTONLY function: INTONLY(driver1) -> (AE$8>driver1) (Interest only period)
+    result = result.replace(/INTONLY\(([^)]+)\)/gi, (match, driver1) => {
+        // Trim whitespace from driver
+        driver1 = driver1.trim();
+        const newFormula = `(AE$8>${driver1})`;
+        console.log(`    Converting INTONLY(${driver1}) to ${newFormula}`);
+        return newFormula;
+    });
 
 
     
@@ -3545,6 +3587,10 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
  
         // --- 1. Find INDEXBEGIN and INDEXEND rows ---
         console.log(`Searching for ${BEGIN_MARKER} and ${END_MARKER} in column ${SEARCH_COL} of ${worksheetName}`);
+        
+        // Force an extra sync to ensure all previous operations are complete
+        await context.sync();
+        
         const searchRangeAddress = `${SEARCH_COL}${START_ROW}:${SEARCH_COL}${initialLastRow}`; 
         const searchRange = currentWorksheet.getRange(searchRangeAddress); // Use refreshed worksheet object
         searchRange.load("values");
@@ -3558,6 +3604,7 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
             for (let i = 0; i < searchRange.values.length; i++) {
                 const currentRow = START_ROW + i;
                 const cellValue = searchRange.values[i][0];
+                
                 if (cellValue === BEGIN_MARKER && firstRow === -1) {
                     firstRow = currentRow;
                 }
@@ -3567,23 +3614,39 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
                 }
             }
         }
- 
+
         if (firstRow === -1 || lastRow === -1 || lastRow < firstRow) {
             console.log(`Markers ${BEGIN_MARKER}/${END_MARKER} not found or in wrong order in ${searchRangeAddress}. Skipping Index Growth Curve.`);
             return; // Exit if markers not found or invalid
         }
         console.log(`Found ${BEGIN_MARKER} at row ${firstRow}, ${END_MARKER} at row ${lastRow}`);
  
-        // --- 2. Collect Index Rows (Rows between markers where Col C is not empty) ---
+                // --- 2. Collect Index Rows (Rows between markers where Col C is not empty) ---
         const indexRows = [];
-        // CHANGE DATA_COL here if needed, e.g. const DATA_COL_TO_CHECK = "B";
-        const DATA_COL_TO_CHECK = "B"; // Or "A", etc.
+        const DATA_COL_TO_CHECK = "B"; // Column to check for data
         const dataColRangeAddress = `${DATA_COL_TO_CHECK}${firstRow}:${DATA_COL_TO_CHECK}${lastRow}`;
         const dataColRange = currentWorksheet.getRange(dataColRangeAddress);
-        // ... rest of the loading and checking logic ...
- 
+        dataColRange.load("values");
+        await context.sync();
+
+        // Check each row between markers for data in the specified column
+        for (let i = 0; i < dataColRange.values.length; i++) {
+            const currentRow = firstRow + i;
+            const cellValue = dataColRange.values[i][0];
+            
+            // Skip the marker rows themselves
+            if (currentRow === firstRow || currentRow === lastRow) {
+                continue;
+            }
+            
+            // Check if there's data in this row
+            if (cellValue !== null && cellValue !== "" && String(cellValue).trim() !== "") {
+                indexRows.push(currentRow);
+            }
+        }
+
         if (indexRows.length === 0) {
-            console.log(`No data rows found between ${BEGIN_MARKER} and ${END_MARKER} in column ${DATA_COL}. Skipping rest of Index Growth Curve.`);
+            console.log(`No data rows found between ${BEGIN_MARKER} and ${END_MARKER} in column ${DATA_COL_TO_CHECK}. Skipping rest of Index Growth Curve.`);
             return; // Exit if no data rows found
         }
         console.log(`Collected ${indexRows.length} index rows:`, indexRows);
@@ -3592,26 +3655,31 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
         // Range: B(firstRow+2) to CX(lastRow-2) in VBA, but logic only checks B color. Let's adjust row color based on B.
         const formatCheckStartRow = firstRow + 2;
         const formatCheckEndRow = lastRow - 2;
-        console.log(`Setting background color for non-green rows between ${formatCheckStartRow} and ${formatCheckEndRow}`);
+                console.log(`Setting background color for non-green rows between ${formatCheckStartRow} and ${formatCheckEndRow}`);
         if (formatCheckStartRow <= formatCheckEndRow) {
-             // Load colors first
-             const checkColorRange = currentWorksheet.getRange(`${CHECK_COL_B}${formatCheckStartRow}:${CHECK_COL_B}${formatCheckEndRow}`);
-             checkColorRange.load("format/fill/color");
-             await context.sync();
- 
-              // Queue formatting changes
-              for (let i = 0; i < checkColorRange.values.length; i++) { // checkColorRange.values isn't loaded, use index
-                 const currentRow = formatCheckStartRow + i;
-                  // Use loaded format object
-                 if (checkColorRange.format.fill.color !== LIGHT_GREEN_COLOR) {
-                     console.log(`  Setting row ${currentRow} background to ${LIGHT_BLUE_COLOR}`);
-                     const rowRange = currentWorksheet.getRange(`${currentRow}:${currentRow}`);
-                     rowRange.format.fill.color = LIGHT_BLUE_COLOR;
-                     // Clear fill in column A specifically
-                     const cellARange = currentWorksheet.getRange(`A${currentRow}`);
-                     cellARange.format.fill.clear();
+             // Check each row individually for background color
+             for (let currentRow = formatCheckStartRow; currentRow <= formatCheckEndRow; currentRow++) {
+                 try {
+                     const checkCell = currentWorksheet.getRange(`${CHECK_COL_B}${currentRow}`);
+                     checkCell.load("format/fill/color");
+                     await context.sync();
+                     
+                     // Check if the cell is not light green
+                     if (checkCell.format.fill.color !== LIGHT_GREEN_COLOR) {
+                         console.log(`  Setting row ${currentRow} background to ${LIGHT_BLUE_COLOR}`);
+                         const rowRange = currentWorksheet.getRange(`${currentRow}:${currentRow}`);
+                         rowRange.format.fill.color = LIGHT_BLUE_COLOR;
+                         // Clear fill in column A specifically
+                         const cellARange = currentWorksheet.getRange(`A${currentRow}`);
+                         cellARange.format.fill.clear();
+                         await context.sync(); // Sync the formatting changes
+                     } else {
+                         console.log(`  Row ${currentRow} is green, skipping background change`);
+                     }
+                 } catch (colorError) {
+                     console.warn(`  Error checking/setting color for row ${currentRow}: ${colorError.message}`);
                  }
-              }
+             }
          }
  
          // --- 4. Insert Rows ---
@@ -3686,31 +3754,74 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
          const sumifRange = currentWorksheet.getRange(`${SUMIF_START_COL}${newRowStart}:${SUMIF_END_COL}${newRowEnd}`);
          sumifRange.formulas = sumifFormulas;
  
-         // --- 7. Apply SUMPRODUCT Formulas (AE) ---
+                  // --- 7. Apply SUMPRODUCT Formulas (AE) ---
          console.log(`Applying SUMPRODUCT formulas to ${SUMPRODUCT_COL}${newRowStart}:${SUMPRODUCT_COL}${newRowEnd}`);
-         // Get the driver range string from the original END_MARKER row, column AE
-         const driverCell = currentWorksheet.getRange(`${DRIVER_REF_COL}${indexEndRow}`);
-         driverCell.load("values");
+         
+         // Try to get driver name from column F of the INDEXBEGIN row (driver1 parameter)
+         console.log(`Looking for driver name in cell F${firstRow} (INDEXBEGIN row)`);
+         const driverNameCell = currentWorksheet.getRange(`F${firstRow}`);
+         driverNameCell.load("values");
          await context.sync();
-         const driverRangeString = driverCell.values[0][0];
- 
-         if (!driverRangeString || typeof driverRangeString !== 'string') {
-             console.warn(`Driver range string not found or invalid in cell ${DRIVER_REF_COL}${indexEndRow}. Skipping SUMPRODUCT.`);
-         } else {
-              console.log(`Using driver range: ${driverRangeString}`);
-              // Iterate and set formula for each cell individually (mimics FormulaArray)
-              for (let i = 0; i < indexRows.length; i++) {
-                  const originalRow = indexRows[i];
-                  const targetRow = newRowStart + i;
-                  const dataRangeString = `$${MONTHS_START_COL}$${originalRow}:$${MONTHS_END_COL}$${originalRow}`;
-                  // Formula: =SUMPRODUCT(INDEX(driverRange, N(IF({1}, MAX(COLUMN(driverRange)) - COLUMN(driverRange) + 1))), dataRange)
-                  const sumproductFormula = `=SUMPRODUCT(INDEX(${driverRangeString},N(IF({1},MAX(COLUMN(${driverRangeString}))-COLUMN(${driverRangeString})+1))), ${dataRangeString})`;
- 
-                  const targetCell = currentWorksheet.getRange(`${SUMPRODUCT_COL}${targetRow}`);
-                  targetCell.formulas = [[sumproductFormula]];
-                  // console.log(`  Set formula for ${SUMPRODUCT_COL}${targetRow}: ${sumproductFormula}`);
+         const driverName = driverNameCell.values[0][0];
+         
+         console.log(`Driver name found: "${driverName}" (type: ${typeof driverName})`);
+         
+         let driverRangeString = null;
+         
+         if (driverName && typeof driverName === 'string' && driverName.trim() !== '') {
+             // Look up the driver name in column A to find its row
+             console.log(`Looking up driver "${driverName}" in column A to find its row...`);
+             
+             // Load column A values to find the driver row
+             const colARangeAddress = `A${START_ROW}:A${initialLastRow}`;
+             const colARange = currentWorksheet.getRange(colARangeAddress);
+             colARange.load("values");
+             await context.sync();
+             
+             let driverRow = -1;
+             for (let i = 0; i < colARange.values.length; i++) {
+                 const cellValue = colARange.values[i][0];
+                 if (cellValue === driverName) {
+                     driverRow = START_ROW + i;
+                     console.log(`Found driver "${driverName}" at row ${driverRow}`);
+                     break;
+                 }
              }
+             
+             if (driverRow !== -1) {
+                 // Create driver range using the found row
+                 driverRangeString = `$${MONTHS_START_COL}$${driverRow}:$${MONTHS_END_COL}$${driverRow}`;
+                 console.log(`Created driver range from driver row: ${driverRangeString}`);
+             } else {
+                 console.warn(`Driver "${driverName}" not found in column A. Will use default range.`);
+             }
+         } else {
+             console.warn(`No valid driver name found in F${firstRow}. Will use default range.`);
          }
+
+         // Fallback to default range if no driver found
+         if (!driverRangeString) {
+             console.log(`Using default driver range (row 1 headers)`);
+             driverRangeString = `$${MONTHS_START_COL}$1:$${MONTHS_END_COL}$1`;
+         }
+         
+         console.log(`Final driver range to use: ${driverRangeString}`);
+         console.log(`Setting SUMPRODUCT formulas for ${indexRows.length} target rows...`);
+         
+         // Iterate and set formula for each cell individually (mimics FormulaArray)
+         for (let i = 0; i < indexRows.length; i++) {
+             const originalRow = indexRows[i];
+             const targetRow = newRowStart + i;
+             const dataRangeString = `$${MONTHS_START_COL}$${originalRow}:$${MONTHS_END_COL}$${originalRow}`;
+             // Formula: =SUMPRODUCT(INDEX(driverRange, N(IF({1}, MAX(COLUMN(driverRange)) - COLUMN(driverRange) + 1))), dataRange)
+             const sumproductFormula = `=SUMPRODUCT(INDEX(${driverRangeString},N(IF({1},MAX(COLUMN(${driverRangeString}))-COLUMN(${driverRangeString})+1))), ${dataRangeString})`;
+
+             console.log(`  Setting formula for ${SUMPRODUCT_COL}${targetRow}: ${sumproductFormula}`);
+             const targetCell = currentWorksheet.getRange(`${SUMPRODUCT_COL}${targetRow}`);
+             targetCell.formulas = [[sumproductFormula]];
+         }
+         await context.sync(); // Sync the SUMPRODUCT formulas
+         console.log(`Successfully set ${indexRows.length} SUMPRODUCT formulas`);
  
          // --- 8. Copy Formats and Adjust ---
          console.log(`Copying formats and adjusting for new rows ${newRowStart}:${newRowEnd}`);
@@ -3725,19 +3836,20 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
              targetRowRange.copyFrom(sourceRowRange, Excel.RangeCopyType.formats);
               await context.sync(); // Sync after each copy maybe needed? Let's try one sync after loop.
  
-             // Apply format overrides
+                          // Apply format overrides
              targetRowRange.format.font.color = "#000000"; // Black font
-             targetRowRange.format.borders.load('items'); // Load borders collection
-              await context.sync(); // Need to sync load before clearing
- 
-              targetRowRange.format.borders.items.forEach(border => border.style = 'None');
-             // Explicitly clear all borders (simpler?)
-             // targetRowRange.format.borders.getItem('EdgeTop').style = 'None';
-             // targetRowRange.format.borders.getItem('EdgeBottom').style = 'None';
-             // targetRowRange.format.borders.getItem('EdgeLeft').style = 'None';
-             // targetRowRange.format.borders.getItem('EdgeRight').style = 'None';
-             // targetRowRange.format.borders.getItem('InsideVertical').style = 'None';
-             // targetRowRange.format.borders.getItem('InsideHorizontal').style = 'None';
+             
+             // Clear all borders explicitly (more reliable than forEach)
+             try {
+                 targetRowRange.format.borders.getItem('EdgeTop').style = 'None';
+                 targetRowRange.format.borders.getItem('EdgeBottom').style = 'None';
+                 targetRowRange.format.borders.getItem('EdgeLeft').style = 'None';
+                 targetRowRange.format.borders.getItem('EdgeRight').style = 'None';
+                 targetRowRange.format.borders.getItem('InsideVertical').style = 'None';
+                 targetRowRange.format.borders.getItem('InsideHorizontal').style = 'None';
+             } catch (borderError) {
+                 console.warn(`  Error clearing borders for row ${targetRow}: ${borderError.message}`);
+             }
  
              targetRowRange.format.fill.clear(); // Clear interior color
              targetRowRange.format.font.bold = false; // Remove bold
@@ -4106,6 +4218,48 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                 driver3 = driver3.trim();
                 const newFormula = `IF(AND(EOMONTH(AE$2,0)>=EOMONTH(${driver2},0),EOMONTH(AE$2,0)<=EOMONTH(${driver3},0)),${driver1}/(DATEDIF(${driver2},${driver3},"m")+1),0)`;
                 console.log(`    Converting SPREADDATES(${driver1},${driver2},${driver3}) to ${newFormula}`);
+                return newFormula;
+            });
+            
+            // Process AMORT function: AMORT(driver1,driver2,driver3,driver4) -> IFERROR(PMT(driver1/AE$7,driver2-AE$8+1,SUM(driver3,OFFSET(driver4,-1,0),0,0),0),0)
+            formula = formula.replace(/AMORT\(([^,]+),([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3, driver4) => {
+                // Trim whitespace from drivers
+                driver1 = driver1.trim();
+                driver2 = driver2.trim();
+                driver3 = driver3.trim();
+                driver4 = driver4.trim();
+                const newFormula = `IFERROR(PMT(${driver1}/AE$7,${driver2}-AE$8+1,SUM(${driver3},OFFSET(${driver4},-1,0),0,0),0),0)`;
+                console.log(`    Converting AMORT(${driver1},${driver2},${driver3},${driver4}) to ${newFormula}`);
+                return newFormula;
+            });
+            
+            // Process BULLET function: BULLET(driver1,driver2,driver3) -> IF(driver2=AE$8,SUM(driver1,OFFSET(driver3,-1,0)),0)
+            formula = formula.replace(/BULLET\(([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3) => {
+                // Trim whitespace from drivers
+                driver1 = driver1.trim();
+                driver2 = driver2.trim();
+                driver3 = driver3.trim();
+                const newFormula = `IF(${driver2}=AE$8,SUM(${driver1},OFFSET(${driver3},-1,0)),0)`;
+                console.log(`    Converting BULLET(${driver1},${driver2},${driver3}) to ${newFormula}`);
+                return newFormula;
+            });
+            
+            // Process PBULLET function: PBULLET(driver1,driver2) -> (driver1*(driver2=AE$8)) (Fixed partial principal payment)
+            formula = formula.replace(/PBULLET\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
+                // Trim whitespace from drivers
+                driver1 = driver1.trim();
+                driver2 = driver2.trim();
+                const newFormula = `(${driver1}*(${driver2}=AE$8))`;
+                console.log(`    Converting PBULLET(${driver1},${driver2}) to ${newFormula}`);
+                return newFormula;
+            });
+            
+            // Process INTONLY function: INTONLY(driver1) -> (AE$8>driver1) (Interest only period)
+            formula = formula.replace(/INTONLY\(([^)]+)\)/gi, (match, driver1) => {
+                // Trim whitespace from driver
+                driver1 = driver1.trim();
+                const newFormula = `(AE$8>${driver1})`;
+                console.log(`    Converting INTONLY(${driver1}) to ${newFormula}`);
                 return newFormula;
             });
             
