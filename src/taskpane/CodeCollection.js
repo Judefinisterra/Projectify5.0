@@ -3218,45 +3218,43 @@ export async function processAssumptionTabs(assumptionTabNames) {
                          return;
                      }
 
-                     // 5. Populate Financials
-                     await populateFinancialsJS(currentWorksheet, updatedLastRow, financialsSheet);
-
-                     // 6.5 Set font color to white in column A
-                     // We use updatedLastRow here, as deletions haven't happened yet
-                     await setColumnAFontWhite(currentWorksheet, START_ROW, updatedLastRow); 
-                     console.log(`Set font color to white in column A from rows ${START_ROW}-${updatedLastRow}`);
-  
-                     // // Force recalculation before Index Growth Curve (especially if manual calc mode)
-                     // console.log(`Performing full workbook recalculation before Index Growth Curve for ${worksheetName}...`);
-                     // context.workbook.application.calculate(Excel.CalculationType.fullRebuild);
-                     // await context.sync(); // Sync the calculation
-                     // console.log(`Recalculation complete for ${worksheetName}.`);
- 
-                      // 6.8 Apply Index Growth Curve logic (if applicable)
-                     // Run Index Growth *before* deleting rows. Use updatedLastRow as the boundary.
-                     await applyIndexGrowthCurveJS(currentWorksheet, updatedLastRow); 
+                     // 5. Apply Index Growth Curve logic (MOVED UP - must run before Populate Financials)
+                     // Run Index Growth *before* populating financials so financials links to aggregate rows
+                     await applyIndexGrowthCurveJS(currentWorksheet, updatedLastRow);
                      
-                     // 6.9 Process FORMULA-S rows - Convert driver references to cell references BEFORE deleting green rows
+                     // 6. Get updated last row after Index Growth Curve (may have inserted rows)
+                     const postIndexLastRow = await getLastUsedRow(currentWorksheet, "B");
+                     console.log(`Last row after Index Growth Curve: ${postIndexLastRow}`);
+
+                     // 7. Populate Financials (MOVED DOWN - now runs after Index Growth Curve)
+                     await populateFinancialsJS(currentWorksheet, postIndexLastRow, financialsSheet);
+
+                     // 8. Set font color to white in column A
+                     // We use postIndexLastRow here, as Index Growth may have added rows
+                     await setColumnAFontWhite(currentWorksheet, START_ROW, postIndexLastRow); 
+                     console.log(`Set font color to white in column A from rows ${START_ROW}-${postIndexLastRow}`); 
+                     
+                     // 9. Process FORMULA-S rows - Convert driver references to cell references BEFORE deleting green rows
                      console.log(`Processing FORMULA-S rows in ${worksheetName} (before green row deletion)...`);
-                     await processFormulaSRows(currentWorksheet, START_ROW, updatedLastRow);
+                     await processFormulaSRows(currentWorksheet, START_ROW, postIndexLastRow);
                      console.log(`Finished processing FORMULA-S rows`);
                      
                      // Clear the tracked FORMULA-S rows for this worksheet (cleanup)
                      clearFormulaSRows(worksheetName);
                      
-                     // 7. Delete rows with green background (#CCFFCC) - AFTER FORMULA-S processing
+                     // 10. Delete rows with green background (#CCFFCC) - AFTER FORMULA-S processing
                      console.log(`Deleting green rows in ${worksheetName}...`);
                      // Changed START_ROW to START_ROW - 1 to include row 9
-                     const finalLastRow = await deleteGreenRows(currentWorksheet, START_ROW - 1, updatedLastRow); // Get the new last row AFTER deletions
+                     const finalLastRow = await deleteGreenRows(currentWorksheet, START_ROW - 1, postIndexLastRow); // Get the new last row AFTER deletions
                      console.log(`After deleting green rows, last row is now: ${finalLastRow}`);
  
-                     // 8. Autofill AE9:AE<lastRow> -> CX<lastRow> on Assumption Tab - Use finalLastRow
+                     // 11. Autofill AE9:AE<lastRow> -> CX<lastRow> on Assumption Tab - Use finalLastRow
                      console.log(`Autofilling ${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow} to ${AUTOFILL_END_COLUMN} on ${worksheetName}`);
                      const sourceRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow}`);
                      const fillRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_END_COLUMN}${finalLastRow}`);
                      sourceRange.autoFill(fillRange, Excel.AutoFillType.fillDefault);
  
-                     // 9. Set Row 9 interior color to none
+                     // 12. Set Row 9 interior color to none
                      console.log(`Setting row 9 interior color to none for ${worksheetName}`);
                      const row9Range = currentWorksheet.getRange("9:9");
                      row9Range.format.fill.clear();
