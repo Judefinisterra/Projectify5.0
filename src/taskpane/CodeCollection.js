@@ -3627,7 +3627,7 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
  
                 // --- 2. Collect Index Rows (Rows between markers where Col C is not empty) ---
         const indexRows = [];
-        const DATA_COL_TO_CHECK = "B"; // Column to check for data
+        const DATA_COL_TO_CHECK = "C"; // Column to check for data
         const dataColRangeAddress = `${DATA_COL_TO_CHECK}${firstRow}:${DATA_COL_TO_CHECK}${lastRow}`;
         const dataColRange = currentWorksheet.getRange(dataColRangeAddress);
         dataColRange.load("values");
