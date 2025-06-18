@@ -4878,7 +4878,43 @@ async function updateSumifFormulasAfterGreenDeletion(worksheet, startRow, lastRo
             } else {
                 console.log(`    ➡️ No formula updates needed for row ${currentRow}`);
             }
-        }
+
+            // --- Process column AE for the current row ---
+            console.log(`    🔍 Processing column AE formula for row ${currentRow}`);
+            const aeCell = worksheet.getRange(`AE${currentRow}`);
+            aeCell.load("formulas");
+            await worksheet.context.sync();
+
+            let aeFormula = aeCell.formulas[0][0];
+            if (typeof aeFormula === 'string' && (aeFormula.startsWith('=') || aeFormula.startsWith('@'))) {
+                const originalAeFormula = aeFormula;
+                const timeSeriesRowRange = `$J$${timeSeriesRow}:$P$${timeSeriesRow}`;
+                
+                // Define the pattern to find the MATCH part of the formula
+                const patternToFind = /MATCH\(@INDIRECT\(ADDRESS\(3,COLUMN\(\),2\)\),\$J\$2:\$P\$2,0\)/gi;
+
+                if (originalAeFormula.match(patternToFind)) {
+                    console.log(`    🎯 Found AE formula pattern in row ${currentRow}: ${originalAeFormula}`);
+                    
+                    // Define what to replace it with
+                    const replacementPattern = `MATCH(@INDIRECT(ADDRESS(${yearRow},COLUMN(),2)),${timeSeriesRowRange},0)`;
+
+                    // Replace all occurrences in the formula
+                    aeFormula = originalAeFormula.replace(patternToFind, replacementPattern);
+
+                    if (aeFormula !== originalAeFormula) {
+                        console.log(`    ✅ Updated AE formula in row ${currentRow}`);
+                        console.log(`      Before: ${originalAeFormula}`);
+                        console.log(`      After:  ${aeFormula}`);
+                        aeCell.formulas = [[aeFormula]];
+                        await worksheet.context.sync();
+                        formulasUpdated++; // Increment shared counter
+                    }
+                }
+            } else {
+                console.log(`    ➡️ No formula found in AE${currentRow}`);
+            }
+         }
         
         console.log(`🎉 [SUMIF POST-DELETE] Completed updating SUMIF formulas. Updated ${formulasUpdated} rows between ${indexBeginRow} and ${indexEndRow}`);
         
