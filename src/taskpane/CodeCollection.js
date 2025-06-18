@@ -731,7 +731,7 @@ export async function runCodes(codeCollection) {
                                 
                                 await context.sync(); // Sync the copy operation
 
-                                // NEW: Row Grouping for INDEXBEGIN codes
+                                // NEW: Row Grouping for INDEXBEGIN codes (simplified)
                                 if (codeType === "INDEXBEGIN") {
                                     try {
                                         const numCopiedRows = lastRow - firstRow + 1;
@@ -763,10 +763,10 @@ export async function runCodes(codeCollection) {
                                             
                                             console.log(`🎉 [INDEXBEGIN GROUPING] Successfully grouped and collapsed rows ${groupStartRow}-${groupEndRow}`);
                                         } else {
-                                            console.log(`⏭️ [INDEXBEGIN GROUPING] Skipping - only ${numCopiedRows} rows copied (need at least 3)`);
+                                            console.log(`⏭️ [INDEXBEGIN GROUPING] Skipping grouping - only ${numCopiedRows} rows copied (need at least 3)`);
                                         }
                                     } catch (indexGroupError) {
-                                        console.error(`❌ [INDEXBEGIN GROUPING] Error grouping INDEXBEGIN rows:`);
+                                        console.error(`❌ [INDEXBEGIN GROUPING] Error processing INDEXBEGIN rows:`);
                                         console.error(`    Error message: ${indexGroupError.message}`);
                                         console.error(`    Error code: ${indexGroupError.code || 'N/A'}`);
                                         console.error(`    Full error:`, indexGroupError);
@@ -3258,8 +3258,13 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      // Changed START_ROW to START_ROW - 1 to include row 9
                      const finalLastRow = await deleteGreenRows(currentWorksheet, START_ROW - 1, postIndexLastRow); // Get the new last row AFTER deletions
                      console.log(`After deleting green rows, last row is now: ${finalLastRow}`);
+                     
+                     // 11. Update SUMIF formulas after green row deletion
+                     console.log(`Updating SUMIF formulas after green row deletion in ${worksheetName}...`);
+                     await updateSumifFormulasAfterGreenDeletion(currentWorksheet, START_ROW, finalLastRow);
+                     console.log(`Completed SUMIF formula updates for ${worksheetName}`);
  
-                     // 11. Autofill AE<startRow>:AE<lastRow> -> CX<lastRow> on Assumption Tab - Only rows with formulas in AE
+                     // 12. Autofill AE<startRow>:AE<lastRow> -> CX<lastRow> on Assumption Tab - Only rows with formulas in AE
                      console.log(`Checking for formulas in ${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow} and autofilling to ${AUTOFILL_END_COLUMN} on ${worksheetName}`);
                      
                      // Load formulas from column AE to check which rows have formulas
@@ -3284,7 +3289,7 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      }
                      console.log(`Autofilled ${autofillCount} rows with formulas out of ${aeFormulaRange.formulas.length} total rows`);
  
-                     // 12. Set Row 9 interior color to none
+                     // 13. Set Row 9 interior color to none
                      console.log(`Setting row 9 interior color to none for ${worksheetName}`);
                      const row9Range = currentWorksheet.getRange("9:9");
                      row9Range.format.fill.clear();
@@ -3855,8 +3860,10 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
          }
          await context.sync(); // Sync the SUMPRODUCT formulas
          console.log(`Successfully set ${indexRows.length} SUMPRODUCT formulas`);
+
+                  // NOTE: SUMIF formula updates moved to after green row deletion
  
-         // --- 8. Copy Formats and Adjust ---
+         // --- 9. Copy Formats and Adjust ---
          console.log(`Copying formats and adjusting for new rows ${newRowStart}:${newRowEnd}`);
          for (let i = 0; i < indexRows.length; i++) {
              const sourceRow = indexRows[i];
@@ -3893,7 +3900,7 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
          }
           await context.sync(); // Sync format changes
  
-         // --- 9. Clear Original Column C values ---
+         // --- 10. Clear Original Column C values ---
          console.log(`Clearing values in original index rows (${indexRows.join(', ')}) column ${DATA_COL}`);
          // It's safer to clear individually if rows aren't contiguous
          for (const originalRow of indexRows) {
@@ -4640,6 +4647,9 @@ export async function hideColumnsAndNavigate(assumptionTabNames) { // Renamed an
 // Global storage for FORMULA-S row positions per worksheet
 const formulaSRowTracker = new Map(); // Map<worksheetName, Set<rowNumber>>
 
+// Global storage for INDEXBEGIN special rows per worksheet
+const indexBeginRowTracker = new Map(); // Map<worksheetName, {timeSeriesRow, yearRow, yearEndRow}>
+
 /**
  * Stores a FORMULA-S row position for later processing
  * @param {string} worksheetName - Name of the worksheet
@@ -4669,6 +4679,171 @@ function getFormulaSRows(worksheetName) {
  */
 function clearFormulaSRows(worksheetName) {
     formulaSRowTracker.delete(worksheetName);
+}
+
+/**
+ * Stores INDEXBEGIN special row positions for later formula updates
+ * @param {string} worksheetName - Name of the worksheet
+ * @param {number} timeSeriesRow - Row number of the time series row
+ * @param {number} yearRow - Row number of the year row  
+ * @param {number} yearEndRow - Row number of the year end row
+ */
+function setIndexBeginRows(worksheetName, timeSeriesRow, yearRow, yearEndRow) {
+    indexBeginRowTracker.set(worksheetName, {
+        timeSeriesRow: timeSeriesRow,
+        yearRow: yearRow,
+        yearEndRow: yearEndRow
+    });
+    console.log(`📋 [INDEXBEGIN TRACKER] Stored rows for ${worksheetName}: Time Series=${timeSeriesRow}, Year=${yearRow}, Year End=${yearEndRow}`);
+}
+
+/**
+ * Gets stored INDEXBEGIN special row positions for a worksheet
+ * @param {string} worksheetName - Name of the worksheet
+ * @returns {Object|null} Object with timeSeriesRow, yearRow, yearEndRow or null if not found
+ */
+function getIndexBeginRows(worksheetName) {
+    return indexBeginRowTracker.get(worksheetName) || null;
+}
+
+/**
+ * Clears stored INDEXBEGIN row positions for a worksheet (cleanup)
+ * @param {string} worksheetName - Name of the worksheet
+ */
+function clearIndexBeginRows(worksheetName) {
+    indexBeginRowTracker.delete(worksheetName);
+}
+
+/**
+ * Updates SUMIF formulas after green rows are deleted by finding INDEXBEGIN and calculating special rows
+ * @param {Excel.Worksheet} worksheet - The worksheet to process
+ * @param {number} startRow - The starting row to search from
+ * @param {number} lastRow - The last row to search to
+ * @returns {Promise<void>}
+ */
+async function updateSumifFormulasAfterGreenDeletion(worksheet, startRow, lastRow) {
+    console.log(`🔄 [SUMIF POST-DELETE] Starting SUMIF formula updates after green row deletion`);
+    console.log(`🔄 [SUMIF POST-DELETE] Searching for INDEXBEGIN in ${worksheet.name} from row ${startRow} to ${lastRow}`);
+    
+    try {
+        // Search for the first row with "INDEXBEGIN" in column D
+        let indexBeginRow = null;
+        
+        // Load column D values to search for INDEXBEGIN
+        const columnDRange = worksheet.getRange(`D${startRow}:D${lastRow}`);
+        columnDRange.load("values");
+        await worksheet.context.sync();
+        
+        const columnDValues = columnDRange.values;
+        
+        for (let i = 0; i < columnDValues.length; i++) {
+            const cellValue = columnDValues[i][0];
+            if (cellValue === "INDEXBEGIN") {
+                indexBeginRow = startRow + i;
+                console.log(`📋 [SUMIF POST-DELETE] Found INDEXBEGIN at row ${indexBeginRow}`);
+                break;
+            }
+        }
+        
+        if (!indexBeginRow) {
+            console.log(`⚠️ [SUMIF POST-DELETE] No INDEXBEGIN found in column D from row ${startRow} to ${lastRow} - skipping SUMIF updates`);
+            return;
+        }
+        
+        // Calculate special rows based on INDEXBEGIN position
+        const timeSeriesRow = indexBeginRow;        // INDEXBEGIN row is time series row
+        const yearRow = indexBeginRow + 2;          // Go down 2 rows for year row
+        const yearEndRow = indexBeginRow + 3;       // Go down 1 more row for year end row
+        
+        console.log(`📋 [SUMIF POST-DELETE] Special rows defined:`);
+        console.log(`    Time Series row (INDEXBEGIN): ${timeSeriesRow}`);
+        console.log(`    Year row (Time Series + 2): ${yearRow}`);
+        console.log(`    Year End row (Year + 1): ${yearEndRow}`);
+        
+        // Create range strings for the entire rows
+        const yearRowRange = `$${yearRow}:$${yearRow}`;
+        const yearEndRowRange = `$${yearEndRow}:$${yearEndRow}`;
+        
+        console.log(`🔄 [SUMIF POST-DELETE] Range strings: Year row=${yearRowRange}, Year End row=${yearEndRowRange}`);
+        
+        // Now search for INDEXEND to find the range of rows to update
+        let indexEndRow = null;
+        for (let i = 0; i < columnDValues.length; i++) {
+            const cellValue = columnDValues[i][0];
+            if (cellValue === "INDEXEND") {
+                indexEndRow = startRow + i;
+                console.log(`📋 [SUMIF POST-DELETE] Found INDEXEND at row ${indexEndRow}`);
+                break;
+            }
+        }
+        
+        if (!indexEndRow) {
+            console.log(`⚠️ [SUMIF POST-DELETE] No INDEXEND found - will process all rows from INDEXBEGIN to end`);
+            indexEndRow = lastRow;
+        }
+        
+        // Process all rows between INDEXBEGIN and INDEXEND that might have SUMIF formulas
+        let formulasUpdated = 0;
+        for (let currentRow = indexBeginRow + 1; currentRow <= indexEndRow - 1; currentRow++) {
+            console.log(`🔄 [SUMIF POST-DELETE] Processing formulas in row ${currentRow}`);
+            
+            // Load formulas from columns J through P for this row
+            const formulaRange = worksheet.getRange(`J${currentRow}:P${currentRow}`);
+            formulaRange.load("formulas");
+            await worksheet.context.sync();
+            
+            const formulas = formulaRange.formulas[0]; // Get the single row array
+            let rowFormulasUpdated = false;
+            const newFormulas = [];
+            
+            for (let colIndex = 0; colIndex < formulas.length; colIndex++) {
+                let formula = formulas[colIndex];
+                let originalFormula = formula;
+                
+                if (typeof formula === 'string' && formula.startsWith('=')) {
+                    console.log(`    🔍 Column ${String.fromCharCode(74 + colIndex)} formula: ${formula}`);
+                    
+                    // Update SUMIF($3:$3 patterns
+                    if (formula.toLowerCase().includes('sumif($3:$3')) {
+                        console.log(`    🎯 Found SUMIF($3:$3 pattern - updating to use year row ${yearRow}`);
+                        
+                        // Replace SUMIF($3:$3 with SUMIF([yearRowRange]
+                        formula = formula.replace(/sumif\(\$3:\$3/gi, `SUMIF(${yearRowRange}`);
+                        
+                        // Replace ADDRESS(2,COLUMN(),2) with ADDRESS([timeSeriesRow],COLUMN(),2)
+                        formula = formula.replace(/ADDRESS\(2,COLUMN\(\),2\)/gi, `ADDRESS(${timeSeriesRow},COLUMN(),2)`);
+                        
+                        console.log(`    ✅ Updated SUMIF($3:$3 formula in column ${String.fromCharCode(74 + colIndex)}`);
+                    }
+                    
+                    if (formula !== originalFormula) {
+                        rowFormulasUpdated = true;
+                        console.log(`    🔄 Column ${String.fromCharCode(74 + colIndex)} formula changed`);
+                        console.log(`      Before: ${originalFormula}`);
+                        console.log(`      After:  ${formula}`);
+                    }
+                }
+                
+                newFormulas.push(formula);
+            }
+            
+            // Update the formulas if any changes were made
+            if (rowFormulasUpdated) {
+                formulaRange.formulas = [newFormulas];
+                await worksheet.context.sync();
+                formulasUpdated++;
+                console.log(`    ✅ Updated formulas synced for row ${currentRow}`);
+            } else {
+                console.log(`    ➡️ No formula updates needed for row ${currentRow}`);
+            }
+        }
+        
+        console.log(`🎉 [SUMIF POST-DELETE] Completed updating SUMIF formulas. Updated ${formulasUpdated} rows between ${indexBeginRow} and ${indexEndRow}`);
+        
+    } catch (error) {
+        console.error(`❌ [SUMIF POST-DELETE] Error updating SUMIF formulas: ${error.message}`, error);
+        // Continue even if SUMIF updates fail
+    }
 }
 
 /**
