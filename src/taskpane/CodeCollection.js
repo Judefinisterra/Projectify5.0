@@ -731,6 +731,49 @@ export async function runCodes(codeCollection) {
                                 
                                 await context.sync(); // Sync the copy operation
 
+                                // NEW: Row Grouping for INDEXBEGIN codes
+                                if (codeType === "INDEXBEGIN") {
+                                    try {
+                                        const numCopiedRows = lastRow - firstRow + 1;
+                                        console.log(`🔍 [INDEXBEGIN GROUPING] Processing INDEXBEGIN code with ${numCopiedRows} copied rows`);
+                                        console.log(`🔍 [INDEXBEGIN GROUPING] Copied from Codes rows ${firstRow}-${lastRow} to worksheet rows ${pasteRow}-${pasteRow + numCopiedRows - 1}`);
+                                        
+                                        if (numCopiedRows >= 3) {
+                                            // Group the bottom 3 rows of the copied block
+                                            const groupStartRow = pasteRow + (numCopiedRows - 3);
+                                            const groupEndRow = pasteRow + (numCopiedRows - 1);
+                                            
+                                            console.log(`🎯 [INDEXBEGIN GROUPING] Grouping bottom 3 rows:`);
+                                            console.log(`    Total copied rows: ${numCopiedRows}`);
+                                            console.log(`    Group start row: ${groupStartRow}`);
+                                            console.log(`    Group end row: ${groupEndRow}`);
+                                            console.log(`    Rows to group: ${groupEndRow - groupStartRow + 1}`);
+                                            
+                                            console.log(`🔧 [INDEXBEGIN GROUPING] Creating range ${groupStartRow}:${groupEndRow}...`);
+                                            const indexGroupRange = currentWS.getRange(`${groupStartRow}:${groupEndRow}`);
+                                            
+                                            console.log(`🔧 [INDEXBEGIN GROUPING] Applying group() method...`);
+                                            indexGroupRange.group(Excel.GroupOption.byRows);
+                                            
+                                            console.log(`🔧 [INDEXBEGIN GROUPING] Applying hideGroupDetails() method...`);
+                                            indexGroupRange.hideGroupDetails(Excel.GroupOption.byRows);
+                                            
+                                            console.log(`🔧 [INDEXBEGIN GROUPING] Syncing grouping changes...`);
+                                            await context.sync();
+                                            
+                                            console.log(`🎉 [INDEXBEGIN GROUPING] Successfully grouped and collapsed rows ${groupStartRow}-${groupEndRow}`);
+                                        } else {
+                                            console.log(`⏭️ [INDEXBEGIN GROUPING] Skipping - only ${numCopiedRows} rows copied (need at least 3)`);
+                                        }
+                                    } catch (indexGroupError) {
+                                        console.error(`❌ [INDEXBEGIN GROUPING] Error grouping INDEXBEGIN rows:`);
+                                        console.error(`    Error message: ${indexGroupError.message}`);
+                                        console.error(`    Error code: ${indexGroupError.code || 'N/A'}`);
+                                        console.error(`    Full error:`, indexGroupError);
+                                        // Continue processing even if grouping fails
+                                    }
+                                }
+
                                 // NEW: Apply bold formatting if specified
                                 if (code.params.bold !== undefined) { // Check if the parameter exists
                                     const boldValue = String(code.params.bold).toLowerCase();
@@ -3858,6 +3901,8 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
              cellToClear.clear(Excel.ClearApplyTo.contents);
          }
           await context.sync(); // Sync clears
+
+         // NOTE: Row grouping for INDEXBEGIN moved to runCodes function where the original rows are copied
  
          console.log(`applyIndexGrowthCurveJS completed successfully for sheet: ${worksheetName}`);
  
