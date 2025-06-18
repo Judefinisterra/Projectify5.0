@@ -1544,7 +1544,8 @@ function isDateString(value) {
 }
 
 /**
- * Applies symbol-based formatting to a row of cells
+ * Applies symbol-based formatting to a row of cells, with immediate percentage format override
+ * This combines volume formatting (based on ~) with percentage formatting in a single synchronous operation
  * @param {Excel.Worksheet} worksheet - The worksheet containing the cells
  * @param {number} rowNum - The row number to format
  * @param {Array} splitArray - Array of values from the row parameter
@@ -1552,7 +1553,7 @@ function isDateString(value) {
  * @returns {Promise<void>}
  */
 async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSequence) {
-    console.log(`Applying symbol-based formatting to row ${rowNum}`);
+    console.log(`Applying symbol-based formatting with percentage override to row ${rowNum}`);
     
     // Define format configurations
     const formatConfigs = {
@@ -1613,6 +1614,8 @@ async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSeq
         }
     };
 
+    const PERCENTAGE_FORMAT = '_(* #,##0.0%;_(* (#,##0.0)%;_(* " -"?_)';
+
     for (let x = 0; x < splitArray.length && x < columnSequence.length; x++) {
         const originalValue = splitArray[x];
         const colLetter = columnSequence[x];
@@ -1625,68 +1628,39 @@ async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSeq
         
         const cellRange = worksheet.getRange(`${colLetter}${rowNum}`);
         
-                 // Apply number format if specified
-         if (parsed.formatType && formatConfigs[parsed.formatType]) {
-             const config = formatConfigs[parsed.formatType];
-             cellRange.numberFormat = [[config.numberFormat]];
-             cellRange.format.font.italic = config.italic;
-             // Don't override bold formatting - preserve existing bold setting
-             // cellRange.format.font.bold = config.bold;  // Removed to preserve existing bold
-             console.log(`    Applied ${parsed.formatType} formatting to ${colLetter}${rowNum}`);
-         }
-         
-         // Apply italic formatting if ~ symbol was present (overrides format config)
-         if (parsed.isItalic) {
-             cellRange.format.font.italic = true;
-             console.log(`    Applied italic to ${colLetter}${rowNum} due to ~ symbol`);
-         }
-         // For regular text with no symbols and no specific format, ensure it's not italic
-         else if (!parsed.formatType) {
-             cellRange.format.font.italic = false;
-             console.log(`    Set non-italic for regular text in ${colLetter}${rowNum}`);
-         }
-    }
-    
-    // Sync the formatting changes
-    await worksheet.context.sync();
-    console.log(`Completed symbol-based formatting for row ${rowNum}`);
-}
-
-/**
- * Re-applies percentage formatting to cells that should have it after column P formatting copy
- * This prevents percentage formatting from being overridden
- * @param {Excel.Worksheet} worksheet - The worksheet containing the cells
- * @param {number} rowNum - The row number to process
- * @param {Array} splitArray - Array of values from the row parameter
- * @param {Array} columnSequence - Array of column letters
- * @returns {Promise<void>}
- */
-async function reapplyPercentageFormatting(worksheet, rowNum, splitArray, columnSequence) {
-    console.log(`Re-applying percentage formatting to row ${rowNum} after column P copy`);
-    
-    const PERCENTAGE_FORMAT = '_(* #,##0.0%;_(* (#,##0.0)%;_(* " -"?_)';
-    
-    for (let x = 0; x < splitArray.length && x < columnSequence.length; x++) {
-        const originalValue = splitArray[x];
-        const colLetter = columnSequence[x];
+        // Apply number format if specified
+        if (parsed.formatType && formatConfigs[parsed.formatType]) {
+            const config = formatConfigs[parsed.formatType];
+            cellRange.numberFormat = [[config.numberFormat]];
+            cellRange.format.font.italic = config.italic;
+            console.log(`    Applied ${parsed.formatType} formatting to ${colLetter}${rowNum}`);
+        }
         
-        if (!originalValue) continue; // Skip empty values
-        
-        // Parse the value to check if it should have percentage formatting
-        const parsed = parseValueWithSymbols(originalValue);
-        
+        // IMMEDIATELY override with percentage format if this is a percentage
         if (parsed.formatType === 'percent') {
-            console.log(`  Re-applying percentage format to ${colLetter}${rowNum} for value "${originalValue}"`);
-            const cellRange = worksheet.getRange(`${colLetter}${rowNum}`);
+            console.log(`    Immediately overriding with percentage format for ${colLetter}${rowNum}`);
             cellRange.numberFormat = [[PERCENTAGE_FORMAT]];
             cellRange.format.font.italic = true; // Percentage values with ~ should be italic
         }
+        
+        // Apply italic formatting if ~ symbol was present (overrides format config)
+        if (parsed.isItalic) {
+            cellRange.format.font.italic = true;
+            console.log(`    Applied italic to ${colLetter}${rowNum} due to ~ symbol`);
+        }
+        // For regular text with no symbols and no specific format, ensure it's not italic
+        else if (!parsed.formatType) {
+            cellRange.format.font.italic = false;
+            console.log(`    Set non-italic for regular text in ${colLetter}${rowNum}`);
+        }
     }
     
-    // Sync the formatting changes
+    // Single sync for all formatting changes
     await worksheet.context.sync();
-    console.log(`Completed re-applying percentage formatting for row ${rowNum}`);
+    console.log(`Completed symbol-based formatting with percentage override for row ${rowNum}`);
 }
+
+// NOTE: reapplyPercentageFormatting function removed - functionality integrated into applyRowSymbolFormatting
 
 /**
  * Copies complete formatting from column O to column J and columns S through CX for a specific row
@@ -2316,17 +2290,8 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         console.error(`  Error copying column P formatting to J and S:CX: ${copyFormatError.message}`);
                     }
 
-                    // RE-APPLY percentage formatting after column P copy (to prevent override)
-                    try {
-                        // Use the same cleaned split array without square bracket comments for percentage formatting
-                        const cleanedSplitArray = splitArray.map(value => {
-                            const commentParsed = parseCommentFromBrackets(value);
-                            return commentParsed.cleanValue;
-                        });
-                        await reapplyPercentageFormatting(currentWorksheet, currentRowNum, cleanedSplitArray, columnSequence);
-                    } catch (percentFormatError) {
-                        console.error(`  Error reapplying percentage formatting: ${percentFormatError.message}`);
-                    }
+                    // NOTE: Percentage formatting override is now handled within applyRowSymbolFormatting
+                    // No need for separate reapplyPercentageFormatting call
                 }
                 await context.sync(); // Sync after populating each 'g' group
 
