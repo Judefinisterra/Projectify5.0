@@ -4803,18 +4803,31 @@ async function updateSumifFormulasAfterGreenDeletion(worksheet, startRow, lastRo
                 if (typeof formula === 'string' && formula.startsWith('=')) {
                     console.log(`    🔍 Column ${String.fromCharCode(74 + colIndex)} formula: ${formula}`);
                     
-                    // Update SUMIF($3:$3 patterns
-                    if (formula.toLowerCase().includes('sumif($3:$3')) {
-                        console.log(`    🎯 Found SUMIF($3:$3 pattern - updating to use year row ${yearRow}`);
-                        
-                        // Replace SUMIF($3:$3 with SUMIF([yearRowRange]
-                        formula = formula.replace(/sumif\(\$3:\$3/gi, `SUMIF(${yearRowRange}`);
-                        
-                        // Replace ADDRESS(2,COLUMN(),2) with ADDRESS([timeSeriesRow],COLUMN(),2)
-                        formula = formula.replace(/ADDRESS\(2,COLUMN\(\),2\)/gi, `ADDRESS(${timeSeriesRow},COLUMN(),2)`);
-                        
-                        console.log(`    ✅ Updated SUMIF($3:$3 formula in column ${String.fromCharCode(74 + colIndex)}`);
-                    }
+                                         // Update SUMIF($3:$3 patterns (year row)
+                     if (formula.toLowerCase().includes('sumif($3:$3')) {
+                         console.log(`    🎯 Found SUMIF($3:$3 pattern - updating to use year row ${yearRow}`);
+                         
+                         // Replace SUMIF($3:$3 with SUMIF([yearRowRange]
+                         formula = formula.replace(/sumif\(\$3:\$3/gi, `SUMIF(${yearRowRange}`);
+                         
+                         // Replace ADDRESS(2,COLUMN(),2) with ADDRESS([timeSeriesRow],COLUMN(),2)
+                         formula = formula.replace(/ADDRESS\(2,COLUMN\(\),2\)/gi, `ADDRESS(${timeSeriesRow},COLUMN(),2)`);
+                         
+                         console.log(`    ✅ Updated SUMIF($3:$3 formula in column ${String.fromCharCode(74 + colIndex)}`);
+                     }
+                     
+                     // Update SUMIF($4:$4 patterns (year end row)
+                     if (formula.toLowerCase().includes('sumif($4:$4')) {
+                         console.log(`    🎯 Found SUMIF($4:$4 pattern - updating to use year end row ${yearEndRow}`);
+                         
+                         // Replace SUMIF($4:$4 with SUMIF([yearEndRowRange]
+                         formula = formula.replace(/sumif\(\$4:\$4/gi, `SUMIF(${yearEndRowRange}`);
+                         
+                         // Replace ADDRESS(2,COLUMN(),2) with ADDRESS([timeSeriesRow],COLUMN(),2)
+                         formula = formula.replace(/ADDRESS\(2,COLUMN\(\),2\)/gi, `ADDRESS(${timeSeriesRow},COLUMN(),2)`);
+                         
+                         console.log(`    ✅ Updated SUMIF($4:$4 formula in column ${String.fromCharCode(74 + colIndex)}`);
+                     }
                     
                     if (formula !== originalFormula) {
                         rowFormulasUpdated = true;
