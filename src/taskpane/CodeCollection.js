@@ -1494,10 +1494,7 @@ function parseValueWithSymbols(valueString) {
             formatType = 'volume';
         }
     }
-    // Check if it's just "F" (volume formatting)
-    else if (cleanValue === 'F') {
-        formatType = 'volume';
-    }
+
     // Check if it ends with "x" for factor formatting (e.g., "10x")
     else if (cleanValue.toLowerCase().endsWith('x') && cleanValue.length > 1) {
         const numberPart = cleanValue.substring(0, cleanValue.length - 1);
@@ -3254,11 +3251,30 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      const finalLastRow = await deleteGreenRows(currentWorksheet, START_ROW - 1, postIndexLastRow); // Get the new last row AFTER deletions
                      console.log(`After deleting green rows, last row is now: ${finalLastRow}`);
  
-                     // 11. Autofill AE9:AE<lastRow> -> CX<lastRow> on Assumption Tab - Use finalLastRow
-                     console.log(`Autofilling ${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow} to ${AUTOFILL_END_COLUMN} on ${worksheetName}`);
-                     const sourceRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow}`);
-                     const fillRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_END_COLUMN}${finalLastRow}`);
-                     sourceRange.autoFill(fillRange, Excel.AutoFillType.fillDefault);
+                     // 11. Autofill AE<startRow>:AE<lastRow> -> CX<lastRow> on Assumption Tab - Only rows with formulas in AE
+                     console.log(`Checking for formulas in ${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow} and autofilling to ${AUTOFILL_END_COLUMN} on ${worksheetName}`);
+                     
+                     // Load formulas from column AE to check which rows have formulas
+                     const aeFormulaRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow}`);
+                     aeFormulaRange.load("formulas");
+                     await context.sync();
+                     
+                     let autofillCount = 0;
+                     // Check each row and autofill only those with formulas in AE
+                     for (let rowIndex = 0; rowIndex < aeFormulaRange.formulas.length; rowIndex++) {
+                         const formula = aeFormulaRange.formulas[rowIndex][0];
+                         const currentRowNum = START_ROW + rowIndex;
+                         
+                         // Check if there's a formula in this row's AE cell
+                         if (formula && typeof formula === 'string' && formula.startsWith('=')) {
+                             console.log(`  Autofilling row ${currentRowNum}: ${AUTOFILL_START_COLUMN}${currentRowNum} -> ${AUTOFILL_END_COLUMN}${currentRowNum}`);
+                             const sourceCell = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${currentRowNum}`);
+                             const fillRowRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${currentRowNum}:${AUTOFILL_END_COLUMN}${currentRowNum}`);
+                             sourceCell.autoFill(fillRowRange, Excel.AutoFillType.fillDefault);
+                             autofillCount++;
+                         }
+                     }
+                     console.log(`Autofilled ${autofillCount} rows with formulas out of ${aeFormulaRange.formulas.length} total rows`);
  
                      // 12. Set Row 9 interior color to none
                      console.log(`Setting row 9 interior color to none for ${worksheetName}`);
