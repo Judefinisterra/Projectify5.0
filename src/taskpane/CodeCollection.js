@@ -4828,6 +4828,35 @@ async function updateSumifFormulasAfterGreenDeletion(worksheet, startRow, lastRo
                          
                          console.log(`    ✅ Updated SUMIF($4:$4 formula in column ${String.fromCharCode(74 + colIndex)}`);
                      }
+                     
+                     // Update INDEX/MATCH patterns
+                     if (formula.toLowerCase().includes('index(indirect(row()')) {
+                         console.log(`    🔍 Found potential INDEX/MATCH pattern, analyzing...`);
+                         
+                         // First, ensure we have the basic INDEX(INDIRECT(ROW() & ":" & ROW()) structure
+                         const indexMatch = formula.match(/INDEX\(INDIRECT\(ROW\(\)\s*&\s*":"\s*&\s*ROW\(\)\)/i);
+                         
+                         if (indexMatch) {
+                             console.log(`    🎯 Found INDEX/MATCH pattern - updating to use time series and year end rows`);
+                             console.log(`    📋 Time series row: ${timeSeriesRow}`);
+                             console.log(`    📋 Year end row range: ${yearEndRowRange}`);
+                             
+                             // Replace the entire formula with the new pattern, wrapped in IFERROR
+                             const newFormula = `=IFERROR(INDEX(INDIRECT(ROW() & ":" & ROW()),1,MATCH(INDIRECT(ADDRESS(${timeSeriesRow},COLUMN()-1,2)),${yearEndRowRange},0)+1),0)`;
+                             
+                             // Only update if it's actually different
+                             if (newFormula !== formula) {
+                                 formula = newFormula;
+                                 console.log(`    ✅ Updated INDEX/MATCH formula:`);
+                                 console.log(`      Before: ${originalFormula}`);
+                                 console.log(`      After:  ${formula}`);
+                             } else {
+                                 console.log(`    ➡️ Formula already in correct format`);
+                             }
+                         } else {
+                             console.log(`    ➡️ Not a matching INDEX/MATCH pattern`);
+                         }
+                     }
                     
                     if (formula !== originalFormula) {
                         rowFormulasUpdated = true;
