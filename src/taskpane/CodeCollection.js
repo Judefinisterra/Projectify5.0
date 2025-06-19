@@ -10,6 +10,74 @@ import { validateLogicOnly } from './Validation.js';
 // >>> ADDED: Import the format validation function
 import { validateFormatErrors } from './ValidationFormat.js';
 
+// === TIMING UTILITIES ===
+const functionTimers = new Map();
+const functionTimes = new Map();
+let globalStartTime = null;
+
+function startTimer(functionName) {
+    const now = performance.now();
+    functionTimers.set(functionName, now);
+    console.log(`⏱️  [TIMER] Starting: ${functionName}`);
+}
+
+function endTimer(functionName) {
+    const startTime = functionTimers.get(functionName);
+    if (startTime) {
+        const duration = (performance.now() - startTime) / 1000; // Convert to seconds
+        functionTimes.set(functionName, (functionTimes.get(functionName) || 0) + duration);
+        functionTimers.delete(functionName);
+        console.log(`⏱️  [TIMER] Completed: ${functionName} (${duration.toFixed(3)}s)`);
+    }
+}
+
+function startGlobalTimer() {
+    globalStartTime = performance.now();
+    console.log("🚀 [TIMER] Starting global runCodes timing");
+}
+
+function printTimingSummary() {
+    const globalDuration = globalStartTime ? (performance.now() - globalStartTime) / 1000 : 0;
+    
+    console.log("\n" + "=".repeat(80));
+    console.log("⏱️  FUNCTION TIMING SUMMARY - runCodes Process");
+    console.log("=".repeat(80));
+    
+    const sortedTimes = Array.from(functionTimes.entries()).sort((a, b) => b[1] - a[1]);
+    
+    for (const [functionName, time] of sortedTimes) {
+        const percentage = globalDuration > 0 ? ((time / globalDuration) * 100).toFixed(1) : "0.0";
+        console.log(`${functionName.padEnd(45)} ${time.toFixed(3)}s (${percentage}%)`);
+    }
+    
+    const measuredTotal = Array.from(functionTimes.values()).reduce((sum, time) => sum + time, 0);
+    const unmeasuredTime = globalDuration - measuredTotal;
+    
+    console.log("-".repeat(80));
+    console.log(`${"MEASURED FUNCTIONS TOTAL".padEnd(45)} ${measuredTotal.toFixed(3)}s`);
+    console.log(`${"UNMEASURED TIME (overhead)".padEnd(45)} ${unmeasuredTime.toFixed(3)}s`);
+    console.log(`${"GLOBAL TOTAL TIME".padEnd(45)} ${globalDuration.toFixed(3)}s`);
+    console.log("=".repeat(80));
+}
+
+function resetTimers() {
+    functionTimers.clear();
+    functionTimes.clear();
+    globalStartTime = null;
+    console.log("🔄 [TIMER] Reset all timers");
+}
+
+function getTimingData() {
+    return {
+        functionTimes: Array.from(functionTimes.entries()),
+        globalDuration: globalStartTime ? (performance.now() - globalStartTime) / 1000 : 0
+    };
+}
+
+// Export timing functions for external use
+export { startTimer, endTimer, startGlobalTimer, printTimingSummary, resetTimers, getTimingData };
+// === END TIMING UTILITIES ===
+
 /*
  * LOGIC VALIDATION INTEGRATION GUIDE
  * 
@@ -289,6 +357,7 @@ export async function hasFormatErrors(inputText) {
  */
 export function populateCodeCollection(inputText) {
     try {
+        startTimer("populateCodeCollection");
         console.log("Processing input text for code collection");
          
         // Initialize an empty code collection
@@ -368,8 +437,10 @@ export function populateCodeCollection(inputText) {
         }
         
         console.log(`Processed ${codeCollection.length} codes`);
+        endTimer("populateCodeCollection");
         return codeCollection;
     } catch (error) {
+        endTimer("populateCodeCollection");
         console.error("Error in populateCodeCollection:", error);
         throw error;
     }
@@ -433,6 +504,8 @@ export function exportCodeCollectionToText(codeCollection) {
  */
 export async function runCodes(codeCollection) {
     try {
+        startGlobalTimer();
+        startTimer("runCodes-initialization");
         console.log("Running code collection processing");
         
         if (!codeCollection || !Array.isArray(codeCollection)) {
@@ -450,6 +523,9 @@ export async function runCodes(codeCollection) {
         let currentWorksheetName = null;
         const assumptionTabs = [];
         
+        endTimer("runCodes-initialization");
+        startTimer("runCodes-main-loop");
+        
         // Process each code in the collection
         for (let i = 0; i < codeCollection.length; i++) {
             const code = codeCollection[i];
@@ -465,6 +541,7 @@ export async function runCodes(codeCollection) {
                 
                 // Handle TAB code type
                 if (codeType === "TAB") {
+                    startTimer(`TAB-processing-${codeType}-${i}`);
                     // Accept both label1 and Label1 for backward compatibility
                     const tabName = code.params.label1 || code.params.Label1 || `Tab_${i}`;
                     
@@ -641,11 +718,13 @@ export async function runCodes(codeCollection) {
                         });
                     });
                     
+                    endTimer(`TAB-processing-${codeType}-${i}`);
                     continue;
                 }
                 
                 // Handle non-TAB codes
                 if (codeType !== "TAB") {
+                    startTimer(`non-TAB-processing-${codeType}-${i}`);
                     await Excel.run(async (context) => {
                         try {
                             // Get the Codes worksheet
@@ -957,6 +1036,7 @@ export async function runCodes(codeCollection) {
 
                                 // Apply the driver and assumption inputs function to the current worksheet
                                 try {
+                                    startTimer(`driverAndAssumptionInputs-${codeType}-${i}`);
                                     console.log(`Applying driver and assumption inputs to worksheet: ${currentWorksheetName}`);
                                     
                                     // Get the current worksheet and load its properties
@@ -973,7 +1053,9 @@ export async function runCodes(codeCollection) {
                                     
                                     // Store the actual row information for use by FIXED-E/FIXED-S
                                     code.actualRowInfo = rowInfo;
+                                    endTimer(`driverAndAssumptionInputs-${codeType}-${i}`);
                                 } catch (error) {
+                                    endTimer(`driverAndAssumptionInputs-${codeType}-${i}`);
                                     console.error(`Error applying driver and assumption inputs: ${error.message}`);
                                     result.errors.push({
                                         codeIndex: i,
@@ -1067,6 +1149,7 @@ export async function runCodes(codeCollection) {
                             error: error.message
                         });
                     });
+                    endTimer(`non-TAB-processing-${codeType}-${i}`);
                 }
             } catch (error) {
                 console.error(`Error processing code ${i}:`, error);
@@ -1079,16 +1162,26 @@ export async function runCodes(codeCollection) {
         }
         
         // Prepare the final result object, including the names of assumption tabs
+        endTimer("runCodes-main-loop");
+        startTimer("runCodes-finalization");
+        
         const finalResult = {
             ...result, // Includes processedCodes, errors
             assumptionTabs: assumptionTabs.map(tab => tab.name) // Return only the names
         };
 
+        endTimer("runCodes-finalization");
         console.log("runCodes finished. Returning:", finalResult);
+        
+        // Print timing summary for runCodes only
+        printTimingSummary();
+        
         return finalResult; // Return the modified result object
 
     } catch (error) {
         console.error("Error in runCodes:", error);
+        // Print timing summary even on error
+        printTimingSummary();
         // Consider how to return errors. Throwing stops execution.
         // Returning them in the result allows the caller to decide.
         throw error; // Or return { errors: [error.message], assumptionTabs: [] }
@@ -2063,27 +2156,43 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                     insertRange.insert(Excel.InsertShiftDirection.down);
                     await context.sync(); // Sync after insert
 
-                    // Sequentially copy formats and formulas from the previous row to the newly inserted ones
-                    // This helps ensure relative formulas are adjusted correctly step-by-step
-                    console.log(`Copying formats/formulas sequentially for inserted rows.`);
+                    // Copy formats and formulas from previous rows to newly inserted ones in batches
+                    // Build arrays for batch operations to improve performance
+                    console.log(`Copying formats/formulas in batches for ${numNewRows} inserted rows.`);
+                    
+                    // Prepare arrays for batch copying
+                    const formatCopyOperations = [];
+                    const formulaCopyOperations = [];
+                    
                     for (let i = 0; i < numNewRows; i++) {
                         const sourceRowNum = baseRowForThisG + i;
                         const targetRowNum = baseRowForThisG + i + 1; // The newly inserted row
-                        const sourceRowRange = currentWorksheet.getRange(`${sourceRowNum}:${sourceRowNum}`);
-                        const targetRowRange = currentWorksheet.getRange(`${targetRowNum}:${targetRowNum}`);
-
-                        // Copy formats
-                        console.log(`  Copying formats from row ${sourceRowNum} to ${targetRowNum}`);
-                        targetRowRange.copyFrom(sourceRowRange, Excel.RangeCopyType.formats);
-
-                        // Copy formulas (should adjust relative references)
-                        console.log(`  Copying formulas from row ${sourceRowNum} to ${targetRowNum}`);
-                        targetRowRange.copyFrom(sourceRowRange, Excel.RangeCopyType.formulas);
-
-                        // We could use RangeCopyType.all, but separate copy ensures population step overrides values cleanly.
+                        
+                        formatCopyOperations.push({
+                            source: currentWorksheet.getRange(`${sourceRowNum}:${sourceRowNum}`),
+                            target: currentWorksheet.getRange(`${targetRowNum}:${targetRowNum}`)
+                        });
+                        
+                        formulaCopyOperations.push({
+                            source: currentWorksheet.getRange(`${sourceRowNum}:${sourceRowNum}`),
+                            target: currentWorksheet.getRange(`${targetRowNum}:${targetRowNum}`)
+                        });
                     }
-                    await context.sync(); // Sync after all copies for this 'g' group are done
-                    console.log("Finished sequential copy for inserted rows.");
+                    
+                    // Execute all format copy operations
+                    console.log(`  Copying formats for ${formatCopyOperations.length} rows`);
+                    formatCopyOperations.forEach(op => {
+                        op.target.copyFrom(op.source, Excel.RangeCopyType.formats);
+                    });
+                    
+                    // Execute all formula copy operations  
+                    console.log(`  Copying formulas for ${formulaCopyOperations.length} rows`);
+                    formulaCopyOperations.forEach(op => {
+                        op.target.copyFrom(op.source, Excel.RangeCopyType.formulas);
+                    });
+                    
+                    await context.sync(); // Single sync for all copy operations
+                    console.log("Finished batch copy for inserted rows.");
                 }
 
                 // Populate the row(s) (original row + inserted rows)
@@ -3174,9 +3283,11 @@ async function formatChangesInWorkingCapitalJS(financialsSheet) {
  * @param {string[]} assumptionTabNames - Array of assumption tab names created by runCodes.
  */
 export async function processAssumptionTabs(assumptionTabNames) {
+    startTimer("processAssumptionTabs-total");
     console.log(`Starting processing for ${assumptionTabNames.length} assumption tabs:`, assumptionTabNames);
     if (!assumptionTabNames || assumptionTabNames.length === 0) {
         console.log("No assumption tabs provided to process.");
+        endTimer("processAssumptionTabs-total");
         return;
     }
 
@@ -3189,6 +3300,7 @@ export async function processAssumptionTabs(assumptionTabNames) {
         // --- Loop through each assumption tab name ---
         for (const worksheetName of assumptionTabNames) {
              console.log(`\nProcessing Assumption Tab: ${worksheetName}`);
+             startTimer(`processTab-${worksheetName}`);
 
             try {
                  // Perform operations for a single tab within one Excel.run for efficiency
@@ -3215,10 +3327,14 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      // These helpers now expect to run within this context
 
                      // 2. Adjust Drivers
+                     startTimer(`adjustDriversJS-${worksheetName}`);
                      await adjustDriversJS(currentWorksheet, lastRow);
+                     endTimer(`adjustDriversJS-${worksheetName}`);
 
                      // 3. Replace Indirects
+                     startTimer(`replaceIndirectsJS-${worksheetName}`);
                      await replaceIndirectsJS(currentWorksheet, lastRow);
+                     endTimer(`replaceIndirectsJS-${worksheetName}`);
 
                      // 4. Get Last Row Again (if Replace_Indirects might change it)
                      // const updatedLastRow = await getLastUsedRow(currentWorksheet, "B"); // Recalculate if necessary
@@ -3231,23 +3347,31 @@ export async function processAssumptionTabs(assumptionTabNames) {
 
                      // 5. Apply Index Growth Curve logic (MOVED UP - must run before Populate Financials)
                      // Run Index Growth *before* populating financials so financials links to aggregate rows
+                     startTimer(`applyIndexGrowthCurveJS-${worksheetName}`);
                      await applyIndexGrowthCurveJS(currentWorksheet, updatedLastRow);
+                     endTimer(`applyIndexGrowthCurveJS-${worksheetName}`);
                      
                      // 6. Get updated last row after Index Growth Curve (may have inserted rows)
                      const postIndexLastRow = await getLastUsedRow(currentWorksheet, "B");
                      console.log(`Last row after Index Growth Curve: ${postIndexLastRow}`);
 
                      // 7. Populate Financials (MOVED DOWN - now runs after Index Growth Curve)
+                     startTimer(`populateFinancialsJS-${worksheetName}`);
                      await populateFinancialsJS(currentWorksheet, postIndexLastRow, financialsSheet);
+                     endTimer(`populateFinancialsJS-${worksheetName}`);
 
                      // 8. Set font color to white in column A
                      // We use postIndexLastRow here, as Index Growth may have added rows
+                     startTimer(`setColumnAFontWhite-${worksheetName}`);
                      await setColumnAFontWhite(currentWorksheet, START_ROW, postIndexLastRow); 
+                     endTimer(`setColumnAFontWhite-${worksheetName}`);
                      console.log(`Set font color to white in column A from rows ${START_ROW}-${postIndexLastRow}`); 
                      
                      // 9. Process FORMULA-S rows - Convert driver references to cell references BEFORE deleting green rows
                      console.log(`Processing FORMULA-S rows in ${worksheetName} (before green row deletion)...`);
+                     startTimer(`processFormulaSRows-${worksheetName}`);
                      await processFormulaSRows(currentWorksheet, START_ROW, postIndexLastRow);
+                     endTimer(`processFormulaSRows-${worksheetName}`);
                      console.log(`Finished processing FORMULA-S rows`);
                      
                      // Clear the tracked FORMULA-S rows for this worksheet (cleanup)
@@ -3255,18 +3379,23 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      
                      // 10. Delete rows with green background (#CCFFCC) - AFTER FORMULA-S processing
                      console.log(`Deleting green rows in ${worksheetName}...`);
+                     startTimer(`deleteGreenRows-${worksheetName}`);
                      // Changed START_ROW to START_ROW - 1 to include row 9
                      const finalLastRow = await deleteGreenRows(currentWorksheet, START_ROW - 1, postIndexLastRow); // Get the new last row AFTER deletions
+                     endTimer(`deleteGreenRows-${worksheetName}`);
                      console.log(`After deleting green rows, last row is now: ${finalLastRow}`);
                      
                      // 11. Update SUMIF formulas after green row deletion
                      console.log(`Updating SUMIF formulas after green row deletion in ${worksheetName}...`);
+                     startTimer(`updateSumifFormulasAfterGreenDeletion-${worksheetName}`);
                      await updateSumifFormulasAfterGreenDeletion(currentWorksheet, START_ROW, finalLastRow);
+                     endTimer(`updateSumifFormulasAfterGreenDeletion-${worksheetName}`);
                      console.log(`Completed SUMIF formula updates for ${worksheetName}`);
  
                      // 12. Autofill AE<startRow>:AE<lastRow> -> CX<lastRow> on Assumption Tab - Only rows with formulas in AE
                      console.log(`Checking for formulas in ${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow} and autofilling to ${AUTOFILL_END_COLUMN} on ${worksheetName}`);
                      
+                     startTimer(`autofillFormulas-${worksheetName}`);
                      // Load formulas from column AE to check which rows have formulas
                      const aeFormulaRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${START_ROW}:${AUTOFILL_START_COLUMN}${finalLastRow}`);
                      aeFormulaRange.load("formulas");
@@ -3288,6 +3417,7 @@ export async function processAssumptionTabs(assumptionTabNames) {
                          }
                      }
                      console.log(`Autofilled ${autofillCount} rows with formulas out of ${aeFormulaRange.formulas.length} total rows`);
+                     endTimer(`autofillFormulas-${worksheetName}`);
  
                      // 13. Set Row 9 interior color to none
                      console.log(`Setting row 9 interior color to none for ${worksheetName}`);
@@ -3299,8 +3429,11 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      console.log(`Finished processing and syncing for tab ${worksheetName}`);
 
                  }); // End Excel.run for single tab processing
+                 
+                 endTimer(`processTab-${worksheetName}`);
 
              } catch (tabError) {
+                 endTimer(`processTab-${worksheetName}`);
                  console.error(`Error processing tab ${worksheetName}:`, tabError);
                  // Optionally add to an error list and continue with the next tab
                  // Be mindful that subsequent tabs might depend on this one succeeding.
@@ -3309,6 +3442,7 @@ export async function processAssumptionTabs(assumptionTabNames) {
 
         // --- Final Operations on Financials Sheet ---
         console.log(`\nPerforming final operations on ${FINANCIALS_SHEET_NAME}`);
+        startTimer("finalOperations-Financials");
         try {
              await Excel.run(async (context) => {
                  const finSheet = context.workbook.worksheets.getItem(FINANCIALS_SHEET_NAME);
@@ -3337,14 +3471,39 @@ export async function processAssumptionTabs(assumptionTabNames) {
                  await context.sync();
                  console.log(`Finished final operations on ${FINANCIALS_SHEET_NAME}`);
              });
+             endTimer("finalOperations-Financials");
          } catch (financialsError) {
+             endTimer("finalOperations-Financials");
              console.error(`Error during final operations on ${FINANCIALS_SHEET_NAME}:`, financialsError);
          }
 
         console.log("Finished processing all assumption tabs.");
+        endTimer("processAssumptionTabs-total");
+        
+        // Print timing summary for processAssumptionTabs
+        console.log("\n" + "=".repeat(80));
+        console.log("⏱️  PROCESS ASSUMPTION TABS TIMING SUMMARY");
+        console.log("=".repeat(80));
+        
+        const tabTimes = Array.from(functionTimes.entries())
+            .filter(([name]) => name.includes('processTab-') || name.includes('adjustDriversJS-') || 
+                               name.includes('replaceIndirectsJS-') || name.includes('applyIndexGrowthCurveJS-') ||
+                               name.includes('populateFinancialsJS-') || name.includes('processFormulaSRows-') ||
+                               name.includes('deleteGreenRows-') || name.includes('updateSumifFormulasAfterGreenDeletion-') ||
+                               name.includes('autofillFormulas-') || name.includes('setColumnAFontWhite-') ||
+                               name.includes('finalOperations-') || name === 'processAssumptionTabs-total')
+            .sort((a, b) => b[1] - a[1]);
+        
+        for (const [functionName, time] of tabTimes) {
+            console.log(`${functionName.padEnd(50)} ${time.toFixed(3)}s`);
+        }
+        console.log("=".repeat(80));
 
     } catch (error) {
+        endTimer("processAssumptionTabs-total");
         console.error("Error in processAssumptionTabs main function:", error);
+        // Print partial timing summary even on error
+        printTimingSummary();
         // Potentially re-throw or handle top-level errors
     }
 }
@@ -3688,46 +3847,77 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
         // Range: B(firstRow+2) to CX(lastRow-2) in VBA, but logic only checks B color. Let's adjust row color based on B.
         const formatCheckStartRow = firstRow + 2;
         const formatCheckEndRow = lastRow - 2;
-                console.log(`Setting background color for non-green rows between ${formatCheckStartRow} and ${formatCheckEndRow}`);
+        console.log(`Setting background color for non-green rows between ${formatCheckStartRow} and ${formatCheckEndRow}`);
         if (formatCheckStartRow <= formatCheckEndRow) {
-             // Check each row individually for background color
-             for (let currentRow = formatCheckStartRow; currentRow <= formatCheckEndRow; currentRow++) {
-                 try {
-                     const checkCell = currentWorksheet.getRange(`${CHECK_COL_B}${currentRow}`);
-                     checkCell.load("format/fill/color");
-                     checkCell.load("values");
-                     await context.sync();
-                     
-                     // Check if the cell is not light green
-                     if (checkCell.format.fill.color !== LIGHT_GREEN_COLOR) {
-                         console.log(`  Setting row ${currentRow} background to ${LIGHT_BLUE_COLOR}`);
-                         const rowRange = currentWorksheet.getRange(`${currentRow}:${currentRow}`);
-                         rowRange.format.fill.color = LIGHT_BLUE_COLOR;
-                         
-                         // Check if column B contains "BR" and set font color to blue
-                         const cellValue = checkCell.values[0][0];
-                         if (cellValue && String(cellValue).toUpperCase().includes("BR")) {
-                             console.log(`  Setting row ${currentRow} font color to blue (contains BR)`);
-                             rowRange.format.font.color = LIGHT_BLUE_COLOR;
-                         }
-                         
-                         // Change blue font color to black in columns AE through CX
-                         console.log(`  Changing blue font to black in columns AE:CX for row ${currentRow}`);
-                         const aeToChRange = currentWorksheet.getRange(`AE${currentRow}:CX${currentRow}`);
-                         aeToChRange.format.font.color = "#000000"; // Black font
-                         
-                         // Clear fill in column A specifically
-                         const cellARange = currentWorksheet.getRange(`A${currentRow}`);
-                         cellARange.format.fill.clear();
-                         await context.sync(); // Sync the formatting changes
-                     } else {
-                         console.log(`  Row ${currentRow} is green, skipping background change`);
-                     }
-                 } catch (colorError) {
-                     console.warn(`  Error checking/setting color for row ${currentRow}: ${colorError.message}`);
-                 }
-             }
-         }
+            // Load all colors and values at once for batch processing
+            const checkRangeAddress = `${CHECK_COL_B}${formatCheckStartRow}:${CHECK_COL_B}${formatCheckEndRow}`;
+            const checkRange = currentWorksheet.getRange(checkRangeAddress);
+            checkRange.load("format/fill/color");
+            checkRange.load("values");
+            await context.sync();
+            
+            // Arrays to track which rows need formatting
+            const rowsNeedingBlueBackground = [];
+            const rowsNeedingBlueFontColor = [];
+            const rowsNeedingAEToCXBlackFont = [];
+            const rowsNeedingColumnAClear = [];
+            
+            // Process all rows and categorize formatting needs
+            for (let i = 0; i < checkRange.values.length; i++) {
+                const currentRow = formatCheckStartRow + i;
+                const cellValue = checkRange.values[i][0];
+                const cellColor = Array.isArray(checkRange.format.fill.color) ? 
+                    checkRange.format.fill.color[i] : checkRange.format.fill.color;
+                
+                // Check if the cell is not light green
+                if (cellColor !== LIGHT_GREEN_COLOR) {
+                    console.log(`  Row ${currentRow} needs blue background`);
+                    rowsNeedingBlueBackground.push(currentRow);
+                    rowsNeedingAEToCXBlackFont.push(currentRow);
+                    rowsNeedingColumnAClear.push(currentRow);
+                    
+                    // Check if column B contains "BR" and add to blue font list
+                    if (cellValue && String(cellValue).toUpperCase().includes("BR")) {
+                        console.log(`  Row ${currentRow} needs blue font color (contains BR)`);
+                        rowsNeedingBlueFontColor.push(currentRow);
+                    }
+                } else {
+                    console.log(`  Row ${currentRow} is green, skipping background change`);
+                }
+            }
+            
+            // Apply formatting in batches
+            if (rowsNeedingBlueBackground.length > 0) {
+                console.log(`  Applying blue background to ${rowsNeedingBlueBackground.length} rows`);
+                
+                // Apply blue background to all qualifying rows
+                for (const row of rowsNeedingBlueBackground) {
+                    const rowRange = currentWorksheet.getRange(`${row}:${row}`);
+                    rowRange.format.fill.color = LIGHT_BLUE_COLOR;
+                }
+                
+                // Apply blue font color to BR rows
+                for (const row of rowsNeedingBlueFontColor) {
+                    const rowRange = currentWorksheet.getRange(`${row}:${row}`);
+                    rowRange.format.font.color = LIGHT_BLUE_COLOR;
+                }
+                
+                // Apply black font to AE:CX for all qualifying rows
+                for (const row of rowsNeedingAEToCXBlackFont) {
+                    const aeToChRange = currentWorksheet.getRange(`AE${row}:CX${row}`);
+                    aeToChRange.format.font.color = "#000000"; // Black font
+                }
+                
+                // Clear column A fill for all qualifying rows
+                for (const row of rowsNeedingColumnAClear) {
+                    const cellARange = currentWorksheet.getRange(`A${row}`);
+                    cellARange.format.fill.clear();
+                }
+                
+                await context.sync(); // Single sync for all formatting changes
+                console.log(`  Completed background formatting for ${rowsNeedingBlueBackground.length} rows`);
+            }
+        }
  
          // --- 4. Insert Rows ---
          const newRowStart = lastRow + 1;
@@ -3855,7 +4045,8 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
          console.log(`Final driver range to use: ${driverRangeString}`);
          console.log(`Setting SUMPRODUCT formulas for ${indexRows.length} target rows...`);
          
-         // Iterate and set formula for each cell individually (mimics FormulaArray)
+         // Build array of SUMPRODUCT formulas for batch assignment
+         const sumproductFormulas = [];
          for (let i = 0; i < indexRows.length; i++) {
              const originalRow = indexRows[i];
              const targetRow = newRowStart + i;
@@ -3868,17 +4059,22 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
              // Formula: =SUMPRODUCT(INDEX(driverRange, N(IF({1}, MAX(COLUMN(driverRange)) - COLUMN(driverRange) + 1))), dataRange)
              const sumproductFormula = `=SUMPRODUCT(INDEX(${driverRangeString},N(IF({1},MAX(COLUMN(${driverRangeString}))-COLUMN(${driverRangeString})+1))), ${dataRangeString})`;
 
-             console.log(`  Setting formula for ${SUMPRODUCT_COL}${targetRow}: ${sumproductFormula}`);
-             const targetCell = currentWorksheet.getRange(`${SUMPRODUCT_COL}${targetRow}`);
-             targetCell.formulas = [[sumproductFormula]];
+             console.log(`  Prepared formula for ${SUMPRODUCT_COL}${targetRow}: ${sumproductFormula}`);
+             sumproductFormulas.push([sumproductFormula]);
          }
+         
+         // Set all SUMPRODUCT formulas at once using array assignment
+         const sumproductRange = currentWorksheet.getRange(`${SUMPRODUCT_COL}${newRowStart}:${SUMPRODUCT_COL}${newRowEnd}`);
+         sumproductRange.formulas = sumproductFormulas;
          await context.sync(); // Sync the SUMPRODUCT formulas
-         console.log(`Successfully set ${indexRows.length} SUMPRODUCT formulas`);
+         console.log(`Successfully set ${indexRows.length} SUMPRODUCT formulas using array assignment`);
 
                   // NOTE: SUMIF formula updates moved to after green row deletion
  
          // --- 9. Copy Formats and Adjust ---
          console.log(`Copying formats and adjusting for new rows ${newRowStart}:${newRowEnd}`);
+         
+         // Copy formats from source rows to target rows (done individually due to non-contiguous source rows)
          for (let i = 0; i < indexRows.length; i++) {
              const sourceRow = indexRows[i];
              const targetRow = newRowStart + i;
@@ -3888,40 +4084,41 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
  
              // Copy formats first
              targetRowRange.copyFrom(sourceRowRange, Excel.RangeCopyType.formats);
-              await context.sync(); // Sync after each copy maybe needed? Let's try one sync after loop.
- 
-                          // Apply format overrides
-             targetRowRange.format.font.color = "#000000"; // Black font
-             
-             // Clear all borders explicitly (more reliable than forEach)
-             try {
-                 targetRowRange.format.borders.getItem('EdgeTop').style = 'None';
-                 targetRowRange.format.borders.getItem('EdgeBottom').style = 'None';
-                 targetRowRange.format.borders.getItem('EdgeLeft').style = 'None';
-                 targetRowRange.format.borders.getItem('EdgeRight').style = 'None';
-                 targetRowRange.format.borders.getItem('InsideVertical').style = 'None';
-                 targetRowRange.format.borders.getItem('InsideHorizontal').style = 'None';
-             } catch (borderError) {
-                 console.warn(`  Error clearing borders for row ${targetRow}: ${borderError.message}`);
-             }
- 
-             targetRowRange.format.fill.clear(); // Clear interior color
-             targetRowRange.format.font.bold = false; // Remove bold
- 
-             // Set indent level for column B
-             const targetCellB = currentWorksheet.getRange(`${OUTPUT_COL_B}${targetRow}`);
-             targetCellB.format.indentLevel = 2;
          }
-          await context.sync(); // Sync format changes
+         await context.sync(); // Sync all format copies at once
+         
+         // Apply bulk format overrides to all new rows at once
+         const allNewRowsRange = currentWorksheet.getRange(`${newRowStart}:${newRowEnd}`);
+         allNewRowsRange.format.font.color = "#000000"; // Black font for all rows
+         allNewRowsRange.format.fill.clear(); // Clear interior color for all rows
+         allNewRowsRange.format.font.bold = false; // Remove bold for all rows
+         
+         // Clear all borders for the entire range at once
+         try {
+             allNewRowsRange.format.borders.getItem('EdgeTop').style = 'None';
+             allNewRowsRange.format.borders.getItem('EdgeBottom').style = 'None';
+             allNewRowsRange.format.borders.getItem('EdgeLeft').style = 'None';
+             allNewRowsRange.format.borders.getItem('EdgeRight').style = 'None';
+             allNewRowsRange.format.borders.getItem('InsideVertical').style = 'None';
+             allNewRowsRange.format.borders.getItem('InsideHorizontal').style = 'None';
+         } catch (borderError) {
+             console.warn(`  Error clearing borders for range ${newRowStart}:${newRowEnd}: ${borderError.message}`);
+         }
+         
+         // Set indent level for column B in all new rows at once
+         const columnBRange = currentWorksheet.getRange(`${OUTPUT_COL_B}${newRowStart}:${OUTPUT_COL_B}${newRowEnd}`);
+         columnBRange.format.indentLevel = 2;
+         
+         await context.sync(); // Sync all format changes at once
  
          // --- 10. Clear Original Column C values ---
          console.log(`Clearing values in original index rows (${indexRows.join(', ')}) column ${DATA_COL}`);
-         // It's safer to clear individually if rows aren't contiguous
-         for (const originalRow of indexRows) {
-             const cellToClear = currentWorksheet.getRange(`${DATA_COL}${originalRow}`);
-             cellToClear.clear(Excel.ClearApplyTo.contents);
-         }
-          await context.sync(); // Sync clears
+         // Build array of ranges to clear for batch operation
+         const rangesToClear = indexRows.map(row => currentWorksheet.getRange(`${DATA_COL}${row}`));
+         
+         // Clear all ranges (Excel will handle this efficiently)
+         rangesToClear.forEach(range => range.clear(Excel.ClearApplyTo.contents));
+         await context.sync(); // Sync all clears at once
 
          // NOTE: Row grouping for INDEXBEGIN moved to runCodes function where the original rows are copied
  
@@ -4033,22 +4230,29 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
         const colAValues = colARange.values;
         const driverMap = new Map();
         
-        // Check each row individually for green background color to filter driver map
+        // Check all rows at once for green background color to filter driver map
         const greenRows = new Set();
-        for (let i = 0; i < colAValues.length; i++) {
-            const rowNum = startRow + i;
-            try {
-                const cellB = worksheet.getRange(`B${rowNum}`);
-                cellB.load('format/fill/color');
-                await worksheet.context.sync();
+        const colBRangeAddress = `B${startRow}:B${lastRow}`;
+        const colBRange = worksheet.getRange(colBRangeAddress);
+        
+        try {
+            colBRange.load('format/fill/color');
+            await worksheet.context.sync();
+            
+            // Process all colors at once
+            const colors = colBRange.format.fill.color;
+            for (let i = 0; i < colAValues.length; i++) {
+                const rowNum = startRow + i;
+                const cellColor = Array.isArray(colors) ? colors[i] : colors;
                 
-                if (cellB.format && cellB.format.fill && cellB.format.fill.color === '#CCFFCC') {
+                if (cellColor === '#CCFFCC') {
                     greenRows.add(rowNum);
                 }
-            } catch (colorError) {
-                // If we can't check color, assume it's not green
-                console.warn(`  Could not check color for row ${rowNum}, assuming not green`);
             }
+            console.log(`  Identified ${greenRows.size} green rows out of ${colAValues.length} total rows`);
+        } catch (colorError) {
+            // If we can't check colors in batch, assume no green rows
+            console.warn(`  Could not check colors in batch, assuming no green rows: ${colorError.message}`);
         }
         
         // Build driver map: driver name -> row number (excluding green rows)
@@ -4084,19 +4288,33 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             '16': 'S'
         };
         
-        // Process each FORMULA-S row
-        for (const rowNum of formulaSRows) {
-            // Get the current value in column AE
-            const aeCell = worksheet.getRange(`AE${rowNum}`);
-            aeCell.load("values");
-            await worksheet.context.sync();
-            
-            const originalValue = aeCell.values[0][0];
-            if (!originalValue || originalValue === "") {
+        // Load all FORMULA-S row values at once for batch processing
+        const formulaSRowsData = new Map(); // Map<rowNum, originalValue>
+        
+        // Build array of ranges to load all at once
+        const cellsToLoad = formulaSRows.map(rowNum => worksheet.getRange(`AE${rowNum}`));
+        
+        // Load all values in parallel
+        cellsToLoad.forEach(cell => cell.load("values"));
+        await worksheet.context.sync(); // Single sync for all loads
+        
+        // Store the loaded values
+        for (let i = 0; i < formulaSRows.length; i++) {
+            const rowNum = formulaSRows[i];
+            const originalValue = cellsToLoad[i].values[0][0];
+            if (originalValue && originalValue !== "") {
+                formulaSRowsData.set(rowNum, originalValue);
+                console.log(`  Row ${rowNum}: Loaded formula string: "${originalValue}"`);
+            } else {
                 console.log(`  Row ${rowNum}: No value in AE, skipping`);
-                continue;
             }
-            
+        }
+        
+        // Array to store all processed formulas for batch assignment
+        const formulaUpdates = [];
+        
+        // Process each FORMULA-S row
+        for (const [rowNum, originalValue] of formulaSRowsData) {
             console.log(`  Row ${rowNum}: Processing formula string: "${originalValue}"`);
             
             // Convert the string to a formula
@@ -4326,13 +4544,24 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             
             console.log(`  Row ${rowNum}: Final formula: ${formula}`);
             
-            // Set the formula in the cell
-            aeCell.formulas = [[formula]];
+            // Store the formula update for batch assignment
+            formulaUpdates.push({
+                cell: worksheet.getRange(`AE${rowNum}`),
+                formula: formula
+            });
         }
         
-        // Sync all formula changes
-        await worksheet.context.sync();
-        console.log(`Successfully processed ${formulaSRows.length} FORMULA-S rows`);
+        // Apply all formula updates in batch
+        if (formulaUpdates.length > 0) {
+            console.log(`Applying ${formulaUpdates.length} formula updates in batch...`);
+            formulaUpdates.forEach(update => {
+                update.cell.formulas = [[update.formula]];
+            });
+            
+            // Single sync for all formula changes
+            await worksheet.context.sync();
+            console.log(`Successfully processed ${formulaUpdates.length} FORMULA-S rows using batch operations`);
+        }
         
     } catch (error) {
         console.error(`Error in processFormulaSRows: ${error.message}`, error);
@@ -4353,6 +4582,7 @@ export async function hideColumnsAndNavigate(assumptionTabNames, originalModelCo
     const ACTUALS_END_COL = "AD";
 
     try {
+        startTimer("hideColumnsAndNavigate-total");
         const targetSheetNames = [...assumptionTabNames, "Financials"]; // Combine assumption tabs and Financials
         console.log(`Attempting to hide specific rows/columns on sheets [${targetSheetNames.join(', ')}] and navigate...`);
 
@@ -4675,7 +4905,25 @@ export async function hideColumnsAndNavigate(assumptionTabNames, originalModelCo
             console.log("Finished hideColumnsAndNavigate function.");
 
         }); // End Excel.run
+        
+        endTimer("hideColumnsAndNavigate-total");
+        
+        // Print timing summary for hideColumnsAndNavigate
+        console.log("\n" + "=".repeat(80));
+        console.log("⏱️  HIDE COLUMNS AND NAVIGATE TIMING SUMMARY");
+        console.log("=".repeat(80));
+        
+        const hideNavTimes = Array.from(functionTimes.entries())
+            .filter(([name]) => name.includes('hideColumnsAndNavigate'))
+            .sort((a, b) => b[1] - a[1]);
+        
+        for (const [functionName, time] of hideNavTimes) {
+            console.log(`${functionName.padEnd(50)} ${time.toFixed(3)}s`);
+        }
+        console.log("=".repeat(80));
+        
     } catch (error) {
+        endTimer("hideColumnsAndNavigate-total");
         // Catch errors from the Excel.run call itself
         console.error("Critical error in hideColumnsAndNavigate:", error);
         throw error; // Re-throw critical errors
