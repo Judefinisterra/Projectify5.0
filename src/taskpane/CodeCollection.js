@@ -3716,7 +3716,7 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
          }
  
          // --- 4. Insert Rows ---
-         const newRowStart = lastRow + 2;
+         const newRowStart = lastRow + 1;
          const numNewRows = indexRows.length;
          const newRowEnd = newRowStart + numNewRows - 1;
          console.log(`Inserting ${numNewRows} rows at range ${newRowStart}:${newRowEnd}`);
@@ -4328,11 +4328,12 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
 
 /**
  * Hides Columns C-I, Rows 2-8, and specific Actuals columns on specified sheets,
- * then navigates to cell A1 of the Financials sheet.
+ * then navigates to cell A1 of the Financials sheet and inserts model codes.
  * @param {string[]} assumptionTabNames - Array of assumption tab names created by runCodes.
+ * @param {string} [originalModelCodes] - Optional: The original model codes string to insert into A1
  * @returns {Promise<void>}
  */
-export async function hideColumnsAndNavigate(assumptionTabNames) { // Renamed and added parameter
+export async function hideColumnsAndNavigate(assumptionTabNames, originalModelCodes = null) { // Renamed and added parameter
     // Define Actuals columns
     const ACTUALS_START_COL = "S";
     const ACTUALS_END_COL = "AD";
@@ -4581,6 +4582,29 @@ export async function hideColumnsAndNavigate(assumptionTabNames) { // Renamed an
                     debugInfo: reorderError.debugInfo ? JSON.stringify(reorderError.debugInfo) : 'N/A'
                 });
                 // Do not throw here, allow the function to finish
+            }
+
+            // --- Insert model codes into Financials A1 if provided ---
+            if (originalModelCodes) {
+                try {
+                    console.log("📋 Inserting model codes into Financials!A1...");
+                    const financialsSheet = context.workbook.worksheets.getItem("Financials");
+                    const cellA1 = financialsSheet.getRange("A1");
+                    
+                    // Insert the model codes
+                    cellA1.values = [[originalModelCodes]];
+                    
+                    // Apply hidden formatting
+                    cellA1.format.font.color = "#FFFFFF"; // White font (hidden)
+                    cellA1.format.font.size = 8; // Small font
+                    cellA1.format.wrapText = false; // No wrap
+                    
+                    await context.sync();
+                    console.log(`✅ Model codes inserted into Financials!A1 (${originalModelCodes.length} characters)`);
+                } catch (codesError) {
+                    console.error("❌ Error inserting model codes:", codesError.message);
+                    // Continue - don't let this stop the process
+                }
             }
 
             // --- Navigate to Financials sheet and select cell J10 with view reset ---
@@ -5516,4 +5540,130 @@ export function testColumnLabelAndPipeCleanup() {
     }
     
     return { input: testInput, result, expected, success };
+}
+
+/**
+ * Inserts the entire model codes into cell A1 of the Financials tab
+ * This preserves the original code strings that were used to create the model
+ * @param {string} modelCodes - The complete model codes string that was used to build the model
+ * @returns {Promise<void>}
+ */
+export async function insertModelCodesIntoFinancials(modelCodes) {
+    try {
+        console.log("📋 [MODEL CODES] Inserting model codes into Financials!A1");
+        console.log(`📋 [MODEL CODES] Code string length: ${modelCodes?.length || 0} characters`);
+        
+        if (!modelCodes || typeof modelCodes !== 'string') {
+            console.warn("⚠️ [MODEL CODES] Invalid or empty model codes provided, skipping insertion");
+            return;
+        }
+        
+        await Excel.run(async (context) => {
+            try {
+                // Get the Financials worksheet
+                const financialsSheet = context.workbook.worksheets.getItem("Financials");
+                console.log("📋 [MODEL CODES] Successfully got Financials worksheet reference");
+                
+                // Get cell A1
+                const cellA1 = financialsSheet.getRange("A1");
+                
+                // Insert the model codes as a value
+                cellA1.values = [[modelCodes]];
+                console.log("📋 [MODEL CODES] Model codes inserted into Financials!A1");
+                
+                // Apply formatting to make it easier to identify
+                cellA1.format.font.color = "#FFFFFF"; // White font (hidden)
+                cellA1.format.font.size = 8; // Small font size
+                cellA1.format.wrapText = false; // Don't wrap text to keep it contained
+                console.log("📋 [MODEL CODES] Applied formatting (white font, size 8, no wrap)");
+                
+                // Sync the changes
+                await context.sync();
+                console.log("✅ [MODEL CODES] Successfully inserted and formatted model codes in Financials!A1");
+                
+            } catch (error) {
+                console.error("❌ [MODEL CODES] Error inserting model codes into Financials!A1:", error);
+                throw error;
+            }
+        });
+        
+    } catch (error) {
+        console.error("❌ [MODEL CODES] Critical error in insertModelCodesIntoFinancials:", error);
+        // Don't throw the error to avoid breaking the model completion process
+        console.log("⚠️ [MODEL CODES] Continuing despite error to avoid breaking model completion");
+    }
+}
+
+/**
+ * Enhanced version of hideColumnsAndNavigate that also inserts model codes
+ * @param {string[]} assumptionTabNames - Array of assumption tab names created by runCodes
+ * @param {string} originalModelCodes - The original model codes string used to build the model
+ * @returns {Promise<void>}
+ */
+export async function hideColumnsNavigateAndInsertCodes(assumptionTabNames, originalModelCodes) {
+    try {
+        console.log("🎯 [MODEL COMPLETION] Starting final model completion steps...");
+        
+        // First, run the standard hide columns and navigate function
+        await hideColumnsAndNavigate(assumptionTabNames);
+        console.log("✅ [MODEL COMPLETION] Completed hideColumnsAndNavigate");
+        
+        // Then insert the model codes into Financials!A1
+        if (originalModelCodes) {
+            console.log("📋 [MODEL COMPLETION] Inserting original model codes into Financials...");
+            await insertModelCodesIntoFinancials(originalModelCodes);
+            console.log("✅ [MODEL COMPLETION] Model codes insertion completed");
+        } else {
+            console.warn("⚠️ [MODEL COMPLETION] No original model codes provided, skipping insertion");
+        }
+        
+        console.log("🎉 [MODEL COMPLETION] All model completion steps finished successfully");
+        
+    } catch (error) {
+        console.error("❌ [MODEL COMPLETION] Error in hideColumnsNavigateAndInsertCodes:", error);
+        throw error;
+    }
+}
+
+/**
+ * Retrieves the model codes from cell A1 of the Financials tab
+ * Useful for debugging or extracting the codes that were used to build the model
+ * @returns {Promise<string|null>} - The model codes string or null if not found/error
+ */
+export async function getModelCodesFromFinancials() {
+    try {
+        console.log("📋 [MODEL CODES RETRIEVAL] Retrieving model codes from Financials!A1");
+        
+        return await Excel.run(async (context) => {
+            try {
+                // Get the Financials worksheet
+                const financialsSheet = context.workbook.worksheets.getItem("Financials");
+                
+                // Get cell A1
+                const cellA1 = financialsSheet.getRange("A1");
+                cellA1.load("values");
+                
+                // Sync to load the value
+                await context.sync();
+                
+                const modelCodes = cellA1.values[0][0];
+                
+                if (modelCodes && typeof modelCodes === 'string' && modelCodes.trim() !== '') {
+                    console.log(`✅ [MODEL CODES RETRIEVAL] Retrieved model codes (${modelCodes.length} characters)`);
+                    return modelCodes;
+                } else {
+                    console.log("⚠️ [MODEL CODES RETRIEVAL] No model codes found in Financials!A1");
+                    return null;
+                }
+                
+            } catch (error) {
+                console.error("❌ [MODEL CODES RETRIEVAL] Error retrieving model codes:", error);
+                return null;
+            }
+        });
+        
+    } catch (error) {
+        console.error("❌ [MODEL CODES RETRIEVAL] Critical error in getModelCodesFromFinancials:", error);
+        return null;
+    }
 }
