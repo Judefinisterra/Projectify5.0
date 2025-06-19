@@ -2156,43 +2156,27 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                     insertRange.insert(Excel.InsertShiftDirection.down);
                     await context.sync(); // Sync after insert
 
-                    // Copy formats and formulas from previous rows to newly inserted ones in batches
-                    // Build arrays for batch operations to improve performance
-                    console.log(`Copying formats/formulas in batches for ${numNewRows} inserted rows.`);
-                    
-                    // Prepare arrays for batch copying
-                    const formatCopyOperations = [];
-                    const formulaCopyOperations = [];
-                    
+                    // Sequentially copy formats and formulas from the previous row to the newly inserted ones
+                    // This helps ensure relative formulas are adjusted correctly step-by-step
+                    console.log(`Copying formats/formulas sequentially for inserted rows.`);
                     for (let i = 0; i < numNewRows; i++) {
                         const sourceRowNum = baseRowForThisG + i;
                         const targetRowNum = baseRowForThisG + i + 1; // The newly inserted row
-                        
-                        formatCopyOperations.push({
-                            source: currentWorksheet.getRange(`${sourceRowNum}:${sourceRowNum}`),
-                            target: currentWorksheet.getRange(`${targetRowNum}:${targetRowNum}`)
-                        });
-                        
-                        formulaCopyOperations.push({
-                            source: currentWorksheet.getRange(`${sourceRowNum}:${sourceRowNum}`),
-                            target: currentWorksheet.getRange(`${targetRowNum}:${targetRowNum}`)
-                        });
+                        const sourceRowRange = currentWorksheet.getRange(`${sourceRowNum}:${sourceRowNum}`);
+                        const targetRowRange = currentWorksheet.getRange(`${targetRowNum}:${targetRowNum}`);
+
+                        // Copy formats
+                        console.log(`  Copying formats from row ${sourceRowNum} to ${targetRowNum}`);
+                        targetRowRange.copyFrom(sourceRowRange, Excel.RangeCopyType.formats);
+
+                        // Copy formulas (should adjust relative references)
+                        console.log(`  Copying formulas from row ${sourceRowNum} to ${targetRowNum}`);
+                        targetRowRange.copyFrom(sourceRowRange, Excel.RangeCopyType.formulas);
+
+                        // We could use RangeCopyType.all, but separate copy ensures population step overrides values cleanly.
                     }
-                    
-                    // Execute all format copy operations
-                    console.log(`  Copying formats for ${formatCopyOperations.length} rows`);
-                    formatCopyOperations.forEach(op => {
-                        op.target.copyFrom(op.source, Excel.RangeCopyType.formats);
-                    });
-                    
-                    // Execute all formula copy operations  
-                    console.log(`  Copying formulas for ${formulaCopyOperations.length} rows`);
-                    formulaCopyOperations.forEach(op => {
-                        op.target.copyFrom(op.source, Excel.RangeCopyType.formulas);
-                    });
-                    
-                    await context.sync(); // Single sync for all copy operations
-                    console.log("Finished batch copy for inserted rows.");
+                    await context.sync(); // Sync after all copies for this 'g' group are done
+                    console.log("Finished sequential copy for inserted rows.");
                 }
 
                 // Populate the row(s) (original row + inserted rows)
@@ -3847,77 +3831,46 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
         // Range: B(firstRow+2) to CX(lastRow-2) in VBA, but logic only checks B color. Let's adjust row color based on B.
         const formatCheckStartRow = firstRow + 2;
         const formatCheckEndRow = lastRow - 2;
-        console.log(`Setting background color for non-green rows between ${formatCheckStartRow} and ${formatCheckEndRow}`);
+                console.log(`Setting background color for non-green rows between ${formatCheckStartRow} and ${formatCheckEndRow}`);
         if (formatCheckStartRow <= formatCheckEndRow) {
-            // Load all colors and values at once for batch processing
-            const checkRangeAddress = `${CHECK_COL_B}${formatCheckStartRow}:${CHECK_COL_B}${formatCheckEndRow}`;
-            const checkRange = currentWorksheet.getRange(checkRangeAddress);
-            checkRange.load("format/fill/color");
-            checkRange.load("values");
-            await context.sync();
-            
-            // Arrays to track which rows need formatting
-            const rowsNeedingBlueBackground = [];
-            const rowsNeedingBlueFontColor = [];
-            const rowsNeedingAEToCXBlackFont = [];
-            const rowsNeedingColumnAClear = [];
-            
-            // Process all rows and categorize formatting needs
-            for (let i = 0; i < checkRange.values.length; i++) {
-                const currentRow = formatCheckStartRow + i;
-                const cellValue = checkRange.values[i][0];
-                const cellColor = Array.isArray(checkRange.format.fill.color) ? 
-                    checkRange.format.fill.color[i] : checkRange.format.fill.color;
-                
-                // Check if the cell is not light green
-                if (cellColor !== LIGHT_GREEN_COLOR) {
-                    console.log(`  Row ${currentRow} needs blue background`);
-                    rowsNeedingBlueBackground.push(currentRow);
-                    rowsNeedingAEToCXBlackFont.push(currentRow);
-                    rowsNeedingColumnAClear.push(currentRow);
-                    
-                    // Check if column B contains "BR" and add to blue font list
-                    if (cellValue && String(cellValue).toUpperCase().includes("BR")) {
-                        console.log(`  Row ${currentRow} needs blue font color (contains BR)`);
-                        rowsNeedingBlueFontColor.push(currentRow);
-                    }
-                } else {
-                    console.log(`  Row ${currentRow} is green, skipping background change`);
-                }
-            }
-            
-            // Apply formatting in batches
-            if (rowsNeedingBlueBackground.length > 0) {
-                console.log(`  Applying blue background to ${rowsNeedingBlueBackground.length} rows`);
-                
-                // Apply blue background to all qualifying rows
-                for (const row of rowsNeedingBlueBackground) {
-                    const rowRange = currentWorksheet.getRange(`${row}:${row}`);
-                    rowRange.format.fill.color = LIGHT_BLUE_COLOR;
-                }
-                
-                // Apply blue font color to BR rows
-                for (const row of rowsNeedingBlueFontColor) {
-                    const rowRange = currentWorksheet.getRange(`${row}:${row}`);
-                    rowRange.format.font.color = LIGHT_BLUE_COLOR;
-                }
-                
-                // Apply black font to AE:CX for all qualifying rows
-                for (const row of rowsNeedingAEToCXBlackFont) {
-                    const aeToChRange = currentWorksheet.getRange(`AE${row}:CX${row}`);
-                    aeToChRange.format.font.color = "#000000"; // Black font
-                }
-                
-                // Clear column A fill for all qualifying rows
-                for (const row of rowsNeedingColumnAClear) {
-                    const cellARange = currentWorksheet.getRange(`A${row}`);
-                    cellARange.format.fill.clear();
-                }
-                
-                await context.sync(); // Single sync for all formatting changes
-                console.log(`  Completed background formatting for ${rowsNeedingBlueBackground.length} rows`);
-            }
-        }
+             // Check each row individually for background color
+             for (let currentRow = formatCheckStartRow; currentRow <= formatCheckEndRow; currentRow++) {
+                 try {
+                     const checkCell = currentWorksheet.getRange(`${CHECK_COL_B}${currentRow}`);
+                     checkCell.load("format/fill/color");
+                     checkCell.load("values");
+                     await context.sync();
+                     
+                     // Check if the cell is not light green
+                     if (checkCell.format.fill.color !== LIGHT_GREEN_COLOR) {
+                         console.log(`  Setting row ${currentRow} background to ${LIGHT_BLUE_COLOR}`);
+                         const rowRange = currentWorksheet.getRange(`${currentRow}:${currentRow}`);
+                         rowRange.format.fill.color = LIGHT_BLUE_COLOR;
+                         
+                         // Check if column B contains "BR" and set font color to blue
+                         const cellValue = checkCell.values[0][0];
+                         if (cellValue && String(cellValue).toUpperCase().includes("BR")) {
+                             console.log(`  Setting row ${currentRow} font color to blue (contains BR)`);
+                             rowRange.format.font.color = LIGHT_BLUE_COLOR;
+                         }
+                         
+                         // Change blue font color to black in columns AE through CX
+                         console.log(`  Changing blue font to black in columns AE:CX for row ${currentRow}`);
+                         const aeToChRange = currentWorksheet.getRange(`AE${currentRow}:CX${currentRow}`);
+                         aeToChRange.format.font.color = "#000000"; // Black font
+                         
+                         // Clear fill in column A specifically
+                         const cellARange = currentWorksheet.getRange(`A${currentRow}`);
+                         cellARange.format.fill.clear();
+                         await context.sync(); // Sync the formatting changes
+                     } else {
+                         console.log(`  Row ${currentRow} is green, skipping background change`);
+                     }
+                 } catch (colorError) {
+                     console.warn(`  Error checking/setting color for row ${currentRow}: ${colorError.message}`);
+                 }
+             }
+         }
  
          // --- 4. Insert Rows ---
          const newRowStart = lastRow + 1;
@@ -4230,29 +4183,22 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
         const colAValues = colARange.values;
         const driverMap = new Map();
         
-        // Check all rows at once for green background color to filter driver map
+        // Check each row individually for green background color to filter driver map
         const greenRows = new Set();
-        const colBRangeAddress = `B${startRow}:B${lastRow}`;
-        const colBRange = worksheet.getRange(colBRangeAddress);
-        
-        try {
-            colBRange.load('format/fill/color');
-            await worksheet.context.sync();
-            
-            // Process all colors at once
-            const colors = colBRange.format.fill.color;
-            for (let i = 0; i < colAValues.length; i++) {
-                const rowNum = startRow + i;
-                const cellColor = Array.isArray(colors) ? colors[i] : colors;
+        for (let i = 0; i < colAValues.length; i++) {
+            const rowNum = startRow + i;
+            try {
+                const cellB = worksheet.getRange(`B${rowNum}`);
+                cellB.load('format/fill/color');
+                await worksheet.context.sync();
                 
-                if (cellColor === '#CCFFCC') {
+                if (cellB.format && cellB.format.fill && cellB.format.fill.color === '#CCFFCC') {
                     greenRows.add(rowNum);
                 }
+            } catch (colorError) {
+                // If we can't check color, assume it's not green
+                console.warn(`  Could not check color for row ${rowNum}, assuming not green`);
             }
-            console.log(`  Identified ${greenRows.size} green rows out of ${colAValues.length} total rows`);
-        } catch (colorError) {
-            // If we can't check colors in batch, assume no green rows
-            console.warn(`  Could not check colors in batch, assuming no green rows: ${colorError.message}`);
         }
         
         // Build driver map: driver name -> row number (excluding green rows)
@@ -4288,33 +4234,19 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             '16': 'S'
         };
         
-        // Load all FORMULA-S row values at once for batch processing
-        const formulaSRowsData = new Map(); // Map<rowNum, originalValue>
-        
-        // Build array of ranges to load all at once
-        const cellsToLoad = formulaSRows.map(rowNum => worksheet.getRange(`AE${rowNum}`));
-        
-        // Load all values in parallel
-        cellsToLoad.forEach(cell => cell.load("values"));
-        await worksheet.context.sync(); // Single sync for all loads
-        
-        // Store the loaded values
-        for (let i = 0; i < formulaSRows.length; i++) {
-            const rowNum = formulaSRows[i];
-            const originalValue = cellsToLoad[i].values[0][0];
-            if (originalValue && originalValue !== "") {
-                formulaSRowsData.set(rowNum, originalValue);
-                console.log(`  Row ${rowNum}: Loaded formula string: "${originalValue}"`);
-            } else {
-                console.log(`  Row ${rowNum}: No value in AE, skipping`);
-            }
-        }
-        
-        // Array to store all processed formulas for batch assignment
-        const formulaUpdates = [];
-        
         // Process each FORMULA-S row
-        for (const [rowNum, originalValue] of formulaSRowsData) {
+        for (const rowNum of formulaSRows) {
+            // Get the current value in column AE
+            const aeCell = worksheet.getRange(`AE${rowNum}`);
+            aeCell.load("values");
+            await worksheet.context.sync();
+            
+            const originalValue = aeCell.values[0][0];
+            if (!originalValue || originalValue === "") {
+                console.log(`  Row ${rowNum}: No value in AE, skipping`);
+                continue;
+            }
+            
             console.log(`  Row ${rowNum}: Processing formula string: "${originalValue}"`);
             
             // Convert the string to a formula
@@ -4544,24 +4476,13 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             
             console.log(`  Row ${rowNum}: Final formula: ${formula}`);
             
-            // Store the formula update for batch assignment
-            formulaUpdates.push({
-                cell: worksheet.getRange(`AE${rowNum}`),
-                formula: formula
-            });
+            // Set the formula in the cell
+            aeCell.formulas = [[formula]];
         }
         
-        // Apply all formula updates in batch
-        if (formulaUpdates.length > 0) {
-            console.log(`Applying ${formulaUpdates.length} formula updates in batch...`);
-            formulaUpdates.forEach(update => {
-                update.cell.formulas = [[update.formula]];
-            });
-            
-            // Single sync for all formula changes
-            await worksheet.context.sync();
-            console.log(`Successfully processed ${formulaUpdates.length} FORMULA-S rows using batch operations`);
-        }
+        // Sync all formula changes
+        await worksheet.context.sync();
+        console.log(`Successfully processed ${formulaSRows.length} FORMULA-S rows`);
         
     } catch (error) {
         console.error(`Error in processFormulaSRows: ${error.message}`, error);
