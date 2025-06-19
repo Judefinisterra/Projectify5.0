@@ -3695,6 +3695,7 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
                  try {
                      const checkCell = currentWorksheet.getRange(`${CHECK_COL_B}${currentRow}`);
                      checkCell.load("format/fill/color");
+                     checkCell.load("values");
                      await context.sync();
                      
                      // Check if the cell is not light green
@@ -3702,6 +3703,14 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
                          console.log(`  Setting row ${currentRow} background to ${LIGHT_BLUE_COLOR}`);
                          const rowRange = currentWorksheet.getRange(`${currentRow}:${currentRow}`);
                          rowRange.format.fill.color = LIGHT_BLUE_COLOR;
+                         
+                         // Check if column B contains "BR" and set font color to blue
+                         const cellValue = checkCell.values[0][0];
+                         if (cellValue && String(cellValue).toUpperCase().includes("BR")) {
+                             console.log(`  Setting row ${currentRow} font color to blue (contains BR)`);
+                             rowRange.format.font.color = LIGHT_BLUE_COLOR;
+                         }
+                         
                          // Clear fill in column A specifically
                          const cellARange = currentWorksheet.getRange(`A${currentRow}`);
                          cellARange.format.fill.clear();
