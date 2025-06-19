@@ -3711,6 +3711,11 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
                              rowRange.format.font.color = LIGHT_BLUE_COLOR;
                          }
                          
+                         // Change blue font color to black in columns AE through CX
+                         console.log(`  Changing blue font to black in columns AE:CX for row ${currentRow}`);
+                         const aeToChRange = currentWorksheet.getRange(`AE${currentRow}:CX${currentRow}`);
+                         aeToChRange.format.font.color = "#000000"; // Black font
+                         
                          // Clear fill in column A specifically
                          const cellARange = currentWorksheet.getRange(`A${currentRow}`);
                          cellARange.format.fill.clear();
