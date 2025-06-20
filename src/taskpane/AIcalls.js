@@ -268,14 +268,15 @@ const PINECONE_INDEXES = {
         name: "call2trainingdata",
         apiEndpoint: "https://call2trainingdata-zmg9zog.svc.aped-4627-b74a.pinecone.io"
     },
-    call2context: {
-        name: "call2context",
-        apiEndpoint: "https://call2context-zmg9zog.svc.aped-4627-b74a.pinecone.io"
-    },
-    call1context: {
-        name: "call1context",
-        apiEndpoint: "https://call1context-zmg9zog.svc.aped-4627-b74a.pinecone.io"
-    },
+    // >>> COMMENTED OUT: Context database indexes
+    // call2context: {
+    //     name: "call2context",
+    //     apiEndpoint: "https://call2context-zmg9zog.svc.aped-4627-b74a.pinecone.io"
+    // },
+    // call1context: {
+    //     name: "call1context",
+    //     apiEndpoint: "https://call1context-zmg9zog.svc.aped-4627-b74a.pinecone.io"
+    // },
 
 
 };
@@ -1236,31 +1237,40 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
           
           try {
               // Process both database queries in parallel for each chunk
-              const [trainingData, call2Context] = await Promise.all([
-                  queryVectorDB({
-                      queryPrompt: queryString,
-                      similarityThreshold: .4,
-                      indexName: 'call2trainingdata',
-                      numResults: 30
-                  }),
-                  queryVectorDB({
-                      queryPrompt: queryString,
-                      similarityThreshold: .2,
-                      indexName: 'call2context',
-                      numResults: 20
-                  })
-              ]);
+              // >>> COMMENTED OUT: Context database queries
+              // const [trainingData, call2Context] = await Promise.all([
+              //     queryVectorDB({
+              //         queryPrompt: queryString,
+              //         similarityThreshold: .4,
+              //         indexName: 'call2trainingdata',
+              //         numResults: 30
+              //     }),
+              //     queryVectorDB({
+              //         queryPrompt: queryString,
+              //         similarityThreshold: .2,
+              //         indexName: 'call2context',
+              //         numResults: 20
+              //     })
+              // ]);
+
+              // Only query training data, skip context queries
+              const trainingData = await queryVectorDB({
+                  queryPrompt: queryString,
+                  similarityThreshold: .4,
+                  indexName: 'call2trainingdata',
+                  numResults: 30
+              });
 
               const queryResults = {
                   query: queryString,
                   trainingData,
-                  call2Context
+                  call2Context: [] // Empty array since context queries are commented out
               };
               
               if (DEBUG) {
                   console.log(`Chunk ${chunkNumber} results summary:`);
                   console.log(`  - Training data: ${queryResults.trainingData.length} items`);
-                  console.log(`  - Context: ${queryResults.call2Context.length} items`);
+                  console.log(`  - Context: ${queryResults.call2Context.length} items (DISABLED - context queries commented out)`);
                   console.log(`=== END CHUNK ${chunkNumber} ===`);
               }
               
@@ -1578,7 +1588,7 @@ export function consolidateAndDeduplicateTrainingData(results) {
             });
         }
 
-        // Process context data
+        // Process context data (NOTE: Context queries are currently DISABLED/commented out, so this will process empty arrays)
         if (result.call2Context && Array.isArray(result.call2Context)) {
             totalOriginalContextCount += result.call2Context.length;
 
@@ -1641,7 +1651,7 @@ export function consolidateAndDeduplicateTrainingData(results) {
     if (DEBUG) {
         console.log(`[consolidateAndDeduplicateTrainingData] Enhanced prompt generated with similarity scores:`);
         console.log(`  - Training data entries: ${allTrainingData.length} (total original: ${totalOriginalTrainingCount})`);
-        console.log(`  - Context entries: ${allContextData.length} (total original: ${totalOriginalContextCount})`);
+        console.log(`  - Context entries: ${allContextData.length} (total original: ${totalOriginalContextCount}) [DISABLED - context queries commented out]`);
         console.log(`  - Training duplicates removed: ${trainingDuplicatesRemoved}`);
         console.log(`  - Context duplicates removed: ${contextDuplicatesRemoved}`);
         console.log(`  - Training entries with scores: ${allTrainingData.filter(item => item.score !== null).length}`);
