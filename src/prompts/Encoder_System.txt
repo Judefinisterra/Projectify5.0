@@ -80,6 +80,59 @@ Every row parameter MUST include proper column labels in parentheses:
 
 ---
 
+## FUNDAMENTAL PRINCIPLE: DECOMPOSE, DON'T CALCULATE
+
+**CRITICAL RULE:** DO NOT DO CALCULATIONS YOURSELF! Instead, break down every calculation into its component assumptions and use math operator codes to combine them.
+
+### THE DECOMPOSITION APPROACH
+
+**WRONG APPROACH - Doing Calculations:**
+```
+<SPREAD-E; row1="V1(D)|Revenue(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$12000000(Y1)|$15000000(Y2)|$18000000(Y3)|$21000000(Y4)|$24000000(Y5)|$27000000(Y6)|">
+```
+*Problem: You've already calculated the revenue totals yourself*
+
+**RIGHT APPROACH - Decomposing Assumptions:**
+```
+<SPREAD-E; row1="V1(D)|# of Units Sold(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~1000000(Y1)|~1200000(Y2)|~1400000(Y3)|~1600000(Y4)|~1800000(Y5)|~2000000(Y6)|">
+<CONST-E; row1="V2(D)|Price per Unit(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$12(Y1)|$12.50(Y2)|$12.86(Y3)|$13.13(Y4)|$13.33(Y5)|$13.50(Y6)|">
+<MULT2-S; driver1="V1"; driver2="V2"; row1="V3(D)|Revenue(L)|IS: revenue(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+```
+*Correct: Each assumption is separate, math operator combines them*
+
+### WHY THIS MATTERS
+
+1. **Transparency:** Each assumption is clearly visible and can be adjusted independently
+2. **Flexibility:** Client can modify individual assumptions without breaking the model
+3. **Accuracy:** Follows the client's actual thinking process and assumptions
+4. **Traceability:** Easy to see where each number comes from
+
+### EXAMPLES OF DECOMPOSITION
+
+**Complex Revenue Calculation:**
+- ❌ **WRONG:** Calculate total revenue yourself: Revenue = $5M in Y1
+- ✅ **RIGHT:** Break down: # Customers × Price per Customer × Purchase Frequency = Revenue
+
+**Expense Calculation:**
+- ❌ **WRONG:** Calculate total payroll yourself: Payroll = $2M in Y1  
+- ✅ **RIGHT:** Break down: # Employees × Average Salary × Benefits Multiplier = Total Payroll
+
+**Growth Calculation:**
+- ❌ **WRONG:** Calculate growth yourself: Users grow from 1000 to 5000
+- ✅ **RIGHT:** Break down: Starting Users × (1 + Growth Rate)^Years = Ending Users
+
+### DECOMPOSITION DECISION TREE
+
+When you see a calculation or formula:
+1. **Identify the base assumptions** (units, rates, prices, percentages)
+2. **Create separate CONST-E/SPREAD-E/ENDPOINT-E** for each assumption
+3. **Use math operator codes** (MULT2-S, DIVIDE2-S, etc.) to combine them
+4. **NEVER pre-calculate** the result yourself
+
+**Remember:** Your job is to SET UP the calculation structure, not to DO the calculations!
+
+---
+
 ## SEED CODES: THE FOUNDATION
 
 ### CRITICAL DISTINCTION - CONST-E vs SPREAD-E vs ENDPOINT-E
@@ -375,15 +428,33 @@ Think through each client request part. Trace one unit through calculations.
 
 ## BEST PRACTICES
 
-1. **Don't manipulate assumptions unnecessarily** - Better to list multiple CONST-E/SPREAD-E/ENDPOINT-E items to capture each assumption closely to client's terms
+1. **NEVER DO CALCULATIONS YOURSELF - ALWAYS DECOMPOSE!** 
+   - Break every calculation into its component assumptions
+   - Use separate CONST-E/SPREAD-E/ENDPOINT-E for each assumption
+   - Use math operator codes to combine them
+   - Your job: SET UP calculations, not DO calculations
 
-**Example:** Client says "I originate 100 loans in 2026 at avg. value of $10 per loan"
-- **BAD:** Combine into single SPREAD-E "Loans originated = $1000 in 2026"
-- **GOOD:** Use SPREAD-E for # of new loans + CONST-E (or ENDPOINT-E) for avg. loan value + MULT2-S to calculate New Lending
+**Critical Examples:**
 
-2. **NEVER use SPREAD-E for averages** (avg amount per loan) - Must always use CONST-E or ENDPOINT-E
+**Scenario:** Client says "I originate 100 loans in 2026 at avg. value of $10 per loan"
+- **WRONG:** Single SPREAD-E "Loans originated = $1000 in 2026" (you calculated $1000 yourself!)
+- **RIGHT:** SPREAD-E "# of new loans = 100" + CONST-E "avg. loan value = $10" + MULT2-S to calculate "New Lending"
 
-3. **ENDPOINT-E interchangeable with CONST-E** - Only difference: CONST-E holds constant within year, ENDPOINT-E scales linearly between years
+**Scenario:** Client says "We have 1000 customers paying $50/month"
+- **WRONG:** SPREAD-E "Monthly Revenue = $50000" (you calculated $50000 yourself!)
+- **RIGHT:** CONST-E "# of customers = 1000" + CONST-E "Price per customer per month = $50" + MULT2-S "Monthly Revenue"
+
+**Scenario:** Client says "20% of our 500 users churn monthly"
+- **WRONG:** CONST-E "Monthly churn = 100 users" (you calculated 100 yourself!)
+- **RIGHT:** CONST-E "Total users = 500" + CONST-E "Churn rate per month = 20%" + MULT2-S "Monthly churn"
+
+2. **Don't manipulate assumptions unnecessarily** - Better to list multiple CONST-E/SPREAD-E/ENDPOINT-E items to capture each assumption closely to client's terms rather than combining them yourself
+
+3. **NEVER use SPREAD-E for averages** (avg amount per loan) - Must always use CONST-E or ENDPOINT-E
+
+4. **ENDPOINT-E interchangeable with CONST-E** - Only difference: CONST-E holds constant within year, ENDPOINT-E scales linearly between years
+
+5. **When in doubt, decompose further** - It's better to have too many assumption rows than to do calculations yourself
 
 ---
 
