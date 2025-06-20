@@ -360,6 +360,7 @@ When client says "per month", generally use CONST-E to take monthly assumption f
 - Connect driver1, driver2, rd{} to correct driver codes
 - Link formulas of codestrings together
 - **For FORMULA-S:** Use ONLY rd{} in customformula. DO NOT SET driver1, driver2, etc.
+- **CRITICAL:** Consider FinCode implications as you build calculation chains - plan which items will flow to financial statements
 
 **Example:**
 ```
@@ -368,11 +369,121 @@ When client says "per month", generally use CONST-E to take monthly assumption f
 <SUM2-S; driver1="V1"; driver2="V2"; bold="true"; topborder="true"; indent="1"; italic="true"; sumif="Yearend"; row1 = "V3(D)|~# of Cats and Dogs(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~F(Y1)|~F(Y2)|~F(Y3)|~F(Y4)|~F(Y5)|~F(Y6)|">
 ```
 
-### 6. ADJUST FINANCIAL STATEMENT ITEMS
+### 6. ADJUST FINANCIAL STATEMENT ITEMS AND AVOID DOUBLE COUNTING
+
+## CRITICAL: UNDERSTANDING FINCODES AND THE 3-STATEMENT MODEL
+
+**FUNDAMENTAL PRINCIPLE:** You are building an assumptions tab that feeds a 3-statement financial model (Income Statement, Balance Sheet, Cash Flow Statement). Every calculation you create will either:
+1. **Flow directly to financial statements** (via FinCode in column F)
+2. **Feed into other calculations** that eventually flow to financial statements
+3. **Serve as intermediate calculations** in reconciliation tables
+
+**THE DOUBLE COUNTING TRAP:** The most common error is counting the same economic impact multiple times across financial statements. You MUST understand the complete flow of each calculation.
+
+### FINCODE PURPOSE AND MAPPING
+
 **FinCode (Column 3) Options:**
 - **Income Statement:** "IS: revenue, IS: direct costs, IS: corporate overhead, IS: d&a, IS: interest expense, IS: other income, IS: net income"
 - **Balance Sheet:** "BS: current assets, BS: fixed assets, BS: current liabilities, BS: lt liabilities, BS: equity"
 - **Cash Flow:** "CF: wc, CF: non-cash, CF: cfi, CF: cff"
+
+**CRITICAL RULE:** Only the FINAL result of a calculation chain should have a FinCode. Intermediate calculations should have blank FinCode (just "|") to avoid double counting.
+
+### DOUBLE COUNTING EXAMPLES AND SOLUTIONS
+
+**WRONG APPROACH - Double Counting:**
+```
+<SPREAD-E; row1="V1(D)|New Lending Volume(L)|IS: revenue(F)|...">  // ❌ WRONG - This will count on Income Statement
+<SPREAD-E; row1="V2(D)|Beginning Debt Balance(L)|(F)|...">
+<SUBTOTAL2-S; driver1="V2"; driver2="V1"; row1="V3(D)|Ending Debt Balance(L)|BS: current liabilities(F)|...">  // ❌ WRONG - Counts lending AGAIN on Balance Sheet
+```
+*Problem: New lending counted twice - once as revenue, once in debt balance*
+
+**CORRECT APPROACH - No Double Counting:**
+```
+<SPREAD-E; row1="V1(D)|New Lending Volume(L)|(F)|...">  // ✅ Intermediate calculation - no FinCode
+<SPREAD-E; row1="V2(D)|Beginning Debt Balance(L)|(F)|...">  // ✅ Intermediate calculation - no FinCode  
+<SUBTOTAL2-S; driver1="V2"; driver2="V1"; row1="V3(D)|Ending Debt Balance(L)|BS: current liabilities(F)|...">  // ✅ Only final balance has FinCode
+<DIRECT-S; driver1="V1"; row1="V4(D)|Cash from New Lending(L)|CF: cff(F)|...">  // ✅ Cash impact separately captured
+```
+
+### RECONCILIATION TABLES: SPECIAL ATTENTION REQUIRED
+
+**Reconciliation Pattern:** Beginning Balance + Additions - Subtractions = Ending Balance
+
+**CRITICAL RULES:**
+1. **Beginning Balance:** No FinCode (references ending balance from previous period)
+2. **Additions/Subtractions:** No FinCode if they're captured elsewhere with FinCodes
+3. **Ending Balance:** Has appropriate FinCode for balance sheet
+4. **Cash Flows:** Separate line items with CF: codes for cash impacts
+
+**Example - Debt Reconciliation:**
+```
+<BEGIN-S; driver1="V4"; row1="V1(D)|Beginning Debt(L)|(F)|...">  // No FinCode - references ending
+<SPREAD-E; row1="V2(D)|New Borrowings(L)|(F)|...">  // No FinCode - intermediate
+<SPREAD-E; row1="V3(D)|Debt Repayments(L)|(F)|...">  // No FinCode - intermediate
+<END-S; driver1="V1"; row1="V4(D)|Ending Debt(L)|BS: lt liabilities(F)|...">  // FinCode for balance sheet
+<DIRECT-S; driver1="V2"; row1="V5(D)|Cash from Borrowings(L)|CF: cff(F)|...">  // Separate cash flow impact
+<MULT2-S; driver1="V3"; driver2="-1"; row1="V6(D)|Cash for Repayments(L)|CF: cff(F)|...">  // Separate cash flow impact
+```
+
+### INCOME STATEMENT FINCODE GUIDELINES
+
+**When to Use IS: Codes:**
+- **IS: revenue** - Final revenue calculations (after all drivers combined)
+- **IS: direct costs** - Variable costs directly tied to revenue (COGS, commissions)
+- **IS: corporate overhead** - Fixed operating expenses (rent, salaries, admin)
+- **IS: d&a** - Depreciation and amortization expense
+- **IS: interest expense** - Interest on debt (usually calculated from debt balances)
+- **IS: other income** - Non-operating income
+
+**Common IS: Mistakes:**
+- ❌ Putting revenue drivers (# customers, price per customer) with IS: codes
+- ❌ Putting expense components with IS: codes instead of final expense total
+- ✅ Only final calculated revenue/expense totals get IS: codes
+
+### BALANCE SHEET FINCODE GUIDELINES
+
+**When to Use BS: Codes:**
+- **BS: current assets** - Cash, receivables, inventory (ending balances only)
+- **BS: fixed assets** - PP&E, intangibles (ending balances only)
+- **BS: current liabilities** - Payables, short-term debt (ending balances only)
+- **BS: lt liabilities** - Long-term debt, other LT liabilities (ending balances only)
+- **BS: equity** - Retained earnings, additional capital (ending balances only)
+
+**Critical BS: Rules:**
+- Only ending balances get BS: codes
+- Beginning balances and reconciliation components should be blank
+- Changes in balances are captured in cash flow, not balance sheet codes
+
+### CASH FLOW FINCODE GUIDELINES
+
+**When to Use CF: Codes:**
+- **CF: wc** - Working capital changes (receivables, inventory, payables)
+- **CF: non-cash** - Non-cash items (depreciation, stock compensation)
+- **CF: cfi** - Capital expenditures, asset purchases/sales
+- **CF: cff** - Debt issuance/repayment, equity issuance, dividends
+
+**CF: Logic Check:**
+- Every BS: item change should have corresponding CF: impact
+- CF: items represent cash movements, not accounting calculations
+
+### VALIDATION QUESTIONS TO PREVENT DOUBLE COUNTING
+
+Before assigning any FinCode, ask yourself:
+1. **Is this the final calculation** or an intermediate step?
+2. **Where does this item impact the 3 statements?** (Only one primary impact)
+3. **Am I counting this economic event elsewhere?** 
+4. **If this is in a reconciliation, what pieces need FinCodes vs. what should be blank?**
+5. **Does the cash flow match the balance sheet change?**
+
+### TRAINING DATA FINCODE CONSISTENCY
+
+**When following training data:**
+- Pay close attention to which items have FinCodes vs. blank
+- Notice patterns: intermediate calculations typically blank, final totals have FinCodes
+- If significantly modifying training data, extra careful review of FinCode assignments
+- When in doubt, err on the side of fewer FinCodes (blank) rather than double counting
 
 ### 7. ADJUST SUMIF PARAMETER
 **When Y1-Y6 have "F":** They are sumifs of monthly columns
@@ -548,6 +659,22 @@ Add ~ symbol in front of column value to italicize:
 9. **Double Check:** Verify #7 and #8
 10. **Triple Check:** Verify #7 and #8 again
 11. **Final Validation:** Every row has all required labels with 15 "|" symbols ending with "|"
+
+## FINCODE AND DOUBLE COUNTING VALIDATION
+
+**CRITICAL FINCODE CHECKS:**
+12. **FinCode Logic:** Does each FinCode assignment make sense for the 3-statement model?
+13. **Double Counting Check:** Is any economic event counted multiple times across statements?
+14. **Intermediate vs. Final:** Do intermediate calculations have blank FinCodes while final results have appropriate FinCodes?
+15. **Reconciliation Tables:** Do reconciliation components (beginning, additions, subtractions) have blank FinCodes while only ending balances have BS: codes?
+16. **Cash Flow Matching:** Does every balance sheet change have a corresponding cash flow impact with appropriate CF: codes?
+17. **Revenue Components:** Do revenue drivers (# customers, price) have blank FinCodes while only total revenue has IS: revenue?
+18. **Expense Components:** Do expense drivers have blank FinCodes while only total expenses have IS: codes?
+
+**FINAL FINCODE REVIEW:**
+19. **3-Statement Flow:** Trace each FinCode item - where does it appear in the financial statements?
+20. **Training Data Consistency:** If diverging from training data FinCode patterns, is there a clear reason?
+21. **Economic Logic:** Does the overall FinCode assignment create a coherent economic story across the 3 statements?
 
 ---
 
