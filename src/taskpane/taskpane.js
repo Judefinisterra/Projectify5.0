@@ -771,25 +771,29 @@ function getTabBlocks(codeString) {
 // Helper function to find max driver numbers in existing text
 function getMaxDriverNumbers(text) {
     const maxNumbers = {};
-    // MODIFIED Regex: Allow optional spaces around =
-    const regex = /row\d+\s*=\s*"([A-Z]+)(\d*)\|/g;
+    // UPDATED Regex: Handle both old format (V1|) and new format with labels (V1(D)|)
+    // Pattern matches: row1="V1(D)|" or row1="V1|"
+    const regex = /row\d+\s*=\s*"([A-Z]+)(\d*)(\([^)]+\))?\|/g;
     let match;
     console.log("Scanning text for drivers:", text.substring(0, 200) + "..."); // Log input text
 
     while ((match = regex.exec(text)) !== null) {
         const prefix = match[1];
         const numberStr = match[2];
+        const label = match[3]; // This will be undefined for old format, or "(D)" etc. for new format
         const number = numberStr ? parseInt(numberStr, 10) : 0;
-        console.log(`Found driver match: prefix='${prefix}', numberStr='${numberStr}', number=${number}`); // Log each match
+        console.log(`Found driver match: prefix='${prefix}', numberStr='${numberStr}', number=${number}, label='${label || 'none'}'`); // Log each match
 
         if (isNaN(number)) {
              console.warn(`Parsed NaN for number from '${numberStr}' for prefix '${prefix}'. Skipping.`);
              continue;
         }
 
-        if (!maxNumbers[prefix] || number > maxNumbers[prefix]) {
-            maxNumbers[prefix] = number;
-            console.log(`Updated max for '${prefix}' to ${number}`); // Log updates
+        // Create a composite key for prefixes with labels
+        const key = label ? `${prefix}${label}` : prefix;
+        if (!maxNumbers[key] || number > maxNumbers[key]) {
+            maxNumbers[key] = number;
+            console.log(`Updated max for '${key}' to ${number}`); // Log updates
         }
     }
     if (Object.keys(maxNumbers).length === 0) {
@@ -1945,15 +1949,19 @@ Office.onReady((info) => {
                     }
 
                     const maxNumbers = getMaxDriverNumbers(currentText);
-                    // Corrected regex - double escapes not needed in string literal here
-                    const driverRegex = /(row\d+\s*=\s*")([A-Z]+)(\d*)(\|)/g;
+                    // UPDATED regex to handle both old format (V|) and new format with labels (V(D)|)
+                    const driverRegex = /(row\d+\s*=\s*")([A-Z]+)(\d*)(\([^)]+\))?(\|)/g;
                     const nextNumbers = { ...maxNumbers };
 
-                    codeToAdd = codeToAdd.replace(driverRegex, (match, rowPart, prefix, existingNumberStr, pipePart) => {
-                        nextNumbers[prefix] = (nextNumbers[prefix] || 0) + 1;
-                        const newNumber = nextNumbers[prefix];
-                        const replacement = `${rowPart}${prefix}${newNumber}${pipePart}`;
-                        console.log(`Replacing driver: '${prefix}${existingNumberStr || ''}|' with '${prefix}${newNumber}|'`);
+                    codeToAdd = codeToAdd.replace(driverRegex, (match, rowPart, prefix, existingNumberStr, label, pipePart) => {
+                        // Create composite key for tracking numbers (same as in getMaxDriverNumbers)
+                        const key = label ? `${prefix}${label}` : prefix;
+                        nextNumbers[key] = (nextNumbers[key] || 0) + 1;
+                        const newNumber = nextNumbers[key];
+                        
+                        // Build replacement: prefix + number + label (if exists) + pipe
+                        const replacement = `${rowPart}${prefix}${newNumber}${label || ''}${pipePart}`;
+                        console.log(`Replacing driver: '${prefix}${existingNumberStr || ''}${label || ''}|' with '${prefix}${newNumber}${label || ''}|'`);
                         return replacement;
                     });
 

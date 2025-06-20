@@ -1,0 +1,6 @@
+
+AMORT: Amortize pincipal over set term. Formula: IFERROR(PMT(driver1[interest rate]/AE$7,driver2[# of months term]-AE$8+1,sum(driver3[beginning balance],offset(driver4[principal payments],-1,0),0,0),0)
+BULLET: Pays off the entire balance at the end of the term. SUM(driver1[beginning]:offset(driver2[principal payments],-1,0))*(driver3[# of months term])=AE$8)
+PBULLET: Fixed partial principal payment on given period Formula: (driver1[payment amount]*(driver2[payment period]=AE$8))
+INTONLY: Interest only period. Toggles off principal payments for set # of months at start of loan. Formula: (AE$8>driver1[interest only period # of months])
+

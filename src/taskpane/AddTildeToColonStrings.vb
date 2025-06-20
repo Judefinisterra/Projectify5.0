@@ -74,3 +74,5 @@ Function AddTildeToColonStringsInRow(inputRow As String, ByRef changesMade As Bo
     
     AddTildeToColonStringsInRow = result
 End Function 
+
+

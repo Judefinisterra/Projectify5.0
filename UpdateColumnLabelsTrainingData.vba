@@ -142,7 +142,7 @@ Function AddColumnLabelsToRowValue(rowValue As String) As String
     Dim columnLabels As Variant
     
     ' Define the column labels
-    columnLabels = Array("(D)", "(L)", "(C1)", "(C2)", "(C3)", "(C4)", "(C5)", "(C6)", "(C7)", "(Y1)", "(Y2)", "(Y3)", "(Y4)", "(Y5)", "(Y6)")
+    columnLabels = Array("(D)", "(L)", "(F)", "(C1)", "(C2)", "(C3)", "(C4)", "(C5)", "(C6)", "(Y1)", "(Y2)", "(Y3)", "(Y4)", "(Y5)", "(Y6)")
     
     ' Split the row value by "|"
     segments = Split(rowValue, "|")

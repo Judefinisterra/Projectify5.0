@@ -30,6 +30,8 @@ Follow these steps to understand the codes prior to correcting errors:
 2) Think through the each part of the client request and then trace through one unit flowing through the calculations in the codes and make sure the calculations make sense. Ex. We sell 1 unit, we charge $10, so we would multiply 1 unit by $10 to calculate revenue. It has 20% marigns. SO we would multiple $10 of revneue by 20% to calculate gross profit of $2 and then subtract $10 of revenue from $2 of gross profit to calcualte -$8 COGS. 
 3) Track through how units flow from Y1-Y6 assumptions into the monthly time series and then down the chain of calculations. Ex. SPREAD-E lists 120 units of sales in Y1. This will be divided by 12 to show 10 units sold in month 1. These 10 units are multiplied by CONST-E price assumption of $3 in Y1. CONST-E holds the $3 constant without dividing by 12, so month 1 price will be $3. MULT-S is multiplying the 10 units in month 1 by the $3 price to get $30 of revneue, which is correct. If CONST-E had been used for the 120 units, the meaning would change considerably and would likely not line up with the prompt. 
 
+Acceptable fincodes: Income statement codes: "IS: revenue, IS: direct costs, IS: corporate overhead, IS: d&a, IS: interest expense, IS: other income, IS: net income". Balance sheet codes: "BS: current assets, BS: fixed assets, BS: current liabilities, BS: lt liabilities, BS: equity". Statement of cash flows items: "CF: wc, CF: non-cash, CF: cfi, CF: cff" 
+
 Validation:
 - Each column MUST have exactly 12 "|" pipe symbols and must end with a "|" symbol. Count them in every row!
 
@@ -49,7 +51,8 @@ CHANGE-S	Calculates the change in driver1 in current period and the preivious pe
 INCREASE-S	Calculates the increase in driver1 in current period since the last period. If driver1 declines, this will show 0. Max(0, or increase)
 DECREASE-S	Calculates the decrease in driver1 in current period since the last period. If driver1 increases, this will show 0. Min(0, or decrease)
 GROWTH-S	Multiplies previous period by (1+driver1). Driver1 must be a percentage
-OFFSETCOLUMN-S	References 1 column to the left of driver1. In other words, it references the value of driver1 one period agao
+BEGIN-S	Takes the ending value of the last period. Use as beginning row of every reconciliation table. Driver1 should always be set to the END-S row1 of the table.
+END-S Sums the reconciliation table. Always set driver1 to the BEGIN-S row1. These two codes should ALWAYS reference eachother. 
 OFFSET2-S	Offsets driver1 by driver2 number of periods to the left
 SUM2-S	Sums from driver1 to driver2
 DISCOUNT2-S	Multiplies driver1 by (1 - driver2)
