@@ -925,8 +925,8 @@ export async function runCodes(codeCollection) {
                                     const numPastedRows = lastRow - firstRow + 1;
                                     const endPastedRow = pasteRow + Math.max(0, numPastedRows - 1); // This is the last row of the pasted block
 
-                                    console.log(`Applying negative transformation to formulas in AE${endPastedRow}:CX${endPastedRow} for code ${codeType}`);
-                                    const formulaRange = currentWS.getRange(`AE${endPastedRow}:CX${endPastedRow}`);
+                                    console.log(`Applying negative transformation to formulas in T${endPastedRow}:CM${endPastedRow} for code ${codeType}`);
+                                    const formulaRange = currentWS.getRange(`T${endPastedRow}:CM${endPastedRow}`);
                                     formulaRange.load("formulas");
                                     await context.sync();
 
@@ -948,9 +948,9 @@ export async function runCodes(codeCollection) {
                                     if (formulasChanged) {
                                         formulaRange.formulas = [newFormulasRow]; // Set as a 2D array
                                         await context.sync();
-                                        console.log(`Negative transformation applied and synced for AE${endPastedRow}:CX${endPastedRow}`);
+                                        console.log(`Negative transformation applied and synced for T${endPastedRow}:CM${endPastedRow}`);
                                     } else {
-                                        console.log(`No formulas found to transform in AE${endPastedRow}:CX${endPastedRow}`);
+                                        console.log(`No formulas found to transform in T${endPastedRow}:CM${endPastedRow}`);
                                     }
                                 }
                                 
@@ -959,11 +959,11 @@ export async function runCodes(codeCollection) {
                                     const formatValue = String(code.params.format).toLowerCase();
                                     const numPastedRows = lastRow - firstRow + 1;
                                     const endPastedRow = pasteRow + Math.max(0, numPastedRows - 1);
-                                    // Apply to J through CX (including column J now)
-                                    const formatRangeAddress = `J${pasteRow}:CX${endPastedRow}`;
+                                    // Apply to J through CM (including column J now)
+                                    const formatRangeAddress = `J${pasteRow}:CM${endPastedRow}`;
                                     const rangeToFormat = currentWS.getRange(formatRangeAddress);
                                     let numberFormatString = null;
-                                    // Removed applyItalics variable as direct checks on formatValue are clearer for B:CX range
+                                    // Removed applyItalics variable as direct checks on formatValue are clearer for B:CM range
 
                                     console.log(`Processing "format" parameter: "${formatValue}" for range ${formatRangeAddress}`);
 
@@ -980,11 +980,11 @@ export async function runCodes(codeCollection) {
                                     }
 
                                     if (numberFormatString) {
-                                        console.log(`Applying number format: "${numberFormatString}" to ${formatRangeAddress}`); // J:CX
-                                        rangeToFormat.numberFormat = [[numberFormatString]]; // J:CX
+                                        console.log(`Applying number format: "${numberFormatString}" to ${formatRangeAddress}`); // J:CM
+                                        rangeToFormat.numberFormat = [[numberFormatString]]; // J:CM
                                         
-                                        // Italicization logic based on formatValue for the B:CX range
-                                        const fullItalicRangeAddress = `B${pasteRow}:CX${endPastedRow}`;
+                                        // Italicization logic based on formatValue for the B:CM range
+                                        const fullItalicRangeAddress = `B${pasteRow}:CM${endPastedRow}`;
                                         const fullRangeToHandleItalics = currentWS.getRange(fullItalicRangeAddress);
 
                                         if (formatValue === "dollaritalic" || formatValue === "volume" || formatValue === "percent" || formatValue === "factor") {
@@ -995,15 +995,15 @@ export async function runCodes(codeCollection) {
                                             fullRangeToHandleItalics.format.font.italic = false;
                                         } else {
                                             // For unrecognized formats that still had a numberFormatString (e.g. if logic changes later),
-                                            // or if K:CX needs explicit non-italic default when no B:CX rule applies.
+                                            // or if K:CM needs explicit non-italic default when no B:CM rule applies.
                                             // However, current logic implies if numberFormatString is set, formatValue is one of the known ones.
-                                            // If K:CX (rangeToFormat) needs specific non-italic handling for other cases, it would go here.
+                                            // If K:CM (rangeToFormat) needs specific non-italic handling for other cases, it would go here.
                                             // For now, this 'else' might not be hit if numberFormatString implies a known formatValue.
                                             // The primary `italic` parameter handles general italic override later anyway.
-                                            console.log(`Format type ${formatValue} has number format but no specific B:CX italic rule. K:CX italics remain as previously set or default.`);
+                                            console.log(`Format type ${formatValue} has number format but no specific B:CM italic rule. K:CM italics remain as previously set or default.`);
                                         }
                                         await context.sync();
-                                        console.log(`"format" parameter processing (number format and B:CX italics) synced for ${formatRangeAddress}`);
+                                        console.log(`"format" parameter processing (number format and B:CM italics) synced for ${formatRangeAddress}`);
                                     } else {
                                         console.log(`"format" parameter value "${formatValue}" is not recognized. No formatting applied.`);
                                     }
@@ -1014,7 +1014,7 @@ export async function runCodes(codeCollection) {
                                     const italicValue = String(code.params.italic).toLowerCase();
                                     const numPastedRows = lastRow - firstRow + 1;
                                     const endPastedRow = pasteRow + Math.max(0, numPastedRows - 1);
-                                    const italicRangeAddress = `B${pasteRow}:CX${endPastedRow}`;
+                                    const italicRangeAddress = `B${pasteRow}:CM${endPastedRow}`;
                                     const rangeToItalicize = currentWS.getRange(italicRangeAddress);
 
                                     console.log(`Processing "italic" parameter: "${italicValue}" for range ${italicRangeAddress}`);
@@ -1300,7 +1300,7 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         result = result.replace(rdPattern, (match, driverName) => {
             const driverRow = driverMap.get(driverName);
             if (driverRow) {
-                const replacement = `AE$${driverRow}`;
+                const replacement = `T$${driverRow}`;
                 console.log(`    Replacing rd{${driverName}} with ${replacement}`);
                 return replacement;
             } else {
@@ -1380,150 +1380,150 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         return replacement;
     });
     
-    // Process SPREAD function: SPREAD(driver) -> driver/AE$7
+    // Process SPREAD function: SPREAD(driver) -> driver/T$7
     result = result.replace(/SPREAD\(([^)]+)\)/gi, (match, driver) => {
-        console.log(`    Converting SPREAD(${driver}) to ${driver}/AE$7`);
-        return `(${driver}/AE$7)`;
+        console.log(`    Converting SPREAD(${driver}) to ${driver}/T$7`);
+        return `(${driver}/T$7)`;
     });
     
-    // Process BEG function: BEG(driver) -> (EOMONTH(driver,0)<=AE$2)
+    // Process BEG function: BEG(driver) -> (EOMONTH(driver,0)<=T$2)
     result = result.replace(/BEG\(([^)]+)\)/gi, (match, driver) => {
-        console.log(`    Converting BEG(${driver}) to (EOMONTH(${driver},0)<=AE$2)`);
-        return `(EOMONTH(${driver},0)<=AE$2)`;
+        console.log(`    Converting BEG(${driver}) to (EOMONTH(${driver},0)<=T$2)`);
+        return `(EOMONTH(${driver},0)<=T$2)`;
     });
     
-    // Process END function: END(driver) -> (EOMONTH(driver,0)>AE$2)
+    // Process END function: END(driver) -> (EOMONTH(driver,0)>T$2)
     result = result.replace(/END\(([^)]+)\)/gi, (match, driver) => {
-        console.log(`    Converting END(${driver}) to (EOMONTH(${driver},0)>AE$2)`);
-        return `(EOMONTH(${driver},0)>AE$2)`;
+        console.log(`    Converting END(${driver}) to (EOMONTH(${driver},0)>T$2)`);
+        return `(EOMONTH(${driver},0)>T$2)`;
     });
     
-    // Process RAISE function: RAISE(driver1,driver2) -> (1 + (driver1)) ^ (AE$3 - max(year(driver2), $AE3))
+    // Process RAISE function: RAISE(driver1,driver2) -> (1 + (driver1)) ^ (T$3 - max(year(driver2), $T3))
     result = result.replace(/RAISE\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
         // Trim whitespace from drivers
         driver1 = driver1.trim();
         driver2 = driver2.trim();
-        console.log(`    Converting RAISE(${driver1},${driver2}) to (1 + (${driver1})) ^ (AE$3 - max(year(${driver2}), $AE3))`);
-        return `(1 + (${driver1})) ^ (AE$3 - max(year(${driver2}), $AE3))`;
+        console.log(`    Converting RAISE(${driver1},${driver2}) to (1 + (${driver1})) ^ (T$3 - max(year(${driver2}), $T3))`);
+        return `(1 + (${driver1})) ^ (T$3 - max(year(${driver2}), $T3))`;
     });
     
-    // Process ANNBONUS function: ANNBONUS(driver1,driver2) -> (driver1*(MONTH(AE$2)=driver2))
+    // Process ANNBONUS function: ANNBONUS(driver1,driver2) -> (driver1*(MONTH(T$2)=driver2))
     result = result.replace(/ANNBONUS\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
         // Trim whitespace from drivers
         driver1 = driver1.trim();
         driver2 = driver2.trim();
-        console.log(`    Converting ANNBONUS(${driver1},${driver2}) to (${driver1}*(MONTH(AE$2)=${driver2}))`);
-        return `(${driver1}*(MONTH(AE$2)=${driver2}))`;
+        console.log(`    Converting ANNBONUS(${driver1},${driver2}) to (${driver1}*(MONTH(T$2)=${driver2}))`);
+        return `(${driver1}*(MONTH(T$2)=${driver2}))`;
     });
     
-    // Process QUARTERBONUS function: QUARTERBONUS(driver1) -> (driver1*(AE$6<>0))
+    // Process QUARTERBONUS function: QUARTERBONUS(driver1) -> (driver1*(T$6<>0))
     result = result.replace(/QUARTERBONUS\(([^)]+)\)/gi, (match, driver1) => {
         // Trim whitespace from driver
         driver1 = driver1.trim();
-        console.log(`    Converting QUARTERBONUS(${driver1}) to (${driver1}*(AE$6<>0))`);
-        return `(${driver1}*(AE$6<>0))`;
+        console.log(`    Converting QUARTERBONUS(${driver1}) to (${driver1}*(T$6<>0))`);
+        return `(${driver1}*(T$6<>0))`;
     });
     
-    // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=AE$2)
+    // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=T$2)
     result = result.replace(/ONETIMEDATE\(([^)]+)\)/gi, (match, driver) => {
-        console.log(`    Converting ONETIMEDATE(${driver}) to (EOMONTH((${driver}),0)=AE$2)`);
-        return `(EOMONTH((${driver}),0)=AE$2)`;
+        console.log(`    Converting ONETIMEDATE(${driver}) to (EOMONTH((${driver}),0)=T$2)`);
+        return `(EOMONTH((${driver}),0)=T$2)`;
     });
     
-    // Process SPREADDATES function: SPREADDATES(driver1,driver2,driver3) -> IF(AND(EOMONTH(AE$2,0)>=EOMONTH(driver2,0),EOMONTH(driver3,0)<=EOMONTH($I12,0)),driver1/(DATEDIF(driver2,driver3,"m")+1),0)
+    // Process SPREADDATES function: SPREADDATES(driver1,driver2,driver3) -> IF(AND(EOMONTH(T$2,0)>=EOMONTH(driver2,0),EOMONTH(T$2,0)<=EOMONTH(driver3,0)),driver1/(DATEDIF(driver2,driver3,"m")+1),0)
     // Note: Need to handle nested parentheses and comma separation
     result = result.replace(/SPREADDATES\(([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3) => {
         // Trim whitespace from drivers
         driver1 = driver1.trim();
         driver2 = driver2.trim();
         driver3 = driver3.trim();
-        const newFormula = `IF(AND(EOMONTH(AE$2,0)>=EOMONTH(${driver2},0),EOMONTH(AE$2,0)<=EOMONTH(${driver3},0)),${driver1}/(DATEDIF(${driver2},${driver3},"m")+1),0)`;
+        const newFormula = `IF(AND(EOMONTH(T$2,0)>=EOMONTH(${driver2},0),EOMONTH(T$2,0)<=EOMONTH(${driver3},0)),${driver1}/(DATEDIF(${driver2},${driver3},"m")+1),0)`;
         console.log(`    Converting SPREADDATES(${driver1},${driver2},${driver3}) to ${newFormula}`);
         return newFormula;
     });
     
-    // Process AMORT function: AMORT(driver1,driver2,driver3,driver4) -> IFERROR(PMT(driver1/AE$7,driver2-AE$8+1,SUM(driver3,OFFSET(driver4,-1,0),0,0),0),0)
+    // Process AMORT function: AMORT(driver1,driver2,driver3,driver4) -> IFERROR(PMT(driver1/T$7,driver2-T$8+1,SUM(driver3,OFFSET(driver4,-1,0),0,0),0),0)
     result = result.replace(/AMORT\(([^,]+),([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3, driver4) => {
         // Trim whitespace from drivers
         driver1 = driver1.trim();
         driver2 = driver2.trim();
         driver3 = driver3.trim();
         driver4 = driver4.trim();
-        const newFormula = `IFERROR(PMT(${driver1}/AE$7,${driver2}-AE$8+1,SUM(${driver3},OFFSET(${driver4},-1,0),0,0),0),0)`;
+        const newFormula = `IFERROR(PMT(${driver1}/T$7,${driver2}-T$8+1,SUM(${driver3},OFFSET(${driver4},-1,0),0,0),0),0)`;
         console.log(`    Converting AMORT(${driver1},${driver2},${driver3},${driver4}) to ${newFormula}`);
         return newFormula;
     });
     
-    // Process BULLET function: BULLET(driver1,driver2,driver3) -> IF(driver2=AE$8,SUM(driver1,OFFSET(driver3,-1,0)),0)
+    // Process BULLET function: BULLET(driver1,driver2,driver3) -> IF(driver2=T$8,SUM(driver1,OFFSET(driver3,-1,0)),0)
     result = result.replace(/BULLET\(([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3) => {
         // Trim whitespace from drivers
         driver1 = driver1.trim();
         driver2 = driver2.trim();
         driver3 = driver3.trim();
-        const newFormula = `IF(${driver2}=AE$8,SUM(${driver1},OFFSET(${driver3},-1,0)),0)`;
+        const newFormula = `IF(${driver2}=T$8,SUM(${driver1},OFFSET(${driver3},-1,0)),0)`;
         console.log(`    Converting BULLET(${driver1},${driver2},${driver3}) to ${newFormula}`);
         return newFormula;
     });
     
-    // Process PBULLET function: PBULLET(driver1,driver2) -> (driver1*(driver2=AE$8)) (Fixed partial principal payment)
+    // Process PBULLET function: PBULLET(driver1,driver2) -> (driver1*(driver2=T$8)) (Fixed partial principal payment)
     result = result.replace(/PBULLET\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
         // Trim whitespace from drivers
         driver1 = driver1.trim();
         driver2 = driver2.trim();
-        const newFormula = `(${driver1}*(${driver2}=AE$8))`;
+        const newFormula = `(${driver1}*(${driver2}=T$8))`;
         console.log(`    Converting PBULLET(${driver1},${driver2}) to ${newFormula}`);
         return newFormula;
     });
     
-    // Process INTONLY function: INTONLY(driver1) -> (AE$8>driver1) (Interest only period)
+    // Process INTONLY function: INTONLY(driver1) -> (T$8>driver1) (Interest only period)
     result = result.replace(/INTONLY\(([^)]+)\)/gi, (match, driver1) => {
         // Trim whitespace from driver
         driver1 = driver1.trim();
-        const newFormula = `(AE$8>${driver1})`;
+        const newFormula = `(T$8>${driver1})`;
         console.log(`    Converting INTONLY(${driver1}) to ${newFormula}`);
         return newFormula;
     });
 
 
     
-    // Replace timeseriesdivisor with AE$7
+    // Replace timeseriesdivisor with T$7
     result = result.replace(/timeseriesdivisor/gi, (match) => {
-        const replacement = 'AE$7';
+        const replacement = 'T$7';
         console.log(`    Replacing ${match} with ${replacement}`);
         return replacement;
     });
     
-    // Replace currentmonth with AE$2
+    // Replace currentmonth with T$2
     result = result.replace(/currentmonth/gi, (match) => {
-        const replacement = 'AE$2';
+        const replacement = 'T$2';
         console.log(`    Replacing ${match} with ${replacement}`);
         return replacement;
     });
     
-    // Replace beginningmonth with $AE$2
+    // Replace beginningmonth with $T$2
     result = result.replace(/beginningmonth/gi, (match) => {
-        const replacement = '$AE$2';
+        const replacement = '$T$2';
         console.log(`    Replacing ${match} with ${replacement}`);
         return replacement;
     });
     
-    // Replace currentyear with AE$3
+    // Replace currentyear with T$3
     result = result.replace(/currentyear/gi, (match) => {
-        const replacement = 'AE$3';
+        const replacement = 'T$3';
         console.log(`    Replacing ${match} with ${replacement}`);
         return replacement;
     });
     
-    // Replace yearend with AE$4
+    // Replace yearend with T$4
     result = result.replace(/yearend/gi, (match) => {
-        const replacement = 'AE$4';
+        const replacement = 'T$4';
         console.log(`    Replacing ${match} with ${replacement}`);
         return replacement;
     });
     
-    // Replace beginningyear with $AE$2
+    // Replace beginningyear with $T$3
     result = result.replace(/beginningyear/gi, (match) => {
-        const replacement = '$AE$2';
+        const replacement = '$T$3';
         console.log(`    Replacing ${match} with ${replacement}`);
         return replacement;
     });
@@ -1799,20 +1799,20 @@ async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSeq
 // NOTE: reapplyPercentageFormatting function removed - functionality integrated into applyRowSymbolFormatting
 
 /**
- * Copies complete formatting from column O to column J and columns S through CX for a specific row
+ * Copies complete formatting from column O to column J and columns S through CM for a specific row
  * This includes number format (currency) and all font formatting (italic, bold, etc.)
  * @param {Excel.Worksheet} worksheet - The worksheet containing the cells
  * @param {number} rowNum - The row number to copy formatting for
  * @returns {Promise<void>}
  */
-async function copyColumnPFormattingToJAndSCX(worksheet, rowNum) {
-    console.log(`Copying complete column O formatting to J and S:CX for row ${rowNum}`);
+async function copyColumnPFormattingToJAndSCM(worksheet, rowNum) {
+    console.log(`Copying complete column O formatting to J and S:CM for row ${rowNum}`);
     
     try {
         // Get the source cell and target ranges
         const sourceCellO = worksheet.getRange(`O${rowNum}`);
         const targetCellJ = worksheet.getRange(`J${rowNum}`);
-        const targetRangeSCX = worksheet.getRange(`S${rowNum}:CX${rowNum}`);
+        const targetRangeSCM = worksheet.getRange(`S${rowNum}:CM${rowNum}`);
         
         // Load complete formatting from source cell O
         sourceCellO.load(["numberFormat", "format/font/italic", "format/font/bold"]);
@@ -1821,20 +1821,20 @@ async function copyColumnPFormattingToJAndSCX(worksheet, rowNum) {
         // Copy complete formatting from O to J
         targetCellJ.copyFrom(sourceCellO, Excel.RangeCopyType.formats);
         
-        // Copy complete formatting from O to S:CX range
-        targetRangeSCX.copyFrom(sourceCellO, Excel.RangeCopyType.formats);
+        // Copy complete formatting from O to S:CM range
+        targetRangeSCM.copyFrom(sourceCellO, Excel.RangeCopyType.formats);
         
         // Sync the formatting changes
         await worksheet.context.sync();
         
         const numberFormat = sourceCellO.numberFormat[0][0];
-        console.log(`Successfully copied complete column O formatting to J${rowNum} and S${rowNum}:CX${rowNum}`);
+        console.log(`Successfully copied complete column O formatting to J${rowNum} and S${rowNum}:CM${rowNum}`);
         console.log(`  Applied number format: ${numberFormat}`);
         console.log(`  Applied font italic: ${sourceCellO.format.font.italic}`);
         console.log(`  Applied font bold: ${sourceCellO.format.font.bold}`);
         
     } catch (error) {
-        console.error(`Error copying column O formatting to J and S:CX for row ${rowNum}: ${error.message}`);
+        console.error(`Error copying column O formatting to J and S:CM for row ${rowNum}: ${error.message}`);
         throw error;
     }
 }
@@ -2244,38 +2244,38 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         }
                     }
                     
-                    // Apply customformula parameter to column AE for row1 (FORMULA-S codes only)
-                    if (g === 1 && yy === 0 && code.type === "FORMULA-S" && code.params.customformula && code.params.customformula !== "0") {
-                        try {
-                            console.log(`  Applying customformula to AE${currentRowNum} for FORMULA-S: ${code.params.customformula}`);
-                            
-                            // Parse comments from square brackets in customformula
-                            const customFormulaParsed = parseCommentFromBrackets(code.params.customformula);
-                            const cleanCustomFormula = customFormulaParsed.cleanValue;
-                            
-                            // For FORMULA-S, set it as a value that will be converted to formula later by processFormulaSRows
-                            const customFormulaCell = currentWorksheet.getRange(`AE${currentRowNum}`);
-                            customFormulaCell.values = [[cleanCustomFormula]];
-                            console.log(`  Set customformula as value for FORMULA-S processing (cleaned of comments)`);
-                            
-                            // Apply comment to AE cell if one was extracted
-                            if (customFormulaParsed.comment) {
-                                console.log(`  Adding customformula comment "${customFormulaParsed.comment}" to AE${currentRowNum}`);
-                                try {
-                                    currentWorksheet.comments.add(`AE${currentRowNum}`, customFormulaParsed.comment);
-                                    await context.sync(); // Sync the comment addition
-                                    console.log(`  Successfully applied customformula comment to AE${currentRowNum}`);
-                                } catch (commentError) {
-                                    console.error(`  Error applying customformula comment: ${commentError.message}`);
-                                }
-                            }
-                            
-                            // Track this row for processFormulaSRows since column D will be overwritten
-                            addFormulaSRow(worksheetName, currentRowNum);
-                        } catch (customFormulaError) {
-                            console.error(`  Error applying customformula: ${customFormulaError.message}`);
-                        }
+                            // Apply customformula parameter to column T for row1 (FORMULA-S codes only)
+        if (g === 1 && yy === 0 && code.type === "FORMULA-S" && code.params.customformula && code.params.customformula !== "0") {
+            try {
+                console.log(`  Applying customformula to T${currentRowNum} for FORMULA-S: ${code.params.customformula}`);
+                
+                // Parse comments from square brackets in customformula
+                const customFormulaParsed = parseCommentFromBrackets(code.params.customformula);
+                const cleanCustomFormula = customFormulaParsed.cleanValue;
+                
+                // For FORMULA-S, set it as a value that will be converted to formula later by processFormulaSRows
+                const customFormulaCell = currentWorksheet.getRange(`T${currentRowNum}`);
+                customFormulaCell.values = [[cleanCustomFormula]];
+                console.log(`  Set customformula as value for FORMULA-S processing (cleaned of comments)`);
+                
+                // Apply comment to T cell if one was extracted
+                if (customFormulaParsed.comment) {
+                    console.log(`  Adding customformula comment "${customFormulaParsed.comment}" to T${currentRowNum}`);
+                    try {
+                        currentWorksheet.comments.add(`T${currentRowNum}`, customFormulaParsed.comment);
+                        await context.sync(); // Sync the comment addition
+                        console.log(`  Successfully applied customformula comment to T${currentRowNum}`);
+                    } catch (commentError) {
+                        console.error(`  Error applying customformula comment: ${commentError.message}`);
                     }
+                }
+                
+                // Track this row for processFormulaSRows since column D will be overwritten
+                addFormulaSRow(worksheetName, currentRowNum);
+            } catch (customFormulaError) {
+                console.error(`  Error applying customformula: ${customFormulaError.message}`);
+            }
+        }
 
                     // Apply symbol-based formatting for each cell in the row
                     try {
@@ -2305,10 +2305,10 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         }
                     }
 
-                    // Apply columnformula parameter to column AE for row1 (all code types)
+                    // Apply columnformula parameter to column T for row1 (all code types)
                     if (g === 1 && yy === 0 && code.params.columnformula && code.params.columnformula !== "0") {
                         try {
-                            console.log(`  Processing columnformula for AE${currentRowNum}: ${code.params.columnformula}`);
+                            console.log(`  Processing columnformula for T${currentRowNum}: ${code.params.columnformula}`);
                             
                             // Parse comments from square brackets in columnformula
                             const columnFormulaParsed = parseCommentFromBrackets(code.params.columnformula);
@@ -2326,7 +2326,7 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                             }
                             
                             // Apply the processed formula to the cell
-                            const columnFormulaCell = currentWorksheet.getRange(`AE${currentRowNum}`);
+                            const columnFormulaCell = currentWorksheet.getRange(`T${currentRowNum}`);
                             if (processedFormula && processedFormula !== cleanColumnFormula) {
                                 // If the formula was modified, set it as a formula
                                 columnFormulaCell.formulas = [['=' + processedFormula]];
@@ -2337,13 +2337,13 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                                 console.log(`  Set original columnformula as value: ${cleanColumnFormula}`);
                             }
                             
-                            // Apply comment to AE cell if one was extracted
+                            // Apply comment to T cell if one was extracted
                             if (columnFormulaParsed.comment) {
-                                console.log(`  Adding columnformula comment "${columnFormulaParsed.comment}" to AE${currentRowNum}`);
+                                console.log(`  Adding columnformula comment "${columnFormulaParsed.comment}" to T${currentRowNum}`);
                                 try {
-                                    currentWorksheet.comments.add(`AE${currentRowNum}`, columnFormulaParsed.comment);
+                                    currentWorksheet.comments.add(`T${currentRowNum}`, columnFormulaParsed.comment);
                                     await context.sync(); // Sync the comment addition
-                                    console.log(`  Successfully applied columnformula comment to AE${currentRowNum}`);
+                                    console.log(`  Successfully applied columnformula comment to T${currentRowNum}`);
                                 } catch (commentError) {
                                     console.error(`  Error applying columnformula comment: ${commentError.message}`);
                                 }
@@ -2419,11 +2419,11 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         }
                     }
 
-                    // FINAL STEP: Copy complete column P formatting to J and S:CX (after all other formatting)
+                    // FINAL STEP: Copy complete column P formatting to J and S:CM (after all other formatting)
                     try {
-                        await copyColumnPFormattingToJAndSCX(currentWorksheet, currentRowNum);
+                        await copyColumnPFormattingToJAndSCM(currentWorksheet, currentRowNum);
                     } catch (copyFormatError) {
-                        console.error(`  Error copying column P formatting to J and S:CX: ${copyFormatError.message}`);
+                        console.error(`  Error copying column P formatting to J and S:CM: ${copyFormatError.message}`);
                     }
 
                     // NOTE: Percentage formatting override is now handled within applyRowSymbolFormatting
@@ -2503,7 +2503,7 @@ async function adjustDriversJS(worksheet, lastRow) {
     const START_ROW = 10; // <<< CHANGED FROM 9
     const DRIVER_CODE_COL = "F"; // Column containing the driver code to look up
     const LOOKUP_COL = "A";      // Column to search for the driver code
-    const TARGET_COL = "AE";     // Column where the result address string is written
+    const TARGET_COL = "T";      // Column where the result address string is written
 
     console.log(`Running adjustDriversJS for sheet: ${worksheet.name} from row ${START_ROW} to ${lastRow}`);
 
@@ -2598,7 +2598,7 @@ async function adjustDriversJS(worksheet, lastRow) {
  */
 async function replaceIndirectsJS(worksheet, lastRow) {
     const START_ROW = 10; // <<< CHANGED FROM 9
-    const TARGET_COL = "AE";
+    const TARGET_COL = "T";
 
     console.log(`Running replaceIndirectsJS for sheet: ${worksheet.name} from row ${START_ROW} to ${lastRow}`);
 
@@ -2840,17 +2840,17 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
     const ASSUMPTION_LINK_COL_B = "B";
     const ASSUMPTION_LINK_COL_D = "D";
     // Column on assumption sheet to link for monthly data
-    const ASSUMPTION_MONTHS_START_COL = "AE";
+    const ASSUMPTION_MONTHS_START_COL = "T";
 
     const FINANCIALS_CODE_COLUMN = "I"; // Column to search for code on Financials sheet
     const FINANCIALS_TARGET_COL_B = "B";
     const FINANCIALS_TARGET_COL_D = "D";
     const FINANCIALS_ANNUALS_START_COL = "J"; // Annuals start here
-    const FINANCIALS_MONTHS_START_COL = "AE"; // Months start here
+    const FINANCIALS_MONTHS_START_COL = "T"; // Months start here
 
     // --- Updated Column Definitions ---
     const ANNUALS_END_COL = "P";       // Annuals end here
-    const MONTHS_END_COL = "CX";       // Months end here
+    const MONTHS_END_COL = "CM";       // Months end here
     // --- End Updated Column Definitions ---
 
     // Formatting constants
@@ -3125,22 +3125,20 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
 
             // Removed Actuals column population (was L in previous version)
             
-            // --- NEW: Populate Actuals Columns S:AD with SUMIFS formula ---
+            // --- NEW: Populate Actuals Column R with SUMIFS formula ---
             try {
-                const actualsRange = financialsSheet.getRange(`S${populateRow}:AD${populateRow}`);
-                const sumifsFormula = "=SUMIFS('actuals'!$B:$B,'actuals'!$D:$D,EOMONTH(INDIRECT(ADDRESS(2,COLUMN())),0),'actuals'!$E:$E,@INDIRECT(ADDRESS(ROW(),2)))";
+                const actualsCell = financialsSheet.getRange(`R${populateRow}`);
+                const sumifsFormula = "=SUMIFS(Actuals!$B:$B,Actuals!$D:$D,EOMONTH(INDIRECT(ADDRESS(2,COLUMN())),0),Actuals!$E:$E,@INDIRECT(ADDRESS(ROW(),2)))";
                 
-                // Create a 2D array matching the range dimensions
-                const numCols = columnLetterToIndex('AD') - columnLetterToIndex('S') + 1;
-                const formulasArray = [Array(numCols).fill(sumifsFormula)];
-                actualsRange.formulas = formulasArray;
+                // Set the formula for column R only
+                actualsCell.formulas = [[sumifsFormula]];
                 
                 // Apply formatting
-                actualsRange.format.numberFormat = CURRENCY_FORMAT;
-                actualsRange.format.font.bold = false;
-                actualsRange.format.font.italic = false;
-                actualsRange.format.font.color = "#7030A0"; // Set font color
-                console.log(`  Set SUMIFS formula for S${populateRow}:AD${populateRow}`);
+                actualsCell.format.numberFormat = CURRENCY_FORMAT;
+                actualsCell.format.font.bold = false;
+                actualsCell.format.font.italic = false;
+                actualsCell.format.font.color = "#7030A0"; // Set font color
+                console.log(`  Set SUMIFS formula for R${populateRow}`);
             } catch (sumifsError) {
                 console.error(`Error setting SUMIFS formula for row ${populateRow} (Code: ${task.code}):`, sumifsError.debugInfo || sumifsError);
             }
@@ -3276,8 +3274,8 @@ export async function processAssumptionTabs(assumptionTabNames) {
     }
 
     const FINANCIALS_SHEET_NAME = "Financials"; // Define constant
-    const AUTOFILL_START_COLUMN = "AE";
-    const AUTOFILL_END_COLUMN = "CX";
+    const AUTOFILL_START_COLUMN = "T";
+    const AUTOFILL_END_COLUMN = "CM";
     const START_ROW = 10; // <<< CHANGED FROM 9 // Standard start row for processing
 
     try {
@@ -3745,12 +3743,12 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
     const OUTPUT_COL_D = "D";
     const CHECK_COL_B = "B"; // Column B for green check
     const VALUE_COL_A = "A"; // Column A for BS/AV check
-    const DRIVER_REF_COL = "AE"; // Column containing driver range ref in END_MARKER row
+    const DRIVER_REF_COL = "T"; // Column containing driver range ref in END_MARKER row
     const SUMIF_START_COL = "K"; // K
     const SUMIF_END_COL = "P"; // P
-    const SUMPRODUCT_COL = "AE"; // AE (VBA used AE, not S)
-    const MONTHS_START_COL = "AE"; // AE
-    const MONTHS_END_COL = "CX"; // CX
+    const SUMPRODUCT_COL = "T"; // T (changed from AE)
+    const MONTHS_START_COL = "T"; // T
+    const MONTHS_END_COL = "CM"; // CM
     const LIGHT_BLUE_COLOR = "#D9E1F2"; // RGB(217, 225, 242)
     const LIGHT_GREEN_COLOR = "#CCFFCC"; // RGB(204, 255, 204)
  
@@ -3854,9 +3852,9 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
                              rowRange.format.font.color = LIGHT_BLUE_COLOR;
                          }
                          
-                         // Change blue font color to black in columns AE through CX
-                         console.log(`  Changing blue font to black in columns AE:CX for row ${currentRow}`);
-                         const aeToChRange = currentWorksheet.getRange(`AE${currentRow}:CX${currentRow}`);
+                         // Change blue font color to black in columns T through CM
+                         console.log(`  Changing blue font to black in columns T:CM for row ${currentRow}`);
+                         const aeToChRange = currentWorksheet.getRange(`T${currentRow}:CM${currentRow}`);
                          aeToChRange.format.font.color = "#000000"; // Black font
                          
                          // Clear fill in column A specifically
@@ -4236,14 +4234,14 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
         
         // Process each FORMULA-S row
         for (const rowNum of formulaSRows) {
-            // Get the current value in column AE
-            const aeCell = worksheet.getRange(`AE${rowNum}`);
+            // Get the current value in column T
+            const aeCell = worksheet.getRange(`T${rowNum}`);
             aeCell.load("values");
             await worksheet.context.sync();
             
             const originalValue = aeCell.values[0][0];
             if (!originalValue || originalValue === "") {
-                console.log(`  Row ${rowNum}: No value in AE, skipping`);
+                console.log(`  Row ${rowNum}: No value in T, skipping`);
                 continue;
             }
             
@@ -4257,7 +4255,7 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             formula = formula.replace(rdPattern, (match, driverName) => {
                 const driverRow = driverMap.get(driverName);
                 if (driverRow) {
-                    const replacement = `AE$${driverRow}`;
+                    const replacement = `T$${driverRow}`;
                     console.log(`    Replacing rd{${driverName}} with ${replacement}`);
                     return replacement;
                 } else {
@@ -4320,44 +4318,44 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             return replacement;
         });
             
-            // Replace timeseriesdivisor with AE$7
+            // Replace timeseriesdivisor with T$7
             formula = formula.replace(/timeseriesdivisor/gi, (match) => {
-                const replacement = 'AE$7';
+                const replacement = 'T$7';
                 console.log(`    Replacing ${match} with ${replacement}`);
                 return replacement;
             });
             
-            // Replace currentmonth with AE$2
+            // Replace currentmonth with T$2
             formula = formula.replace(/currentmonth/gi, (match) => {
-                const replacement = 'AE$2';
+                const replacement = 'T$2';
                 console.log(`    Replacing ${match} with ${replacement}`);
                 return replacement;
             });
             
-            // Replace beginningmonth with $AE$2
+            // Replace beginningmonth with $T$2
             formula = formula.replace(/beginningmonth/gi, (match) => {
-                const replacement = '$AE$2';
+                const replacement = '$T$2';
                 console.log(`    Replacing ${match} with ${replacement}`);
                 return replacement;
             });
             
-            // Replace currentyear with AE$3
+            // Replace currentyear with T$3
             formula = formula.replace(/currentyear/gi, (match) => {
-                const replacement = 'AE$3';
+                const replacement = 'T$3';
                 console.log(`    Replacing ${match} with ${replacement}`);
                 return replacement;
             });
             
-            // Replace yearend with AE$4
+            // Replace yearend with T$4
             formula = formula.replace(/yearend/gi, (match) => {
-                const replacement = 'AE$4';
+                const replacement = 'T$4';
                 console.log(`    Replacing ${match} with ${replacement}`);
                 return replacement;
             });
             
-            // Replace beginningyear with $AE$2
+            // Replace beginningyear with $T$3
             formula = formula.replace(/beginningyear/gi, (match) => {
-                const replacement = '$AE$3';
+                const replacement = '$T$3';
                 console.log(`    Replacing ${match} with ${replacement}`);
                 return replacement;
             });
@@ -4365,106 +4363,106 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             // Now parse special functions (SPREAD, BEG, END, etc.)
             console.log(`  Parsing special functions in formula...`);
             
-            // Process SPREAD function: SPREAD(driver) -> driver/AE$7
+            // Process SPREAD function: SPREAD(driver) -> driver/T$7
             formula = formula.replace(/SPREAD\(([^)]+)\)/gi, (match, driver) => {
-                console.log(`    Converting SPREAD(${driver}) to ${driver}/AE$7`);
-                return `(${driver}/AE$7)`;
+                console.log(`    Converting SPREAD(${driver}) to ${driver}/T$7`);
+                return `(${driver}/T$7)`;
             });
             
-            // Process BEG function: BEG(driver) -> (EOMONTH(driver,0)<=AE$2)
+            // Process BEG function: BEG(driver) -> (EOMONTH(driver,0)<=T$2)
             formula = formula.replace(/BEG\(([^)]+)\)/gi, (match, driver) => {
-                console.log(`    Converting BEG(${driver}) to (EOMONTH(${driver},0)<=AE$2)`);
-                return `(EOMONTH(${driver},0)<=AE$2)`;
+                console.log(`    Converting BEG(${driver}) to (EOMONTH(${driver},0)<=T$2)`);
+                return `(EOMONTH(${driver},0)<=T$2)`;
             });
             
-            // Process END function: END(driver) -> (EOMONTH(driver,0)>AE$2)
+            // Process END function: END(driver) -> (EOMONTH(driver,0)>T$2)
             formula = formula.replace(/END\(([^)]+)\)/gi, (match, driver) => {
-                console.log(`    Converting END(${driver}) to (EOMONTH(${driver},0)>AE$2)`);
-                return `(EOMONTH(${driver},0)>AE$2)`;
+                console.log(`    Converting END(${driver}) to (EOMONTH(${driver},0)>T$2)`);
+                return `(EOMONTH(${driver},0)>T$2)`;
             });
             
-            // Process RAISE function: RAISE(driver1,driver2) -> (1 + (driver1)) ^ (AE$3 - max(year(driver2), $AE3))
+            // Process RAISE function: RAISE(driver1,driver2) -> (1 + (driver1)) ^ (T$3 - max(year(driver2), $T3))
             formula = formula.replace(/RAISE\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
                 // Trim whitespace from drivers
                 driver1 = driver1.trim();
                 driver2 = driver2.trim();
-                console.log(`    Converting RAISE(${driver1},${driver2}) to (1 + (${driver1})) ^ (AE$3 - max(year(${driver2}), $AE3))`);
-                return `(1 + (${driver1})) ^ (AE$3 - max(year(${driver2}), $AE3))`;
+                console.log(`    Converting RAISE(${driver1},${driver2}) to (1 + (${driver1})) ^ (T$3 - max(year(${driver2}), $T3))`);
+                return `(1 + (${driver1})) ^ (T$3 - max(year(${driver2}), $T3))`;
             });
             
-            // Process ANNBONUS function: ANNBONUS(driver1,driver2) -> (driver1*(MONTH(AE$2)=driver2))
+            // Process ANNBONUS function: ANNBONUS(driver1,driver2) -> (driver1*(MONTH(T$2)=driver2))
             formula = formula.replace(/ANNBONUS\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
                 // Trim whitespace from drivers
                 driver1 = driver1.trim();
                 driver2 = driver2.trim();
-                console.log(`    Converting ANNBONUS(${driver1},${driver2}) to (${driver1}*(MONTH(AE$2)=${driver2}))`);
-                return `(${driver1}*(MONTH(AE$2)=${driver2}))`;
+                console.log(`    Converting ANNBONUS(${driver1},${driver2}) to (${driver1}*(MONTH(T$2)=${driver2}))`);
+                return `(${driver1}*(MONTH(T$2)=${driver2}))`;
             });
             
-            // Process QUARTERBONUS function: QUARTERBONUS(driver1) -> (driver1*(AE$6<>0))
+            // Process QUARTERBONUS function: QUARTERBONUS(driver1) -> (driver1*(T$6<>0))
             formula = formula.replace(/QUARTERBONUS\(([^)]+)\)/gi, (match, driver1) => {
                 // Trim whitespace from driver
                 driver1 = driver1.trim();
-                console.log(`    Converting QUARTERBONUS(${driver1}) to (${driver1}*(AE$6<>0))`);
-                return `(${driver1}*(AE$6<>0))`;
+                console.log(`    Converting QUARTERBONUS(${driver1}) to (${driver1}*(T$6<>0))`);
+                return `(${driver1}*(T$6<>0))`;
             });
             
-            // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=AE$2)
+            // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=T$2)
             formula = formula.replace(/ONETIMEDATE\(([^)]+)\)/gi, (match, driver) => {
-                console.log(`    Converting ONETIMEDATE(${driver}) to (EOMONTH((${driver}),0)=AE$2)`);
-                return `(EOMONTH((${driver}),0)=AE$2)`;
+                console.log(`    Converting ONETIMEDATE(${driver}) to (EOMONTH((${driver}),0)=T$2)`);
+                return `(EOMONTH((${driver}),0)=T$2)`;
             });
             
-            // Process SPREADDATES function: SPREADDATES(driver1,driver2,driver3) -> IF(AND(EOMONTH(AE$2,0)>=EOMONTH(driver2,0),EOMONTH(driver3,0)<=EOMONTH($I12,0)),driver1/(DATEDIF(driver2,driver3,"m")+1),0)
+            // Process SPREADDATES function: SPREADDATES(driver1,driver2,driver3) -> IF(AND(EOMONTH(T$2,0)>=EOMONTH(driver2,0),EOMONTH(T$2,0)<=EOMONTH(driver3,0)),driver1/(DATEDIF(driver2,driver3,"m")+1),0)
             // Note: Need to handle nested parentheses and comma separation
             formula = formula.replace(/SPREADDATES\(([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3) => {
                 // Trim whitespace from drivers
                 driver1 = driver1.trim();
                 driver2 = driver2.trim();
                 driver3 = driver3.trim();
-                const newFormula = `IF(AND(EOMONTH(AE$2,0)>=EOMONTH(${driver2},0),EOMONTH(AE$2,0)<=EOMONTH(${driver3},0)),${driver1}/(DATEDIF(${driver2},${driver3},"m")+1),0)`;
+                const newFormula = `IF(AND(EOMONTH(T$2,0)>=EOMONTH(${driver2},0),EOMONTH(T$2,0)<=EOMONTH(${driver3},0)),${driver1}/(DATEDIF(${driver2},${driver3},"m")+1),0)`;
                 console.log(`    Converting SPREADDATES(${driver1},${driver2},${driver3}) to ${newFormula}`);
                 return newFormula;
             });
             
-            // Process AMORT function: AMORT(driver1,driver2,driver3,driver4) -> IFERROR(PMT(driver1/AE$7,driver2-AE$8+1,SUM(driver3,OFFSET(driver4,-1,0),0,0),0),0)
+            // Process AMORT function: AMORT(driver1,driver2,driver3,driver4) -> IFERROR(PMT(driver1/T$7,driver2-T$8+1,SUM(driver3,OFFSET(driver4,-1,0),0,0),0),0)
             formula = formula.replace(/AMORT\(([^,]+),([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3, driver4) => {
                 // Trim whitespace from drivers
                 driver1 = driver1.trim();
                 driver2 = driver2.trim();
                 driver3 = driver3.trim();
                 driver4 = driver4.trim();
-                const newFormula = `IFERROR(PMT(${driver1}/AE$7,${driver2}-AE$8+1,SUM(${driver3},OFFSET(${driver4},-1,0),0,0),0),0)`;
+                const newFormula = `IFERROR(PMT(${driver1}/T$7,${driver2}-T$8+1,SUM(${driver3},OFFSET(${driver4},-1,0),0,0),0),0)`;
                 console.log(`    Converting AMORT(${driver1},${driver2},${driver3},${driver4}) to ${newFormula}`);
                 return newFormula;
             });
             
-            // Process BULLET function: BULLET(driver1,driver2,driver3) -> IF(driver2=AE$8,SUM(driver1,OFFSET(driver3,-1,0)),0)
+            // Process BULLET function: BULLET(driver1,driver2,driver3) -> IF(driver2=T$8,SUM(driver1,OFFSET(driver3,-1,0)),0)
             formula = formula.replace(/BULLET\(([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3) => {
                 // Trim whitespace from drivers
                 driver1 = driver1.trim();
                 driver2 = driver2.trim();
                 driver3 = driver3.trim();
-                const newFormula = `IF(${driver2}=AE$8,SUM(${driver1},OFFSET(${driver3},-1,0)),0)`;
+                const newFormula = `IF(${driver2}=T$8,SUM(${driver1},OFFSET(${driver3},-1,0)),0)`;
                 console.log(`    Converting BULLET(${driver1},${driver2},${driver3}) to ${newFormula}`);
                 return newFormula;
             });
             
-            // Process PBULLET function: PBULLET(driver1,driver2) -> (driver1*(driver2=AE$8)) (Fixed partial principal payment)
+            // Process PBULLET function: PBULLET(driver1,driver2) -> (driver1*(driver2=T$8)) (Fixed partial principal payment)
             formula = formula.replace(/PBULLET\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
                 // Trim whitespace from drivers
                 driver1 = driver1.trim();
                 driver2 = driver2.trim();
-                const newFormula = `(${driver1}*(${driver2}=AE$8))`;
+                const newFormula = `(${driver1}*(${driver2}=T$8))`;
                 console.log(`    Converting PBULLET(${driver1},${driver2}) to ${newFormula}`);
                 return newFormula;
             });
             
-            // Process INTONLY function: INTONLY(driver1) -> (AE$8>driver1) (Interest only period)
+            // Process INTONLY function: INTONLY(driver1) -> (T$8>driver1) (Interest only period)
             formula = formula.replace(/INTONLY\(([^)]+)\)/gi, (match, driver1) => {
                 // Trim whitespace from driver
                 driver1 = driver1.trim();
-                const newFormula = `(AE$8>${driver1})`;
+                const newFormula = `(T$8>${driver1})`;
                 console.log(`    Converting INTONLY(${driver1}) to ${newFormula}`);
                 return newFormula;
             });
@@ -4499,8 +4497,8 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
  */
 export async function hideColumnsAndNavigate(assumptionTabNames, originalModelCodes = null) { // Renamed and added parameter
     // Define Actuals columns
-    const ACTUALS_START_COL = "S";
-    const ACTUALS_END_COL = "AD";
+    const ACTUALS_START_COL = "R";
+    const ACTUALS_END_COL = "R";
 
     try {
         startTimer("hideColumnsAndNavigate-total");
@@ -5086,9 +5084,9 @@ async function updateSumifFormulasAfterGreenDeletion(worksheet, startRow, lastRo
                 console.log(`    ➡️ No formula updates needed for row ${currentRow}`);
             }
 
-            // --- Process column AE for the current row ---
-            console.log(`    🔍 Processing column AE formula for row ${currentRow}`);
-            const aeCell = worksheet.getRange(`AE${currentRow}`);
+            // --- Process column T for the current row ---
+            console.log(`    🔍 Processing column T formula for row ${currentRow}`);
+            const aeCell = worksheet.getRange(`T${currentRow}`);
             aeCell.load("formulas");
             await worksheet.context.sync();
 
@@ -5101,7 +5099,7 @@ async function updateSumifFormulasAfterGreenDeletion(worksheet, startRow, lastRo
                 const patternToFind = /MATCH\(@INDIRECT\(ADDRESS\(3,COLUMN\(\),2\)\),\$J\$2:\$P\$2,0\)/gi;
 
                 if (originalAeFormula.match(patternToFind)) {
-                    console.log(`    🎯 Found AE formula pattern in row ${currentRow}: ${originalAeFormula}`);
+                    console.log(`    🎯 Found T formula pattern in row ${currentRow}: ${originalAeFormula}`);
                     
                     // Define what to replace it with
                     const replacementPattern = `MATCH(@INDIRECT(ADDRESS(${yearRow},COLUMN(),2)),${timeSeriesRowRange},0)`;
@@ -5110,7 +5108,7 @@ async function updateSumifFormulasAfterGreenDeletion(worksheet, startRow, lastRo
                     aeFormula = originalAeFormula.replace(patternToFind, replacementPattern);
 
                     if (aeFormula !== originalAeFormula) {
-                        console.log(`    ✅ Updated AE formula in row ${currentRow}`);
+                        console.log(`    ✅ Updated T formula in row ${currentRow}`);
                         console.log(`      Before: ${originalAeFormula}`);
                         console.log(`      After:  ${aeFormula}`);
                         aeCell.formulas = [[aeFormula]];
@@ -5119,7 +5117,7 @@ async function updateSumifFormulasAfterGreenDeletion(worksheet, startRow, lastRo
                     }
                 }
             } else {
-                console.log(`    ➡️ No formula found in AE${currentRow}`);
+                console.log(`    ➡️ No formula found in T${currentRow}`);
             }
          }
         
