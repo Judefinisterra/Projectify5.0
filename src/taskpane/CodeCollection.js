@@ -1173,6 +1173,17 @@ export async function runCodes(codeCollection) {
         endTimer("runCodes-finalization");
         console.log("runCodes finished. Returning:", finalResult);
         
+        // Restore left borders to column S cells with interior color on all assumption tabs
+        console.log("Restoring column S left borders on all assumption tabs...");
+        for (const assumptionTab of assumptionTabs) {
+            try {
+                await restoreColumnSLeftBorders(assumptionTab);
+            } catch (borderError) {
+                console.error(`Error restoring column S borders on ${assumptionTab.name}: ${borderError.message}`);
+            }
+        }
+        console.log("Completed column S border restoration.");
+        
         // Print timing summary for runCodes only
         printTimingSummary();
         
@@ -1796,7 +1807,60 @@ async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSeq
     console.log(`Completed symbol-based formatting with percentage override for row ${rowNum}`);
 }
 
-// NOTE: reapplyPercentageFormatting function removed - functionality integrated into applyRowSymbolFormatting
+/**
+ * Restores left borders to all cells in column S that have an interior color set
+ * @param {Excel.Worksheet} worksheet - The worksheet to process
+ * @returns {Promise<void>}
+ */
+async function restoreColumnSLeftBorders(worksheet) {
+    console.log(`Restoring left borders to column S cells with interior color in ${worksheet.name}`);
+    
+    try {
+        // Get the used range to determine how many rows to check
+        const usedRange = worksheet.getUsedRange();
+        if (!usedRange) {
+            console.log(`  No used range found in ${worksheet.name}`);
+            return;
+        }
+        
+        usedRange.load("rowCount");
+        await worksheet.context.sync();
+        
+        const totalRows = usedRange.rowCount;
+        console.log(`  Checking ${totalRows} rows in column S`);
+        
+        // Process in batches to avoid performance issues
+        const batchSize = 100;
+        for (let startRow = 1; startRow <= totalRows; startRow += batchSize) {
+            const endRow = Math.min(startRow + batchSize - 1, totalRows);
+            const columnSRange = worksheet.getRange(`S${startRow}:S${endRow}`);
+            
+            // Load the interior color for each cell
+            columnSRange.load("format/fill/color");
+            await worksheet.context.sync();
+            
+            // Check each cell in this batch
+            for (let i = 0; i < columnSRange.values.length; i++) {
+                const rowNum = startRow + i;
+                const cellColor = columnSRange.format.fill.color[i][0];
+                
+                // If the cell has an interior color set (not empty/default/white)
+                if (cellColor && cellColor !== "" && cellColor !== "#FFFFFF") {
+                    const singleCell = worksheet.getRange(`S${rowNum}`);
+                    singleCell.format.borders.getItem('EdgeLeft').style = 'Continuous';
+                    singleCell.format.borders.getItem('EdgeLeft').weight = 'Thin';
+                }
+            }
+            
+            await worksheet.context.sync();
+        }
+        
+        console.log(`  Completed restoring left borders to column S in ${worksheet.name}`);
+        
+    } catch (error) {
+        console.error(`Error restoring column S left borders in ${worksheet.name}: ${error.message}`);
+    }
+}
 
 /**
  * Copies complete formatting from column O to column J and columns S through CN for a specific row
@@ -1805,14 +1869,14 @@ async function applyRowSymbolFormatting(worksheet, rowNum, splitArray, columnSeq
  * @param {number} rowNum - The row number to copy formatting for
  * @returns {Promise<void>}
  */
-async function copyColumnPFormattingToJAndSCN(worksheet, rowNum) {
-    console.log(`Copying complete column O formatting to J and S:CN for row ${rowNum}`);
+async function copyColumnPFormattingToJAndTCN(worksheet, rowNum) {
+    console.log(`Copying complete column O formatting to J and T:CN for row ${rowNum}`);
     
     try {
         // Get the source cell and target ranges
         const sourceCellO = worksheet.getRange(`O${rowNum}`);
         const targetCellJ = worksheet.getRange(`J${rowNum}`);
-        const targetRangeSCN = worksheet.getRange(`S${rowNum}:CN${rowNum}`);
+        const targetRangeTCN = worksheet.getRange(`T${rowNum}:CN${rowNum}`);
         
         // Load complete formatting from source cell O
         sourceCellO.load(["numberFormat", "format/font/italic", "format/font/bold"]);
@@ -1821,20 +1885,20 @@ async function copyColumnPFormattingToJAndSCN(worksheet, rowNum) {
         // Copy complete formatting from O to J
         targetCellJ.copyFrom(sourceCellO, Excel.RangeCopyType.formats);
         
-        // Copy complete formatting from O to S:CN range
-        targetRangeSCN.copyFrom(sourceCellO, Excel.RangeCopyType.formats);
+        // Copy complete formatting from O to T:CN range
+        targetRangeTCN.copyFrom(sourceCellO, Excel.RangeCopyType.formats);
         
         // Sync the formatting changes
         await worksheet.context.sync();
         
         const numberFormat = sourceCellO.numberFormat[0][0];
-        console.log(`Successfully copied complete column O formatting to J${rowNum} and S${rowNum}:CN${rowNum}`);
+        console.log(`Successfully copied complete column O formatting to J${rowNum} and T${rowNum}:CN${rowNum}`);
         console.log(`  Applied number format: ${numberFormat}`);
         console.log(`  Applied font italic: ${sourceCellO.format.font.italic}`);
         console.log(`  Applied font bold: ${sourceCellO.format.font.bold}`);
         
     } catch (error) {
-        console.error(`Error copying column O formatting to J and S:CN for row ${rowNum}: ${error.message}`);
+        console.error(`Error copying column O formatting to J and T:CN for row ${rowNum}: ${error.message}`);
         throw error;
     }
 }
@@ -2421,9 +2485,9 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
 
                     // FINAL STEP: Copy complete column P formatting to J and S:CN (after all other formatting)
                     try {
-                        await copyColumnPFormattingToJAndSCN(currentWorksheet, currentRowNum);
+                        await copyColumnPFormattingToJAndTCN(currentWorksheet, currentRowNum);
                     } catch (copyFormatError) {
-                        console.error(`  Error copying column P formatting to J and S:CN: ${copyFormatError.message}`);
+                        console.error(`  Error copying column P formatting to J and T:CN: ${copyFormatError.message}`);
                     }
 
                     // NOTE: Percentage formatting override is now handled within applyRowSymbolFormatting
@@ -4514,10 +4578,6 @@ export async function hideColumnsAndNavigate(assumptionTabNames, originalModelCo
 
             console.log(`Found ${worksheets.items.length} worksheets. Targeting ${targetSheetNames.length} specific sheets.`);
             let hideAttempted = false;
-
-            // Calculate actuals end column for assumption tabs (commented out - keeping S visible)
-            // const actualsEndIndex = columnLetterToIndex(ACTUALS_END_COL);
-            // const actualsEndMinusOneCol = actualsEndIndex > 0 ? columnIndexToLetter(actualsEndIndex - 1) : ACTUALS_START_COL; // Handle edge case
 
             // --- Queue hiding operations for target sheets ---
             for (const worksheet of worksheets.items) {
