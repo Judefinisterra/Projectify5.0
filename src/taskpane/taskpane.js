@@ -483,6 +483,10 @@ async function processActualsWithClaude(csvData, filename) {
 function displayActualsResult(actualsCode, filename) {
     console.log('[displayActualsResult] Displaying ACTUALS result in developer mode');
     
+    // Update lastResponse global variable so "Insert to Editor" button works
+    lastResponse = actualsCode;
+    console.log('[displayActualsResult] Updated lastResponse for Insert to Editor functionality');
+    
     // Display the file processing message
     displayInDeveloperChat(`📄 Processed file: ${filename}`, true);
     

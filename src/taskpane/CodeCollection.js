@@ -3069,12 +3069,14 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
     const CALCS_FIRST_ROW = 10; // <<< CHANGED FROM 9 // Same as START_ROW elsewhere
     const ASSUMPTION_CODE_COL = "C"; // Column with code to lookup on assumption sheet
     const ASSUMPTION_LINK_COL_B = "B";
+    const ASSUMPTION_LINK_COL_C = "C";
     const ASSUMPTION_LINK_COL_D = "D";
     // Column on assumption sheet to link for monthly data
     const ASSUMPTION_MONTHS_START_COL = "U";
 
     const FINANCIALS_CODE_COLUMN = "I"; // Column to search for code on Financials sheet
     const FINANCIALS_TARGET_COL_B = "B";
+    const FINANCIALS_TARGET_COL_C = "C";
     const FINANCIALS_TARGET_COL_D = "D";
     const FINANCIALS_ANNUALS_START_COL = "J"; // Annuals start here
     const FINANCIALS_MONTHS_START_COL = "U"; // Months start here
@@ -3202,6 +3204,7 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
             if (code !== null && code !== "") {
                 // Construct the potential link formulas first
                 const linkFormulaB = `='${worksheet.name}'!${ASSUMPTION_LINK_COL_B}${assumptionRow}`;
+                const linkFormulaC = `='${worksheet.name}'!${ASSUMPTION_LINK_COL_C}${assumptionRow}`;
                 const linkFormulaD = `='${worksheet.name}'!${ASSUMPTION_LINK_COL_D}${assumptionRow}`;
                 const linkFormulaMonths = `='${worksheet.name}'!${ASSUMPTION_MONTHS_START_COL}${assumptionRow}`;
 
@@ -3227,6 +3230,7 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
                     assumptionRow: assumptionRow,
                     code: code,
                     addressB: linkFormulaB,     // Use the constructed formula link
+                    addressC: linkFormulaC,     // Use the constructed formula link
                     addressD: linkFormulaD,     // Use the constructed formula link
                     addressMonths: linkFormulaMonths // Use the constructed formula link
                 });
@@ -3315,6 +3319,7 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
 
             // Use populateRow instead of task.targetRow for getRange calls
             const cellB = financialsSheet.getRange(`${FINANCIALS_TARGET_COL_B}${populateRow}`);
+            const cellC = financialsSheet.getRange(`${FINANCIALS_TARGET_COL_C}${populateRow}`);
             const cellD = financialsSheet.getRange(`${FINANCIALS_TARGET_COL_D}${populateRow}`);
             const cellAnnualsStart = financialsSheet.getRange(`${FINANCIALS_ANNUALS_START_COL}${populateRow}`);
             const cellMonthsStart = financialsSheet.getRange(`${FINANCIALS_MONTHS_START_COL}${populateRow}`);
@@ -3324,6 +3329,12 @@ async function populateFinancialsJS(worksheet, lastRow, financialsSheet) {
             cellB.format.font.bold = false;
             cellB.format.font.italic = false;
             cellB.format.indentLevel = 2;
+
+            // --- Populate Column C ---
+            cellC.formulas = [[task.addressC]]; // Set formula directly
+            cellC.format.font.bold = false;
+            cellC.format.font.italic = false;
+            cellC.format.indentLevel = 2;
 
             // --- Populate Column D ---
             cellD.formulas = [[task.addressD]]; // Set formula directly
