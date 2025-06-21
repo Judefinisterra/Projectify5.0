@@ -559,8 +559,8 @@ export async function validateCodeStrings(inputText, includeFormatValidation = t
 
         const codeType = codeMatch[1].trim();
         
-        // Validate code exists in description file
-        if (!validCodes.has(codeType)) {
+        // Validate code exists in description file (skip ACTUALS codes)
+        if (codeType !== 'ACTUALS' && !validCodes.has(codeType)) {
             errors.push(`[LERR005] Invalid code type: "${codeType}" not found in valid codes list - ${codeString}`);
         }
 
@@ -1092,8 +1092,8 @@ export async function validateLogicOnly(inputText) {
 
         const codeType = codeMatch[1].trim();
         
-        // Validate code exists in description file (LOGIC ERROR)
-        if (!validCodes.has(codeType)) {
+        // Validate code exists in description file (LOGIC ERROR) - skip ACTUALS codes
+        if (codeType !== 'ACTUALS' && !validCodes.has(codeType)) {
             errors.push(`[LERR005] Invalid code type: "${codeType}" not found in valid codes list - ${codeString}`);
         }
 
