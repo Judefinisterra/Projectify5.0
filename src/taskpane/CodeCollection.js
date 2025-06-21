@@ -3645,10 +3645,10 @@ export async function hideRowsAndColumnsOnSheets(excludedSheetNames = ["Actuals 
                     colRange1.columnHidden = true;
                     console.log(`  Hiding columns C-E`); // Update log message
 
-                    // Hide Columns S-AC
-                    const colRange2 = worksheet.getRange("S:AC");
+                    // Hide Columns T-AC (keep S visible)
+                    const colRange2 = worksheet.getRange("T:AC");
                     colRange2.columnHidden = true;
-                    console.log(`  Hiding columns S-AC`);
+                    console.log(`  Hiding columns T-AC`);
 
                     // It's often more efficient to batch sync operations,
                     // but sometimes hiding needs immediate effect or separate syncs.
@@ -4515,9 +4515,9 @@ export async function hideColumnsAndNavigate(assumptionTabNames, originalModelCo
             console.log(`Found ${worksheets.items.length} worksheets. Targeting ${targetSheetNames.length} specific sheets.`);
             let hideAttempted = false;
 
-            // Calculate actuals end column for assumption tabs
-            const actualsEndIndex = columnLetterToIndex(ACTUALS_END_COL);
-            const actualsEndMinusOneCol = actualsEndIndex > 0 ? columnIndexToLetter(actualsEndIndex - 1) : ACTUALS_START_COL; // Handle edge case
+            // Calculate actuals end column for assumption tabs (commented out - keeping S visible)
+            // const actualsEndIndex = columnLetterToIndex(ACTUALS_END_COL);
+            // const actualsEndMinusOneCol = actualsEndIndex > 0 ? columnIndexToLetter(actualsEndIndex - 1) : ACTUALS_START_COL; // Handle edge case
 
             // --- Queue hiding operations for target sheets ---
             for (const worksheet of worksheets.items) {
@@ -4547,9 +4547,8 @@ export async function hideColumnsAndNavigate(assumptionTabNames, originalModelCo
                             const actualsRangeFin = worksheet.getRange(`${ACTUALS_START_COL}:${ACTUALS_END_COL}`);
                             actualsRangeFin.columnHidden = true;
                         } else if (assumptionTabNames.includes(sheetName)) {
-                             console.log(`  -> Hiding Actuals range ${ACTUALS_START_COL}:${actualsEndMinusOneCol}`);
-                             const actualsRangeAssum = worksheet.getRange(`${ACTUALS_START_COL}:${actualsEndMinusOneCol}`);
-                             actualsRangeAssum.columnHidden = true;
+                             // Skip hiding actuals columns on assumption tabs to keep column S visible
+                             console.log(`  -> Skipping actuals column hiding for assumption tab ${sheetName} to keep column S visible`);
                         }
 
                         hideAttempted = true; // Mark that at least one hide was queued
