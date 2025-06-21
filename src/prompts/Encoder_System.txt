@@ -63,11 +63,33 @@ Every row parameter MUST include proper column labels in parentheses:
 
 **FORBIDDEN:** DO NOT add columns (ex. C7, Y7) - will break the model!
 
+## 🚨 CRITICAL ERROR: NEVER DUPLICATE COLUMN LABELS 🚨
+
+**ABSOLUTELY FORBIDDEN:** Creating duplicate column labels like two (C6) columns in the same row:
+
+**❌ WRONG EXAMPLE:**
+```
+row1="V1(D)|New Lending(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|$1000000(C6)|6/1/2026(C6)|$F(Y1)|..."
+```
+*This creates TWO (C6) columns - BREAKS THE MODEL!*
+
+**✅ CORRECT APPROACH:**
+```
+row1="V1(D)|New Lending(L)|(F)|(C1)|(C2)|(C3)|(C4)|6/1/2026(C5)|$1000000(C6)|$F(Y1)|..."
+```
+*When (C6) is needed for amount, put date in (C5) - ONLY ONE OF EACH LABEL!*
+
+**RULE:** If you need to add assumptions and (C6) is occupied, use (C5). If (C5) is occupied, use (C4), etc. NEVER duplicate column labels!
+
 **Column Mapping:** Maps to Excel columns A, B, C, D, E, F, G, H, I, K, L, M, N, O, P, R (skipping J and Q)
 
-**Example Correction:** 
+**Example Corrections:** 
 - **WRONG:** `<COLUMNHEADER-E; row1="(D)|~Hourly Employees:(L)|(F)|(C1)|(C2)|(C3)|~# of hours per week(C5)|~Hourly rate(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">` (missing C4)
 - **RIGHT:** `<COLUMNHEADER-E; row1="(D)|~Hourly Employees:(L)|(F)|(C1)|(C2)|(C3)|(C4)|~# of hours per week(C5)|~Hourly rate(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">`
+
+**DUPLICATE LABEL CORRECTION:**
+- **WRONG:** `<FORMULA-S; row1="V1(D)|New Lending(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|$1000000(C6)|6/1/2026(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">` (duplicate C6)
+- **RIGHT:** `<FORMULA-S; row1="V1(D)|New Lending(L)|(F)|(C1)|(C2)|(C3)|(C4)|6/1/2026(C5)|$1000000(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">`
 
 ---
 
@@ -344,6 +366,24 @@ When client says "per month", generally use CONST-E to take monthly assumption f
 - Only adjust columns already populated with numbers in source codestring
 - Keep assumptions in client's terms when possible
 
+## 🚨 CRITICAL: COLUMN ASSUMPTION MANAGEMENT 🚨
+
+**WHEN ADDING NEW ASSUMPTIONS:**
+If you need to add assumptions to columns C1-C6 and some are already occupied:
+
+**Step 1:** Check which columns are available (show as blank or just |(C#)|)
+**Step 2:** Use available columns in ANY order - there is no requirement to fill sequentially  
+**Step 3:** NEVER duplicate column labels - each (C1), (C2), (C3), (C4), (C5), (C6) can only appear ONCE per row
+
+**Example - Need to add amount ($1M) and date (6/1/2026) when (C4), (C5), (C6) are available:**
+```
+✅ CORRECT: |(C4)|6/1/2026(C5)|$1000000(C6)|
+✅ ALSO CORRECT: |6/1/2026(C4)|$1000000(C5)|(C6)|  
+❌ WRONG: |(C4)|(C5)|$1000000(C6)|6/1/2026(C6)|  // Duplicate (C6)!
+```
+
+**If no columns available:** Consider if the assumption is truly necessary or if it can be incorporated differently
+
 **Example:** "price is $100 in Y1 and $200 in Y2+" → `<CODE; row1 = "V1(D)|~Price(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$100(Y1)|~$200(Y2)|~$200(Y3)|~$200(Y4)|~$200(Y5)|~$200(Y6)|">`
 
 **Rate Handling:** If rate doesn't align with months/years, use CONST-E + "# of months per X" + math operators
@@ -572,6 +612,8 @@ Think through each client request part. Trace one unit through calculations.
 
 5. **When in doubt, decompose further** - It's better to have too many assumption rows than to do calculations yourself
 
+6. **🚨 NEVER DUPLICATE COLUMN LABELS** - Each (C1) through (C6) can only appear ONCE per row. Use available columns, don't duplicate!
+
 ---
 
 ## FORMATTING RULES
@@ -656,25 +698,26 @@ Add ~ symbol in front of column value to italicize:
 6. **Column Structure:** Proper labels in parentheses - system strips these for processing
 7. **Label Presence:** Are (D), (L), (F), (C1)-(C6), (Y1)-(Y6) present in every row?
 8. **Extra Labels:** No extra column labels (C7+, Y7+) present?
-9. **Double Check:** Verify #7 and #8
-10. **Triple Check:** Verify #7 and #8 again
-11. **Final Validation:** Every row has all required labels with 15 "|" symbols ending with "|"
+9. **🚨 DUPLICATE LABELS:** Are there ANY duplicate column labels in the same row (e.g., two (C6) labels)?
+10. **Double Check:** Verify #7, #8, and #9
+11. **Triple Check:** Verify #7, #8, and #9 again
+12. **Final Validation:** Every row has all required labels with 15 "|" symbols ending with "|" AND no duplicate labels
 
 ## FINCODE AND DOUBLE COUNTING VALIDATION
 
 **CRITICAL FINCODE CHECKS:**
-12. **FinCode Logic:** Does each FinCode assignment make sense for the 3-statement model?
-13. **Double Counting Check:** Is any economic event counted multiple times across statements?
-14. **Intermediate vs. Final:** Do intermediate calculations have blank FinCodes while final results have appropriate FinCodes?
-15. **Reconciliation Tables:** Do reconciliation components (beginning, additions, subtractions) have blank FinCodes while only ending balances have BS: codes?
-16. **Cash Flow Matching:** Does every balance sheet change have a corresponding cash flow impact with appropriate CF: codes?
-17. **Revenue Components:** Do revenue drivers (# customers, price) have blank FinCodes while only total revenue has IS: revenue?
-18. **Expense Components:** Do expense drivers have blank FinCodes while only total expenses have IS: codes?
+13. **FinCode Logic:** Does each FinCode assignment make sense for the 3-statement model?
+14. **Double Counting Check:** Is any economic event counted multiple times across statements?
+15. **Intermediate vs. Final:** Do intermediate calculations have blank FinCodes while final results have appropriate FinCodes?
+16. **Reconciliation Tables:** Do reconciliation components (beginning, additions, subtractions) have blank FinCodes while only ending balances have BS: codes?
+17. **Cash Flow Matching:** Does every balance sheet change have a corresponding cash flow impact with appropriate CF: codes?
+18. **Revenue Components:** Do revenue drivers (# customers, price) have blank FinCodes while only total revenue has IS: revenue?
+19. **Expense Components:** Do expense drivers have blank FinCodes while only total expenses have IS: codes?
 
 **FINAL FINCODE REVIEW:**
-19. **3-Statement Flow:** Trace each FinCode item - where does it appear in the financial statements?
-20. **Training Data Consistency:** If diverging from training data FinCode patterns, is there a clear reason?
-21. **Economic Logic:** Does the overall FinCode assignment create a coherent economic story across the 3 statements?
+20. **3-Statement Flow:** Trace each FinCode item - where does it appear in the financial statements?
+21. **Training Data Consistency:** If diverging from training data FinCode patterns, is there a clear reason?
+22. **Economic Logic:** Does the overall FinCode assignment create a coherent economic story across the 3 statements?
 
 ---
 
