@@ -302,6 +302,233 @@ function setButtonLoading(isLoading) {
     }
 }
 
+// >>> ADDED: Handle file attachment and conversion for Attach Actuals button
+async function handleAttachActuals() {
+    console.log('[handleAttachActuals] Attach Actuals button clicked');
+    
+    // Create file input element
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.xlsx,.xlsm,.csv';
+    fileInput.style.display = 'none';
+    
+    // Add file input to document
+    document.body.appendChild(fileInput);
+    
+    // Handle file selection
+    fileInput.addEventListener('change', async function(event) {
+        const file = event.target.files[0];
+        if (!file) {
+            console.log('[handleAttachActuals] No file selected');
+            return;
+        }
+        
+        console.log(`[handleAttachActuals] File selected: ${file.name} (${file.type}, ${file.size} bytes)`);
+        
+        try {
+            // Show loading state
+            const attachActualsButton = document.getElementById('attach-actuals-button');
+            if (attachActualsButton) {
+                attachActualsButton.disabled = true;
+                attachActualsButton.innerHTML = '<span class="ms-Button-label">Processing...</span>';
+            }
+            
+            // Read the file
+            const arrayBuffer = await readFileAsArrayBuffer(file);
+            
+            let csvData = '';
+            
+            // Check if it's an Excel file (XLSX or XLSM) or CSV
+            const fileExtension = file.name.toLowerCase().split('.').pop();
+            
+            if (fileExtension === 'xlsx' || fileExtension === 'xlsm') {
+                console.log('[handleAttachActuals] Converting Excel file to CSV...');
+                
+                // Use SheetJS to read the Excel file
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                
+                // Get the first worksheet
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Convert worksheet to CSV
+                csvData = XLSX.utils.sheet_to_csv(worksheet);
+                
+                console.log(`[handleAttachActuals] Excel conversion completed`);
+                
+            } else if (fileExtension === 'csv') {
+                console.log('[handleAttachActuals] File is already CSV, processing...');
+                
+                // File is already CSV, just read as text
+                csvData = new TextDecoder().decode(arrayBuffer);
+                
+            } else {
+                throw new Error('Unsupported file type. Please select an XLSX, XLSM, or CSV file.');
+            }
+            
+            // Process with Claude API
+            console.log('[handleAttachActuals] Sending CSV data to Claude API for ACTUALS code generation...');
+            await processActualsWithClaude(csvData, file.name);
+            
+            console.log(`[handleAttachActuals] File processing completed successfully`);
+            
+        } catch (error) {
+            console.error('[handleAttachActuals] Error processing file:', error);
+            displayActualsError(`Error processing file: ${error.message}`);
+        } finally {
+            // Reset button state
+            const attachActualsButton = document.getElementById('attach-actuals-button');
+            if (attachActualsButton) {
+                attachActualsButton.disabled = false;
+                attachActualsButton.innerHTML = '<span class="ms-Button-label">Attach Actuals</span>';
+            }
+            
+            // Clean up file input
+            document.body.removeChild(fileInput);
+        }
+    });
+    
+    // Trigger file dialog
+    fileInput.click();
+}
+
+// Helper function to read file as ArrayBuffer
+function readFileAsArrayBuffer(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            resolve(e.target.result);
+        };
+        reader.onerror = function(e) {
+            reject(new Error('Failed to read file'));
+        };
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+// Process CSV data with Claude API using Actuals_System.txt prompt
+async function processActualsWithClaude(csvData, filename) {
+    try {
+        console.log('[processActualsWithClaude] Loading Actuals_System.txt prompt...');
+        
+        // Load the Actuals_System.txt prompt using the same pattern as other prompts
+        const paths = [
+            'https://localhost:3002/prompts/Actuals_System.txt',
+            'https://localhost:3002/src/prompts/Actuals_System.txt'
+        ];
+        
+        let response = null;
+        for (const path of paths) {
+            try {
+                console.log(`[processActualsWithClaude] Trying path: ${path}`);
+                response = await fetch(path);
+                if (response.ok) {
+                    console.log(`[processActualsWithClaude] Successfully loaded from: ${path}`);
+                    break;
+                }
+            } catch (err) {
+                console.log(`[processActualsWithClaude] Path ${path} failed: ${err.message}`);
+            }
+        }
+        
+        if (!response || !response.ok) {
+            throw new Error('Failed to load Actuals_System.txt prompt from any path');
+        }
+        
+        const systemPrompt = await response.text();
+        
+        console.log('[processActualsWithClaude] System prompt loaded, calling Claude API...');
+        
+        // Import necessary functions from AIcalls.js
+        const { callClaudeAPI, initializeAPIKeys } = await import('./AIcalls.js');
+        
+        // Ensure API keys are initialized
+        await initializeAPIKeys();
+        
+        // Prepare the user message with CSV data
+        const userMessage = `Please process this financial data from file "${filename}" and generate the corresponding ACTUALS code:\n\n${csvData}`;
+        
+        // Prepare messages for Claude API
+        const messages = [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userMessage }
+        ];
+        
+        console.log('[processActualsWithClaude] Sending request to Claude API...');
+        
+        // Call Claude API
+        let claudeResponse = "";
+        for await (const contentPart of callClaudeAPI(messages, {
+            model: "claude-sonnet-4-20250514",
+            temperature: 0.3,
+            stream: false,
+            caller: "processActualsWithClaude"
+        })) {
+            claudeResponse += contentPart;
+        }
+        
+        console.log('[processActualsWithClaude] Claude API response received');
+        console.log('[processActualsWithClaude] Response:', claudeResponse);
+        
+        // Display result in client mode
+        displayActualsResult(claudeResponse, filename);
+        
+    } catch (error) {
+        console.error('[processActualsWithClaude] Error:', error);
+        throw error; // Re-throw to be caught by the calling function
+    }
+}
+
+// Display ACTUALS processing result in developer mode chat
+function displayActualsResult(actualsCode, filename) {
+    console.log('[displayActualsResult] Displaying ACTUALS result in developer mode');
+    
+    // Display the file processing message
+    displayInDeveloperChat(`📄 Processed file: ${filename}`, true);
+    
+    // Display the ACTUALS code result
+    displayInDeveloperChat(actualsCode, false);
+}
+
+// Display error in developer mode chat
+function displayActualsError(errorMessage) {
+    console.log('[displayActualsError] Displaying error in developer mode');
+    
+    // Display the error message
+    displayInDeveloperChat(`❌ ${errorMessage}`, false);
+}
+
+// Display message in developer mode chat
+function displayInDeveloperChat(message, isUser) {
+    const chatLog = document.getElementById('chat-log');
+    const welcomeMessage = document.getElementById('welcome-message');
+    if (welcomeMessage) {
+        welcomeMessage.style.display = 'none';
+    }
+
+    const messageElement = document.createElement('div');
+    messageElement.className = `chat-message ${isUser ? 'user-message' : 'assistant-message'}`;
+    
+    const contentElement = document.createElement('p');
+    contentElement.className = 'message-content';
+    
+    if (typeof message === 'string') {
+        contentElement.textContent = message;
+    } else if (Array.isArray(message)) {
+        contentElement.textContent = message.join('\n');
+    } else if (typeof message === 'object' && message !== null) {
+        contentElement.textContent = JSON.stringify(message, null, 2);
+        contentElement.style.whiteSpace = 'pre-wrap'; 
+    } else {
+        contentElement.textContent = String(message);
+    }
+    
+    messageElement.appendChild(contentElement);
+    chatLog.appendChild(messageElement);
+    chatLog.scrollTop = chatLog.scrollHeight;
+}
+// <<< END ADDED
+
 // >>> ADDED: setButtonLoading for Client Mode
 function setButtonLoadingClient(isLoading) {
     console.log(`[setButtonLoadingClient] Called with isLoading: ${isLoading}`);
@@ -2163,6 +2390,15 @@ Office.onReady((info) => {
         clearTrainingDataQueButtonHTML.onclick = clearTrainingDataQueue; // Use the local function
     } else {
         console.error("Could not find button with id='clear-training-data-que-button' for developer mode.");
+    }
+    // <<< END ADDED
+
+    // >>> ADDED: Setup for the Attach Actuals button
+    const attachActualsButton = document.getElementById('attach-actuals-button');
+    if (attachActualsButton) {
+        attachActualsButton.onclick = handleAttachActuals;
+    } else {
+        console.error("Could not find button with id='attach-actuals-button' for developer mode.");
     }
     // <<< END ADDED
 
