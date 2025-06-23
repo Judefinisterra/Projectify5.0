@@ -1716,6 +1716,147 @@ function isDateString(value) {
 }
 
 /**
+ * Generates a sequence of column letters starting from U for the specified length
+ * @param {number} length - Number of columns needed
+ * @returns {string[]} - Array of column letters starting from U
+ */
+function generateMonthsColumnSequence(length) {
+    const sequence = [];
+    const startColumn = 'U'; // Starting from column U
+    const startIndex = columnLetterToIndex(startColumn); // Convert U to index
+    
+    for (let i = 0; i < length; i++) {
+        const columnIndex = startIndex + i;
+        const columnLetter = columnIndexToLetter(columnIndex);
+        sequence.push(columnLetter);
+    }
+    
+    console.log(`Generated months column sequence starting from U for ${length} values: ${sequence.join(', ')}`);
+    return sequence;
+}
+
+/**
+ * Applies symbol-based formatting to MonthsRow cells with blue font color
+ * @param {Excel.Worksheet} worksheet - The worksheet containing the cells
+ * @param {number} rowNum - The row number to format
+ * @param {Array} monthValues - Array of values from the MonthsRow parameter
+ * @param {Array} columnSequence - Array of column letters for monthly data
+ * @returns {Promise<void>}
+ */
+async function applyMonthsRowSymbolFormatting(worksheet, rowNum, monthValues, columnSequence) {
+    console.log(`Applying MonthsRow symbol-based formatting with blue font to row ${rowNum}`);
+    
+    // Define format configurations (same as regular formatting but with blue font)
+    const formatConfigs = {
+        'dollaritalic': {
+            numberFormat: '_(* $ #,##0_);_(* $ (#,##0);_(* "$" -""?_);_(@_)',
+            italic: true,
+            bold: false
+        },
+        'dollar': {
+            numberFormat: '_(* $ #,##0_);_(* $ (#,##0);_(* "$" -""?_);_(@_)',
+            italic: false,
+            bold: false
+        },
+        'pounditalic': {
+            numberFormat: '_(* [$£-809] #,##0_);_(* [$£-809] (#,##0);_(* [$£-809] "-"?_);_(@_)',
+            italic: true,
+            bold: false
+        },
+        'pound': {
+            numberFormat: '_(* [$£-809] #,##0_);_(* [$£-809] (#,##0);_(* [$£-809] "-"?_);_(@_)',
+            italic: false,
+            bold: false
+        },
+        'euroitalic': {
+            numberFormat: '_(* [$€-407] #,##0_);_(* [$€-407] (#,##0);_(* [$€-407] "-"?_);_(@_)',
+            italic: true,
+            bold: false
+        },
+        'euro': {
+            numberFormat: '_(* [$€-407] #,##0_);_(* [$€-407] (#,##0);_(* [$€-407] "-"?_);_(@_)',
+            italic: false,
+            bold: false
+        },
+        'yenitalic': {
+            numberFormat: '_(* [$¥-411] #,##0_);_(* [$¥-411] (#,##0);_(* [$¥-411] "-"?_);_(@_)',
+            italic: true,
+            bold: false
+        },
+        'yen': {
+            numberFormat: '_(* [$¥-411] #,##0_);_(* [$¥-411] (#,##0);_(* [$¥-411] "-"?_);_(@_)',
+            italic: false,
+            bold: false
+        },
+        'volume': {
+            numberFormat: '_(* #,##0_);_(* (#,##0);_(* " -"?_);_(@_)',
+            italic: true,
+            bold: false
+        },
+        'date': {
+            numberFormat: 'mmm-yy',
+            italic: false,
+            bold: false
+        },
+        'factor': {
+            numberFormat: '_(* #,##0.0x;_(* (#,##0.0)x;_(* "   -"?_)',
+            italic: true,
+            bold: false
+        }
+    };
+
+    const PERCENTAGE_FORMAT = '_(* #,##0.0%;_(* (#,##0.0)%;_(* " -"?_)';
+    const BLUE_FONT_COLOR = "#0000FF"; // Blue font color for MonthsRow values
+
+    for (let x = 0; x < monthValues.length && x < columnSequence.length; x++) {
+        const originalValue = monthValues[x];
+        const colLetter = columnSequence[x];
+        
+        if (!originalValue) continue; // Skip empty values
+        
+        // Parse the value and extract formatting information
+        const parsed = parseValueWithSymbols(originalValue);
+        console.log(`  MonthsRow Column ${colLetter}: "${originalValue}" -> cleanValue: "${parsed.cleanValue}", format: ${parsed.formatType}, italic: ${parsed.isItalic}, currency: ${parsed.currencySymbol || 'none'}`);
+        
+        const cellRange = worksheet.getRange(`${colLetter}${rowNum}`);
+        
+        // Apply number format if specified
+        if (parsed.formatType && formatConfigs[parsed.formatType]) {
+            const config = formatConfigs[parsed.formatType];
+            cellRange.numberFormat = [[config.numberFormat]];
+            cellRange.format.font.italic = config.italic;
+            console.log(`    Applied ${parsed.formatType} formatting to ${colLetter}${rowNum}`);
+        }
+        
+        // IMMEDIATELY override with percentage format if this is a percentage
+        if (parsed.formatType === 'percent') {
+            console.log(`    Immediately overriding with percentage format for ${colLetter}${rowNum}`);
+            cellRange.numberFormat = [[PERCENTAGE_FORMAT]];
+            cellRange.format.font.italic = true; // Percentage values with ~ should be italic
+        }
+        
+        // Apply italic formatting if ~ symbol was present (overrides format config)
+        if (parsed.isItalic) {
+            cellRange.format.font.italic = true;
+            console.log(`    Applied italic to ${colLetter}${rowNum} due to ~ symbol`);
+        }
+        // For regular text with no symbols and no specific format, ensure it's not italic
+        else if (!parsed.formatType) {
+            cellRange.format.font.italic = false;
+            console.log(`    Set non-italic for regular text in ${colLetter}${rowNum}`);
+        }
+        
+        // ALWAYS apply blue font color for MonthsRow values
+        cellRange.format.font.color = BLUE_FONT_COLOR;
+        console.log(`    Applied blue font color to MonthsRow value in ${colLetter}${rowNum}`);
+    }
+    
+    // Single sync for all formatting changes
+    await worksheet.context.sync();
+    console.log(`Completed MonthsRow symbol-based formatting with blue font for row ${rowNum}`);
+}
+
+/**
  * Applies symbol-based formatting to a row of cells, with immediate percentage format override
  * This combines volume formatting (based on ~) with percentage formatting in a single synchronous operation
  * @param {Excel.Worksheet} worksheet - The worksheet containing the cells
@@ -2533,6 +2674,106 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                             console.log(`  Successfully applied all row data comments for row ${currentRowNum}`);
                         } catch (commentError) {
                             console.error(`  Error applying row data comments: ${commentError.message}`);
+                        }
+                    }
+
+                    // Process MonthsRow for this specific row (yy=0 means first row of the group)
+                    if (yy === 0) {
+                        // Check for MonthsRow parameter for this g value with "monthsr" prefix
+                        const monthsRowParam = code.params[`monthsr${g}`];
+                        
+                        if (monthsRowParam) {
+                            console.log(`  Processing monthsr${g} for row ${currentRowNum}: ${monthsRowParam}`);
+
+                            // Split the values by pipes
+                            const monthValues = monthsRowParam.split('|');
+                            
+                            // Create column sequence starting from U
+                            const monthsColumnSequence = generateMonthsColumnSequence(monthValues.length);
+                            
+                            // Storage for comments to be added after cell population
+                            const monthsCellComments = new Map(); // Map<columnLetter, comment>
+
+                            for (let x = 0; x < monthValues.length; x++) {
+                                if (x >= monthsColumnSequence.length) {
+                                    console.warn(`  monthsr${g} value index ${x} exceeds available monthly columns. Skipping.`);
+                                    continue;
+                                }
+
+                                const originalValue = monthValues[x];
+                                const colLetter = monthsColumnSequence[x];
+                                const cellToWrite = currentWorksheet.getRange(`${colLetter}${currentRowNum}`);
+                                
+                                // Parse the value to extract comments from square brackets first
+                                const commentParsed = parseCommentFromBrackets(originalValue);
+                                const valueAfterCommentRemoval = commentParsed.cleanValue;
+                                
+                                // Store comment for later application if one exists
+                                if (commentParsed.comment) {
+                                    monthsCellComments.set(colLetter, commentParsed.comment);
+                                    console.log(`    Stored monthsr${g} comment for ${colLetter}${currentRowNum}: "${commentParsed.comment}"`);
+                                }
+                                
+                                // Parse the value to extract clean value without formatting symbols
+                                const parsed = parseValueWithSymbols(valueAfterCommentRemoval);
+                                const valueToWrite = parsed.cleanValue;
+                                
+                                // Write the value if it's not empty and not 'F'
+                                if (valueToWrite && valueToWrite.toUpperCase() !== 'F') {
+                                    // Attempt to infer data type (basic number check)
+                                    let numValue = Number(valueToWrite);
+                                    if (!isNaN(numValue) && valueToWrite.trim() !== '') {
+                                        // Special handling for percentage values
+                                        if (parsed.formatType === 'percent') {
+                                            // Convert percentage to decimal (5% -> 0.05)
+                                            numValue = numValue / 100;
+                                            console.log(`    Converting monthsr${g} percentage: ${valueToWrite}% -> ${numValue} (decimal)`);
+                                        }
+                                        cellToWrite.values = [[numValue]];
+                                    } else {
+                                        // Write text value if not empty
+                                        if (valueToWrite.trim() !== '') {
+                                            cellToWrite.values = [[valueToWrite]];
+                                        } else {
+                                            // Clear the cell if the value is empty/blank
+                                            cellToWrite.clear(Excel.ClearApplyTo.contents);
+                                        }
+                                    }
+                                    console.log(`    Wrote monthsr${g} value '${valueToWrite}' to ${colLetter}${currentRowNum}`);
+                                } else if (valueToWrite === '' || valueToWrite === null || valueToWrite === undefined) {
+                                    // Clear the cell if the value is explicitly empty
+                                    cellToWrite.clear(Excel.ClearApplyTo.contents);
+                                    console.log(`    Cleared contents of ${colLetter}${currentRowNum} due to blank monthsr${g} value`);
+                                }
+                            }
+                            
+                            // Apply symbol-based formatting for MonthsRow values
+                            try {
+                                // Create a cleaned split array without square bracket comments for formatting
+                                const cleanedMonthValues = monthValues.map(value => {
+                                    const commentParsed = parseCommentFromBrackets(value);
+                                    return commentParsed.cleanValue;
+                                });
+                                await applyMonthsRowSymbolFormatting(currentWorksheet, currentRowNum, cleanedMonthValues, monthsColumnSequence);
+                            } catch (formatError) {
+                                console.error(`    Error applying monthsr${g} symbol-based formatting: ${formatError.message}`);
+                            }
+
+                            // Apply comments extracted from square brackets in MonthsRow data
+                            if (monthsCellComments.size > 0) {
+                                console.log(`    Applying ${monthsCellComments.size} comments extracted from monthsr${g} data for row ${currentRowNum}`);
+                                try {
+                                    for (const [columnLetter, comment] of monthsCellComments) {
+                                        const cellAddress = `${columnLetter}${currentRowNum}`;
+                                        console.log(`      Adding monthsr${g} comment "${comment}" to ${cellAddress}`);
+                                        currentWorksheet.comments.add(cellAddress, comment);
+                                    }
+                                    await context.sync(); // Sync the comment additions
+                                    console.log(`    Successfully applied all monthsr${g} comments for row ${currentRowNum}`);
+                                } catch (commentError) {
+                                    console.error(`    Error applying monthsr${g} comments: ${commentError.message}`);
+                                }
+                            }
                         }
                     }
 
@@ -3626,21 +3867,34 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      await context.sync();
                      
                      let autofillCount = 0;
-                     // Check each row and autofill only those with formulas in U
+                     let skippedCount = 0;
+                     // Check each row and autofill only those with formulas in U (skip hardcoded values)
                      for (let rowIndex = 0; rowIndex < aeFormulaRange.formulas.length; rowIndex++) {
                          const formula = aeFormulaRange.formulas[rowIndex][0];
                          const currentRowNum = START_ROW + rowIndex;
                          
-                         // Check if there's a formula in this row's U cell
+                         // Only autofill if there's an actual formula (starts with =), skip hardcoded values
                          if (formula && typeof formula === 'string' && formula.startsWith('=')) {
-                             console.log(`  Autofilling row ${currentRowNum}: ${AUTOFILL_START_COLUMN}${currentRowNum} -> ${AUTOFILL_END_COLUMN}${currentRowNum}`);
+                             console.log(`  Autofilling formula row ${currentRowNum}: ${AUTOFILL_START_COLUMN}${currentRowNum} -> ${AUTOFILL_END_COLUMN}${currentRowNum} (Formula: ${formula.substring(0, 50)}...)`);
                              const sourceCell = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${currentRowNum}`);
                              const fillRowRange = currentWorksheet.getRange(`${AUTOFILL_START_COLUMN}${currentRowNum}:${AUTOFILL_END_COLUMN}${currentRowNum}`);
                              sourceCell.autoFill(fillRowRange, Excel.AutoFillType.fillDefault);
                              autofillCount++;
+                         } else if (formula && typeof formula === 'string' && formula !== '') {
+                             // Log when we skip hardcoded values
+                             console.log(`  Skipping hardcoded value row ${currentRowNum}: U${currentRowNum} contains "${formula}" (not a formula)`);
+                             skippedCount++;
+                         } else if (formula === '' || formula === null || formula === undefined) {
+                             // Log when we skip empty cells
+                             console.log(`  Skipping empty cell row ${currentRowNum}: U${currentRowNum} is empty`);
+                             skippedCount++;
+                         } else {
+                             // Log unexpected cases
+                             console.log(`  Skipping unexpected value row ${currentRowNum}: U${currentRowNum} contains ${typeof formula}: "${formula}"`);
+                             skippedCount++;
                          }
                      }
-                     console.log(`Autofilled ${autofillCount} rows with formulas out of ${aeFormulaRange.formulas.length} total rows`);
+                     console.log(`Autofilled ${autofillCount} formula rows, skipped ${skippedCount} non-formula rows, out of ${aeFormulaRange.formulas.length} total rows`);
                      endTimer(`autofillFormulas-${worksheetName}`);
  
                      // 13. Set Row 9 interior color to none
