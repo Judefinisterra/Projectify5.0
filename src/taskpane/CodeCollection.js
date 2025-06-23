@@ -1172,6 +1172,14 @@ export async function runCodes(codeCollection) {
                                                     colRange.formulas = colFormulas;
                                                     console.log(`    Applied offsetyear formula to column ${colInfo.columnLetter} (${colInfo.yLabel})`);
                                                 }
+                                                
+                                                // Apply black font color to all columns containing "F" (offsetyear case)
+                                                console.log(`    Applying black font color to ${columnsWithF.length} columns with "F" (offsetyear)`);
+                                                for (const colInfo of columnsWithF) {
+                                                    const colRange = currentWS.getRange(`${colInfo.columnLetter}${pasteRow}:${colInfo.columnLetter}${endPastedRow}`);
+                                                    colRange.format.font.color = "#000000"; // Black font color
+                                                    console.log(`      Applied black font color to column ${colInfo.columnLetter} (${colInfo.yLabel})`);
+                                                }
                                             } else {
                                                 // Standard handling: apply formula only to columns with F
                                                 console.log(`  Standard handling: applying formula only to columns with F`);
@@ -1185,6 +1193,14 @@ export async function runCodes(codeCollection) {
                                                     colRange.formulas = colFormulas;
                                                     console.log(`    Applied ${sumifValue} formula to column ${colInfo.columnLetter} (${colInfo.yLabel}): "${colInfo.part}"`);
                                                 }
+                                            }
+                                            
+                                            // Apply black font color to all columns containing "F"
+                                            console.log(`  Applying black font color to ${columnsWithF.length} columns with "F"`);
+                                            for (const colInfo of columnsWithF) {
+                                                const colRange = currentWS.getRange(`${colInfo.columnLetter}${pasteRow}:${colInfo.columnLetter}${endPastedRow}`);
+                                                colRange.format.font.color = "#000000"; // Black font color
+                                                console.log(`    Applied black font color to column ${colInfo.columnLetter} (${colInfo.yLabel})`);
                                             }
                                             
                                             await context.sync();
