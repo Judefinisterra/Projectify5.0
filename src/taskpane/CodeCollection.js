@@ -2894,6 +2894,31 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                     // FINAL STEP: Copy complete column P formatting to J and S:CN (after all other formatting)
                     try {
                         await copyColumnPFormattingToJAndTCN(currentWorksheet, currentRowNum);
+                        
+                        // IMPORTANT: Re-apply blue font color to MonthsRow columns after formatting copy
+                        // The copyColumnPFormattingToJAndTCN copies to T:CN which includes U,V,W... (MonthsRow columns)
+                        // We need to restore the blue font color for any MonthsRow values
+                        if (yy === 0) { // Only for the first row of each group
+                            const monthsRowParam = code.params[`monthsr${g}`];
+                            if (monthsRowParam) {
+                                console.log(`  Re-applying blue font color to monthsr${g} columns after formatting copy`);
+                                const monthValues = monthsRowParam.split('|');
+                                const monthsColumnSequence = generateMonthsColumnSequence(monthValues.length);
+                                
+                                // Re-apply blue font color to each MonthsRow column
+                                for (let x = 0; x < monthValues.length && x < monthsColumnSequence.length; x++) {
+                                    const originalValue = monthValues[x];
+                                    if (originalValue) { // Only if there's a value
+                                        const colLetter = monthsColumnSequence[x];
+                                        const cellRange = currentWorksheet.getRange(`${colLetter}${currentRowNum}`);
+                                        cellRange.format.font.color = "#0000FF"; // Blue font color
+                                        console.log(`    Re-applied blue font color to ${colLetter}${currentRowNum}`);
+                                    }
+                                }
+                                await context.sync(); // Sync the blue font color restoration
+                                console.log(`  Completed blue font color restoration for monthsr${g}`);
+                            }
+                        }
                     } catch (copyFormatError) {
                         console.error(`  Error copying column P formatting to J and T:CN: ${copyFormatError.message}`);
                     }
