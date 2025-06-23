@@ -406,6 +406,105 @@ function readFileAsArrayBuffer(file) {
     });
 }
 
+// Extract financial items from code editor content
+function extractFinancialItems() {
+    console.log('[extractFinancialItems] Extracting financial items from code editor...');
+    
+    try {
+        // Get the codes textarea content
+        const codesTextarea = document.getElementById('codes-textarea');
+        if (!codesTextarea) {
+            console.warn('[extractFinancialItems] Could not find codes-textarea element');
+            return [];
+        }
+        
+        const codesContent = codesTextarea.value.trim();
+        if (!codesContent) {
+            console.log('[extractFinancialItems] Codes textarea is empty');
+            return [];
+        }
+        
+        console.log('[extractFinancialItems] Parsing codes content for financial items...');
+        
+        const financialItems = [];
+        
+        // Split content by code boundaries (look for < at start and > at end)
+        const codeMatches = codesContent.match(/<[^>]*>/g);
+        
+        if (!codeMatches) {
+            console.log('[extractFinancialItems] No code patterns found');
+            return [];
+        }
+        
+        console.log(`[extractFinancialItems] Found ${codeMatches.length} code patterns to analyze`);
+        
+        codeMatches.forEach((codeString, index) => {
+            try {
+                // Look for row parameters that contain (F) with a value
+                const rowMatches = codeString.match(/row\d+\s*=\s*"([^"]+)"/g);
+                
+                if (rowMatches) {
+                    rowMatches.forEach(rowMatch => {
+                        // Extract the row content between quotes
+                        const rowContentMatch = rowMatch.match(/row\d+\s*=\s*"([^"]+)"/);
+                        if (rowContentMatch && rowContentMatch[1]) {
+                            const rowContent = rowContentMatch[1];
+                            
+                            // Split by | to get parameters
+                            const parts = rowContent.split('|');
+                            
+                            let labelValue = '';
+                            let fValue = '';
+                            
+                            // Extract (L) and (F) parameters
+                            parts.forEach(part => {
+                                part = part.trim();
+                                if (part.includes('(L)')) {
+                                    // Extract the label before (L)
+                                    labelValue = part.replace('(L)', '').trim();
+                                } else if (part.includes('(F)')) {
+                                    // Extract the F value before (F)
+                                    fValue = part.replace('(F)', '').trim();
+                                }
+                            });
+                            
+                            // If both label and F value exist and F is not empty, add to financial items
+                            if (labelValue && fValue && fValue !== '') {
+                                // Clean up the label (remove ~ symbols and other formatting)
+                                const cleanLabel = labelValue.replace(/^~+/, '').replace(/~+$/, '').trim();
+                                
+                                if (cleanLabel && !financialItems.includes(cleanLabel)) {
+                                    financialItems.push(cleanLabel);
+                                    console.log(`[extractFinancialItems] Found financial item: "${cleanLabel}" with F value: "${fValue}"`);
+                                }
+                            }
+                        }
+                    });
+                }
+            } catch (parseError) {
+                console.warn(`[extractFinancialItems] Error parsing code ${index + 1}:`, parseError);
+            }
+        });
+        
+        console.log(`[extractFinancialItems] Extracted ${financialItems.length} unique financial items:`, financialItems);
+        
+        // Always add fallback categories for items that don't have specific matches
+        const fallbackItems = ["Other Income/(Expense)", "Other Assets", "Other Liabilities"];
+        fallbackItems.forEach(item => {
+            if (!financialItems.includes(item)) {
+                financialItems.push(item);
+            }
+        });
+        
+        console.log(`[extractFinancialItems] Final list with fallback items (${financialItems.length} total):`, financialItems);
+        return financialItems;
+        
+    } catch (error) {
+        console.error('[extractFinancialItems] Error extracting financial items:', error);
+        return [];
+    }
+}
+
 // Process CSV data with Claude API using Actuals_System.txt prompt
 async function processActualsWithClaude(csvData, filename) {
     try {
@@ -437,7 +536,12 @@ async function processActualsWithClaude(csvData, filename) {
         
         const systemPrompt = await response.text();
         
-        console.log('[processActualsWithClaude] System prompt loaded, calling Claude API...');
+        console.log('[processActualsWithClaude] System prompt loaded, extracting financial items...');
+        
+        // Extract financial items from the code editor
+        const financialItems = extractFinancialItems();
+        
+        console.log('[processActualsWithClaude] Calling Claude API...');
         
         // Import necessary functions from AIcalls.js
         const { callClaudeAPI, initializeAPIKeys } = await import('./AIcalls.js');
@@ -445,8 +549,26 @@ async function processActualsWithClaude(csvData, filename) {
         // Ensure API keys are initialized
         await initializeAPIKeys();
         
-        // Prepare the user message with CSV data
-        const userMessage = `Please process this financial data from file "${filename}" and generate the corresponding ACTUALS code:\n\n${csvData}`;
+        // Prepare the user message with CSV data and financial items
+        let userMessage = `Please process this financial data from file "${filename}" and generate the corresponding ACTUALS code:\n\n`;
+        
+        // Add Financial Items section if any items were found
+        if (financialItems.length > 0) {
+            userMessage += `Financial Items to choose from for 4th column:\n`;
+            financialItems.forEach((item, index) => {
+                userMessage += `${index + 1}. ${item}\n`;
+            });
+            userMessage += `\n`;
+        } else {
+            userMessage += `Financial Items to choose from for 4th column: None found in current model\n\n`;
+        }
+        
+        userMessage += `CSV Data:\n${csvData}`;
+        
+        console.log('[processActualsWithClaude] User message with financial items prepared');
+        if (financialItems.length > 0) {
+            console.log(`[processActualsWithClaude] Including ${financialItems.length} financial items:`, financialItems);
+        }
         
         // Prepare messages for Claude API
         const messages = [

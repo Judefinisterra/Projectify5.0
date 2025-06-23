@@ -624,6 +624,29 @@ Add ~ symbol in front of column value to italicize:
 - Any % label: always italicize
 - Dollar amounts labeled as rate per period: italicize
 
+**CRITICAL: CONST-E DOLLAR RATE FORMATTING**
+CONST-E codes representing dollar rates or per-unit values MUST be italicized with ~ symbol to distinguish from aggregate dollar totals:
+
+**CONST-E Dollar Rates (MUST italicize):**
+- Average loan value: `~$1000` 
+- Price per unit: `~$50`
+- Monthly expense per employee: `~$3000`
+- Cost per customer acquisition: `~$25`
+- Rent per square foot: `~$15`
+
+**Example:**
+```
+<CONST-E; indent="2"; row1="V2(D)|~Average Loan Value(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~$1000(Y1)|~$1000(Y2)|~$1000(Y3)|~$1000(Y4)|~$1000(Y5)|~$1000(Y6)|">
+```
+
+**SPREAD-E Dollar Totals (NO italics):**
+- Total revenue: `$120000`
+- Total expenses: `$50000` 
+- Annual lending volume: `$5000000`
+
+**Rule:** If CONST-E represents a rate, average, or per-unit dollar amount → italicize with ~$
+If SPREAD-E represents an aggregate total → use $ without ~
+
 ### FORMATTING PARAMETERS
 **Codes to Edit:** CONST-E, SPREAD-E, ENDPOINT-E, GROWTH-E, FINANCIALS-S, MULT3-S, DIVIDE2-S, SUBTRACT2-S, SUBTOTAL2-S, SUBTOTAL3-S, AVGMULT3-S, ANNUALIZE-S, DEANNUALIZE-S, AVGDEANNUALIZE2-S, DIRECT-S, CHANGE-S, INCREASE-S, DECREASE-S, GROWTH-S, OFFSETCOLUMN-S, OFFSET2-S, SUM2-S, DISCOUNT2-S, FORMULA-S
 

@@ -13,9 +13,36 @@ The values parameter contains a 4-column CSV with the following format:
 - Column 1 (Description): The financial line item name/description
 - Column 2 (Amount): The monetary value (positive or negative numbers)
 - Column 3 (Date): Any date within the reporting period (will be auto-converted to month-end)
-- Column 4 (Category): MUST BE IDENTICAL TO COLUMN 1 (Description = Category)
+- Column 4 (Category): MUST be selected ONLY from the "Financial Items" list provided - NO other categories allowed
 
-CRITICAL RULE: Column D (Category) must always equal Column A (Description). Do not create separate category names.
+## FINANCIAL ITEMS LIST
+
+You will receive a "Financial Items to choose from for 4th column" section that contains the COMPLETE and EXCLUSIVE list of categories allowed for the 4th column. This list includes:
+- Specific financial accounts from the current financial model (extracted from codes with (F) parameters)
+- Three mandatory fallback categories: "Other Income/(Expense)", "Other Assets", "Other Liabilities"
+
+**CRITICAL:** The 4th column can ONLY use items from this provided list. Do NOT create new categories or use any categories not explicitly listed.
+
+## FINANCIAL ITEMS MAPPING RULE
+
+The "Financial Items" section lists financial accounts from the current financial model. The attached CSV contains actual financial statements that must be mapped to these categories.
+
+**CRITICAL MAPPING INSTRUCTIONS:**
+- **IGNORE all subtotals** (e.g., Total Revenue, Total Expense, Total Assets, etc.)
+- **FOCUS ONLY on line items** that are used to arrive at subtotals
+- **For 4th column (Category):** Choose an item from the "Financial Items" list for every line item
+- **If no suitable match exists:** Use "Other Income/(Expense)", "Other Assets", or "Other Liabilities" as appropriate
+- **For items that don't fit the income/expense framework:** Map to the most appropriate Financial Items category
+
+## NET INCOME RECONCILIATION RULE
+
+**For Income Statement Processing:**
+1. Look for "Net Income" or equivalent grand total item in the actual financial statement
+2. **Verification Check:** All income and expense items in each period should add up to the reported Net Income
+3. **If totals don't match:** Add a balancing item labeled "Net Income PLUG"
+   - Set Column A (Description): "Net Income PLUG"
+   - Set 4th column (Category): "Net Income PLUG" 
+   - Amount: The difference needed to reconcile to actual Net Income
 
 ## DELIMITERS
 - Use "|" (pipe) to separate columns within each row
@@ -37,108 +64,99 @@ CRITICAL RULE: Column D (Category) must always equal Column A (Description). Do 
 ## FINANCIAL STATEMENT PARSING GUIDELINES
 
 ### INCOME STATEMENT ITEMS
-Parse these typical line items:
-- Revenue/Sales → Positive amounts
-- Cost of Goods Sold → Negative amounts  
-- Operating Expenses → Negative amounts
-- Interest Income → Positive amounts
-- Interest Expense → Negative amounts
-- Net Income → Positive or negative based on profitability
+Parse these typical line items (SKIP subtotals):
+- Revenue/Sales → Positive amounts → Map to appropriate Financial Items category
+- Cost of Goods Sold → Negative amounts → Map to appropriate Financial Items category
+- Operating Expenses → Negative amounts → Map to appropriate Financial Items category
+- Interest Income → Positive amounts → Map to appropriate Financial Items category
+- Interest Expense → Negative amounts → Map to appropriate Financial Items category
+- **SKIP:** Total Revenue, Total Expenses, Operating Income, etc.
+- **INCLUDE:** Net Income (for reconciliation purposes)
 
 ### BALANCE SHEET ITEMS
-Parse these typical line items:
+Parse these typical line items (SKIP subtotals):
 - Assets → Positive amounts (Cash, Accounts Receivable, Inventory, Equipment, etc.)
 - Liabilities → Positive amounts (Accounts Payable, Loans, Accrued Expenses, etc.)
 - Equity → Positive amounts (Retained Earnings, Common Stock, etc.)
+- **SKIP:** Total Assets, Total Liabilities, Total Equity, etc.
 
 ### CASH FLOW STATEMENT ITEMS
-Parse these typical line items:
+Parse these typical line items (SKIP subtotals):
 - Operating Activities → Positive for cash inflows, negative for outflows
 - Investing Activities → Positive for asset sales, negative for purchases
 - Financing Activities → Positive for borrowing/equity raises, negative for payments
+- **SKIP:** Net Cash from Operating Activities, Net Cash from Investing Activities, etc.
 
 ## EXAMPLE OUTPUTS
 
-### Example 1: Simple Income Statement (January 2025)
-Revenue: $500,000
-Operating Expenses: $200,000
-Interest Expense: $15,000
-Net Income: $285,000
+### Example 1: Income Statement with Financial Items Mapping (January 2025)
+**Assuming Financial Items list includes: "Product Revenue", "Operating Expenses", "Interest Expense"**
 
-<ACTUALS; values="Revenue|500000|1/15/2025|Revenue*Operating Expenses|-200000|1/15/2025|Operating Expenses*Interest Expense|-15000|1/15/2025|Interest Expense*Net Income|285000|1/15/2025|Net Income";>
+Revenue: $500,000 → Maps to "Product Revenue"
+Operating Expenses: $200,000 → Maps to "Operating Expenses" 
+Interest Expense: $15,000 → Maps to "Interest Expense"
+Net Income: $285,000 (for verification)
 
-### Example 2: Balance Sheet Items (December 2024)
-Cash: $75,000
-Accounts Receivable: $150,000
-Equipment: $300,000
-Accounts Payable: $50,000
+Calculation Check: $500,000 - $200,000 - $15,000 = $285,000 ✓ (matches Net Income)
 
-<ACTUALS; values="Cash|75000|12/31/2024|Cash*Accounts Receivable|150000|12/31/2024|Accounts Receivable*Equipment|300000|12/31/2024|Equipment*Accounts Payable|50000|12/31/2024|Accounts Payable";>
+<ACTUALS; values="Revenue|500000|1/15/2025|Product Revenue*Operating Expenses|-200000|1/15/2025|Operating Expenses*Interest Expense|-15000|1/15/2025|Interest Expense";>
 
-### Example 3: Mixed Financial Statement (February 2025)
-Sales Revenue: $1,200,000
-Cost of Goods Sold: $720,000
-Salaries Expense: $180,000
-Rent Expense: $25,000
+### Example 2: Income Statement Requiring PLUG (February 2025)
+**Assuming Financial Items list includes: "Sales Revenue", "Cost of Goods Sold", "Other Expense"**
 
-<ACTUALS; values="Sales Revenue|1200000|2/28/2025|Sales Revenue*Cost of Goods Sold|-720000|2/28/2025|Cost of Goods Sold*Salaries Expense|-180000|2/28/2025|Salaries Expense*Rent Expense|-25000|2/28/2025|Rent Expense";>
+Sales Revenue: $1,000,000 → Maps to "Sales Revenue"
+Cost of Goods Sold: $600,000 → Maps to "Cost of Goods Sold"
+Marketing Expense: $150,000 → Maps to "Other Expense"
+Net Income: $200,000 (reported)
 
-### Row Delimiter Breakdown:
-In Example 1 above, here's how the delimiters work:
-- Row 1: "Revenue|500000|1/15/2025|Revenue"
-- Delimiter: "*"  
-- Row 2: "Operating Expenses|-200000|1/15/2025|Operating Expenses"
-- Delimiter: "*"
-- Row 3: "Interest Expense|-15000|1/15/2025|Interest Expense"
-- Delimiter: "*"
-- Row 4: "Net Income|285000|1/15/2025|Net Income"
+Calculation Check: $1,000,000 - $600,000 - $150,000 = $250,000 ≠ $200,000
+Difference: $250,000 - $200,000 = $50,000 (need to reduce by $50,000)
 
-### Visual Delimiter Example:
-For 2 rows of data, the structure looks like this:
-Row1Col1|Row1Col2|Row1Col3|Row1Col4*Row2Col1|Row2Col2|Row2Col3|Row2Col4
-
-
-Actual example:
-Revenue|100000|1/1/2025|Revenue*Expenses|-50000|1/1/2025|Expenses
-
+<ACTUALS; values="Sales Revenue|1000000|2/28/2025|Sales Revenue*Cost of Goods Sold|-600000|2/28/2025|Cost of Goods Sold*Marketing Expense|-150000|2/28/2025|Other Expense*Net Income PLUG|-50000|2/28/2025|Net Income PLUG";>
 
 ## PROCESSING INSTRUCTIONS
 
 1. **Read the attached financial statement carefully**
-2. **Identify each significant line item with a monetary value**
-3. **Determine the appropriate amount (positive/negative)**
-4. **Use any date within the reporting period**
-5. **Set Category = Description for every row**
-6. **Format as a single ACTUALS code with proper delimiters**
+2. **Identify the "Financial Items" list provided**
+3. **Skip all subtotal/total lines**
+4. **For each line item, select the best matching Financial Items category**
+5. **For Income Statements: Verify all items sum to Net Income**
+6. **Add Net Income PLUG if reconciliation is needed**
+7. **Format as a single ACTUALS code with proper delimiters**
 
 ## QUALITY CHECKS
 
 Before finalizing, verify:
+- ✓ All subtotals and totals are excluded
 - ✓ All amounts are raw numbers (no $ signs, commas, or formatting)
-- ✓ Column D (Category) exactly matches Column A (Description) for every row
+- ✓ 4th column (Category) uses ONLY Financial Items list categories
 - ✓ Dates are in MM/DD/YYYY format
 - ✓ Negative amounts for expenses, positive for revenues
+- ✓ Income Statement items reconcile to Net Income (with PLUG if needed)
 - ✓ Pipe delimiters (|) separate columns
 - ✓ Asterisk delimiters (*) separate rows
 - ✓ No line breaks within the values parameter
 
 ## COMMON MISTAKES TO AVOID
 
-❌ Don't create separate category names different from descriptions
+❌ Don't include subtotals like "Total Revenue" or "Total Expenses"
+❌ Don't create new category names - use only Financial Items list
 ❌ Don't include currency symbols in amounts
 ❌ Don't add line breaks within the CSV data
 ❌ Don't use comma separators (use pipes only)
-❌ Don't ignore small or immaterial items if they appear on the statement
+❌ Don't skip the Net Income reconciliation check for Income Statements
 
 ## OUTPUT FORMAT
 
 Always output exactly one ACTUALS code in this format:
-<ACTUALS; values="Description1|Amount1|Date1|Description1*Description2|Amount2|Date2|Description2*Description3|Amount3|Date3|Description3";>
+<ACTUALS; values="Description1|Amount1|Date1|FinancialItemsCategory1*Description2|Amount2|Date2|FinancialItemsCategory2*Description3|Amount3|Date3|FinancialItemsCategory3";>
 
 Remember:
 - Each row has 4 columns separated by "|" (pipe)
 - Multiple rows are separated by "*" (asterisk)  
-- Column 4 must always equal Column 1
+- 4th column must be from the Financial Items list ONLY
+
+- Include Net Income PLUG when needed for reconciliation
 - No spaces around delimiters
 
 ## OUTPUT REQUIREMENTS
@@ -153,6 +171,6 @@ CRITICAL: You must output ONLY the ACTUALS codestring and absolutely nothing els
 - NO analysis or commentary about the data
 
 Your entire response must be exactly one line containing only:
-<ACTUALS; values="Description1|Amount1|Date1|Description1*Description2|Amount2|Date2|Description2*...";>
+<ACTUALS; values="Description1|Amount1|Date1|FinancialItemsCategory1*Description2|Amount2|Date2|FinancialItemsCategory2*...";>
 
-Process the attached financial statement now and generate the corresponding ACTUALS code. 
+Process the attached financial statement now and generate the corresponding ACTUALS code.
