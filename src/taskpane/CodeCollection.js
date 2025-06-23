@@ -1804,6 +1804,230 @@ function generateMonthsColumnSequence(length) {
 }
 
 /**
+ * Auto-populates the entire year's worth of monthly data based on code type and year detection
+ * @param {Excel.Worksheet} worksheet - The worksheet to populate
+ * @param {number} currentRowNum - The current row number being processed
+ * @param {string[]} monthValues - Array of initial month values from monthsr parameter
+ * @param {string[]} initialColumnSequence - Array of initial column letters that were populated
+ * @param {string} codeType - The code type (SPREAD-E, CONST-E, ENDPOINT-E)
+ * @param {Excel.RequestContext} context - The Excel context
+ * @returns {Promise<void>}
+ */
+async function autoPopulateEntireYear(worksheet, currentRowNum, monthValues, initialColumnSequence, codeType, context) {
+    console.log(`🗓️ [YEAR AUTO-POPULATE] Starting year-wide population for row ${currentRowNum}, code type: ${codeType}`);
+    
+    try {
+        // Step 1: Determine the year from row 3 of the last populated month column
+        if (initialColumnSequence.length === 0) {
+            console.log(`🗓️ [YEAR AUTO-POPULATE] No initial columns populated, skipping year auto-population`);
+            return;
+        }
+        
+        const lastPopulatedColumn = initialColumnSequence[initialColumnSequence.length - 1];
+        console.log(`🗓️ [YEAR AUTO-POPULATE] Last populated column: ${lastPopulatedColumn}`);
+        
+        // Get the year from row 3 of the last populated column
+        const yearCell = worksheet.getRange(`${lastPopulatedColumn}3`);
+        yearCell.load("values");
+        await context.sync();
+        
+        const yearValue = yearCell.values[0][0];
+        console.log(`🗓️ [YEAR AUTO-POPULATE] Year detected from ${lastPopulatedColumn}3: ${yearValue}`);
+        
+        if (!yearValue || isNaN(Number(yearValue))) {
+            console.warn(`🗓️ [YEAR AUTO-POPULATE] Invalid year value '${yearValue}' in ${lastPopulatedColumn}3, skipping year auto-population`);
+            return;
+        }
+        
+        // Step 2: Find all columns to the right that have the same year in row 3
+        const yearColumns = await findColumnsWithYear(worksheet, yearValue, lastPopulatedColumn, context);
+        console.log(`🗓️ [YEAR AUTO-POPULATE] Found ${yearColumns.length} columns with year ${yearValue}: ${yearColumns.join(', ')}`);
+        
+        if (yearColumns.length === 0) {
+            console.log(`🗓️ [YEAR AUTO-POPULATE] No additional columns found with year ${yearValue}, skipping year auto-population`);
+            return;
+        }
+        
+        // Step 3: Determine the fill value based on code type
+        let fillValue = 0; // Default for SPREAD-E
+        
+        if (codeType === "CONST-E" || codeType === "ENDPOINT-E") {
+            // Use the last defined month value
+            const lastDefinedValue = getLastDefinedMonthValue(monthValues);
+            fillValue = lastDefinedValue;
+            console.log(`🗓️ [YEAR AUTO-POPULATE] Code type ${codeType}: using last defined value ${fillValue}`);
+        } else {
+            console.log(`🗓️ [YEAR AUTO-POPULATE] Code type ${codeType}: using fill value ${fillValue}`);
+        }
+        
+        // Step 4: Populate the year columns with the fill value
+        console.log(`🗓️ [YEAR AUTO-POPULATE] Populating ${yearColumns.length} columns with value: ${fillValue}`);
+        
+        for (const column of yearColumns) {
+            const cellToFill = worksheet.getRange(`${column}${currentRowNum}`);
+            cellToFill.values = [[fillValue]];
+            console.log(`    Set ${column}${currentRowNum} = ${fillValue}`);
+        }
+        
+        // Step 5: Apply blue font formatting to all populated year columns
+        const allYearColumns = [...yearColumns];
+        for (const column of allYearColumns) {
+            const cellToFormat = worksheet.getRange(`${column}${currentRowNum}`);
+            cellToFormat.format.font.color = "#0000FF"; // Blue font color
+        }
+        
+        await context.sync();
+        console.log(`🗓️ [YEAR AUTO-POPULATE] Applied blue font formatting to ${allYearColumns.length} year columns`);
+        
+        // Step 6: Find and update the corresponding annual column (K:P) with SUMIF
+        try {
+            await updateAnnualColumnWithSumif(worksheet, currentRowNum, yearValue, codeType, context);
+        } catch (annualError) {
+            console.error(`🗓️ [YEAR AUTO-POPULATE] Error updating annual column: ${annualError.message}`);
+        }
+        
+        console.log(`✅ [YEAR AUTO-POPULATE] Completed year-wide population for row ${currentRowNum}`);
+        
+    } catch (error) {
+        console.error(`❌ [YEAR AUTO-POPULATE] Error in autoPopulateEntireYear: ${error.message}`, error);
+        throw error;
+    }
+}
+
+/**
+ * Finds all columns to the right of a starting column that have a specific year in row 3
+ * @param {Excel.Worksheet} worksheet - The worksheet to search
+ * @param {any} yearValue - The year value to search for
+ * @param {string} startColumn - The starting column letter
+ * @param {Excel.RequestContext} context - The Excel context
+ * @returns {Promise<string[]>} - Array of column letters that have the year
+ */
+async function findColumnsWithYear(worksheet, yearValue, startColumn, context) {
+    const yearColumns = [];
+    const startIndex = columnLetterToIndex(startColumn);
+    const endIndex = columnLetterToIndex("CN"); // Search up to CN
+    
+    console.log(`🔍 [YEAR SEARCH] Searching for year ${yearValue} from column ${startColumn} to CN`);
+    
+    // Load row 3 values for the entire search range
+    const searchRangeStart = columnIndexToLetter(startIndex + 1); // Start after the initial column
+    const searchRange = worksheet.getRange(`${searchRangeStart}3:CN3`);
+    searchRange.load("values");
+    await context.sync();
+    
+    const row3Values = searchRange.values[0]; // Get the single row array
+    
+    // Check each column for the year value
+    for (let i = 0; i < row3Values.length; i++) {
+        const cellValue = row3Values[i];
+        const columnIndex = startIndex + 1 + i; // Calculate actual column index
+        const columnLetter = columnIndexToLetter(columnIndex);
+        
+        if (cellValue == yearValue) { // Use == for type-flexible comparison
+            yearColumns.push(columnLetter);
+            console.log(`    Found year ${yearValue} in column ${columnLetter}`);
+        }
+    }
+    
+    return yearColumns;
+}
+
+/**
+ * Gets the last defined (non-empty, non-zero) month value from the monthValues array
+ * @param {string[]} monthValues - Array of month values
+ * @returns {number} - The last defined value or 0 if none found
+ */
+function getLastDefinedMonthValue(monthValues) {
+    // Iterate backwards through the month values to find the last defined one
+    for (let i = monthValues.length - 1; i >= 0; i--) {
+        const value = monthValues[i];
+        if (value && value.trim() !== '' && value.trim() !== '0') {
+            // Parse value to extract clean numeric value (remove symbols)
+            const parsed = parseValueWithSymbols(value);
+            const numValue = Number(parsed.cleanValue);
+            if (!isNaN(numValue)) {
+                console.log(`📊 [LAST DEFINED] Last defined month value: ${numValue} from "${value}"`);
+                return numValue;
+            }
+        }
+    }
+    
+    console.log(`📊 [LAST DEFINED] No defined month values found, using 0`);
+    return 0;
+}
+
+/**
+ * Updates the corresponding annual column (K:P) with a SUMIF formula based on code type
+ * @param {Excel.Worksheet} worksheet - The worksheet to update
+ * @param {number} currentRowNum - The current row number
+ * @param {any} yearValue - The year value to match
+ * @param {string} codeType - The code type (SPREAD-E, CONST-E, ENDPOINT-E)
+ * @param {Excel.RequestContext} context - The Excel context
+ * @returns {Promise<void>}
+ */
+async function updateAnnualColumnWithSumif(worksheet, currentRowNum, yearValue, codeType, context) {
+    console.log(`📊 [ANNUAL SUMIF] Finding annual column for year ${yearValue} and updating with SUMIF`);
+    
+    try {
+        // Load row 2 values for annual columns K:P to find the matching year
+        const annualRange = worksheet.getRange("K2:P2");
+        annualRange.load("values");
+        await context.sync();
+        
+        const row2Values = annualRange.values[0]; // Get the single row array
+        const annualColumns = ['K', 'L', 'M', 'N', 'O', 'P'];
+        
+        let targetColumn = null;
+        
+        // Find the column with the matching year in row 2
+        for (let i = 0; i < row2Values.length; i++) {
+            const cellValue = row2Values[i];
+            if (cellValue == yearValue) { // Use == for type-flexible comparison
+                targetColumn = annualColumns[i];
+                console.log(`📊 [ANNUAL SUMIF] Found year ${yearValue} in annual column ${targetColumn}2`);
+                break;
+            }
+        }
+        
+        if (!targetColumn) {
+            console.warn(`📊 [ANNUAL SUMIF] Year ${yearValue} not found in annual columns K2:P2, skipping SUMIF update`);
+            return;
+        }
+        
+        // Determine SUMIF type based on code type
+        let sumifType = "year"; // Default for SPREAD-E
+        if (codeType === "CONST-E" || codeType === "ENDPOINT-E") {
+            sumifType = "average";
+        }
+        
+        console.log(`📊 [ANNUAL SUMIF] Code type ${codeType} -> SUMIF type: ${sumifType}`);
+        
+        // Create the SUMIF formula based on type
+        let sumifFormula = "";
+        if (sumifType === "year") {
+            sumifFormula = "=SUMIF($3:$3, INDIRECT(ADDRESS(2,COLUMN(),2)), INDIRECT(ROW() & \":\" & ROW()))";
+        } else if (sumifType === "average") {
+            sumifFormula = "=AVERAGEIF($3:$3, INDIRECT(ADDRESS(2,COLUMN(),2)), INDIRECT(ROW() & \":\" & ROW()))";
+        }
+        
+        // Apply the formula to the target annual column
+        const targetCell = worksheet.getRange(`${targetColumn}${currentRowNum}`);
+        targetCell.formulas = [[sumifFormula]];
+        
+        // Apply black font color to match other SUMIF formulas
+        targetCell.format.font.color = "#000000";
+        
+        await context.sync();
+        
+        console.log(`✅ [ANNUAL SUMIF] Applied ${sumifType} SUMIF formula to ${targetColumn}${currentRowNum}: ${sumifFormula}`);
+        
+    } catch (error) {
+        console.error(`❌ [ANNUAL SUMIF] Error updating annual column: ${error.message}`, error);
+        throw error;
+    }
+}
+
+/**
  * Applies symbol-based formatting to MonthsRow cells with blue font color
  * @param {Excel.Worksheet} worksheet - The worksheet containing the cells
  * @param {number} rowNum - The row number to format
@@ -2757,6 +2981,7 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         
                         if (monthsRowParam) {
                             console.log(`  Processing monthsr${g} for row ${currentRowNum}: ${monthsRowParam}`);
+                            console.log(`  Code type: ${code.type} - will auto-populate entire year based on type`);
 
                             // Split the values by pipes
                             const monthValues = monthsRowParam.split('|');
@@ -2767,6 +2992,7 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                             // Storage for comments to be added after cell population
                             const monthsCellComments = new Map(); // Map<columnLetter, comment>
 
+                            // First, populate the initial monthsr values as before
                             for (let x = 0; x < monthValues.length; x++) {
                                 if (x >= monthsColumnSequence.length) {
                                     console.warn(`  monthsr${g} value index ${x} exceeds available monthly columns. Skipping.`);
@@ -2820,7 +3046,17 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                                 }
                             }
                             
-                            // Apply symbol-based formatting for MonthsRow values
+                            // Sync the initial values before proceeding with year-wide population
+                            await context.sync();
+                            
+                            // Now auto-populate the entire year based on code type
+                            try {
+                                await autoPopulateEntireYear(currentWorksheet, currentRowNum, monthValues, monthsColumnSequence, code.type, context);
+                            } catch (yearPopulateError) {
+                                console.error(`    Error auto-populating entire year for monthsr${g}: ${yearPopulateError.message}`);
+                            }
+                            
+                            // Apply symbol-based formatting for MonthsRow values (entire year)
                             try {
                                 // Create a cleaned split array without square bracket comments for formatting
                                 const cleanedMonthValues = monthValues.map(value => {

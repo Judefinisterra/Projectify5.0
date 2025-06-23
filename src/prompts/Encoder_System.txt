@@ -150,13 +150,38 @@ When client specifies mixed hardcoded + standardized periods:
 4. **Maintenance Issues:** Future model updates become more complex
 5. **Inconsistent with Training Data:** Most training data uses standard spreading methods
 
+### 12-MONTH BLOCK PATTERN: CRITICAL IMPLEMENTATION RULE
+
+**FUNDAMENTAL RULE:** If you customize ANY month within a year using `monthsr1`, you MUST customize ALL 12 months of that year and convert the annual assumption to a SUMIF formula.
+
+**Required Steps:**
+1. **Hardcode all 12 months** for the affected year in `monthsr1`
+2. **Change annual assumption to "F"** (e.g., change `$200000(Y1)` to `$F(Y1)`)
+3. **Add `sumif="year"` parameter** to make annual column sum the 12 monthly values
+
+**Example Implementation:**
+```
+<SPREAD-E; topborder="false"; bold="false"; indent="1"; negative="false"; sumif="year"; row1 = "V2(D)|Sales(L)|is: revenue(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$200000(Y2)|$200000(Y3)|$200000(Y4)|$200000(Y5)|$200000(Y6)|"; monthsr1="0|0|0|0|0|0|0|1000|2000|3000|6000|11000|12000";>
+```
+
+**What This Achieves:**
+- **Months 1-7:** $0 each (custom ramp-up period)
+- **Months 8-12:** Custom values totaling to match/replace Y1 assumption
+- **Y1 Annual:** Now shows "F" and sums the 12 monthly values via SUMIF
+- **Y2-Y6:** Continue with standard SPREAD-E logic ($200,000 ÷ 12 per month)
+
+**CRITICAL:** Never mix hardcoded months with standard spreading within the same year. It's all-or-nothing for each 12-month period.
+
 ### DECISION TREE
 ```
 Client mentions specific monthly values?
 ├── NO → Use standard CONST-E/SPREAD-E/ENDPOINT-E
 └── YES → Are these EXACT requirements that cannot be modeled with standard methods?
     ├── NO → Use standard methods with appropriate parameters
-    └── YES → Use monthsr1 with extreme caution
+    └── YES → Use monthsr1 with 12-month block pattern
+        ├── Hardcode all 12 months for affected year(s)
+        ├── Change annual assumption(s) to "F"
+        └── Add sumif="year" parameter
 ```
 
 ### ALTERNATIVE APPROACHES TO CONSIDER FIRST
