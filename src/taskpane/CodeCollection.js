@@ -4362,10 +4362,25 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
                              rowRange.format.font.color = LIGHT_BLUE_COLOR;
                          }
                          
-                         // Change blue font color to black in columns U through CN
-                         console.log(`  Changing blue font to black in columns U:CN for row ${currentRow}`);
+                         // Change blue font color to black in columns U through CN (but preserve MonthsRow blue)
+                         console.log(`  Changing blue font to black in columns U:CN for row ${currentRow} (preserving MonthsRow blue)`);
                          const aeToChRange = currentWorksheet.getRange(`U${currentRow}:CN${currentRow}`);
-                         aeToChRange.format.font.color = "#000000"; // Black font
+                         // Load current font colors first to preserve blue colors from MonthsRow
+                         aeToChRange.load("format/font/color");
+                         await context.sync();
+                         
+                         // Only change non-blue fonts to black (preserve MonthsRow blue #0000FF)
+                         const currentFontColors = aeToChRange.format.font.color;
+                         if (Array.isArray(currentFontColors) && Array.isArray(currentFontColors[0])) {
+                             // Multiple cells - check each one
+                             const newColors = currentFontColors.map(row => 
+                                 row.map(color => color === "#0000FF" ? "#0000FF" : "#000000")
+                             );
+                             aeToChRange.format.font.color = newColors;
+                         } else if (typeof currentFontColors === 'string' && currentFontColors !== "#0000FF") {
+                             // Single cell or uniform color - only change if not blue
+                             aeToChRange.format.font.color = "#000000";
+                         }
                          
                          // Clear fill in column A specifically
                          const cellARange = currentWorksheet.getRange(`A${currentRow}`);
@@ -4553,9 +4568,28 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
          }
          await context.sync(); // Sync all format copies at once
          
-         // Apply bulk format overrides to all new rows at once
+         // Apply bulk format overrides to all new rows at once (preserve MonthsRow blue fonts)
          const allNewRowsRange = currentWorksheet.getRange(`${newRowStart}:${newRowEnd}`);
+         
+         // Load current font colors to preserve blue colors from MonthsRow before overriding
+         const monthsRowRange = currentWorksheet.getRange(`U${newRowStart}:CN${newRowEnd}`);
+         monthsRowRange.load("format/font/color");
+         await context.sync();
+         
+         // Set black font for the entire range first
          allNewRowsRange.format.font.color = "#000000"; // Black font for all rows
+         await context.sync();
+         
+         // Then restore blue fonts in the U:CN range where they should be preserved
+         const currentMonthsFontColors = monthsRowRange.format.font.color;
+         if (Array.isArray(currentMonthsFontColors) && Array.isArray(currentMonthsFontColors[0])) {
+             // Multiple cells - restore blue where it was
+             const preservedColors = currentMonthsFontColors.map(row => 
+                 row.map(color => color === "#0000FF" ? "#0000FF" : "#000000")
+             );
+             monthsRowRange.format.font.color = preservedColors;
+             console.log(`  Preserved blue font colors in MonthsRow columns U:CN for aggregated rows`);
+         }
          allNewRowsRange.format.fill.clear(); // Clear interior color for all rows
          allNewRowsRange.format.font.bold = false; // Remove bold for all rows
          
