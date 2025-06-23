@@ -2171,14 +2171,14 @@ async function restoreColumnSLeftBorders(worksheet) {
 }
 
 /**
- * Copies complete formatting from column O to column J and columns S through CN for a specific row
- * This includes number format (currency) and all font formatting (italic, bold, etc.)
+ * Copies selective formatting from column O to column J and columns T through CN for a specific row
+ * Only copies number format and italic format, preserving font colors
  * @param {Excel.Worksheet} worksheet - The worksheet containing the cells
  * @param {number} rowNum - The row number to copy formatting for
  * @returns {Promise<void>}
  */
 async function copyColumnPFormattingToJAndTCN(worksheet, rowNum) {
-    console.log(`Copying complete column O formatting to J and T:CN for row ${rowNum}`);
+    console.log(`Copying selective column O formatting (number format + italic) to J and T:CN for row ${rowNum}`);
     
     try {
         // Get the source cell and target ranges
@@ -2186,27 +2186,32 @@ async function copyColumnPFormattingToJAndTCN(worksheet, rowNum) {
         const targetCellJ = worksheet.getRange(`J${rowNum}`);
         const targetRangeTCN = worksheet.getRange(`T${rowNum}:CN${rowNum}`);
         
-        // Load complete formatting from source cell O
-        sourceCellO.load(["numberFormat", "format/font/italic", "format/font/bold"]);
+        // Load specific formatting from source cell O
+        sourceCellO.load(["numberFormat", "format/font/italic"]);
         await worksheet.context.sync();
         
-        // Copy complete formatting from O to J
-        targetCellJ.copyFrom(sourceCellO, Excel.RangeCopyType.formats);
+        // Get the values to apply
+        const numberFormat = sourceCellO.numberFormat[0][0];
+        const isItalic = sourceCellO.format.font.italic;
         
-        // Copy complete formatting from O to T:CN range
-        targetRangeTCN.copyFrom(sourceCellO, Excel.RangeCopyType.formats);
+        // Apply number format and italic to column J
+        targetCellJ.numberFormat = [[numberFormat]];
+        targetCellJ.format.font.italic = isItalic;
+        
+        // Apply number format and italic to T:CN range
+        targetRangeTCN.numberFormat = [[numberFormat]];
+        targetRangeTCN.format.font.italic = isItalic;
         
         // Sync the formatting changes
         await worksheet.context.sync();
         
-        const numberFormat = sourceCellO.numberFormat[0][0];
-        console.log(`Successfully copied complete column O formatting to J${rowNum} and T${rowNum}:CN${rowNum}`);
+        console.log(`Successfully copied selective column O formatting to J${rowNum} and T${rowNum}:CN${rowNum}`);
         console.log(`  Applied number format: ${numberFormat}`);
-        console.log(`  Applied font italic: ${sourceCellO.format.font.italic}`);
-        console.log(`  Applied font bold: ${sourceCellO.format.font.bold}`);
+        console.log(`  Applied font italic: ${isItalic}`);
+        console.log(`  Font colors preserved (not copied)`);
         
     } catch (error) {
-        console.error(`Error copying column O formatting to J and T:CN for row ${rowNum}: ${error.message}`);
+        console.error(`Error copying selective column O formatting to J and T:CN for row ${rowNum}: ${error.message}`);
         throw error;
     }
 }
@@ -2891,36 +2896,11 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                         }
                     }
 
-                    // FINAL STEP: Copy complete column P formatting to J and S:CN (after all other formatting)
+                    // FINAL STEP: Copy selective column O formatting to J and T:CN (number format + italic only)
                     try {
                         await copyColumnPFormattingToJAndTCN(currentWorksheet, currentRowNum);
-                        
-                        // IMPORTANT: Re-apply blue font color to MonthsRow columns after formatting copy
-                        // The copyColumnPFormattingToJAndTCN copies to T:CN which includes U,V,W... (MonthsRow columns)
-                        // We need to restore the blue font color for any MonthsRow values
-                        if (yy === 0) { // Only for the first row of each group
-                            const monthsRowParam = code.params[`monthsr${g}`];
-                            if (monthsRowParam) {
-                                console.log(`  Re-applying blue font color to monthsr${g} columns after formatting copy`);
-                                const monthValues = monthsRowParam.split('|');
-                                const monthsColumnSequence = generateMonthsColumnSequence(monthValues.length);
-                                
-                                // Re-apply blue font color to each MonthsRow column
-                                for (let x = 0; x < monthValues.length && x < monthsColumnSequence.length; x++) {
-                                    const originalValue = monthValues[x];
-                                    if (originalValue) { // Only if there's a value
-                                        const colLetter = monthsColumnSequence[x];
-                                        const cellRange = currentWorksheet.getRange(`${colLetter}${currentRowNum}`);
-                                        cellRange.format.font.color = "#0000FF"; // Blue font color
-                                        console.log(`    Re-applied blue font color to ${colLetter}${currentRowNum}`);
-                                    }
-                                }
-                                await context.sync(); // Sync the blue font color restoration
-                                console.log(`  Completed blue font color restoration for monthsr${g}`);
-                            }
-                        }
                     } catch (copyFormatError) {
-                        console.error(`  Error copying column P formatting to J and T:CN: ${copyFormatError.message}`);
+                        console.error(`  Error copying selective column O formatting to J and T:CN: ${copyFormatError.message}`);
                     }
 
                     // NOTE: Percentage formatting override is now handled within applyRowSymbolFormatting
