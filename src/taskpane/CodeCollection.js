@@ -1074,72 +1074,124 @@ export async function runCodes(codeCollection) {
                                     });
                                 }
 
-                                // NEW: Apply "sumif" parameter for custom SUMIF/AVERAGEIF formulas in columns J-P
+                                // NEW: Apply "sumif" parameter for custom SUMIF/AVERAGEIF formulas only to Y1-Y6 columns containing "F"
                                 // NOTE: This must be AFTER driverAndAssumptionInputs to avoid being overwritten
                                 if (code.params.sumif !== undefined) {
                                     const sumifValue = String(code.params.sumif).toLowerCase();
                                     const numPastedRows = lastRow - firstRow + 1;
                                     const endPastedRow = pasteRow + Math.max(0, numPastedRows - 1);
-                                    const sumifRangeAddress = `J${pasteRow}:P${endPastedRow}`;
-                                    const rangeToModify = currentWS.getRange(sumifRangeAddress);
 
-                                    console.log(`Processing "sumif" parameter: "${sumifValue}" for range ${sumifRangeAddress}`);
+                                    console.log(`Processing "sumif" parameter: "${sumifValue}" - analyzing row1 for Y1-Y6 columns with "F"`);
 
-                                    let formulaTemplate = null;
-                                    if (sumifValue === "year") {
-                                        formulaTemplate = "=SUMIF($3:$3, INDIRECT(ADDRESS(2,COLUMN(),2)), INDIRECT(ROW() & \":\" & ROW()))";
-                                    } else if (sumifValue === "yearend") {
-                                        formulaTemplate = "=SUMIF($4:$4, INDIRECT(ADDRESS(2,COLUMN(),2)), INDIRECT(ROW() & \":\" & ROW()))";
-                                    } else if (sumifValue === "average") {
-                                        formulaTemplate = "=AVERAGEIF($3:$3, INDIRECT(ADDRESS(2,COLUMN(),2)), INDIRECT(ROW() & \":\" & ROW()))";
-                                    } else if (sumifValue === "offsetyear") {
-                                        formulaTemplate = "=INDEX(INDIRECT(ROW() & \":\" & ROW()),1,MATCH(INDIRECT(ADDRESS(2,COLUMN()-1,2)),$4:$4,0)+1)";
+                                    // Parse row1 parameter to find which Y1-Y6 positions contain "F"
+                                    const row1Param = code.params.row1;
+                                    const columnsWithF = [];
+                                    
+                                    if (row1Param) {
+                                        const row1Parts = row1Param.split('|');
+                                        console.log(`  Analyzing row1 with ${row1Parts.length} parts`);
+                                        
+                                        // Y1-Y6 are at indices 9-14 in the row parameter (0-based)
+                                        // They map to columns K-P respectively (J is not mapped to any Y position)
+                                        const y1ToY6Indices = [9, 10, 11, 12, 13, 14]; // Y1, Y2, Y3, Y4, Y5, Y6
+                                        const columnLetters = ['K', 'L', 'M', 'N', 'O', 'P']; // Corresponding columns
+                                        
+                                        for (let i = 0; i < y1ToY6Indices.length; i++) {
+                                            const partIndex = y1ToY6Indices[i];
+                                            const columnLetter = columnLetters[i];
+                                            const yLabel = `Y${i + 1}`;
+                                            
+                                            if (partIndex < row1Parts.length) {
+                                                const part = row1Parts[partIndex];
+                                                console.log(`    ${yLabel} (index ${partIndex}): "${part}" -> Column ${columnLetter}`);
+                                                
+                                                // Check if this part contains "F" (case-insensitive)
+                                                if (part && part.toUpperCase().includes('F')) {
+                                                    columnsWithF.push({
+                                                        yLabel: yLabel,
+                                                        columnLetter: columnLetter,
+                                                        columnIndex: i, // 0-based index for J-P
+                                                        part: part
+                                                    });
+                                                    console.log(`      ✅ Found "F" in ${yLabel} -> will apply SUMIF to column ${columnLetter}`);
+                                                } else {
+                                                    console.log(`      ❌ No "F" found in ${yLabel} -> will skip column ${columnLetter}`);
+                                                }
+                                            }
+                                        }
                                     }
 
-                                    if (formulaTemplate) {
-                                        console.log(`Applying ${sumifValue} formula template to ${sumifRangeAddress}: ${formulaTemplate}`);
-                                        
-                                        if (sumifValue === "offsetyear") {
-                                            // Special handling for offsetyear: set column J to 0, apply formula to K-P
-                                            const columnJRange = currentWS.getRange(`J${pasteRow}:J${endPastedRow}`);
-                                            const columnKPRange = currentWS.getRange(`K${pasteRow}:P${endPastedRow}`);
-                                            
-                                            // Set column J to 0
-                                            const zeroArray = [];
-                                            for (let r = 0; r < numPastedRows; r++) {
-                                                zeroArray.push([0]);
-                                            }
-                                            columnJRange.values = zeroArray;
-                                            
-                                            // Apply formula to columns K-P (6 columns)
-                                            const formulaArray = [];
-                                            for (let r = 0; r < numPastedRows; r++) {
-                                                const rowFormulas = [];
-                                                for (let c = 0; c < 6; c++) { // K through P is 6 columns
-                                                    rowFormulas.push(formulaTemplate);
-                                                }
-                                                formulaArray.push(rowFormulas);
-                                            }
-                                            columnKPRange.formulas = formulaArray;
-                                            
-                                            console.log(`Set column J to 0 and applied ${sumifValue} formula to K${pasteRow}:P${endPastedRow}`);
-                                        } else {
-                                            // Standard handling for other sumif types: apply formula to entire J-P range
-                                            const formulaArray = [];
-                                            for (let r = 0; r < numPastedRows; r++) {
-                                                const rowFormulas = [];
-                                                for (let c = 0; c < 7; c++) { // J through P is 7 columns
-                                                    rowFormulas.push(formulaTemplate);
-                                                }
-                                                formulaArray.push(rowFormulas);
-                                            }
-                                            rangeToModify.formulas = formulaArray;
-                                        }
-                                        
-                                        await context.sync();
-                                        console.log(`"sumif" parameter (${sumifValue}) processing synced for ${sumifRangeAddress}`);
+                                    if (columnsWithF.length === 0) {
+                                        console.log(`  No Y1-Y6 columns contain "F" - skipping sumif parameter application`);
                                     } else {
-                                        console.log(`"sumif" parameter value "${sumifValue}" is not recognized. Valid values are: year, yearend, average, offsetyear. No formula changes applied.`);
+                                        console.log(`  Found ${columnsWithF.length} Y1-Y6 columns with "F": ${columnsWithF.map(c => c.yLabel + '(' + c.columnLetter + ')').join(', ')}`);
+
+                                        let formulaTemplate = null;
+                                        if (sumifValue === "year") {
+                                            formulaTemplate = "=SUMIF($3:$3, INDIRECT(ADDRESS(2,COLUMN(),2)), INDIRECT(ROW() & \":\" & ROW()))";
+                                        } else if (sumifValue === "yearend") {
+                                            formulaTemplate = "=SUMIF($4:$4, INDIRECT(ADDRESS(2,COLUMN(),2)), INDIRECT(ROW() & \":\" & ROW()))";
+                                        } else if (sumifValue === "average") {
+                                            formulaTemplate = "=AVERAGEIF($3:$3, INDIRECT(ADDRESS(2,COLUMN(),2)), INDIRECT(ROW() & \":\" & ROW()))";
+                                        } else if (sumifValue === "offsetyear") {
+                                            formulaTemplate = "=INDEX(INDIRECT(ROW() & \":\" & ROW()),1,MATCH(INDIRECT(ADDRESS(2,COLUMN()-1,2)),$4:$4,0)+1)";
+                                        }
+
+                                        if (formulaTemplate) {
+                                            console.log(`  Applying ${sumifValue} formula template: ${formulaTemplate}`);
+                                            
+                                            if (sumifValue === "offsetyear") {
+                                                // Special handling for offsetyear: set column J to 0, set non-F columns in K-P to 0, apply formula to F columns
+                                                console.log(`  Special offsetyear handling: setting J and non-F columns to 0, applying formula to F columns only`);
+                                                
+                                                // Set column J to 0 (as in original logic)
+                                                const columnJRange = currentWS.getRange(`J${pasteRow}:J${endPastedRow}`);
+                                                const zeroArrayJ = [];
+                                                for (let r = 0; r < numPastedRows; r++) {
+                                                    zeroArrayJ.push([0]);
+                                                }
+                                                columnJRange.values = zeroArrayJ;
+                                                console.log(`    Set column J to 0`);
+                                                
+                                                // Set all K-P columns to 0 first
+                                                const allKPRange = currentWS.getRange(`K${pasteRow}:P${endPastedRow}`); // K through P (Y1-Y6 columns)
+                                                const zeroArrayKP = [];
+                                                for (let r = 0; r < numPastedRows; r++) {
+                                                    zeroArrayKP.push([0, 0, 0, 0, 0, 0]); // 6 columns K-P
+                                                }
+                                                allKPRange.values = zeroArrayKP;
+                                                console.log(`    Set columns K-P to 0`);
+                                                
+                                                // Then apply formula only to columns with F
+                                                for (const colInfo of columnsWithF) {
+                                                    const colRange = currentWS.getRange(`${colInfo.columnLetter}${pasteRow}:${colInfo.columnLetter}${endPastedRow}`);
+                                                    const colFormulas = [];
+                                                    for (let r = 0; r < numPastedRows; r++) {
+                                                        colFormulas.push([formulaTemplate]);
+                                                    }
+                                                    colRange.formulas = colFormulas;
+                                                    console.log(`    Applied offsetyear formula to column ${colInfo.columnLetter} (${colInfo.yLabel})`);
+                                                }
+                                            } else {
+                                                // Standard handling: apply formula only to columns with F
+                                                console.log(`  Standard handling: applying formula only to columns with F`);
+                                                
+                                                for (const colInfo of columnsWithF) {
+                                                    const colRange = currentWS.getRange(`${colInfo.columnLetter}${pasteRow}:${colInfo.columnLetter}${endPastedRow}`);
+                                                    const colFormulas = [];
+                                                    for (let r = 0; r < numPastedRows; r++) {
+                                                        colFormulas.push([formulaTemplate]);
+                                                    }
+                                                    colRange.formulas = colFormulas;
+                                                    console.log(`    Applied ${sumifValue} formula to column ${colInfo.columnLetter} (${colInfo.yLabel}): "${colInfo.part}"`);
+                                                }
+                                            }
+                                            
+                                            await context.sync();
+                                            console.log(`  "sumif" parameter (${sumifValue}) processing synced for ${columnsWithF.length} columns with F`);
+                                        } else {
+                                            console.log(`  "sumif" parameter value "${sumifValue}" is not recognized. Valid values are: year, yearend, average, offsetyear. No formula changes applied.`);
+                                        }
                                     }
                                 }
                                 
