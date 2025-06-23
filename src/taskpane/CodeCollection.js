@@ -1044,44 +1044,62 @@ export async function runCodes(codeCollection) {
                                     }
                                 }
 
-                                // Apply the driver and assumption inputs function to the current worksheet
-                                try {
-                                    startTimer(`driverAndAssumptionInputs-${codeType}-${i}`);
-                                    console.log(`Applying driver and assumption inputs to worksheet: ${currentWorksheetName}`);
-                                    
-                                    // Get the current worksheet and load its properties
-                                    const currentWorksheet = context.workbook.worksheets.getItem(currentWorksheetName);
-                                    currentWorksheet.load('name');
-                                    await context.sync();
-                                    
-                                    const rowInfo = await driverAndAssumptionInputs(
-                                        currentWorksheet,
-                                        pasteRow,
-                                        code
-                                    );
-                                    console.log(`Successfully applied driver and assumption inputs to worksheet: ${currentWorksheetName}`);
-                                    
-                                    // Store the actual row information for use by FIXED-E/FIXED-S
-                                    code.actualRowInfo = rowInfo;
-                                    endTimer(`driverAndAssumptionInputs-${codeType}-${i}`);
-                                } catch (error) {
-                                    endTimer(`driverAndAssumptionInputs-${codeType}-${i}`);
-                                    console.error(`Error applying driver and assumption inputs: ${error.message}`);
-                                    result.errors.push({
-                                        codeIndex: i,
-                                        codeType: codeType,
-                                        error: `Error applying driver and assumption inputs: ${error.message}`
-                                    });
-                                }
+                                                // Check for monthsr parameter and auto-add appropriate sumif type if missing
+                const hasMonthsrParam = Object.keys(code.params).some(key => key.startsWith('monthsr'));
+                if (hasMonthsrParam && !code.params.sumif) {
+                    // Determine appropriate sumif type based on code type
+                    let autoSumifType = "year"; // Default for SPREAD-E
+                    if (codeType === "CONST-E" || codeType === "ENDPOINT-E") {
+                        autoSumifType = "average";
+                    }
+                    
+                    console.log(`🗓️ [AUTO-SUMIF] Detected monthsr parameter without sumif - automatically adding sumif="${autoSumifType}" for code type ${codeType}`);
+                    code.params.sumif = autoSumifType;
+                    console.log(`🗓️ [AUTO-SUMIF] Code parameters after auto-add:`, code.params);
+                } else if (hasMonthsrParam && code.params.sumif) {
+                    console.log(`🗓️ [AUTO-SUMIF] monthsr parameter detected, sumif already present: "${code.params.sumif}"`);
+                }
+
+                // Apply the driver and assumption inputs function to the current worksheet
+                try {
+                    startTimer(`driverAndAssumptionInputs-${codeType}-${i}`);
+                    console.log(`Applying driver and assumption inputs to worksheet: ${currentWorksheetName}`);
+                    
+                    // Get the current worksheet and load its properties
+                    const currentWorksheet = context.workbook.worksheets.getItem(currentWorksheetName);
+                    currentWorksheet.load('name');
+                    await context.sync();
+                    
+                    const rowInfo = await driverAndAssumptionInputs(
+                        currentWorksheet,
+                        pasteRow,
+                        code
+                    );
+                    console.log(`Successfully applied driver and assumption inputs to worksheet: ${currentWorksheetName}`);
+                    
+                    // Store the actual row information for use by FIXED-E/FIXED-S
+                    code.actualRowInfo = rowInfo;
+                    endTimer(`driverAndAssumptionInputs-${codeType}-${i}`);
+                } catch (error) {
+                    endTimer(`driverAndAssumptionInputs-${codeType}-${i}`);
+                    console.error(`Error applying driver and assumption inputs: ${error.message}`);
+                    result.errors.push({
+                        codeIndex: i,
+                        codeType: codeType,
+                        error: `Error applying driver and assumption inputs: ${error.message}`
+                    });
+                }
 
                                 // NEW: Apply "sumif" parameter for custom SUMIF/AVERAGEIF formulas only to Y1-Y6 columns containing "F"
                                 // NOTE: This must be AFTER driverAndAssumptionInputs to avoid being overwritten
+                                console.log(`🔍 [SUMIF CHECK] Checking for sumif parameter. code.params.sumif = "${code.params.sumif}"`);
+                                console.log(`🔍 [SUMIF CHECK] All code parameters:`, code.params);
                                 if (code.params.sumif !== undefined) {
                                     const sumifValue = String(code.params.sumif).toLowerCase();
                                     const numPastedRows = lastRow - firstRow + 1;
                                     const endPastedRow = pasteRow + Math.max(0, numPastedRows - 1);
 
-                                    console.log(`Processing "sumif" parameter: "${sumifValue}" - analyzing row1 for Y1-Y6 columns with "F"`);
+                                    console.log(`✅ [SUMIF PROCESSING] Processing "sumif" parameter: "${sumifValue}" - analyzing row1 for Y1-Y6 columns with "F"`);
 
                                     // Parse row1 parameter to find which Y1-Y6 positions contain "F"
                                     const row1Param = code.params.row1;
@@ -1209,6 +1227,8 @@ export async function runCodes(codeCollection) {
                                             console.log(`  "sumif" parameter value "${sumifValue}" is not recognized. Valid values are: year, yearend, average, offsetyear. No formula changes applied.`);
                                         }
                                     }
+                                } else {
+                                    console.log(`❌ [SUMIF CHECK] No sumif parameter found - sumif processing skipped`);
                                 }
                                 
 
@@ -1849,16 +1869,11 @@ async function autoPopulateEntireYear(worksheet, currentRowNum, monthValues, ini
         }
         
         // Step 3: Determine the fill value based on code type
-        let fillValue = 0; // Default for SPREAD-E
+        // All code types (SPREAD-E, CONST-E, ENDPOINT-E) now use the last defined month value
+        const lastDefinedValue = getLastDefinedMonthValue(monthValues);
+        let fillValue = lastDefinedValue;
         
-        if (codeType === "CONST-E" || codeType === "ENDPOINT-E") {
-            // Use the last defined month value
-            const lastDefinedValue = getLastDefinedMonthValue(monthValues);
-            fillValue = lastDefinedValue;
-            console.log(`🗓️ [YEAR AUTO-POPULATE] Code type ${codeType}: using last defined value ${fillValue}`);
-        } else {
-            console.log(`🗓️ [YEAR AUTO-POPULATE] Code type ${codeType}: using fill value ${fillValue}`);
-        }
+        console.log(`🗓️ [YEAR AUTO-POPULATE] Code type ${codeType}: using last defined value ${fillValue}`);
         
         // Step 4: Populate the year columns with the fill value
         console.log(`🗓️ [YEAR AUTO-POPULATE] Populating ${yearColumns.length} columns with value: ${fillValue}`);
