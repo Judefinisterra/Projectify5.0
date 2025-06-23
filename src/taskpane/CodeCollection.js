@@ -4276,25 +4276,34 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
         let indexEndRow = -1; // Keep track of the original END_MARKER row
  
         if (searchRange.values) {
+            console.log(`🔍 [INDEX GROWTH] Searching column D from row ${START_ROW} to ${initialLastRow}:`);
             for (let i = 0; i < searchRange.values.length; i++) {
                 const currentRow = START_ROW + i;
                 const cellValue = searchRange.values[i][0];
                 
+                // Debug: Show all values in column D
+                if (cellValue && cellValue !== '') {
+                    console.log(`   Row ${currentRow}: "${cellValue}"`);
+                }
+                
                 if (cellValue === BEGIN_MARKER && firstRow === -1) {
                     firstRow = currentRow;
+                    console.log(`🎯 [INDEX GROWTH] Found INDEXBEGIN at row ${currentRow}`);
                 }
                 if (cellValue === END_MARKER) {
-                    lastRow = currentRow; // This will be the last END_MARKER found
+                    lastRow = currentRow; // This will be updated to the LAST END_MARKER found
                     indexEndRow = currentRow; // Store the original row index
+                    console.log(`🎯 [INDEX GROWTH] Found INDEXEND at row ${currentRow}`);
                 }
             }
+            console.log(`🎯 [INDEX GROWTH] Final INDEXEND position determined as row ${lastRow} (last occurrence found)`);
         }
 
         if (firstRow === -1 || lastRow === -1 || lastRow < firstRow) {
             console.log(`Markers ${BEGIN_MARKER}/${END_MARKER} not found or in wrong order in ${searchRangeAddress}. Skipping Index Growth Curve.`);
             return; // Exit if markers not found or invalid
         }
-        console.log(`Found ${BEGIN_MARKER} at row ${firstRow}, ${END_MARKER} at row ${lastRow}`);
+        console.log(`🎯 [INDEX GROWTH] Found ${BEGIN_MARKER} at row ${firstRow}, final ${END_MARKER} at row ${lastRow}`);
  
                 // --- 2. Collect Index Rows (Rows between markers where Col C is not empty) ---
         const indexRows = [];
@@ -4372,10 +4381,15 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
          }
  
          // --- 4. Insert Rows ---
-         const newRowStart = lastRow + 1;
+         // Insert AFTER INDEXEND (below both INDEXEND rows - INDEXEND creates 2 rows)
+         const newRowStart = lastRow + 2;
          const numNewRows = indexRows.length;
          const newRowEnd = newRowStart + numNewRows - 1;
-         console.log(`Inserting ${numNewRows} rows at range ${newRowStart}:${newRowEnd}`);
+         console.log(`🔧 [INDEX GROWTH] INSERTION DETAILS:`);
+         console.log(`   INDEXBEGIN at row: ${firstRow}`);
+         console.log(`   Last INDEXEND at row: ${lastRow}`);
+         console.log(`   Will insert ${numNewRows} aggregate rows at: ${newRowStart}:${newRowEnd}`);
+         console.log(`   This means aggregate rows will be AFTER both INDEXEND rows (+2 offset)`);
          const insertRange = currentWorksheet.getRange(`${newRowStart}:${newRowEnd}`);
          insertRange.insert(Excel.InsertShiftDirection.down);
          // Sync required before populating new rows

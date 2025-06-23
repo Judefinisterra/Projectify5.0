@@ -103,6 +103,80 @@ row1="V1(D)|New Lending(L)|(F)|(C1)|(C2)|(C3)|(C4)|6/1/2026(C5)|$1000000(C6)|$F(
 
 **Monthly Columns:** Exist right of Y1-Y6, contain formulas generally unchangeable except customformula parameter in FORMULA-S
 
+## MONTHSR1 PARAMETER: EXTREME CAUTION REQUIRED
+
+### PURPOSE
+The `monthsr1` parameter allows direct hardcoding of specific monthly values in the time series, bypassing the standard spreading mechanisms (CONST-E, SPREAD-E, ENDPOINT-E).
+
+### ⚠️ CRITICAL WARNING: USE WITH EXTREME CAUTION
+**This parameter should ONLY be used when a client explicitly requires exact month-by-month inputs that cannot be achieved through standard spreading methods.**
+
+### WHEN TO USE
+**ONLY use `monthsr1` when client explicitly states:**
+- "We will have $1000 in sales in month 1, $2000 in month 2, then $3000 ongoing"
+- "January will be $500, February will be $750, then normal operations at $1200/month"
+- "First two months are ramp-up with specific values, then steady state"
+
+### SYNTAX
+```
+monthsr1="value1|value2|value3|..."
+```
+Values are pipe-separated and populate monthly columns sequentially starting from column U.
+
+### PROPER USAGE PATTERN
+When client specifies mixed hardcoded + standardized periods:
+
+**Step 1:** Use `monthsr1` for the explicitly defined months
+**Step 2:** Use CONST-E/SPREAD-E/ENDPOINT-E for the standardized portion
+
+### EXAMPLE IMPLEMENTATION
+**Client Request:** "We will have $1000 in sales in month 1, $2000 in month 2, then $3000 ongoing"
+
+**CORRECT APPROACH:**
+```
+<CONST-E; monthsr1="1000|2000"; row1="V1(D)|Monthly Sales(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$3000(Y1)|$3000(Y2)|$3000(Y3)|$3000(Y4)|$3000(Y5)|$3000(Y6)|">
+```
+
+**Result:**
+- Month 1 (Column U): $1000 (from monthsr1)
+- Month 2 (Column V): $2000 (from monthsr1)  
+- Months 3-72: $3000 each (from CONST-E Y1-Y6 assumptions)
+
+### WHY EXTREME CAUTION IS REQUIRED
+
+1. **Breaks Standard Model Logic:** Circumvents the proven CONST-E/SPREAD-E/ENDPOINT-E framework
+2. **Reduces Flexibility:** Hardcoded values cannot be easily adjusted via standard assumption changes
+3. **Error Prone:** Manual month-by-month entry increases risk of mistakes
+4. **Maintenance Issues:** Future model updates become more complex
+5. **Inconsistent with Training Data:** Most training data uses standard spreading methods
+
+### DECISION TREE
+```
+Client mentions specific monthly values?
+├── NO → Use standard CONST-E/SPREAD-E/ENDPOINT-E
+└── YES → Are these EXACT requirements that cannot be modeled with standard methods?
+    ├── NO → Use standard methods with appropriate parameters
+    └── YES → Use monthsr1 with extreme caution
+```
+
+### ALTERNATIVE APPROACHES TO CONSIDER FIRST
+
+Before using `monthsr1`, try these standard approaches:
+
+**Ramp-up scenarios:** Use ENDPOINT-E with scaling
+**Seasonal patterns:** Use multiple CONST-E codes with BEG/END functions in FORMULA-S
+**Growth patterns:** Use GROWTH-S with percentage increases
+
+### VALIDATION CHECKLIST FOR MONTHSR1 USAGE
+
+1. **Client Explicit:** Did client explicitly state exact monthly values?
+2. **No Standard Alternative:** Cannot be achieved with CONST-E/SPREAD-E/ENDPOINT-E?
+3. **Limited Scope:** Only using for the explicitly defined months?
+4. **Standard Continuation:** Using standard codes for ongoing periods?
+5. **Documentation:** Clear comments explaining the hardcoded values?
+
+**Remember:** The goal is to maintain model flexibility and consistency. Only use `monthsr1` when the client's requirements absolutely cannot be met through the proven standard spreading mechanisms.
+
 ---
 
 ## FUNDAMENTAL PRINCIPLE: DECOMPOSE, DON'T CALCULATE
