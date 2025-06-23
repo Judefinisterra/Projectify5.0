@@ -4620,6 +4620,21 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
          rangesToClear.forEach(range => range.clear(Excel.ClearApplyTo.contents));
          await context.sync(); // Sync all clears at once
 
+         // --- 11. Clear Column J and Columns Q-S within INDEXBEGIN/INDEXEND block ---
+         console.log(`Clearing column J values and columns Q-S (values + formats) within INDEXBEGIN/INDEXEND block (rows ${firstRow} to ${lastRow})`);
+         
+         // Clear column J values only
+         const columnJRange = currentWorksheet.getRange(`J${firstRow}:J${lastRow}`);
+         columnJRange.clear(Excel.ClearApplyTo.contents);
+         console.log(`  Cleared column J values from rows ${firstRow} to ${lastRow}`);
+         
+         // Clear columns Q-S (both values and formats)
+         const columnsQSRange = currentWorksheet.getRange(`Q${firstRow}:S${lastRow}`);
+         columnsQSRange.clear(Excel.ClearApplyTo.all); // Clear both contents and formats
+         console.log(`  Cleared columns Q-S (values + formats) from rows ${firstRow} to ${lastRow}`);
+         
+         await context.sync(); // Sync the clearing operations
+
          // NOTE: Row grouping for INDEXBEGIN moved to runCodes function where the original rows are copied
  
          console.log(`applyIndexGrowthCurveJS completed successfully for sheet: ${worksheetName}`);
