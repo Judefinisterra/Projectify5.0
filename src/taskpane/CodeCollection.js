@@ -5896,6 +5896,18 @@ async function updateSumifFormulasAfterGreenDeletion(worksheet, startRow, lastRo
                          // Replace ADDRESS(2,COLUMN(),2) with ADDRESS([timeSeriesRow],COLUMN(),2)
                          formula = formula.replace(/ADDRESS\(2,COLUMN\(\),2\)/gi, `ADDRESS(${timeSeriesRow},COLUMN(),2)`);
                          
+                         // Update direct column references (K$2, L$2, etc.) to point to time series row
+                         const beforeDirectUpdate = formula;
+                         formula = formula.replace(/\b([A-Z]{1,3})\$2\b/g, function(match, columnLetter) {
+                             return columnLetter + '$' + timeSeriesRow;
+                         });
+                         
+                         if (formula !== beforeDirectUpdate) {
+                             console.log(`    🔧 Updated direct column references from row 2 to time series row ${timeSeriesRow}`);
+                             console.log(`      Before direct ref update: ${beforeDirectUpdate}`);
+                             console.log(`      After direct ref update:  ${formula}`);
+                         }
+                         
                          console.log(`    ✅ Updated SUMIF($3:$3 formula in column ${String.fromCharCode(74 + colIndex)}`);
                      }
                      
@@ -5908,6 +5920,18 @@ async function updateSumifFormulasAfterGreenDeletion(worksheet, startRow, lastRo
                          
                          // Replace ADDRESS(2,COLUMN(),2) with ADDRESS([timeSeriesRow],COLUMN(),2)
                          formula = formula.replace(/ADDRESS\(2,COLUMN\(\),2\)/gi, `ADDRESS(${timeSeriesRow},COLUMN(),2)`);
+                         
+                         // Update direct column references (K$2, L$2, etc.) to point to time series row
+                         const beforeDirectUpdate = formula;
+                         formula = formula.replace(/\b([A-Z]{1,3})\$2\b/g, function(match, columnLetter) {
+                             return columnLetter + '$' + timeSeriesRow;
+                         });
+                         
+                         if (formula !== beforeDirectUpdate) {
+                             console.log(`    🔧 Updated direct column references from row 2 to time series row ${timeSeriesRow}`);
+                             console.log(`      Before direct ref update: ${beforeDirectUpdate}`);
+                             console.log(`      After direct ref update:  ${formula}`);
+                         }
                          
                          console.log(`    ✅ Updated SUMIF($4:$4 formula in column ${String.fromCharCode(74 + colIndex)}`);
                      }

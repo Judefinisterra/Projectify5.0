@@ -83,6 +83,47 @@ The system automatically creates formulas that:
 4. **Fincode Column**: Items with fincodes in column (F) get aggregated
 5. **Y1-Y6 "F" Values**: Required in INDEXBEGIN row1 for formula generation
 
+## ISOLATION REQUIREMENTS (SELF-CONTAINMENT)
+
+🚨 **CRITICAL RULE**: Codestrings outside of the INDEX block CANNOT reference drivers from items inside the INDEX block. Everything must be self-contained within the INDEX system.
+
+### Why This Matters:
+- INDEX items are scaled and aggregated using special formulas
+- External references would break the scaling mathematics
+- Driver relationships must respect the INDEX boundary
+
+### Examples of Required Self-Containment:
+
+❌ **INCORRECT** - External depreciation referencing INDEX capex:
+```
+<INDEXBEGIN; driver1="V1">
+  <CONST-E; row1="V2(D)|Capex per Restaurant(L)|...">
+<INDEXEND>
+<FAPPE-S; driver1="V2"; row1="..."> <!-- WRONG: Can't reference V2 from outside INDEX -->
+```
+
+✅ **CORRECT** - Both capex and depreciation inside INDEX:
+```
+<INDEXBEGIN; driver1="V1">
+  <CONST-E; row1="V2(D)|Capex per Restaurant(L)|is: capex(F)|...">
+  <FAPPE-S; driver1="V2"; row1="V3(D)|Depreciation per Restaurant(L)|is: depreciation(F)|...">
+<INDEXEND>
+```
+
+### Common Scenarios Requiring Internal Placement:
+
+1. **Capex + Depreciation**: Both must be inside INDEX if capex varies by unit age
+2. **Working Capital**: If working capital scales with unit revenue, place inside INDEX
+3. **Operating Expenses**: Unit-specific opex should be modeled inside INDEX
+4. **Tax Calculations**: If taxes depend on unit-level profits, include inside INDEX
+5. **Interest Expense**: If debt is tied to unit-level capex, model inside INDEX
+
+### External Model Integration:
+
+- INDEX items with fincodes automatically aggregate to external model
+- External model sees total aggregated values, not individual unit economics
+- Use INDEXEND aggregate rows for external model references
+
 ## VALIDATION CHECKLIST
 
 ✓ Volume driver exists before INDEX block
@@ -90,4 +131,7 @@ The system automatically creates formulas that:
 ✓ Unit economics use monthsr for lifecycle patterns
 ✓ Revenue/cost items have fincode in column (F)
 ✓ sumif parameter present on items that should aggregate annually
-✓ INDEXEND properly closes the block 
+✓ INDEXEND properly closes the block
+✓ **NO external codestrings reference drivers from inside INDEX**
+✓ **ALL related calculations (capex, depreciation, etc.) are inside INDEX**
+✓ **INDEX system is completely self-contained** 
