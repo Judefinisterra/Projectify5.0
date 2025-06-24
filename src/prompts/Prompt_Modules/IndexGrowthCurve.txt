@@ -59,6 +59,33 @@ The system automatically creates formulas that:
 - Jan 2025 total: $1000 (1 restaurant × $1000 month-1 revenue)  
 - Feb 2025 total: $4000 (1 restaurant × $2000 month-2 revenue + 2 restaurants × $1000 month-1 revenue)
 
+## INDEX-SPECIFIC CODE REQUIREMENTS
+
+### Use INDEX-Specific E Codes Only
+Within INDEX blocks, you MUST use special INDEX-aware code types:
+
+- **SPREADINDEX-E**: For revenue/cost items that spread across INDEX lifecycle
+- **CONSTINDEX-E**: For constant amounts that occur at specific INDEX months
+- **ENDPOINTINDEX-E**: For one-time amounts at INDEX start/end periods
+
+These codes handle the special INDEX mathematics and unit age tracking.
+
+### Month Number Inputs Only (No Calendar Dates)
+All timing parameters within INDEX must use month numbers relative to unit age:
+
+```
+✅ CORRECT INDEX Examples:
+"It begins on month 4 and ends on month 7"                   // Occurs in unit's first month
+
+❌ INCORRECT (Never Use Dates in INDEX):
+"Starting month is Jul-25"; Ending month is Dec-25"; ...>  // Calendar dates forbidden in INDEX
+```
+
+**Why Month Numbers Only:**
+- INDEX tracks unit age, not calendar time
+- Month 1 = first month of unit's life regardless of when it opens
+- Calendar dates would break the unit lifecycle mathematics
+
 ## CORRECT CODE SEQUENCE
 
 1. **Volume Driver Code** (before INDEX):
@@ -70,7 +97,7 @@ The system automatically creates formulas that:
 ```
 <INDEXBEGIN; driver1="V1"; row1="(D)|Growth Curve of One Restaurant(L)|(F)|INDEXBEGIN(C1)|INDEXBEGIN(C2)|(C3)|(C4)|(C5)|(C6)|F(Y1)|F(Y2)|F(Y3)|F(Y4)|F(Y5)|F(Y6)|"; row2="(D)|~Month #(L)|..."; row3="(D)|~Year #(L)|..."; row4="(D)|~Year end #(L)|...">
 
-<SPREAD-E; sumif="year"; driver1="V1"; row1="V2(D)|Sales(L)|is: revenue(F)|..."; monthsr1="0|0|0|0|0|0|1000|2000|3000|6000|11000|12000">
+<SPREADINDEX-E; sumif="year"; driver1="V1"; row1="V2(D)|Sales(L)|is: revenue(F)|..."; monthsr1="0|0|0|0|0|0|1000|2000|3000|6000|11000|12000">
 
 <INDEXEND; row2="(D)|~Aggregate Growth Curve Items:(L)|...">
 ```
@@ -82,6 +109,13 @@ The system automatically creates formulas that:
 3. **sumif Parameter**: Required for annual aggregation (usually "year" or "average")
 4. **Fincode Column**: Items with fincodes in column (F) get aggregated
 5. **Y1-Y6 "F" Values**: Required in INDEXBEGIN row1 for formula generation
+6. **INDEX-SPECIFIC E CODES**: Must use special INDEX variants within INDEX blocks:
+   - Use **SPREADINDEX-E** instead of SPREAD-E
+   - Use **CONSTINDEX-E** instead of CONST-E  
+   - Use **ENDPOINTINDEX-E** instead of ENDPOINT-E
+7. **MONTH NUMBER INPUTS**: Never use calendar dates within INDEX. Use month numbers only:
+   - ✅ CORRECT: `start month is 12"` (meaning month 12 of unit lifecycle)
+   - ❌ INCORRECT: `start month is Dec-25"` (calendar dates not allowed in INDEX)
 
 ## ISOLATION REQUIREMENTS (SELF-CONTAINMENT)
 
@@ -97,7 +131,7 @@ The system automatically creates formulas that:
 ❌ **INCORRECT** - External depreciation referencing INDEX capex:
 ```
 <INDEXBEGIN; driver1="V1">
-  <CONST-E; row1="V2(D)|Capex per Restaurant(L)|...">
+  <CONSTINDEX-E; row1="V2(D)|Capex per Restaurant(L)|...">
 <INDEXEND>
 <FAPPE-S; driver1="V2"; row1="..."> <!-- WRONG: Can't reference V2 from outside INDEX -->
 ```
@@ -105,7 +139,7 @@ The system automatically creates formulas that:
 ✅ **CORRECT** - Both capex and depreciation inside INDEX:
 ```
 <INDEXBEGIN; driver1="V1">
-  <CONST-E; row1="V2(D)|Capex per Restaurant(L)|is: capex(F)|...">
+  <CONSTINDEX-E; row1="V2(D)|Capex per Restaurant(L)|is: capex(F)|...">
   <FAPPE-S; driver1="V2"; row1="V3(D)|Depreciation per Restaurant(L)|is: depreciation(F)|...">
 <INDEXEND>
 ```
