@@ -3429,10 +3429,10 @@ export async function loadSelectedPromptModules(selectedModules) {
             
             // Use the same path patterns as the working functions
             const paths = [
-                `https://localhost:3002/prompts/${fileName}`, // Primary path (same as loadPromptFromFile)
-                `https://localhost:3002/src/prompts/${fileName}`, // Fallback path (same as srcPaths)
-                `https://localhost:3002/src/prompts/Prompt Modules/${fileName}`, // Specific module subfolder
-                `https://localhost:3002/prompts/Prompt Modules/${fileName}` // Alternative module subfolder
+                `https://localhost:3002/prompts/${fileName}`, // Primary path (works for files copied to src/prompts/)
+                `https://localhost:3002/src/prompts/${fileName}`, // Direct src path (rarely works due to server config)
+                `https://localhost:3002/src/prompts/Prompt_Modules/${fileName}`, // Specific module subfolder (usually doesn't work)
+                `https://localhost:3002/prompts/Prompt_Modules/${fileName}` // Alternative module subfolder (usually doesn't work)
             ];
             
             let response = null;

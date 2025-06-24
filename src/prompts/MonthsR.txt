@@ -1,0 +1,210 @@
+# MONTHSR1 PARAMETER: EXTREME CAUTION REQUIRED
+
+## PURPOSE
+The `monthsr1` parameter allows direct hardcoding of specific monthly values in the time series, bypassing the standard spreading mechanisms (CONST-E, SPREAD-E, ENDPOINT-E).
+
+## ⚠️ CRITICAL WARNING: USE WITH EXTREME CAUTION
+**This parameter should ONLY be used when a client explicitly requires exact month-by-month inputs that cannot be achieved through standard spreading methods.**
+
+## WHEN TO USE
+**ONLY use `monthsr1` when client explicitly states:**
+- "We will have $1000 in sales in month 1, $2000 in month 2, then $3000 ongoing"
+- "January will be $500, February will be $750, then normal operations at $1200/month"
+- "First two months are ramp-up with specific values, then steady state"
+
+## SYNTAX AND COMPLETE YEAR REQUIREMENT
+```
+monthsr1="value1|value2|value3|..."
+```
+Values are pipe-separated and populate monthly columns sequentially starting from column U.
+
+## 🚨 CRITICAL: COMPLETE YEAR RULE AND Y-COLUMN CODING
+**IF YOU USE MONTHSR1 AND AFFECT ANY MONTH IN A YEAR, YOU MUST:**
+1. **SET VALUES FOR ALL 12 MONTHS OF THAT YEAR**
+2. **CODE THE CORRESPONDING Y-COLUMN AS "F"**
+
+**Examples:**
+- **Single Year (12 values):** If month 1 = January 2025, you control all of Y1:
+  ```
+  monthsr1="1000|2000|3000|3000|3000|3000|3000|3000|3000|3000|3000|3000"
+  row1="V1(D)|Sales(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$36000(Y2)|$36000(Y3)|$36000(Y4)|$36000(Y5)|$36000(Y6)|"
+  ```
+  **Result:** Y1 = $F (formula), Y2-Y6 = standard values
+  
+- **Multiple Years (24 values):** If you control Jan 2025 through Dec 2026, you control Y1 AND Y2:
+  ```
+  monthsr1="1000|2000|3000|3000|3000|3000|3000|3000|3000|3000|3000|3000|5000|5000|5000|5000|5000|5000|5000|5000|5000|5000|5000|5000"
+  row1="V1(D)|Sales(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$60000(Y3)|$60000(Y4)|$60000(Y5)|$60000(Y6)|"
+  ```
+  **Result:** Y1 = $F, Y2 = $F (both formulas), Y3-Y6 = standard values
+
+## 🚨 CRITICAL: Y-COLUMN MAPPING RULE
+**monthsr1 values map to Y-columns as follows:**
+- **Values 1-12:** Map to Y1 → Y1 must be coded as "$F"
+- **Values 13-24:** Map to Y2 → Y2 must be coded as "$F"  
+- **Values 25-36:** Map to Y3 → Y3 must be coded as "$F"
+- **etc.**
+
+**Year Boundary Logic:**
+- **12 values:** Controls 1 complete year → Y1 = "$F"
+- **24 values:** Controls 2 complete years → Y1 = "$F", Y2 = "$F"
+- **36 values:** Controls 3 complete years → Y1 = "$F", Y2 = "$F", Y3 = "$F"
+- **etc.**
+
+**You CANNOT provide partial years like 13, 18, or 30 values. It must be complete 12-month blocks.**
+
+## ❌ COMMON MISTAKES TO AVOID
+
+**WRONG - Hardcoded values in affected Y-columns:**
+```
+monthsr1="100|200|300|300|300|300|300|300|300|300|300|300"
+row1="V1(D)|Sales(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$3000(Y1)|$36000(Y2)|..."
+```
+*Problem: Y1 should be "$F", not "$3000"*
+
+**CORRECT - "F" in affected Y-columns:**
+```
+monthsr1="100|200|300|300|300|300|300|300|300|300|300|300"
+row1="V1(D)|Sales(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$36000(Y2)|..."
+```
+*Correct: Y1 = "$F" (will be calculated by SUMIF/AVERAGEIF)*
+
+## PROPER USAGE PATTERN
+When client specifies mixed hardcoded + standardized periods:
+
+**Step 1:** Use `monthsr1` for complete 12-month blocks only
+**Step 2:** Code affected Y-columns as "$F"
+**Step 3:** Use CONST-E/SPREAD-E/ENDPOINT-E standard values for remaining years
+
+## EXAMPLE IMPLEMENTATION
+**Client Request:** "We will have $1000 in sales in month 1, $2000 in month 2, then $3000 ongoing"
+
+**CORRECT APPROACH - Complete Year with Y1="$F":**
+```
+<CONST-E; monthsr1="1000|2000|3000|3000|3000|3000|3000|3000|3000|3000|3000|3000"; row1="V1(D)|Monthly Sales(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$36000(Y2)|$36000(Y3)|$36000(Y4)|$36000(Y5)|$36000(Y6)|">
+```
+
+**Result:**
+- **Months 1-2 (Year 1):** $1000, $2000 (custom ramp-up)
+- **Months 3-12 (Year 1):** $3000 each (complete the year)
+- **Y1 Annual:** "$F" → AVERAGEIF formula calculates: (1000+2000+3000×10)/12 = $2833.33
+- **Years 2-6:** Standard CONST-E logic: $36,000 annually ($3000 × 12 months)
+
+**Why Y1="$F" Required:**
+- System automatically applies SUMIF/AVERAGEIF formulas to Y-columns with "F"
+- CONST-E with monthsr1 uses AVERAGEIF to average the 12 monthly values
+- Prevents conflicts between hardcoded annual values and monthly calculations
+- Maintains model integrity and calculation consistency
+
+## WHY EXTREME CAUTION IS REQUIRED
+
+1. **Breaks Standard Model Logic:** Circumvents the proven CONST-E/SPREAD-E/ENDPOINT-E framework
+2. **Reduces Flexibility:** Hardcoded values cannot be easily adjusted via standard assumption changes
+3. **Error Prone:** Manual month-by-month entry increases risk of mistakes
+4. **Maintenance Issues:** Future model updates become more complex
+5. **Inconsistent with Training Data:** Most training data uses standard spreading methods
+
+## 12-MONTH BLOCK PATTERN: CRITICAL IMPLEMENTATION RULE
+
+**FUNDAMENTAL RULE:** If you customize ANY month within a year using `monthsr1`, you MUST:
+1. **Customize ALL 12 months of that year**
+2. **Code affected Y-columns as "$F"**
+3. **Apply appropriate SUMIF/AVERAGEIF behavior**
+
+**Complete Year Requirements:**
+1. **Always provide complete 12-month blocks** - never partial years
+2. **Each affected year must have all 12 months defined** in `monthsr1`
+3. **Change affected annual columns to "$F"** (e.g., `$200000(Y1)` → `$F(Y1)`)
+4. **System automatically applies SUMIF/AVERAGEIF** based on code type (SPREAD-E = SUMIF, CONST-E = AVERAGEIF)
+
+**Value Count Examples:**
+- **Control Y1 only:** 12 values → Y1 = "$F", Y2-Y6 = standard values
+- **Control Y1-Y2:** 24 values → Y1 = "$F", Y2 = "$F", Y3-Y6 = standard values
+- **Control Y1-Y3:** 36 values → Y1 = "$F", Y2 = "$F", Y3 = "$F", Y4-Y6 = standard values
+
+**Single Year Example (SPREAD-E = SUMIF):**
+```
+<SPREAD-E; row1="V2(D)|Sales(L)|is: revenue(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$200000(Y2)|$200000(Y3)|$200000(Y4)|$200000(Y5)|$200000(Y6)|"; monthsr1="0|0|0|0|0|0|0|1000|2000|3000|6000|11000|12000";>
+```
+**Result:** Y1 = $F → SUMIF sums all 12 months = $35,000 total
+
+**Two Year Example (SPREAD-E = SUMIF):**
+```
+<SPREAD-E; row1="V2(D)|Sales(L)|is: revenue(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$250000(Y3)|$250000(Y4)|$250000(Y5)|$250000(Y6)|"; monthsr1="1000|2000|3000|4000|5000|6000|7000|8000|9000|10000|11000|12000|15000|15000|15000|15000|15000|15000|15000|15000|15000|15000|15000|15000";>
+```
+**Result:** Y1 = $F → SUMIF = $78,000, Y2 = $F → SUMIF = $180,000
+
+**CONST-E Example (AVERAGEIF):**
+```
+<CONST-E; row1="V3(D)|Price per Unit(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$15(Y2)|$15(Y3)|$15(Y4)|$15(Y5)|$15(Y6)|"; monthsr1="10|11|12|13|14|15|15|15|15|15|15|15";>
+```
+**Result:** Y1 = $F → AVERAGEIF averages all 12 months = $13.75 average
+
+**What This Achieves:**
+- **Affected Years:** Custom monthly values with automatic Y-column calculations via "$F"
+- **Standard Years:** Continue with normal code logic (SPREAD-E ÷ 12, CONST-E constant)
+- **Formula Consistency:** SPREAD-E uses SUMIF, CONST-E uses AVERAGEIF automatically
+
+**CRITICAL:** Never provide partial years (13, 18, 30 values). Always complete 12-month blocks. Never mix hardcoded months with standard spreading within the same year.
+
+## ALTERNATIVE APPROACHES TO CONSIDER FIRST
+
+Before using `monthsr1`, try these standard approaches:
+
+**Ramp-up scenarios:** Use ENDPOINT-E with scaling
+**Seasonal patterns:** Use multiple CONST-E codes with BEG/END functions in FORMULA-S
+**Growth patterns:** Use GROWTH-S with percentage increases
+
+## VALIDATION CHECKLIST FOR MONTHSR1 USAGE
+
+1. **Client Explicit:** Did client explicitly state exact monthly values?
+2. **No Standard Alternative:** Cannot be achieved with CONST-E/SPREAD-E/ENDPOINT-E?
+3. **Limited Scope:** Only using for the explicitly defined months?
+4. **Standard Continuation:** Using standard codes for ongoing periods?
+5. **Documentation:** Clear comments explaining the hardcoded values?
+
+## DECISION TREE
+```
+Client mentions specific monthly values?
+├── NO → Use standard CONST-E/SPREAD-E/ENDPOINT-E
+└── YES → Are these EXACT requirements that cannot be modeled with standard methods?
+    ├── NO → Use standard methods with appropriate parameters
+    └── YES → Use monthsr1 with 12-month block pattern
+        ├── Hardcode all 12 months for affected year(s)
+        ├── Change annual assumption(s) to "F"
+        └── Add sumif="year" parameter
+```
+
+## 🚨 MONTHSR1 SUMMARY: CRITICAL CHECKLIST
+
+When using `monthsr1`, you MUST follow ALL of these rules:
+
+### ✅ REQUIRED STEPS:
+1. **Complete 12-month blocks only** - 12, 24, 36 values (never 13, 18, 30, etc.)
+2. **Code affected Y-columns as "$F"** - Never leave hardcoded values in Y-columns that monthsr1 affects
+3. **Match value count to Y-columns:**
+   - 12 values → Y1 = "$F" (Y2-Y6 remain standard)
+   - 24 values → Y1 = "$F", Y2 = "$F" (Y3-Y6 remain standard)  
+   - 36 values → Y1 = "$F", Y2 = "$F", Y3 = "$F" (Y4-Y6 remain standard)
+
+### 📋 EXAMPLES FOR REFERENCE:
+**Single Year Control:**
+```
+monthsr1="100|200|300|300|300|300|300|300|300|300|300|300"
+row1="V1(D)|Sales(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$36000(Y2)|$36000(Y3)|$36000(Y4)|$36000(Y5)|$36000(Y6)|"
+```
+
+**Two Year Control:**
+```  
+monthsr1="100|200|300|300|300|300|300|300|300|300|300|300|400|400|400|400|400|400|400|400|400|400|400|400"
+row1="V1(D)|Sales(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$48000(Y3)|$48000(Y4)|$48000(Y5)|$48000(Y6)|"
+```
+
+### ❌ COMMON MISTAKES:
+- ❌ Hardcoded values in affected Y-columns: `$3000(Y1)` when monthsr1 controls Y1
+- ❌ Partial years: 13, 18, 30 values instead of complete 12-month blocks  
+- ❌ Missing "$F" in affected years while using monthsr1
+
+**This is CRITICAL for model functionality - the system expects "$F" in Y-columns when monthsr1 is used!**
+
+**Remember:** The goal is to maintain model flexibility and consistency. Only use `monthsr1` when the client's requirements absolutely cannot be met through the proven standard spreading mechanisms. 
