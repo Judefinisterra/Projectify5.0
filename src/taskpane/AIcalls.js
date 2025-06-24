@@ -1620,6 +1620,52 @@ export function consolidateAndDeduplicateTrainingData(results) {
         }
     });
 
+    // >>> ADDED: Apply training data filtering based on similarity thresholds
+    console.log(`\n🔍 === TRAINING DATA FILTERING ===`);
+    console.log(`📊 Training data before filtering: ${allTrainingData.length} entries`);
+    
+    // Sort training data by similarity score (highest first)
+    const sortedTrainingData = allTrainingData.sort((a, b) => {
+        // Handle null scores - put them at the end
+        if (a.score === null && b.score === null) return 0;
+        if (a.score === null) return 1;
+        if (b.score === null) return -1;
+        return b.score - a.score; // Descending order (highest similarity first)
+    });
+    
+    // Apply filtering logic:
+    // 1) Include up to 10 sets if similarity > 0.6
+    // 2) Include at least 4 sets regardless of similarity
+    const highQualityEntries = sortedTrainingData.filter(entry => entry.score !== null && entry.score > 0.6);
+    const filteredTrainingData = [];
+    
+    if (highQualityEntries.length === 0) {
+        // No matches above 0.6 - include top 4 (or all available if fewer than 4)
+        const entriesToInclude = Math.min(4, sortedTrainingData.length);
+        filteredTrainingData.push(...sortedTrainingData.slice(0, entriesToInclude));
+        console.log(`📊 No entries above 0.6 similarity - including top ${entriesToInclude} entries`);
+    } else if (highQualityEntries.length <= 10) {
+        // 1-10 matches above 0.6 - include all of them, but ensure minimum of 4 (or all available if fewer than 4)
+        const entriesToInclude = Math.max(Math.min(4, sortedTrainingData.length), highQualityEntries.length);
+        filteredTrainingData.push(...sortedTrainingData.slice(0, entriesToInclude));
+        console.log(`📊 ${highQualityEntries.length} entries above 0.6 similarity - including ${entriesToInclude} entries (minimum 4 or all available)`);
+    } else {
+        // 10+ matches above 0.6 - include only the top 10
+        filteredTrainingData.push(...highQualityEntries.slice(0, 10));
+        console.log(`📊 ${highQualityEntries.length} entries above 0.6 similarity - including top 10`);
+    }
+    
+    // Log the filtering results
+    const entriesAbove06 = filteredTrainingData.filter(entry => entry.score !== null && entry.score > 0.6).length;
+    const minScore = filteredTrainingData.length > 0 ? Math.min(...filteredTrainingData.map(e => e.score || 0)) : 0;
+    const maxScore = filteredTrainingData.length > 0 ? Math.max(...filteredTrainingData.map(e => e.score || 0)) : 0;
+    
+    console.log(`📊 Filtering results:`);
+    console.log(`  - Final count: ${filteredTrainingData.length} entries`);
+    console.log(`  - Entries above 0.6: ${entriesAbove06}`);
+    console.log(`  - Score range: ${minScore.toFixed(4)} - ${maxScore.toFixed(4)}`);
+    console.log(`🔍 === END TRAINING DATA FILTERING ===\n`);
+
     // Format the consolidated context data first
     let formattedOutput = "";
     if (allContextData.length > 0) {
@@ -1632,10 +1678,10 @@ export function consolidateAndDeduplicateTrainingData(results) {
         formattedOutput += "\n";
     }
 
-    // Format the consolidated training data
+    // Format the filtered training data
     formattedOutput += "Training Data:\n****\n";
     
-    allTrainingData.forEach((trainingEntry, index) => {
+    filteredTrainingData.forEach((trainingEntry, index) => {
         // Process the training entry to add line breaks between code strings in output
         let processedEntry = formatCodeStringsInTrainingEntry(trainingEntry.text);
         
@@ -1650,12 +1696,13 @@ export function consolidateAndDeduplicateTrainingData(results) {
 
     if (DEBUG) {
         console.log(`[consolidateAndDeduplicateTrainingData] Enhanced prompt generated with similarity scores:`);
-        console.log(`  - Training data entries: ${allTrainingData.length} (total original: ${totalOriginalTrainingCount})`);
+        console.log(`  - Training data entries (after filtering): ${filteredTrainingData.length} (before filtering: ${allTrainingData.length}, total original: ${totalOriginalTrainingCount})`);
         console.log(`  - Context entries: ${allContextData.length} (total original: ${totalOriginalContextCount}) [DISABLED - context queries commented out]`);
         console.log(`  - Training duplicates removed: ${trainingDuplicatesRemoved}`);
         console.log(`  - Context duplicates removed: ${contextDuplicatesRemoved}`);
-        console.log(`  - Training entries with scores: ${allTrainingData.filter(item => item.score !== null).length}`);
+        console.log(`  - Training entries with scores: ${filteredTrainingData.filter(item => item.score !== null).length}`);
         console.log(`  - Context entries with scores: ${allContextData.filter(item => item.score !== null).length}`);
+        console.log(`  - Training entries filtered out: ${allTrainingData.length - filteredTrainingData.length}`);
         console.log(`  - Using new database structure with separate input/output fields`);
     }
 

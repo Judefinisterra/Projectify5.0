@@ -1,0 +1,93 @@
+The INDEX system is used when modeling unit economics that scale over time based on volume, where each unit follows a lifecycle pattern based on its age rather than calendar dates. This is common for businesses like restaurants, retail stores, subscription cohorts, or any asset that has a maturation curve.
+
+## WHEN TO USE INDEX SYSTEM
+
+Use INDEX when the client describes:
+- Opening/launching units over time (restaurants, stores, franchises, etc.)
+- Each unit having a performance curve based on its age/maturity
+- Scaling unit economics across a volume driver
+- Cohort-based revenue/cost patterns
+- Assets that mature or ramp up over their lifetime
+
+Examples that trigger INDEX usage:
+- "I will open 1 restaurant in January, 2 in March, then 5 per year. Each restaurant generates $1000 in month 1, $2000 in month 2, then $10,000 monthly thereafter."
+- "We'll launch new stores quarterly. Each store loses money for 6 months, then becomes profitable."
+- "New subscription cohorts have different retention curves based on how long they've been customers."
+
+## INDEX SYSTEM STRUCTURE
+
+```
+<INDEXBEGIN; driver1="[VolumeDriver]"; row1="..."; row2="Month #"; row3="Year #"; row4="Year end #">
+  [Unit economics codes for ONE unit]
+<INDEXEND; row2="Aggregate Growth Curve Items:">
+```
+
+### Key Components:
+
+1. **INDEXBEGIN Code:**
+   - `driver1` parameter MUST reference the volume driver (e.g., "V1" for # of new units)
+   - Creates special time series: Month 1, Month 2, etc. (age-based, not calendar dates)
+   - Sets up scaling framework
+
+2. **Special Rows in INDEXBEGIN:**
+   - `row1`: Contains "INDEXBEGIN" markers and "F" in Y1-Y6 columns for formulas
+   - `row2`: "Month #" - represents age of unit (Month 1 = first month of life)
+   - `row3`: "Year #" - maps months to years for annual scaling
+   - `row4`: "Year end #" - defines year-end periods for calculations
+
+3. **Unit Economics (Between INDEXBEGIN/INDEXEND):**
+   - Model performance of ONE unit across its lifecycle
+   - Use monthsr parameter for month-by-month patterns
+   - Include fincode in column (F) for items that should be aggregated
+   - Use sumif="year" or sumif="average" for annual scaling
+
+4. **INDEXEND Code:**
+   - Closes the INDEX block
+   - Creates aggregate rows that sum across all units and ages
+
+## SCALING LOGIC
+
+The system automatically creates formulas that:
+- Track each unit's age in every period
+- Apply the appropriate lifecycle value based on unit age
+- Aggregate across all units of different ages
+- Scale by the volume driver
+
+**Example Calculation:**
+- Volume: 1 restaurant opens Jan 2025, 2 open Feb 2025
+- Restaurant revenue: $1000 in month 1, $2000 in month 2
+- Jan 2025 total: $1000 (1 restaurant × $1000 month-1 revenue)  
+- Feb 2025 total: $4000 (1 restaurant × $2000 month-2 revenue + 2 restaurants × $1000 month-1 revenue)
+
+## CORRECT CODE SEQUENCE
+
+1. **Volume Driver Code** (before INDEX):
+```
+<SPREAD-E; row1="V1(D)|# of New Restaurants Opened(L)|..."; monthsr1="1|0|0|1|0|0|0|0|1|0|0|0|1">
+```
+
+2. **INDEX Block**:
+```
+<INDEXBEGIN; driver1="V1"; row1="(D)|Growth Curve of One Restaurant(L)|(F)|INDEXBEGIN(C1)|INDEXBEGIN(C2)|(C3)|(C4)|(C5)|(C6)|F(Y1)|F(Y2)|F(Y3)|F(Y4)|F(Y5)|F(Y6)|"; row2="(D)|~Month #(L)|..."; row3="(D)|~Year #(L)|..."; row4="(D)|~Year end #(L)|...">
+
+<SPREAD-E; sumif="year"; driver1="V1"; row1="V2(D)|Sales(L)|is: revenue(F)|..."; monthsr1="0|0|0|0|0|0|1000|2000|3000|6000|11000|12000">
+
+<INDEXEND; row2="(D)|~Aggregate Growth Curve Items:(L)|...">
+```
+
+## CRITICAL REQUIREMENTS
+
+1. **driver1 Parameter**: INDEXBEGIN must reference the volume driver
+2. **monthsr Parameter**: Use for lifecycle patterns within INDEX
+3. **sumif Parameter**: Required for annual aggregation (usually "year" or "average")
+4. **Fincode Column**: Items with fincodes in column (F) get aggregated
+5. **Y1-Y6 "F" Values**: Required in INDEXBEGIN row1 for formula generation
+
+## VALIDATION CHECKLIST
+
+✓ Volume driver exists before INDEX block
+✓ INDEXBEGIN has driver1 parameter pointing to volume driver  
+✓ Unit economics use monthsr for lifecycle patterns
+✓ Revenue/cost items have fincode in column (F)
+✓ sumif parameter present on items that should aggregate annually
+✓ INDEXEND properly closes the block 
