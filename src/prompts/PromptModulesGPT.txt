@@ -8,3 +8,5 @@ Section labels to choose from and their descriptions (label name is string befor
 - Corporate Overhead: Employee and non-employee related expenses that relate to costs that wouldn't be considered direct costs. 
 - MarginCOGS: When a client gives you a margin assumption and you need to use that assumption to back into COGS
 - Subscriber table: When you need to calculate a running total of subscribers, adjusting for churn, upgrades, downgrades, etc. Alternatively, when you are calcualting a running total of ARR. 
+- Debt: Use when the prompt involves borrowing or lending.
+- MonthsR: When the client specifies different values for specific months within a year, month-by-month breakdowns, ramp-up periods with exact monthly figures, or seasonality with specific monthly amounts. Examples: "month 1 will be $X, month 2 will be $Y", "January will be $500, February will be $750", "First quarter ramp-up: Jan $100, Feb $200, Mar $300". 

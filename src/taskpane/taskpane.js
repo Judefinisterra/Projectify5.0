@@ -3,8 +3,8 @@ import { populateCodeCollection, exportCodeCollectionToText, runCodes, processAs
 import { validateCodeStringsForRun } from './Validation.js';
 // >>> ADDED: Import the tab string generator function
 import { generateTabString } from './IndexWorksheet.js';
-// >>> UPDATED: Import structureDatabasequeries from the helper file
-import { structureDatabasequeries } from './StructureHelper.js';
+// >>> REMOVED: structureDatabasequeries import - now handled internally by getAICallsProcessedResponse
+// import { structureDatabasequeries } from './StructureHelper.js';
 // >>> ADDED: Import setAPIKeys function from AIcalls
 import { setAPIKeys } from './AIcalls.js';
 // >>> ADDED: Import callOpenAI function from AIcalls
@@ -23,7 +23,7 @@ import { queryVectorDB } from './AIcalls.js';
 import { safeJsonForPrompt } from './AIcalls.js';
 // >>> ADDED: Import conversation handling and validation functions from AIcalls
 // Make sure handleConversation is included here
-import { handleFollowUpConversation, handleInitialConversation, handleConversation, validationCorrection, formatCodeStringsWithGPT, consolidateAndDeduplicateTrainingData, getAICallsProcessedResponse } from './AIcalls.js';
+import { handleFollowUpConversation, handleInitialConversation, handleConversation, validationCorrection, formatCodeStringsWithGPT, getAICallsProcessedResponse } from './AIcalls.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -801,37 +801,21 @@ async function handleSend() {
         let conversationResult;
         
         if (isFirstMessageInSession) {
-            // First message in conversation: query database and create enhanced prompt
-            console.log("Database queries starting...");
+            // First message in conversation: Use self-contained getAICallsProcessedResponse
+            console.log("Starting getAICallsProcessedResponse (initial - with prompt module determination)");
             
-            // Set progress message to indicate database querying
-            progressMessageContent.textContent = 'Searching training database...';
-            chatLog.scrollTop = chatLog.scrollHeight;
-
             // Create progress callback function
             const progressCallback = (message) => {
                 console.log("Progress:", message);
                 progressMessageContent.textContent = message;
                 chatLog.scrollTop = chatLog.scrollHeight;
             };
-
-            const dbResults = await structureDatabasequeries(userInput, progressCallback);
-            console.log("Database queries completed");
-
-            // Format database results into an enhanced prompt with consolidated training data and context
-            const consolidatedData = consolidateAndDeduplicateTrainingData(dbResults);
-
-            const enhancedPrompt = `Client Request: ${userInput}\n\n${consolidatedData}`;
-            console.log("Enhanced prompt created");
-            console.log("Enhanced prompt:", enhancedPrompt);
-
-            console.log("Starting getAICallsProcessedResponse (initial - with prompt module determination)");
             
-            // Update progress message
-            progressMessageContent.textContent = 'Processing with AI (including prompt module analysis)...';
+            // Set initial progress message
+            progressMessageContent.textContent = 'Processing with AI (including database queries and prompt module analysis)...';
             chatLog.scrollTop = chatLog.scrollHeight;
             
-            // Use the new function that includes prompt module determination
+            // Use the self-contained function that handles all processing internally
             const responseArray = await getAICallsProcessedResponse(userInput, progressCallback);
             
             // Create conversation result compatible with existing code
