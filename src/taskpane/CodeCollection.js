@@ -1366,7 +1366,7 @@ export async function isActiveCellGreen() {
 
 /**
  * Parses and converts FORMULA-S custom formula syntax to Excel formula
- * Handles special functions: SPREAD, BEG, END, RAISE, ONETIMEDATE, SPREADDATES
+ * Handles special functions: SPREAD, BEG, END, RAISE, ONETIMEDATE, SPREADDATES, ONETIMEINDEX
  * @param {string} formulaString - The formula string from the customformula parameter
  * @param {number} targetRow - The row number where the formula will be placed
  * @param {Excel.Worksheet} worksheet - The worksheet object (optional, needed for driver lookups)
@@ -1607,7 +1607,15 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         console.log(`    Converting INTONLY(${driver1}) to ${newFormula}`);
         return newFormula;
     });
-
+    
+    // Process ONETIMEINDEX function: ONETIMEINDEX(driver1) -> (U$8=driver1) (One-time event at specific index month)
+    result = result.replace(/ONETIMEINDEX\(([^)]+)\)/gi, (match, driver1) => {
+        // Trim whitespace from driver
+        driver1 = driver1.trim();
+        const newFormula = `(U$8=${driver1})`;
+        console.log(`    Converting ONETIMEINDEX(${driver1}) to ${newFormula}`);
+        return newFormula;
+    });
 
     
     // Replace timeseriesdivisor with U$7
@@ -5347,6 +5355,15 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                 driver1 = driver1.trim();
                 const newFormula = `(U$8>${driver1})`;
                 console.log(`    Converting INTONLY(${driver1}) to ${newFormula}`);
+                return newFormula;
+            });
+            
+            // Process ONETIMEINDEX function: ONETIMEINDEX(driver1) -> (U$8=driver1) (One-time event at specific index month)
+            formula = formula.replace(/ONETIMEINDEX\(([^)]+)\)/gi, (match, driver1) => {
+                // Trim whitespace from driver
+                driver1 = driver1.trim();
+                const newFormula = `(U$8=${driver1})`;
+                console.log(`    Converting ONETIMEINDEX(${driver1}) to ${newFormula}`);
                 return newFormula;
             });
             

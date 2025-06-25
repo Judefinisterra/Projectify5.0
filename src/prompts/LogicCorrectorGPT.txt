@@ -234,6 +234,35 @@ All three insert rows with 6 annual columns (Y1-Y6) + 72 monthly columns. All sp
 
 **CRITICAL:** Each column MUST have exactly 12 "|" pipe symbols and must end with a "|" symbol. Count them in every row!
 
+**BOLD FORMATTING RULE:** There should NEVER be two consecutive rows that both have `bold="true"`. If two adjacent rows both have bold formatting, remove bold from one of them to ensure proper visual hierarchy and readability.
+
+**INDENT FORMATTING RULE:** There should NEVER be two consecutive rows that both have `indent="1"`. If two adjacent rows both have indent=1 formatting, remove indent from one of them to ensure proper visual hierarchy and readability.
+
+**TOP BORDER FORMATTING RULE:** There should NEVER be multiple consecutive rows that both have `topborder="true"`. If two or more adjacent rows have top border formatting, remove topborder from all but one of them to ensure proper visual separation and hierarchy.
+
+**FINANCIAL STATEMENT MAPPING RULE:** You must either pass the subtotal OR the underlying items to the financial statements, but NEVER both. This prevents double-counting on the income statement/balance sheet/cash flow. Example: If you have Expense 1 and Expense 2 that both map to "is: direct costs", then their subtotal "Total Expenses" should NOT also map to "is: direct costs" - leave the subtotal's financial statement code empty.
+
+**FINANCIAL STATEMENT LABELING RULE:** If you send a subtotal to the financial statements, remove "Total" language from the label since it becomes a line item, not a subtotal, on the financial statements. Financial statement items should NEVER begin with "Total". Use specific descriptive format instead: "Expense - Marketing", "Revenue - Subscriptions", "Cost - Materials", etc.
+
+**PREFERRED LAYOUT PATTERN:** Use this common layout extensively for clean organization:
+- **Assumption rows:** `italic="true"`, `indent="2"`, `bold="false"`, `topborder="false"` (uses ~ symbol for italic)
+- **Calculation rows:** `bold="true"`, `indent="1"`, `topborder="true"`
+- **Pattern:** Alternate assumption→calculation→assumption→calculation for long expense lists
+- **Grand totals:** If you need two consecutive `bold="true"` + `indent="1"` rows, add a `<BR>` code between them
+
+**Example of preferred pattern:**
+```
+<SPREAD-E; format="Dollar"; topborder="false"; bold="True"; indent="1"; negative="false"; row1="V1(D)|Revenue(L)|is: revenue(F)|...">
+<BR; row1="(D)|BR(L)|(F)|...">
+<LABELH3; row1="(D)|~Direct Costs:(L)|(F)|...">
+<CONST-E; indent="2"; bold="false"; topborder="false"; row1="V2(D)|~% of Revenue - Expense 1(L)|(F)|...">
+<MULT2-S; driver1="V1"; driver2="V2"; topborder="true"; bold="true"; indent="1"; negative="true"; row1="V3(D)|Expense 1(L)|...">
+<CONST-E; indent="2"; bold="false"; topborder="false"; row1="V4(D)|~% of Revenue - Expense 2(L)|(F)|...">
+<MULT2-S; driver1="V1"; driver2="V4"; topborder="true"; bold="true"; indent="1"; negative="true"; row1="V5(D)|Expense 2(L)|...">
+<BR; row1="(D)|BR(L)|(F)|...">
+<SUBTOTAL2-S; topborder="false"; bold="true"; indent="1"; row1="R1(D)|Total Expense(L)|...">
+```
+
 ---
 
 ## FINAL OUTPUT

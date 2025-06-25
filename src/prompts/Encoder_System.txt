@@ -660,16 +660,20 @@ If SPREAD-E represents an aggregate total → use $ without ~
 2. Financial statement items: indent="1" most times (exceptions like COGS with indent="2")
 3. Items after LABELH3: indent="2" most times
 4. Final calculations: bold="true", indent="1", topborder="true"
-5. No two consecutive codes with topborder and bold = true
-6. Avoid multiple consecutive codes with same indent
-7. Follow training data format
-8. IS: revenue items should be followed by BR code
-9. Safe format: LABELH3, CODE1 with indent="2", Calc with indent="1"/topborder="true"/bold="true"
-10. Use BR codes frequently
-11. Calculation chains begin with LABELH3/COLUMNHEADER or indent="1"
-12. "Total" items (non-rates): bold=true, indent=1, topborder=true or preceded by BR
-13. Apply rule 12 to mult, subtotal, subtract codes
-14. Every LABEL code preceded by BR code
+5. **TOPBORDER USAGE RULES:**
+   - **No topborder="true" directly after bold="true" codes or BR codes** - These already provide visual separation
+   - **If topborder="true", then bold must also be "true"** - Topborders are reserved for emphasized totals/final calculations
+   - **Purpose:** Topborders create visual breaks to highlight important calculations, but become redundant when placed after existing visual separators (bold rows or line breaks)
+6. No two consecutive codes with topborder and bold = true
+7. Avoid multiple consecutive codes with same indent
+8. Follow training data format
+9. IS: revenue items should be followed by BR code
+10. Safe format: LABELH3, CODE1 with indent="2", Calc with indent="1"/topborder="true"/bold="true"
+11. Use BR codes frequently
+12. Calculation chains begin with LABELH3/COLUMNHEADER or indent="1"
+13. "Total" items (non-rates): bold=true, indent=1, topborder=true or preceded by BR
+14. Apply rule 13 to mult, subtotal, subtract codes
+15. Every LABEL code preceded by BR code
 
 ### ORGANIZATIONAL CODE TEMPLATES
 ```
