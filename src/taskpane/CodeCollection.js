@@ -1510,16 +1510,16 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         return `(${driver}/U$7)`;
     });
     
-    // Process BEG function: BEG(driver) -> (EOMONTH(driver,0)<=U$2)
+    // Process BEG function: BEG(driver) -> (EOMONTH(driver,0)<=EOMONTH(U$2,0))
     result = result.replace(/BEG\(([^)]+)\)/gi, (match, driver) => {
-        console.log(`    Converting BEG(${driver}) to (EOMONTH(${driver},0)<=U$2)`);
-        return `(EOMONTH(${driver},0)<=U$2)`;
+        console.log(`    Converting BEG(${driver}) to (EOMONTH(${driver},0)<=EOMONTH(U$2,0))`);
+        return `(EOMONTH(${driver},0)<=EOMONTH(U$2,0))`;
     });
     
-    // Process END function: END(driver) -> (EOMONTH(driver,0)>U$2)
+    // Process END function: END(driver) -> (EOMONTH(driver,0)>EOMONTH(U$2,0))
     result = result.replace(/END\(([^)]+)\)/gi, (match, driver) => {
-        console.log(`    Converting END(${driver}) to (EOMONTH(${driver},0)>U$2)`);
-        return `(EOMONTH(${driver},0)>U$2)`;
+        console.log(`    Converting END(${driver}) to (EOMONTH(${driver},0)>EOMONTH(U$2,0))`);
+        return `(EOMONTH(${driver},0)>EOMONTH(U$2,0))`;
     });
     
     // Process RAISE function: RAISE(driver1,driver2) -> (1 + (driver1)) ^ (U$3 - max(year(driver2), $U3))
@@ -1531,13 +1531,13 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         return `(1 + (${driver1})) ^ (U$3 - max(year(${driver2}), $U3))`;
     });
     
-    // Process ANNBONUS function: ANNBONUS(driver1,driver2) -> (driver1*(MONTH(U$2)=driver2))
+    // Process ANNBONUS function: ANNBONUS(driver1,driver2) -> (driver1*(MONTH(EOMONTH(U$2,0))=driver2))
     result = result.replace(/ANNBONUS\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
         // Trim whitespace from drivers
         driver1 = driver1.trim();
         driver2 = driver2.trim();
-        console.log(`    Converting ANNBONUS(${driver1},${driver2}) to (${driver1}*(MONTH(U$2)=${driver2}))`);
-        return `(${driver1}*(MONTH(U$2)=${driver2}))`;
+        console.log(`    Converting ANNBONUS(${driver1},${driver2}) to (${driver1}*(MONTH(EOMONTH(U$2,0))=${driver2}))`);
+        return `(${driver1}*(MONTH(EOMONTH(U$2,0))=${driver2}))`;
     });
     
     // Process QUARTERBONUS function: QUARTERBONUS(driver1) -> (driver1*(U$6<>0))
@@ -1548,20 +1548,20 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         return `(${driver1}*(U$6<>0))`;
     });
     
-    // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=U$2)
+    // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=EOMONTH(U$2,0))
     result = result.replace(/ONETIMEDATE\(([^)]+)\)/gi, (match, driver) => {
-        console.log(`    Converting ONETIMEDATE(${driver}) to (EOMONTH((${driver}),0)=U$2)`);
-        return `(EOMONTH((${driver}),0)=U$2)`;
+        console.log(`    Converting ONETIMEDATE(${driver}) to (EOMONTH((${driver}),0)=EOMONTH(U$2,0))`);
+        return `(EOMONTH((${driver}),0)=EOMONTH(U$2,0))`;
     });
     
-    // Process SPREADDATES function: SPREADDATES(driver1,driver2,driver3) -> IF(AND(EOMONTH(U$2,0)>=EOMONTH(driver2,0),EOMONTH(U$2,0)<=EOMONTH(driver3,0)),driver1/(DATEDIF(driver2,driver3,"m")+1),0)
+    // Process SPREADDATES function: SPREADDATES(driver1,driver2,driver3) -> IF(AND(EOMONTH(EOMONTH(U$2,0),0)>=EOMONTH(driver2,0),EOMONTH(EOMONTH(U$2,0),0)<=EOMONTH(driver3,0)),driver1/(DATEDIF(driver2,driver3,"m")+1),0)
     // Note: Need to handle nested parentheses and comma separation
     result = result.replace(/SPREADDATES\(([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3) => {
         // Trim whitespace from drivers
         driver1 = driver1.trim();
         driver2 = driver2.trim();
         driver3 = driver3.trim();
-        const newFormula = `IF(AND(EOMONTH(U$2,0)>=EOMONTH(${driver2},0),EOMONTH(U$2,0)<=EOMONTH(${driver3},0)),${driver1}/(DATEDIF(${driver2},${driver3},"m")+1),0)`;
+        const newFormula = `IF(AND(EOMONTH(EOMONTH(U$2,0),0)>=EOMONTH(${driver2},0),EOMONTH(EOMONTH(U$2,0),0)<=EOMONTH(${driver3},0)),${driver1}/(DATEDIF(${driver2},${driver3},"m")+1),0)`;
         console.log(`    Converting SPREADDATES(${driver1},${driver2},${driver3}) to ${newFormula}`);
         return newFormula;
     });
@@ -1625,16 +1625,16 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         return replacement;
     });
     
-    // Replace currentmonth with U$2
+    // Replace currentmonth with EOMONTH(U$2,0)
     result = result.replace(/currentmonth/gi, (match) => {
-        const replacement = 'U$2';
+        const replacement = 'EOMONTH(U$2,0)';
         console.log(`    Replacing ${match} with ${replacement}`);
         return replacement;
     });
     
-    // Replace beginningmonth with $U$2
+    // Replace beginningmonth with EOMONTH($U$2,0)
     result = result.replace(/beginningmonth/gi, (match) => {
-        const replacement = '$U$2';
+        const replacement = 'EOMONTH($U$2,0)';
         console.log(`    Replacing ${match} with ${replacement}`);
         return replacement;
     });
@@ -5216,16 +5216,16 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                 return replacement;
             });
             
-            // Replace currentmonth with U$2
+            // Replace currentmonth with EOMONTH(U$2,0)
             formula = formula.replace(/currentmonth/gi, (match) => {
-                const replacement = 'U$2';
+                const replacement = 'EOMONTH(U$2,0)';
                 console.log(`    Replacing ${match} with ${replacement}`);
                 return replacement;
             });
             
-            // Replace beginningmonth with $U$2
+            // Replace beginningmonth with EOMONTH($U$2,0)
             formula = formula.replace(/beginningmonth/gi, (match) => {
-                const replacement = '$U$2';
+                const replacement = 'EOMONTH($U$2,0)';
                 console.log(`    Replacing ${match} with ${replacement}`);
                 return replacement;
             });
@@ -5260,16 +5260,16 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                 return `(${driver}/U$7)`;
             });
             
-            // Process BEG function: BEG(driver) -> (EOMONTH(driver,0)<=U$2)
+            // Process BEG function: BEG(driver) -> (EOMONTH(driver,0)<=EOMONTH(U$2,0))
             formula = formula.replace(/BEG\(([^)]+)\)/gi, (match, driver) => {
-                console.log(`    Converting BEG(${driver}) to (EOMONTH(${driver},0)<=U$2)`);
-                return `(EOMONTH(${driver},0)<=U$2)`;
+                console.log(`    Converting BEG(${driver}) to (EOMONTH(${driver},0)<=EOMONTH(U$2,0))`);
+                return `(EOMONTH(${driver},0)<=EOMONTH(U$2,0))`;
             });
             
-            // Process END function: END(driver) -> (EOMONTH(driver,0)>U$2)
+            // Process END function: END(driver) -> (EOMONTH(driver,0)>EOMONTH(U$2,0))
             formula = formula.replace(/END\(([^)]+)\)/gi, (match, driver) => {
-                console.log(`    Converting END(${driver}) to (EOMONTH(${driver},0)>U$2)`);
-                return `(EOMONTH(${driver},0)>U$2)`;
+                console.log(`    Converting END(${driver}) to (EOMONTH(${driver},0)>EOMONTH(U$2,0))`);
+                return `(EOMONTH(${driver},0)>EOMONTH(U$2,0))`;
             });
             
             // Process RAISE function: RAISE(driver1,driver2) -> (1 + (driver1)) ^ (U$3 - max(year(driver2), $U3))
@@ -5281,13 +5281,13 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                 return `(1 + (${driver1})) ^ (U$3 - max(year(${driver2}), $U3))`;
             });
             
-            // Process ANNBONUS function: ANNBONUS(driver1,driver2) -> (driver1*(MONTH(U$2)=driver2))
+            // Process ANNBONUS function: ANNBONUS(driver1,driver2) -> (driver1*(MONTH(EOMONTH(U$2,0))=driver2))
             formula = formula.replace(/ANNBONUS\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
                 // Trim whitespace from drivers
                 driver1 = driver1.trim();
                 driver2 = driver2.trim();
-                console.log(`    Converting ANNBONUS(${driver1},${driver2}) to (${driver1}*(MONTH(U$2)=${driver2}))`);
-                return `(${driver1}*(MONTH(U$2)=${driver2}))`;
+                console.log(`    Converting ANNBONUS(${driver1},${driver2}) to (${driver1}*(MONTH(EOMONTH(U$2,0))=${driver2}))`);
+                return `(${driver1}*(MONTH(EOMONTH(U$2,0))=${driver2}))`;
             });
             
             // Process QUARTERBONUS function: QUARTERBONUS(driver1) -> (driver1*(U$6<>0))
@@ -5298,20 +5298,20 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                 return `(${driver1}*(U$6<>0))`;
             });
             
-            // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=U$2)
+            // Process ONETIMEDATE function: ONETIMEDATE(driver) -> (EOMONTH((driver),0)=EOMONTH(U$2,0))
             formula = formula.replace(/ONETIMEDATE\(([^)]+)\)/gi, (match, driver) => {
-                console.log(`    Converting ONETIMEDATE(${driver}) to (EOMONTH((${driver}),0)=U$2)`);
-                return `(EOMONTH((${driver}),0)=U$2)`;
+                console.log(`    Converting ONETIMEDATE(${driver}) to (EOMONTH((${driver}),0)=EOMONTH(U$2,0))`);
+                return `(EOMONTH((${driver}),0)=EOMONTH(U$2,0))`;
             });
             
-            // Process SPREADDATES function: SPREADDATES(driver1,driver2,driver3) -> IF(AND(EOMONTH(U$2,0)>=EOMONTH(driver2,0),EOMONTH(U$2,0)<=EOMONTH(driver3,0)),driver1/(DATEDIF(driver2,driver3,"m")+1),0)
+            // Process SPREADDATES function: SPREADDATES(driver1,driver2,driver3) -> IF(AND(EOMONTH(EOMONTH(U$2,0),0)>=EOMONTH(driver2,0),EOMONTH(EOMONTH(U$2,0),0)<=EOMONTH(driver3,0)),driver1/(DATEDIF(driver2,driver3,"m")+1),0)
             // Note: Need to handle nested parentheses and comma separation
             formula = formula.replace(/SPREADDATES\(([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3) => {
                 // Trim whitespace from drivers
                 driver1 = driver1.trim();
                 driver2 = driver2.trim();
                 driver3 = driver3.trim();
-                const newFormula = `IF(AND(EOMONTH(U$2,0)>=EOMONTH(${driver2},0),EOMONTH(U$2,0)<=EOMONTH(${driver3},0)),${driver1}/(DATEDIF(${driver2},${driver3},"m")+1),0)`;
+                const newFormula = `IF(AND(EOMONTH(EOMONTH(U$2,0),0)>=EOMONTH(${driver2},0),EOMONTH(EOMONTH(U$2,0),0)<=EOMONTH(${driver3},0)),${driver1}/(DATEDIF(${driver2},${driver3},"m")+1),0)`;
                 console.log(`    Converting SPREADDATES(${driver1},${driver2},${driver3}) to ${newFormula}`);
                 return newFormula;
             });
