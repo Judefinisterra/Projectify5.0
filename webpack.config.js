@@ -8,17 +8,22 @@ const path = require("path");
 const webpack = require("webpack");
 const dotenv = require('dotenv');
 
-// Load environment variables from .env file
+// Load environment variables from .env file (local development) or process.env (production)
 const env = dotenv.config().parsed;
 
-// Create an object with the env variables or use process.env as fallback
-const envKeys = Object.keys(env || {}).reduce((prev, next) => {
-  const value = env[next];
-  prev[`process.env.${next}`] = JSON.stringify(value);
-  return prev;
-}, {});
+// Create an object with the env variables, prioritizing process.env over .env file
+const envKeys = {};
+const requiredEnvVars = ['OPENAI_API_KEY', 'PINECONE_API_KEY', 'CLAUDE_API_KEY'];
 
-console.log("Environment variables loaded:", Object.keys(env || {}));
+requiredEnvVars.forEach(key => {
+  // Use process.env first (for Vercel), then fall back to .env file
+  const value = process.env[key] || (env && env[key]);
+  if (value) {
+    envKeys[`process.env.${key}`] = JSON.stringify(value);
+  }
+});
+
+console.log("Environment variables loaded:", Object.keys(envKeys).map(k => k.replace('process.env.', '')));
 
 const urlDev = "https://localhost:3002/";
 const urlProd = "https://www.contoso.com/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
