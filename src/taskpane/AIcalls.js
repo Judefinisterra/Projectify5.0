@@ -25,11 +25,7 @@ import { getFormatErrorsForPrompt, getFormatErrors, hasFormatErrors } from './Co
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
-const API_KEYS = {
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-  PINECONE_API_KEY: process.env.PINECONE_API_KEY,
-  CLAUDE_API_KEY: process.env.CLAUDE_API_KEY
-};
+
 
 // Mock fs module for browser environment (if needed within AIcalls)
 const fs = {
@@ -170,68 +166,33 @@ async function loadCodeDatabase() {
   }
 }
 
-// Function to load API keys from a config file
-// This allows the keys to be stored in a separate file that's .gitignored
+// Function to load API keys from environment variables
+// Keys are loaded from .env file via webpack DefinePlugin at build time
 export async function initializeAPIKeys() {
   try {
     console.log("Initializing API keys from AIcalls.js...");
 
-    // Use keys from imported config.js if available
-    if (API_KEYS?.OPENAI_API_KEY) {
-        INTERNAL_API_KEYS.OPENAI_API_KEY = API_KEYS.OPENAI_API_KEY;
-        setAIModelPlannerOpenApiKey(API_KEYS.OPENAI_API_KEY);
-        console.log("OpenAI API key loaded from config.js and set for AI Model Planner");
+    // Use keys from environment variables via webpack DefinePlugin
+    if (process.env.OPENAI_API_KEY) {
+        INTERNAL_API_KEYS.OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+        setAIModelPlannerOpenApiKey(process.env.OPENAI_API_KEY);
+        console.log("OpenAI API key loaded from environment variables and set for AI Model Planner");
     } else {
-         console.warn("OpenAI API key not found in config.js.");
+         console.warn("OpenAI API key not found in environment variables.");
     }
 
-    if (API_KEYS?.PINECONE_API_KEY) {
-        INTERNAL_API_KEYS.PINECONE_API_KEY = API_KEYS.PINECONE_API_KEY;
-        console.log("Pinecone API key loaded from config.js");
+    if (process.env.PINECONE_API_KEY) {
+        INTERNAL_API_KEYS.PINECONE_API_KEY = process.env.PINECONE_API_KEY;
+        console.log("Pinecone API key loaded from environment variables");
     } else {
-         console.warn("Pinecone API key not found in config.js.");
+         console.warn("Pinecone API key not found in environment variables.");
     }
 
-    if (API_KEYS?.CLAUDE_API_KEY) {
-        INTERNAL_API_KEYS.CLAUDE_API_KEY = API_KEYS.CLAUDE_API_KEY;
-        console.log("Claude API key loaded from config.js");
+    if (process.env.CLAUDE_API_KEY) {
+        INTERNAL_API_KEYS.CLAUDE_API_KEY = process.env.CLAUDE_API_KEY;
+        console.log("Claude API key loaded from environment variables");
     } else {
-         console.warn("Claude API key not found in config.js.");
-    }
-
-    // Fallback: try fetching from the old location if config.js didn't provide them
-    if (!INTERNAL_API_KEYS.OPENAI_API_KEY || !INTERNAL_API_KEYS.PINECONE_API_KEY || !INTERNAL_API_KEYS.CLAUDE_API_KEY) {
-        console.log("Attempting fallback API key loading from https://localhost:3002/config.js");
-        try {
-            const configResponse = await fetch('https://localhost:3002/config.js');
-            if (configResponse.ok) {
-                const configText = await configResponse.text();
-                // Extract keys from the config text using regex
-                const openaiKeyMatch = configText.match(/OPENAI_API_KEY\s*=\s*["']([^"']+)["']/);
-                const pineconeKeyMatch = configText.match(/PINECONE_API_KEY\s*=\s*["']([^"']+)["']/);
-                const claudeKeyMatch = configText.match(/CLAUDE_API_KEY\s*=\s*["']([^"']+)["']/);
-
-                if (!INTERNAL_API_KEYS.OPENAI_API_KEY && openaiKeyMatch && openaiKeyMatch[1]) {
-                    INTERNAL_API_KEYS.OPENAI_API_KEY = openaiKeyMatch[1];
-                    setAIModelPlannerOpenApiKey(openaiKeyMatch[1]);
-                    console.log("OpenAI API key loaded via fetch fallback and set for AI Model Planner.");
-                }
-
-                if (!INTERNAL_API_KEYS.PINECONE_API_KEY && pineconeKeyMatch && pineconeKeyMatch[1]) {
-                    INTERNAL_API_KEYS.PINECONE_API_KEY = pineconeKeyMatch[1];
-                    console.log("Pinecone API key loaded via fetch fallback.");
-                }
-
-                if (!INTERNAL_API_KEYS.CLAUDE_API_KEY && claudeKeyMatch && claudeKeyMatch[1]) {
-                    INTERNAL_API_KEYS.CLAUDE_API_KEY = claudeKeyMatch[1];
-                    console.log("Claude API key loaded via fetch fallback.");
-                }
-            } else {
-                 console.warn("Fallback fetch for config.js failed or returned non-OK status.");
-            }
-        } catch (error) {
-            console.warn("Could not load config.js via fetch fallback:", error);
-        }
+         console.warn("Claude API key not found in environment variables.");
     }
     
     // Add debug logging with secure masking of keys

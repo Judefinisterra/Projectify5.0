@@ -6,28 +6,19 @@ const CustomFunctionsMetadataPlugin = require("custom-functions-metadata-plugin"
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const path = require("path");
 const webpack = require("webpack");
-const Dotenv = require('dotenv-webpack');
-const { config } = require('dotenv');
+const dotenv = require('dotenv');
 
 // Load environment variables from .env file
-const envResult = config();
-let envKeys = {};
+const env = dotenv.config().parsed;
 
-if (envResult.parsed) {
-  console.log("ENV vars loaded from .env file:", Object.keys(envResult.parsed));
-  // Create an object with properly formatted environment variables
-  Object.keys(envResult.parsed).forEach(key => {
-    envKeys[`process.env.${key}`] = JSON.stringify(envResult.parsed[key]);
-  });
-} else {
-  console.warn("No .env file found or error parsing it:", envResult.error);
-}
+// Create an object with the env variables or use process.env as fallback
+const envKeys = Object.keys(env || {}).reduce((prev, next) => {
+  const value = env[next];
+  prev[`process.env.${next}`] = JSON.stringify(value);
+  return prev;
+}, {});
 
-// Add process.env polyfill
-envKeys["process.env"] = JSON.stringify({});
-
-// Add debug logging to check what's being defined
-console.log("Environment variables being defined:", Object.keys(envKeys).map(k => k.replace('process.env.', '')));
+console.log("Environment variables loaded:", Object.keys(env || {}));
 
 const urlDev = "https://localhost:3002/";
 const urlProd = "https://www.contoso.com/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
@@ -86,7 +77,7 @@ module.exports = async (env, options) => {
       ],
     },
     plugins: [
-      new Dotenv(),
+
       new CustomFunctionsMetadataPlugin({
         output: "functions.json",
         input: "./src/functions/functions.js",
@@ -106,7 +97,10 @@ module.exports = async (env, options) => {
         template: "./src/commands/commands.html",
         chunks: ["polyfill", "commands"],
       }),
-      new webpack.DefinePlugin(envKeys),
+      new webpack.DefinePlugin({
+        'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
+        ...envKeys,
+      }),
       new webpack.ProvidePlugin({
         process: 'process/browser',
       }),
@@ -135,10 +129,7 @@ module.exports = async (env, options) => {
               }
             },
           },
-          {
-            from: "config.js",
-            to: "config.js",
-          },
+
         ],
       }),
     ],
