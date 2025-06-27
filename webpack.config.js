@@ -6,10 +6,11 @@ const CustomFunctionsMetadataPlugin = require("custom-functions-metadata-plugin"
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const path = require("path");
 const webpack = require("webpack");
-const dotenv = require('dotenv');
+const Dotenv = require('dotenv-webpack');
+const { config } = require('dotenv');
 
 // Load environment variables from .env file
-const envResult = dotenv.config();
+const envResult = config();
 let envKeys = {};
 
 if (envResult.parsed) {
@@ -85,6 +86,7 @@ module.exports = async (env, options) => {
       ],
     },
     plugins: [
+      new Dotenv(),
       new CustomFunctionsMetadataPlugin({
         output: "functions.json",
         input: "./src/functions/functions.js",

@@ -24,10 +24,11 @@
     "watch": "webpack --mode development --watch"
   },
   "dependencies": {
+    "@pinecone-database/pinecone": "^6.1.1",
     "core-js": "^3.36.0",
-    "regenerator-runtime": "^0.14.1",
+    "cors": "^2.8.5",
     "express": "^4.18.2",
-    "cors": "^2.8.5"
+    "regenerator-runtime": "^0.14.1"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",
@@ -43,6 +44,7 @@
     "copy-webpack-plugin": "^12.0.2",
     "custom-functions-metadata-plugin": "^2.1.2",
     "dotenv": "^16.4.7",
+    "dotenv-webpack": "^8.1.0",
     "eslint-plugin-office-addins": "^4.0.3",
     "file-loader": "^6.2.0",
     "html-loader": "^5.0.0",
