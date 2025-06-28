@@ -27,7 +27,7 @@ import { handleFollowUpConversation, handleInitialConversation, handleConversati
 // >>> ADDED: Import CONFIG for URL management
 import { CONFIG } from './config.js';
 // >>> ADDED: Import file attachment and voice input functionality from AIModelPlanner
-import { initializeFileAttachment, initializeVoiceInput, setAIModelPlannerOpenApiKey } from './AIModelPlanner.js';
+import { initializeFileAttachment, initializeVoiceInput, initializeTextareaAutoResize, setAIModelPlannerOpenApiKey } from './AIModelPlanner.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -1729,6 +1729,11 @@ Office.onReady((info) => {
         initializeVoiceInput();
       }
       
+      // Initialize textarea auto-resize functionality
+      if (typeof initializeTextareaAutoResize === 'function') {
+        initializeTextareaAutoResize();
+      }
+      
       console.log("Client Mode activated");
     }
 
@@ -1757,20 +1762,7 @@ Office.onReady((info) => {
         console.error("Could not find button with id='client-mode-button'");
     }
 
-    // >>> ADDED: Auto-resize for client textarea
-    const userInputClientTextarea = document.getElementById('user-input-client');
-    if (userInputClientTextarea) {
-        userInputClientTextarea.addEventListener('input', function() {
-            this.style.height = 'auto'; // Reset height to recalculate
-            let newHeight = this.scrollHeight;
-            const maxHeight = parseInt(window.getComputedStyle(this).maxHeight, 10);
-            if (maxHeight && newHeight > maxHeight) {
-                newHeight = maxHeight;
-            }
-            this.style.height = newHeight + 'px';
-        });
-    }
-    // <<< END ADDED
+
 
     // Assign the REVISED async function as the handler
     const button = document.getElementById("insert-and-run");

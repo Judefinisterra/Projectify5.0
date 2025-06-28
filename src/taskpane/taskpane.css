@@ -1077,10 +1077,39 @@ body {
     font-size: 1em;
     resize: none; /* Disable manual resize */
     background-color: transparent;
-    max-height: 150px; /* Max height before scrolling */
-    overflow-y: auto; /* Add scroll for overflow */
+    min-height: 24px; /* Base single-line height */
+    height: 24px; /* Start at single-line height */
+    max-height: 120px; /* 5x the base height (24px * 5) */
+    overflow-y: hidden; /* Initially hidden, will show when max height reached */
     line-height: 1.5;
     box-sizing: border-box;
+    transition: height 0.15s ease-out; /* Smooth height transitions */
+    scrollbar-width: thin;
+    scrollbar-color: #d1d5db transparent;
+}
+
+/* Show scrollbar when content exceeds max height */
+#user-input-client.scrollable {
+    overflow-y: auto;
+}
+
+/* Custom scrollbar styling for webkit browsers */
+#user-input-client::-webkit-scrollbar {
+    width: 6px;
+}
+
+#user-input-client::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 3px;
+}
+
+#user-input-client::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+}
+
+#user-input-client::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
 }
 
 #user-input-client:focus {

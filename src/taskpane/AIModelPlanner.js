@@ -2311,9 +2311,8 @@ function useTranscribedText(text) {
         const newText = currentText ? `${currentText} ${text}` : text;
         userInput.value = newText;
         
-        // Auto-resize textarea if needed
-        userInput.style.height = 'auto';
-        userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
+        // Trigger auto-resize (the new auto-resize system will handle this)
+        autoResizeTextarea(userInput);
         
         console.log('[Voice] Transcribed text added to input:', text);
     }
@@ -2404,6 +2403,77 @@ export function initializeVoiceInput() {
     });
     
     console.log('[Voice] ChatGPT-style voice input functionality initialized successfully');
+}
+
+// ========== TEXTAREA AUTO-RESIZE FUNCTIONALITY ==========
+
+// Function to auto-resize textarea based on content
+function autoResizeTextarea(textarea) {
+    if (!textarea) return;
+    
+    const baseHeight = 24; // Base single-line height (matches CSS min-height)
+    const maxHeight = 120; // Maximum height before scrolling (matches CSS max-height)
+    const lineHeight = 24; // Approximate line height based on font size and line-height
+    
+    // Reset height to base to get accurate scrollHeight
+    textarea.style.height = baseHeight + 'px';
+    
+    // Calculate required height based on content
+    const scrollHeight = textarea.scrollHeight;
+    const requiredHeight = Math.max(baseHeight, scrollHeight);
+    
+    // Set height up to maximum, then enable scrolling
+    if (requiredHeight <= maxHeight) {
+        textarea.style.height = requiredHeight + 'px';
+        textarea.classList.remove('scrollable');
+    } else {
+        textarea.style.height = maxHeight + 'px';
+        textarea.classList.add('scrollable');
+    }
+    
+    console.log(`[TextArea] Auto-resize: required=${requiredHeight}px, set=${textarea.style.height}, scrollable=${textarea.classList.contains('scrollable')}`);
+}
+
+// Function to initialize textarea auto-resize functionality
+export function initializeTextareaAutoResize() {
+    console.log('[TextArea] Initializing auto-resize functionality');
+    
+    const textarea = document.getElementById('user-input-client');
+    if (!textarea) {
+        console.warn('[TextArea] Textarea not found');
+        return;
+    }
+    
+    // Auto-resize on input
+    textarea.addEventListener('input', () => {
+        autoResizeTextarea(textarea);
+    });
+    
+    // Auto-resize on paste
+    textarea.addEventListener('paste', () => {
+        // Use setTimeout to wait for paste content to be inserted
+        setTimeout(() => {
+            autoResizeTextarea(textarea);
+        }, 10);
+    });
+    
+    // Auto-resize when text is set programmatically (like from voice input)
+    const originalValueDescriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+    Object.defineProperty(textarea, 'value', {
+        set: function(newValue) {
+            originalValueDescriptor.set.call(this, newValue);
+            autoResizeTextarea(this);
+        },
+        get: function() {
+            return originalValueDescriptor.get.call(this);
+        },
+        configurable: true
+    });
+    
+    // Initial resize to set proper height
+    autoResizeTextarea(textarea);
+    
+    console.log('[TextArea] Auto-resize functionality initialized successfully');
 }
 
 
