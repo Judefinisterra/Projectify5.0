@@ -2016,54 +2016,104 @@ function initializeWaveform() {
 
 // Function to cleanup waveform
 function cleanupWaveform() {
+    console.log('[Voice] Cleaning up waveform visualization');
+    
     if (waveformAnimationId) {
         cancelAnimationFrame(waveformAnimationId);
         waveformAnimationId = null;
     }
     
     if (audioContext && audioContext.state !== 'closed') {
-        audioContext.close();
+        audioContext.close().catch(err => {
+            console.warn('[Voice] Error closing audio context:', err);
+        });
         audioContext = null;
     }
     
     analyser = null;
+    
+    // Clear the canvas
+    if (waveformCanvas) {
+        const ctx = waveformCanvas.getContext('2d');
+        const rect = waveformCanvas.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+    }
 }
 
 // Function to draw waveform
 function drawWaveform() {
-    if (!waveformCanvas || !analyser) return;
+    if (!waveformCanvas || !analyser) {
+        return;
+    }
     
     const ctx = waveformCanvas.getContext('2d');
     const rect = waveformCanvas.getBoundingClientRect();
     const width = rect.width;
     const height = rect.height;
     
-    // Get frequency data
-    const bufferLength = analyser.frequencyBinCount;
+    // Get time domain data for real-time audio visualization
+    const bufferLength = analyser.fftSize;
     const dataArray = new Uint8Array(bufferLength);
-    analyser.getByteFrequencyData(dataArray);
+    analyser.getByteTimeDomainData(dataArray);
     
-    // Clear canvas
-    ctx.fillStyle = 'transparent';
-    ctx.fillRect(0, 0, width, height);
+    // Clear canvas with transparent background
+    ctx.clearRect(0, 0, width, height);
     
-    // Draw waveform bars
-    const barWidth = width / bufferLength * 2.5;
-    let barHeight;
-    let x = 0;
+    // Calculate how many bars we want to show
+    const numBars = Math.min(60, Math.floor(width / 4)); // Adjust bar count based on width
+    const barWidth = (width - (numBars - 1)) / numBars; // Account for spacing
     
-    for (let i = 0; i < bufferLength; i++) {
-        barHeight = (dataArray[i] / 255) * height * 0.8;
+    // Process audio data to create frequency-style visualization
+    const samplesPerBar = Math.floor(bufferLength / numBars);
+    
+    for (let i = 0; i < numBars; i++) {
+        let sum = 0;
+        let amplitude = 0;
         
-        // Use black color for waveform bars
+        // Calculate RMS (root mean square) for this bar's audio data
+        for (let j = 0; j < samplesPerBar; j++) {
+            const sample = (dataArray[i * samplesPerBar + j] - 128) / 128; // Normalize to -1 to 1
+            sum += sample * sample;
+        }
+        
+        amplitude = Math.sqrt(sum / samplesPerBar);
+        
+        // Add some smoothing and make it more responsive
+        const minHeight = 3; // Minimum bar height for better visibility
+        const maxHeight = height * 0.8;
+        
+        // Amplify the signal for better visual feedback
+        const amplifiedAmplitude = Math.pow(amplitude * 2, 0.8); // Power curve for better visual response
+        let barHeight = minHeight + (amplifiedAmplitude * maxHeight);
+        
+        // Add subtle animation for visual interest
+        const timeOffset = Date.now() * 0.005; // Slow time-based animation
+        const animationFactor = Math.sin(timeOffset + i * 0.2) * 0.1; // Slight wave effect
+        barHeight += animationFactor * 3;
+        
+        // Add some randomness for visual interest when there's audio
+        if (amplitude > 0.005) { // Lower threshold for better responsiveness
+            barHeight += Math.random() * 3;
+        }
+        
+        // Ensure minimum visibility and cap maximum
+        barHeight = Math.max(barHeight, minHeight);
+        barHeight = Math.min(barHeight, maxHeight);
+        
+        // Calculate x position with spacing
+        const x = i * (barWidth + 1);
+        
+        // Draw the bar centered vertically
+        const y = (height - barHeight) / 2;
+        
         ctx.fillStyle = '#000000';
-        ctx.fillRect(x, height - barHeight, barWidth, barHeight);
-        
-        x += barWidth + 1;
+        ctx.fillRect(x, y, barWidth, barHeight);
     }
     
-    // Continue animation
-    waveformAnimationId = requestAnimationFrame(drawWaveform);
+    // Continue animation - this ensures continuous updates
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        waveformAnimationId = requestAnimationFrame(drawWaveform);
+    }
 }
 
 // Function to start audio recording with waveform
@@ -2087,10 +2137,24 @@ async function startVoiceRecording() {
         const source = audioContext.createMediaStreamSource(stream);
         source.connect(analyser);
         
-        analyser.fftSize = 256;
+        // Configure analyser for real-time visualization
+        analyser.fftSize = 1024; // Higher resolution for better visualization
+        analyser.smoothingTimeConstant = 0.3; // Smooth but responsive
+        analyser.minDecibels = -90;
+        analyser.maxDecibels = -10;
         
         // Start waveform animation
         drawWaveform();
+        
+        // Backup timer to ensure continuous animation (in case requestAnimationFrame fails)
+        const backupTimer = setInterval(() => {
+            if (mediaRecorder && mediaRecorder.state === 'recording' && !waveformAnimationId) {
+                console.log('[Voice] Restarting waveform animation via backup timer');
+                drawWaveform();
+            } else if (!mediaRecorder || mediaRecorder.state !== 'recording') {
+                clearInterval(backupTimer);
+            }
+        }, 100); // Check every 100ms
         
         // Create MediaRecorder
         const options = { mimeType: 'audio/webm;codecs=opus' };
@@ -2128,7 +2192,7 @@ async function startVoiceRecording() {
         mediaRecorder.start();
         recordingStartTime = Date.now();
         
-        console.log('[Voice] Recording started');
+        console.log('[Voice] Recording started with continuous waveform visualization');
         
         // Start timer
         startRecordingTimer();
