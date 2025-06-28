@@ -1521,6 +1521,50 @@ function processPDFFile(file) {
     });
 }
 
+// Function to process text files (.txt)
+function processTXTFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const textContent = e.target.result;
+                
+                console.log('[processTXTFile] Processing plain text file');
+                
+                // Split text into paragraphs for better formatting
+                const paragraphs = textContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+                
+                // Split into lines for line count
+                const lines = textContent.split(/\n/);
+                
+                const fileData = {
+                    fileName: file.name,
+                    fileSize: file.size,
+                    fileType: 'TXT',
+                    content: {
+                        rawText: textContent,
+                        paragraphs: paragraphs,
+                        lines: lines,
+                        lineCount: lines.length,
+                        wordCount: textContent.split(/\s+/).filter(word => word.length > 0).length,
+                        characterCount: textContent.length
+                    }
+                };
+                
+                console.log('[processTXTFile] Successfully processed text file:', fileData.fileName);
+                console.log(`[processTXTFile] Extracted ${fileData.content.wordCount} words, ${fileData.content.lineCount} lines, ${fileData.content.paragraphs.length} paragraphs`);
+                resolve(fileData);
+                
+            } catch (error) {
+                console.error('[processTXTFile] Error processing text file:', error);
+                reject(error);
+            }
+        };
+        reader.onerror = () => reject(new Error('Failed to read text file'));
+        reader.readAsText(file, 'UTF-8'); // Specify UTF-8 encoding
+    });
+}
+
 // Function to format file data for AI consumption (supports multiple files)
 function formatFileDataForAI(filesData) {
     if (!Array.isArray(filesData)) {
@@ -1556,6 +1600,27 @@ function formatFileDataForAI(filesData) {
             
             if (fileData.content.rawText.length > 2000) {
                 formattedData += `*Note: Showing first 2000 characters of ${fileData.content.characterCount} total characters.*\n\n`;
+            }
+        } else if (fileData.fileType === 'TXT') {
+            // Format text file content
+            formattedData += `Line Count: ${fileData.content.lineCount}\n`;
+            formattedData += `Word Count: ${fileData.content.wordCount}\n`;
+            formattedData += `Character Count: ${fileData.content.characterCount}\n`;
+            formattedData += `Paragraphs: ${fileData.content.paragraphs.length}\n\n`;
+            
+            formattedData += `**Text Content:**\n`;
+            formattedData += '```\n';
+            
+            // Show first 2000 characters with line breaks preserved
+            const previewText = fileData.content.rawText.length > 2000 
+                ? fileData.content.rawText.substring(0, 2000) + '...' 
+                : fileData.content.rawText;
+            
+            formattedData += previewText;
+            formattedData += '\n```\n\n';
+            
+            if (fileData.content.rawText.length > 2000) {
+                formattedData += `*Note: Showing first 2000 characters of ${fileData.content.characterCount} total characters from ${fileData.content.lineCount} lines.*\n\n`;
             }
         } else if (fileData.fileType === 'PDF') {
             // Format PDF document content
@@ -1633,21 +1698,22 @@ async function handleFileAttachment(file) {
             'text/csv', // .csv
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
             'application/msword', // .doc
-            'application/pdf' // .pdf
+            'application/pdf', // .pdf
+            'text/plain' // .txt
         ];
         
         const fileExtension = file.name.toLowerCase().split('.').pop();
         console.log('[handleFileAttachment] File extension:', fileExtension);
         
         const mimeTypeAllowed = allowedTypes.includes(file.type);
-        const extensionAllowed = ['xlsx', 'xls', 'csv', 'doc', 'docx', 'pdf'].includes(fileExtension);
+        const extensionAllowed = ['xlsx', 'xls', 'csv', 'doc', 'docx', 'pdf', 'txt'].includes(fileExtension);
         
         console.log('[handleFileAttachment] MIME type allowed:', mimeTypeAllowed);
         console.log('[handleFileAttachment] Extension allowed:', extensionAllowed);
         
         if (!mimeTypeAllowed && !extensionAllowed) {
             console.log('[handleFileAttachment] File validation failed - neither MIME type nor extension is allowed');
-            throw new Error('Please upload an Excel file (.xlsx, .xls), CSV file (.csv), Word document (.doc, .docx), or PDF file (.pdf)');
+            throw new Error('Please upload an Excel file (.xlsx, .xls), CSV file (.csv), Word document (.doc, .docx), PDF file (.pdf), or Text file (.txt)');
         }
         
         // Validate file size (max 10MB)
@@ -1669,6 +1735,9 @@ async function handleFileAttachment(file) {
         } else if (fileExtension === 'pdf' || file.type === 'application/pdf') {
             console.log('[handleFileAttachment] Processing as PDF file');
             fileData = await processPDFFile(file);
+        } else if (fileExtension === 'txt' || file.type === 'text/plain') {
+            console.log('[handleFileAttachment] Processing as Text file');
+            fileData = await processTXTFile(file);
         } else {
             console.log('[handleFileAttachment] Processing as Excel file');
             fileData = await processXLSXFile(file);
@@ -1778,7 +1847,7 @@ function removeAllAttachments() {
 
 // Function to initialize file attachment event listeners
 export function initializeFileAttachment() {
-    console.log('[initializeFileAttachment] Setting up multiple file attachment listeners with PDF support - VERSION 4.0');
+    console.log('[initializeFileAttachment] Setting up multiple file attachment listeners with PDF and TXT support - VERSION 5.0');
     
     // Get elements
     const attachFileButton = document.getElementById('attach-file-client');
