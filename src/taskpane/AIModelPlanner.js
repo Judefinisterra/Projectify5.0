@@ -22,9 +22,9 @@ let modelPlannerConversationHistory = [];
 let AI_MODEL_PLANNER_OPENAI_API_KEY = "";
 let lastPlannerResponseForClient = null; // To store the last response for client mode buttons
 
-const DEBUG_PLANNER = true; // For planner-specific debugging
-
 import { processModelCodesForPlanner } from './taskpane.js'; // <<< UPDATED IMPORT
+
+const DEBUG_PLANNER = CONFIG.isDevelopment; // For planner-specific debugging
 
 // Helper function to get API keys (placeholder, adapt as needed based on your structure)
 // This might need to be coordinated with how API keys are managed in your main taskpane.js

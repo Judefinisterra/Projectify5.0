@@ -65,6 +65,11 @@ module.exports = async (env, options) => {
           exclude: /node_modules/,
           use: {
             loader: "babel-loader",
+            options: {
+              plugins: dev ? [] : [
+                ["transform-remove-console", {"exclude": ["error", "warn"]}]
+              ]
+            }
           },
         },
         {

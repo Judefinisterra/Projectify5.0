@@ -32,7 +32,7 @@ import { CONFIG } from './config.js';
 
 
 //Debugging Toggle
-const DEBUG = true;
+const DEBUG = CONFIG.isDevelopment;
 
 // Variable to store loaded code strings
 let loadedCodeStrings = "";

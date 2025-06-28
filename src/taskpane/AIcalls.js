@@ -43,7 +43,7 @@ const fs = {
 const startTime = performance.now();
 
 //Debugging Toggle
-const DEBUG = true;
+const DEBUG = CONFIG.isDevelopment;
 
 // Variable to store loaded code strings
 let loadedCodeStrings = "";
