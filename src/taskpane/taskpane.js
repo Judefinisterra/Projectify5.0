@@ -26,6 +26,8 @@ import { safeJsonForPrompt } from './AIcalls.js';
 import { handleFollowUpConversation, handleInitialConversation, handleConversation, validationCorrection, formatCodeStringsWithGPT, getAICallsProcessedResponse } from './AIcalls.js';
 // >>> ADDED: Import CONFIG for URL management
 import { CONFIG } from './config.js';
+// >>> ADDED: Import file attachment functionality from AIModelPlanner
+import { initializeFileAttachment } from './AIModelPlanner.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -1716,6 +1718,12 @@ Office.onReady((info) => {
       if (startupMenu) startupMenu.style.display = 'none';
       if (appBody) appBody.style.display = 'none';
       if (clientModeView) clientModeView.style.display = 'flex'; // Matches .ms-welcome__main display
+      
+      // Initialize file attachment functionality
+      if (typeof initializeFileAttachment === 'function') {
+        initializeFileAttachment();
+      }
+      
       console.log("Client Mode activated");
     }
 

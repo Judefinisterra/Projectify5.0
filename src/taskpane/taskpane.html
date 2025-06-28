@@ -206,12 +206,27 @@
             <!-- Input area wrapper that will be repositioned -->
             <div id="client-input-wrapper" class="client-input-area-wrapper">
                 <div class="chatgpt-input-bar">
+                    <div class="left-controls">
+                        <input type="file" id="file-input-client" accept=".xlsx,.xls,.csv" style="display: none;">
+                        <button id="attach-file-client" class="ms-Button ms-Button--icon attachment-button" title="Attach Excel or CSV file">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="plus-icon">
+                                <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                            </svg>
+                        </button>
+                    </div>
                     <textarea id="user-input-client" placeholder="Describe your business" rows="1"></textarea>
                     <button id="send-client" class="ms-Button ms-Button--icon">
                         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="send-icon">
                             <path d="M12 4L12 20M12 4L18 10M12 4L6 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
                         </svg>
                     </button>
+                </div>
+                <div id="attached-file-display" class="attached-file-display" style="display: none;">
+                    <div class="attached-file-info">
+                        <span id="attached-file-name" class="file-name"></span>
+                        <span id="attached-file-size" class="file-size"></span>
+                        <button id="remove-attachment-client" class="remove-attachment-btn">×</button>
+                    </div>
                 </div>
                 <div id="loading-animation-client" class="loading-animation" style="display: none;"></div>
             </div>

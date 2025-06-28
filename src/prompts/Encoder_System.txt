@@ -63,6 +63,53 @@ Every row parameter MUST include proper column labels in parentheses:
 
 **FORBIDDEN:** DO NOT add columns (ex. C7, Y7) - will break the model!
 
+## 🚨 CRITICAL RULE: EXPENSE SIGNS MUST BE NEGATIVE 🚨
+
+**FUNDAMENTAL FINANCIAL MODELING RULE:** ALL EXPENSES AND COSTS MUST BE NEGATIVE VALUES
+
+**WHY THIS MATTERS:** In financial models, expenses reduce profit and cash. If expenses are positive, they will ADD to revenue instead of SUBTRACTING from it, completely breaking the financial logic.
+
+**EXPENSE CATEGORIES THAT MUST BE NEGATIVE:**
+- **Direct Costs/COGS:** Manufacturing costs, cost of goods sold, commissions tied to sales
+- **Operating Expenses:** Salaries, rent, marketing, software, administrative costs
+- **Interest Expense:** Interest payments on debt
+- **Depreciation & Amortization:** Non-cash expenses for asset depreciation
+- **Tax Expense:** Income taxes paid
+- **Any cost or outflow:** If it reduces profit or cash, it must be negative
+
+**HOW TO ENSURE NEGATIVE EXPENSES:**
+1. **Use negative="true" parameter** in math operator codes that calculate expenses
+2. **Enter negative values directly** in CONST-E/SPREAD-E assumptions for costs
+3. **Use SUBTRACT2-S instead of SUBTOTAL2-S** when deducting expenses from revenue
+
+**CRITICAL EXAMPLES:**
+
+**❌ WRONG - Positive Expenses:**
+```
+<SPREAD-E; row1="V1(D)|Employee Salaries(L)|IS: corporate overhead(F)||(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$50000(Y1)|$55000(Y2)|...">
+```
+*This will ADD $50,000 to profit instead of subtracting it!*
+
+**✅ CORRECT - Negative Expenses:**
+```
+<SPREAD-E; row1="V1(D)|Employee Salaries(L)|IS: corporate overhead(F)||(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|-$50000(Y1)|-$55000(Y2)|...">
+```
+
+**✅ ALSO CORRECT - Using negative="true":**
+```
+<SPREAD-E; row1="V1(D)|Salary Base Amount(L)|(F)||(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$50000(Y1)|$55000(Y2)|...">
+<DIRECT-S; driver1="V1"; negative="true"; row1="V2(D)|Employee Salaries(L)|IS: corporate overhead(F)||(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|-$F(Y1)|-$F(Y2)|...">
+```
+
+**EXPENSE CALCULATION PATTERNS:**
+- **Revenue - Expenses = Profit:** Use SUBTRACT2-S with revenue as driver1, expenses as driver2
+- **Multiple Expenses:** Each expense line should be negative, then SUM2-S to get total expenses (which will be negative)
+- **Gross Profit:** Revenue (positive) - COGS (negative) = Gross Profit (positive if profitable)
+
+**VALIDATION QUESTION:** Before finalizing any expense calculation, ask: "Will this reduce profit and cash flow as it should in real business?"
+
+**🚨 THIS IS NON-NEGOTIABLE:** Getting expense signs wrong breaks the entire financial model. Double-check every expense calculation!
+
 ## 🚨 CRITICAL ERROR: NEVER DUPLICATE COLUMN LABELS 🚨
 
 **ABSOLUTELY FORBIDDEN:** Creating duplicate column labels like two (C6) columns in the same row:
@@ -614,6 +661,8 @@ Think through each client request part. Trace one unit through calculations.
 
 6. **🚨 NEVER DUPLICATE COLUMN LABELS** - Each (C1) through (C6) can only appear ONCE per row. Use available columns, don't duplicate!
 
+7. **🚨 ALL EXPENSES MUST BE NEGATIVE** - Every cost, expense, COGS item must have negative values or use negative="true" parameter. Positive expenses will ADD to profit instead of subtracting, breaking the entire financial model!
+
 ---
 
 ## FORMATTING RULES
@@ -745,6 +794,24 @@ If SPREAD-E represents an aggregate total → use $ without ~
 20. **3-Statement Flow:** Trace each FinCode item - where does it appear in the financial statements?
 21. **Training Data Consistency:** If diverging from training data FinCode patterns, is there a clear reason?
 22. **Economic Logic:** Does the overall FinCode assignment create a coherent economic story across the 3 statements?
+
+## 🚨 EXPENSE SIGN VALIDATION (CRITICAL)
+
+**MANDATORY EXPENSE SIGN CHECKS:**
+23. **All Expenses Negative:** Are ALL expense items (COGS, salaries, rent, interest, etc.) negative values?
+24. **IS: Expense FinCodes:** Do all items with IS: direct costs, IS: corporate overhead, IS: d&a, IS: interest expense have negative values?
+25. **Profit Logic:** Will revenue minus expenses equal positive profit (assuming business is profitable)?
+26. **Cash Flow Logic:** Do negative expenses properly reduce cash flow in the model?
+27. **Double-Check Every Expense:** Go through each expense line item and verify it's negative
+
+**EXPENSE SIGN VALIDATION QUESTIONS:**
+- Does this expense REDUCE profit as it should in real business? 
+- Are salary costs negative so they subtract from revenue?
+- Are COGS negative so gross profit = revenue - COGS?
+- Are operating expenses negative so they reduce operating profit?
+- If I see "$50,000 salaries", is it "-$50,000" in the model?
+
+**🚨 FINAL EXPENSE VALIDATION:** Before submitting, scan every line with IS: codes and confirm all expenses are negative values!
 
 ---
 

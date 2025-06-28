@@ -21,6 +21,7 @@ import { getAICallsProcessedResponse, validationCorrection } from './AIcalls.js'
 let modelPlannerConversationHistory = [];
 let AI_MODEL_PLANNER_OPENAI_API_KEY = "";
 let lastPlannerResponseForClient = null; // To store the last response for client mode buttons
+let currentAttachedFile = null; // To store the current attached file data
 
 import { processModelCodesForPlanner } from './taskpane.js'; // <<< UPDATED IMPORT
 
@@ -802,11 +803,18 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
 }
 
 export async function plannerHandleSend() {
-    console.log("[plannerHandleSend] Function called - VERSION 2"); // Debug to ensure new code is running
+    console.log("[plannerHandleSend] Function called - VERSION 3"); // Debug to ensure new code is running
     
     const userInputElement = document.getElementById('user-input-client');
     if (!userInputElement) { console.error("AIModelPlanner: Client user input element not found."); return; }
-    const userInput = userInputElement.value.trim();
+    let userInput = userInputElement.value.trim();
+
+    // Check if there's an attached file and include it in the prompt
+    if (currentAttachedFile) {
+        console.log("[plannerHandleSend] Including attached file data:", currentAttachedFile.fileName);
+        const fileDataForAI = formatFileDataForAI(currentAttachedFile);
+        userInput = userInput + fileDataForAI;
+    }
 
     if (!userInput) {
         alert('Please enter a request (Client Mode)');
@@ -869,8 +877,19 @@ export async function plannerHandleSend() {
     }
     // <<< END ADDED
 
-    displayInClientChatLogPlanner(userInput, true);
+    // Display only the original user input (without file data) in chat log
+    const originalUserInput = userInputElement.value.trim();
+    let displayMessage = originalUserInput;
+    if (currentAttachedFile) {
+        displayMessage += ` 📎 (${currentAttachedFile.fileName})`;
+    }
+    displayInClientChatLogPlanner(displayMessage, true);
+    
     userInputElement.value = '';
+    
+    // Clear attachment after sending
+    removeAttachment();
+    
     setClientLoadingStatePlanner(true);
 
     // Create assistant message elements for streaming
@@ -1137,6 +1156,10 @@ export function plannerHandleReset() {
     modelPlannerConversationHistory = [];
     lastPlannerResponseForClient = null;
 
+    // >>> ADDED: Clear attached file
+    removeAttachment();
+    // <<< END ADDED
+
     const userInput = document.getElementById('user-input-client');
     if (userInput) userInput.value = '';
 
@@ -1246,6 +1269,264 @@ export function clearLastModelCodes() {
         console.error("[clearLastModelCodes] Error clearing ModelCodes:", error);
         return false;
     }
+}
+
+// ========== FILE ATTACHMENT FUNCTIONALITY ==========
+
+// Function to format file size
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+// Function to process XLSX file using SheetJS
+function processXLSXFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                const result = {
+                    fileName: file.name,
+                    fileSize: file.size,
+                    fileType: 'XLSX',
+                    sheets: {},
+                    sheetNames: workbook.SheetNames
+                };
+                
+                // Process each sheet
+                workbook.SheetNames.forEach(sheetName => {
+                    const worksheet = workbook.Sheets[sheetName];
+                    
+                    // Convert to JSON format (array of arrays)
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                    
+                    // Also get CSV format for text processing
+                    const csvData = XLSX.utils.sheet_to_csv(worksheet);
+                    
+                    result.sheets[sheetName] = {
+                        json: jsonData,
+                        csv: csvData,
+                        range: worksheet['!ref'] || 'A1:A1'
+                    };
+                });
+                
+                console.log('[processXLSXFile] Successfully processed XLSX file:', result.fileName);
+                resolve(result);
+            } catch (error) {
+                console.error('[processXLSXFile] Error processing XLSX file:', error);
+                reject(error);
+            }
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+// Function to process CSV file
+function processCSVFile(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const csvData = e.target.result;
+                
+                // Parse CSV data using SheetJS
+                const workbook = XLSX.read(csvData, { type: 'string' });
+                const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                
+                const result = {
+                    fileName: file.name,
+                    fileSize: file.size,
+                    fileType: 'CSV',
+                    sheets: {
+                        'Sheet1': {
+                            json: jsonData,
+                            csv: csvData,
+                            range: worksheet['!ref'] || 'A1:A1'
+                        }
+                    },
+                    sheetNames: ['Sheet1']
+                };
+                
+                console.log('[processCSVFile] Successfully processed CSV file:', result.fileName);
+                resolve(result);
+            } catch (error) {
+                console.error('[processCSVFile] Error processing CSV file:', error);
+                reject(error);
+            }
+        };
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsText(file);
+    });
+}
+
+// Function to format file data for AI consumption
+function formatFileDataForAI(fileData) {
+    let formattedData = `\n\n📎 **Attached File: ${fileData.fileName}** (${formatFileSize(fileData.fileSize)})\n`;
+    formattedData += `File Type: ${fileData.fileType}\n`;
+    formattedData += `Number of Sheets: ${fileData.sheetNames.length}\n\n`;
+    
+    // Process each sheet
+    fileData.sheetNames.forEach((sheetName, index) => {
+        const sheet = fileData.sheets[sheetName];
+        formattedData += `**Sheet ${index + 1}: ${sheetName}**\n`;
+        formattedData += `Range: ${sheet.range}\n`;
+        
+        if (sheet.json && sheet.json.length > 0) {
+            formattedData += `Data Preview (first 10 rows):\n`;
+            formattedData += '```\n';
+            
+            // Show first 10 rows of data
+            const previewRows = sheet.json.slice(0, 10);
+            previewRows.forEach((row, rowIndex) => {
+                const rowData = row.map(cell => cell !== null && cell !== undefined ? String(cell) : '').join(' | ');
+                formattedData += `Row ${rowIndex + 1}: ${rowData}\n`;
+            });
+            
+            if (sheet.json.length > 10) {
+                formattedData += `... (${sheet.json.length - 10} more rows)\n`;
+            }
+            formattedData += '```\n\n';
+        } else {
+            formattedData += 'No data found in this sheet.\n\n';
+        }
+    });
+    
+    formattedData += `Please analyze this data and help me build a financial model based on the information provided.`;
+    
+    return formattedData;
+}
+
+// Function to handle file attachment
+async function handleFileAttachment(file) {
+    try {
+        console.log('[handleFileAttachment] Processing file:', file.name);
+        
+        // Validate file type
+        const allowedTypes = [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+            'application/vnd.ms-excel', // .xls
+            'text/csv' // .csv
+        ];
+        
+        const fileExtension = file.name.toLowerCase().split('.').pop();
+        
+        if (!allowedTypes.includes(file.type) && !['xlsx', 'xls', 'csv'].includes(fileExtension)) {
+            throw new Error('Please upload an Excel file (.xlsx, .xls) or CSV file (.csv)');
+        }
+        
+        // Validate file size (max 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            throw new Error('File size must be less than 10MB');
+        }
+        
+        // Process file based on type
+        let fileData;
+        if (fileExtension === 'csv' || file.type === 'text/csv') {
+            fileData = await processCSVFile(file);
+        } else {
+            fileData = await processXLSXFile(file);
+        }
+        
+        // Store the processed file data
+        currentAttachedFile = fileData;
+        
+        // Update UI to show attached file
+        showAttachedFile(fileData);
+        
+        console.log('[handleFileAttachment] File processed successfully:', fileData.fileName);
+        return fileData;
+        
+    } catch (error) {
+        console.error('[handleFileAttachment] Error processing file:', error);
+        // Show error to user
+        displayInClientChatLogPlanner(`Error processing file: ${error.message}`, false);
+        throw error;
+    }
+}
+
+// Function to show attached file in UI
+function showAttachedFile(fileData) {
+    const attachedFileDisplay = document.getElementById('attached-file-display');
+    const attachedFileName = document.getElementById('attached-file-name');
+    const attachedFileSize = document.getElementById('attached-file-size');
+    
+    if (attachedFileDisplay && attachedFileName && attachedFileSize) {
+        attachedFileName.textContent = fileData.fileName;
+        attachedFileSize.textContent = formatFileSize(fileData.fileSize);
+        attachedFileDisplay.style.display = 'block';
+        
+        console.log('[showAttachedFile] Showing attached file in UI:', fileData.fileName);
+    }
+}
+
+// Function to hide attached file in UI
+function hideAttachedFile() {
+    const attachedFileDisplay = document.getElementById('attached-file-display');
+    
+    if (attachedFileDisplay) {
+        attachedFileDisplay.style.display = 'none';
+        console.log('[hideAttachedFile] Hidden attached file from UI');
+    }
+}
+
+// Function to remove attachment
+function removeAttachment() {
+    currentAttachedFile = null;
+    hideAttachedFile();
+    console.log('[removeAttachment] Attachment removed');
+}
+
+// Function to initialize file attachment event listeners
+export function initializeFileAttachment() {
+    console.log('[initializeFileAttachment] Setting up file attachment listeners');
+    
+    // Get elements
+    const attachFileButton = document.getElementById('attach-file-client');
+    const fileInput = document.getElementById('file-input-client');
+    const removeAttachmentButton = document.getElementById('remove-attachment-client');
+    
+    if (!attachFileButton || !fileInput || !removeAttachmentButton) {
+        console.warn('[initializeFileAttachment] Some attachment elements not found');
+        return;
+    }
+    
+    // Attach file button click
+    attachFileButton.addEventListener('click', () => {
+        console.log('[initializeFileAttachment] Attach file button clicked');
+        fileInput.click();
+    });
+    
+    // File input change
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            console.log('[initializeFileAttachment] File selected:', file.name);
+            try {
+                await handleFileAttachment(file);
+            } catch (error) {
+                // Error already handled in handleFileAttachment
+            }
+        }
+        // Clear the input so the same file can be selected again
+        fileInput.value = '';
+    });
+    
+    // Remove attachment button click
+    removeAttachmentButton.addEventListener('click', () => {
+        console.log('[initializeFileAttachment] Remove attachment button clicked');
+        removeAttachment();
+    });
+    
+    console.log('[initializeFileAttachment] File attachment listeners set up successfully');
 }
 
 

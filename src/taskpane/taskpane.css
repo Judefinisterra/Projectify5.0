@@ -1080,7 +1080,6 @@ body {
     max-height: 150px; /* Max height before scrolling */
     overflow-y: auto; /* Add scroll for overflow */
     line-height: 1.5;
-    margin-right: 8px; /* Space between textarea and button */
     box-sizing: border-box;
 }
 
@@ -1123,6 +1122,97 @@ body {
 #send-client .send-icon {
     width: 20px; /* Adjust icon size */
     height: 20px;
+}
+
+/* Attachment functionality styles */
+.left-controls {
+    display: flex;
+    align-items: center;
+    margin-right: 8px;
+}
+
+.attachment-button {
+    background: transparent !important;
+    border: none !important;
+    padding: 6px !important;
+    min-width: auto !important;
+    min-height: auto !important;
+    color: #6b7280 !important;
+    transition: color 0.2s ease;
+    border-radius: 50% !important;
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.attachment-button:hover {
+    color: #374151 !important;
+    background: rgba(0, 0, 0, 0.08) !important;
+}
+
+.attachment-button .plus-icon {
+    width: 20px;
+    height: 20px;
+    stroke: currentColor;
+}
+
+.attached-file-display {
+    background-color: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #374151;
+}
+
+.attached-file-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.file-name {
+    font-weight: 500;
+    color: #1f2937;
+}
+
+.file-size {
+    color: #6b7280;
+    font-size: 11px;
+}
+
+.remove-attachment-btn {
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+    margin-left: 8px;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.remove-attachment-btn:hover {
+    background-color: #fee2e2;
+    color: #dc2626;
+}
+
+/* Spacing between textarea and send button */
+.chatgpt-input-bar #user-input-client {
+    margin-right: 8px;
 }
 
 /* Chat log starts hidden and will expand when conversation starts */
