@@ -1367,39 +1367,124 @@ function processCSVFile(file) {
     });
 }
 
+// Function to process Word document files (.docx, .doc)
+function processWordFile(file) {
+    return new Promise((resolve, reject) => {
+        // Check if mammoth.js is available
+        if (typeof mammoth === 'undefined') {
+            reject(new Error('Mammoth.js library not loaded. Please refresh the page and try again.'));
+            return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const arrayBuffer = e.target.result;
+                
+                console.log('[processWordFile] Using mammoth.js to extract text from Word document');
+                
+                // Use mammoth.js to extract text from Word document
+                mammoth.extractRawText({ arrayBuffer: arrayBuffer })
+                    .then(function(mammothResult) {
+                        const textContent = mammothResult.value; // The raw text
+                        const messages = mammothResult.messages; // Any warnings
+                        
+                        // Log any warnings from mammoth
+                        if (messages.length > 0) {
+                            console.warn('[processWordFile] Mammoth warnings:', messages);
+                        }
+                        
+                        // Split text into paragraphs for better formatting
+                        const paragraphs = textContent.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+                        
+                        const fileData = {
+                            fileName: file.name,
+                            fileSize: file.size,
+                            fileType: 'WORD',
+                            content: {
+                                rawText: textContent,
+                                paragraphs: paragraphs,
+                                wordCount: textContent.split(/\s+/).filter(word => word.length > 0).length,
+                                characterCount: textContent.length
+                            }
+                        };
+                        
+                        console.log('[processWordFile] Successfully processed Word file:', fileData.fileName);
+                        console.log(`[processWordFile] Extracted ${fileData.content.wordCount} words, ${fileData.content.paragraphs.length} paragraphs`);
+                        resolve(fileData);
+                    })
+                    .catch(function(error) {
+                        console.error('[processWordFile] Error extracting text from Word document:', error);
+                        reject(new Error(`Failed to process Word document: ${error.message}`));
+                    });
+                    
+            } catch (error) {
+                console.error('[processWordFile] Error processing Word file:', error);
+                reject(error);
+            }
+        };
+        reader.onerror = () => reject(new Error('Failed to read Word file'));
+        reader.readAsArrayBuffer(file);
+    });
+}
+
 // Function to format file data for AI consumption
 function formatFileDataForAI(fileData) {
     let formattedData = `\n\n📎 **Attached File: ${fileData.fileName}** (${formatFileSize(fileData.fileSize)})\n`;
     formattedData += `File Type: ${fileData.fileType}\n`;
-    formattedData += `Number of Sheets: ${fileData.sheetNames.length}\n\n`;
     
-    // Process each sheet
-    fileData.sheetNames.forEach((sheetName, index) => {
-        const sheet = fileData.sheets[sheetName];
-        formattedData += `**Sheet ${index + 1}: ${sheetName}**\n`;
-        formattedData += `Range: ${sheet.range}\n`;
+    if (fileData.fileType === 'WORD') {
+        // Format Word document content
+        formattedData += `Word Count: ${fileData.content.wordCount}\n`;
+        formattedData += `Character Count: ${fileData.content.characterCount}\n`;
+        formattedData += `Paragraphs: ${fileData.content.paragraphs.length}\n\n`;
         
-        if (sheet.json && sheet.json.length > 0) {
-            formattedData += `Data Preview (first 10 rows):\n`;
-            formattedData += '```\n';
-            
-            // Show first 10 rows of data
-            const previewRows = sheet.json.slice(0, 10);
-            previewRows.forEach((row, rowIndex) => {
-                const rowData = row.map(cell => cell !== null && cell !== undefined ? String(cell) : '').join(' | ');
-                formattedData += `Row ${rowIndex + 1}: ${rowData}\n`;
-            });
-            
-            if (sheet.json.length > 10) {
-                formattedData += `... (${sheet.json.length - 10} more rows)\n`;
-            }
-            formattedData += '```\n\n';
-        } else {
-            formattedData += 'No data found in this sheet.\n\n';
+        formattedData += `**Document Content:**\n`;
+        formattedData += '```\n';
+        
+        // Show first 2000 characters with paragraph breaks
+        const previewText = fileData.content.rawText.length > 2000 
+            ? fileData.content.rawText.substring(0, 2000) + '...' 
+            : fileData.content.rawText;
+        
+        formattedData += previewText;
+        formattedData += '\n```\n\n';
+        
+        if (fileData.content.rawText.length > 2000) {
+            formattedData += `*Note: Showing first 2000 characters of ${fileData.content.characterCount} total characters.*\n\n`;
         }
-    });
+    } else {
+        // Format Excel/CSV data
+        formattedData += `Number of Sheets: ${fileData.sheetNames.length}\n\n`;
+        
+        // Process each sheet
+        fileData.sheetNames.forEach((sheetName, index) => {
+            const sheet = fileData.sheets[sheetName];
+            formattedData += `**Sheet ${index + 1}: ${sheetName}**\n`;
+            formattedData += `Range: ${sheet.range}\n`;
+            
+            if (sheet.json && sheet.json.length > 0) {
+                formattedData += `Data Preview (first 10 rows):\n`;
+                formattedData += '```\n';
+                
+                // Show first 10 rows of data
+                const previewRows = sheet.json.slice(0, 10);
+                previewRows.forEach((row, rowIndex) => {
+                    const rowData = row.map(cell => cell !== null && cell !== undefined ? String(cell) : '').join(' | ');
+                    formattedData += `Row ${rowIndex + 1}: ${rowData}\n`;
+                });
+                
+                if (sheet.json.length > 10) {
+                    formattedData += `... (${sheet.json.length - 10} more rows)\n`;
+                }
+                formattedData += '```\n\n';
+            } else {
+                formattedData += 'No data found in this sheet.\n\n';
+            }
+        });
+    }
     
-    formattedData += `Please analyze this data and help me build a financial model based on the information provided.`;
+    formattedData += `Please analyze this ${fileData.fileType.toLowerCase()} file and help me build a financial model based on the information provided.`;
     
     return formattedData;
 }
@@ -1408,18 +1493,30 @@ function formatFileDataForAI(fileData) {
 async function handleFileAttachment(file) {
     try {
         console.log('[handleFileAttachment] Processing file:', file.name);
+        console.log('[handleFileAttachment] File type (MIME):', file.type);
+        console.log('[handleFileAttachment] File size:', file.size);
         
         // Validate file type
         const allowedTypes = [
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
             'application/vnd.ms-excel', // .xls
-            'text/csv' // .csv
+            'text/csv', // .csv
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+            'application/msword' // .doc
         ];
         
         const fileExtension = file.name.toLowerCase().split('.').pop();
+        console.log('[handleFileAttachment] File extension:', fileExtension);
         
-        if (!allowedTypes.includes(file.type) && !['xlsx', 'xls', 'csv'].includes(fileExtension)) {
-            throw new Error('Please upload an Excel file (.xlsx, .xls) or CSV file (.csv)');
+        const mimeTypeAllowed = allowedTypes.includes(file.type);
+        const extensionAllowed = ['xlsx', 'xls', 'csv', 'doc', 'docx'].includes(fileExtension);
+        
+        console.log('[handleFileAttachment] MIME type allowed:', mimeTypeAllowed);
+        console.log('[handleFileAttachment] Extension allowed:', extensionAllowed);
+        
+        if (!mimeTypeAllowed && !extensionAllowed) {
+            console.log('[handleFileAttachment] File validation failed - neither MIME type nor extension is allowed');
+            throw new Error('Please upload an Excel file (.xlsx, .xls), CSV file (.csv), or Word document (.doc, .docx)');
         }
         
         // Validate file size (max 10MB)
@@ -1431,8 +1528,15 @@ async function handleFileAttachment(file) {
         // Process file based on type
         let fileData;
         if (fileExtension === 'csv' || file.type === 'text/csv') {
+            console.log('[handleFileAttachment] Processing as CSV file');
             fileData = await processCSVFile(file);
+        } else if (fileExtension === 'doc' || fileExtension === 'docx' || 
+                   file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                   file.type === 'application/msword') {
+            console.log('[handleFileAttachment] Processing as Word document');
+            fileData = await processWordFile(file);
         } else {
+            console.log('[handleFileAttachment] Processing as Excel file');
             fileData = await processXLSXFile(file);
         }
         
@@ -1487,7 +1591,7 @@ function removeAttachment() {
 
 // Function to initialize file attachment event listeners
 export function initializeFileAttachment() {
-    console.log('[initializeFileAttachment] Setting up file attachment listeners');
+    console.log('[initializeFileAttachment] Setting up file attachment listeners - VERSION WITH WORD SUPPORT v2.0');
     
     // Get elements
     const attachFileButton = document.getElementById('attach-file-client');
