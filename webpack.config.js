@@ -132,10 +132,7 @@ module.exports = async (env, options) => {
           {
             from: "assets/*",
             to: "assets/[name][ext][query]",
-          },
-          {
-            from: "assets/*.xlsx",
-            to: "assets/[name][ext]"
+            noErrorOnMissing: true
           },
           {
             from: "./src/prompts/*",
@@ -168,15 +165,29 @@ module.exports = async (env, options) => {
       static: [
         {
           directory: path.join(__dirname, "dist"),
-          publicPath: "/"
+          publicPath: "/",
+          serveIndex: true
         },
         {
           directory: path.join(__dirname, "assets"),
-          publicPath: "/assets"
+          publicPath: "/assets",
+          serveIndex: true
         }
       ],
       headers: {
         "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-cache"
+      },
+      setupMiddlewares: (middlewares, devServer) => {
+        // Add middleware to properly serve Excel files as binary
+        devServer.app.use('/assets/*.xlsx', (req, res, next) => {
+          res.set({
+            'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Cache-Control': 'no-cache'
+          });
+          next();
+        });
+        return middlewares;
       },
       server: {
         type: "https",

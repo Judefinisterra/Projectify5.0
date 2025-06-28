@@ -1155,56 +1155,70 @@ export async function processModelCodesForPlanner(modelCodesString) {
         console.log("[processModelCodesForPlanner] Inserting base sheets from Worksheets_4.3.25 v1.xlsx...");
         const worksheetUrl = CONFIG.getAssetUrl('assets/Worksheets_4.3.25 v1.xlsx');
         console.log(`[processModelCodesForPlanner] Loading worksheets from: ${worksheetUrl}`);
-        const worksheetsResponse = await fetch(worksheetUrl);
+        
+        // Enhanced fetch with proper binary handling
+        const worksheetsResponse = await fetch(worksheetUrl, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,*/*'
+            },
+            cache: 'no-cache'
+        });
+        
         console.log(`[processModelCodesForPlanner] Worksheets response status: ${worksheetsResponse.status} ${worksheetsResponse.statusText}`);
+        console.log(`[processModelCodesForPlanner] Worksheets response headers:`, Object.fromEntries(worksheetsResponse.headers.entries()));
+        
         if (!worksheetsResponse.ok) throw new Error(`[processModelCodesForPlanner] Worksheets_4.3.25 v1.xlsx load failed: ${worksheetsResponse.status} ${worksheetsResponse.statusText}`);
         
         const wsArrayBuffer = await worksheetsResponse.arrayBuffer();
         console.log(`[processModelCodesForPlanner] Worksheets ArrayBuffer size: ${wsArrayBuffer.byteLength} bytes`);
         
-        // Try multiple base64 conversion methods
-        let wsBase64String;
-        try {
-            // Method 1: Use FileReader (current approach)
-            console.log(`[processModelCodesForPlanner] Trying FileReader method...`);
-            const blob = new Blob([wsArrayBuffer]);
-            wsBase64String = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    const dataUrl = reader.result;
-                    const base64 = dataUrl.split(',')[1]; // Remove data:application/octet-stream;base64, prefix
-                    resolve(base64);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
-            console.log(`[processModelCodesForPlanner] FileReader method successful`);
-        } catch (fileReaderError) {
-            console.warn(`[processModelCodesForPlanner] FileReader method failed:`, fileReaderError);
-            
-            // Method 2: Use direct binary conversion (fallback)
-            try {
-                console.log(`[processModelCodesForPlanner] Trying direct binary conversion...`);
-                const uint8Array = new Uint8Array(wsArrayBuffer);
-                let binaryString = '';
-                
-                // Process in smaller chunks to avoid call stack issues
-                const chunkSize = 8192;
-                for (let i = 0; i < uint8Array.length; i += chunkSize) {
-                    const chunk = uint8Array.subarray(i, i + chunkSize);
-                    binaryString += String.fromCharCode(...chunk);
-                }
-                
-                wsBase64String = btoa(binaryString);
-                console.log(`[processModelCodesForPlanner] Direct binary conversion successful`);
-            } catch (directError) {
-                console.error(`[processModelCodesForPlanner] All base64 conversion methods failed:`, directError);
-                throw new Error(`Failed to convert worksheets to base64: ${directError.message}`);
-            }
+        // Verify the ArrayBuffer contains valid Excel data
+        const uint8View = new Uint8Array(wsArrayBuffer);
+        const firstFourBytes = Array.from(uint8View.slice(0, 4)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+        console.log(`[processModelCodesForPlanner] First 4 bytes of ArrayBuffer: ${firstFourBytes}`);
+        
+        // Check for Excel signature (PK = 50 4B in hex)
+        if (uint8View[0] === 0x50 && uint8View[1] === 0x4B) {
+            console.log(`[processModelCodesForPlanner] ✅ Valid Excel file signature in ArrayBuffer`);
+        } else {
+            console.error(`[processModelCodesForPlanner] ❌ Invalid Excel file signature in ArrayBuffer!`);
+            console.error(`[processModelCodesForPlanner] Expected: 50 4B (PK), Got: ${uint8View[0].toString(16)} ${uint8View[1].toString(16)}`);
+            throw new Error(`Excel file is corrupted - invalid file signature in source ArrayBuffer`);
         }
         
-        console.log(`[processModelCodesForPlanner] Worksheets base64 length: ${wsBase64String.length} characters`);
-        console.log(`[processModelCodesForPlanner] Worksheets base64 prefix: ${wsBase64String.substring(0, 50)}...`);
+        // Robust base64 conversion using proven method
+        console.log(`[processModelCodesForPlanner] Converting ArrayBuffer to base64...`);
+        let wsBase64String;
+        
+        try {
+            // Use the most reliable method: Uint8Array -> btoa
+            const uint8Array = new Uint8Array(wsArrayBuffer);
+            
+            // Convert to binary string using reliable chunk processing
+            let binaryString = '';
+            const chunkSize = 8192; // Process in chunks to avoid call stack limits
+            
+            for (let i = 0; i < uint8Array.length; i += chunkSize) {
+                const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, uint8Array.length));
+                // Use spread operator for better compatibility
+                binaryString += String.fromCharCode(...chunk);
+            }
+            
+            // Convert to base64
+            wsBase64String = btoa(binaryString);
+            
+            console.log(`[processModelCodesForPlanner] ✅ Base64 conversion successful`);
+            console.log(`[processModelCodesForPlanner] Worksheets base64 length: ${wsBase64String.length} characters`);
+            
+            // Verify the base64 is valid by testing decode
+            const testDecode = atob(wsBase64String.substring(0, 100));
+            console.log(`[processModelCodesForPlanner] ✅ Base64 decode test successful`);
+            
+        } catch (conversionError) {
+            console.error(`[processModelCodesForPlanner] ❌ Base64 conversion failed:`, conversionError);
+            throw new Error(`Failed to convert worksheets to base64: ${conversionError.message}`);
+        }
         
         await handleInsertWorksheetsFromBase64(wsBase64String);
         console.log("[processModelCodesForPlanner] Base sheets (Worksheets_4.3.25 v1.xlsx) inserted.");

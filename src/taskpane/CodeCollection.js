@@ -4586,7 +4586,11 @@ export async function handleInsertWorksheetsFromBase64(base64String, sheetNames 
                 if (decodedStart.startsWith('PK')) {
                     console.log(`[handleInsertWorksheetsFromBase64] ✅ Valid Excel file signature detected`);
                 } else {
-                    console.warn(`[handleInsertWorksheetsFromBase64] ⚠️ Unexpected file signature - may not be valid Excel file`);
+                    console.error(`[handleInsertWorksheetsFromBase64] ❌ Invalid Excel file signature!`);
+                    console.error(`[handleInsertWorksheetsFromBase64] Expected: PK (50 4B)`);
+                    console.error(`[handleInsertWorksheetsFromBase64] Actual first 10 chars: "${decodedStart.substring(0, 10)}"`);
+                    console.error(`[handleInsertWorksheetsFromBase64] Actual bytes: ${bytes}`);
+                    console.error(`[handleInsertWorksheetsFromBase64] This indicates file corruption during build/fetch process`);
                 }
             } catch (headerError) {
                 console.warn(`[handleInsertWorksheetsFromBase64] Could not verify file header:`, headerError);
