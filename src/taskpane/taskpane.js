@@ -1219,6 +1219,20 @@ export async function processModelCodesForPlanner(modelCodesString) {
         }
         
         if (!worksheetsResponse) {
+            console.warn(`[processModelCodesForPlanner] All URLs failed, attempting test with minimal Excel file...`);
+            try {
+                // Import is already done at top of file, just need to import the specific function
+                const CodeCollectionModule = await import('./CodeCollection.js');
+                const minimalBase64 = CodeCollectionModule.createMinimalExcelBase64();
+                console.log(`[processModelCodesForPlanner] Testing with minimal Excel file (${minimalBase64.length} chars)...`);
+                await handleInsertWorksheetsFromBase64(minimalBase64, ['TestSheet']);
+                console.log(`[processModelCodesForPlanner] ✅ Minimal Excel test succeeded! The Excel API works.`);
+                console.log(`[processModelCodesForPlanner] Issue is definitely with asset loading/corruption, not Excel API.`);
+            } catch (testError) {
+                console.error(`[processModelCodesForPlanner] ❌ Even minimal Excel test failed:`, testError);
+                console.error(`[processModelCodesForPlanner] This suggests Excel API issue, not just asset loading issue.`);
+            }
+            
             throw new Error(`All worksheet URLs failed. Last error: ${lastError?.message || 'Unknown error'}`);
         }
         
