@@ -1153,22 +1153,97 @@ export async function processModelCodesForPlanner(modelCodesString) {
 
                     // 2. Insert base sheets from Worksheets_4.3.25 v1.xlsx
         console.log("[processModelCodesForPlanner] Inserting base sheets from Worksheets_4.3.25 v1.xlsx...");
-        const worksheetUrl = CONFIG.getAssetUrl('assets/Worksheets_4.3.25 v1.xlsx');
-        console.log(`[processModelCodesForPlanner] Loading worksheets from: ${worksheetUrl}`);
+        // First, test if basic assets are accessible
+        console.log(`[processModelCodesForPlanner] Testing basic asset accessibility...`);
+        try {
+            const testUrls = CONFIG.getAssetUrlsWithFallback('assets/codestringDB.txt');
+            for (const testUrl of testUrls) {
+                try {
+                    const testResponse = await fetch(testUrl, { method: 'HEAD' });
+                    console.log(`[processModelCodesForPlanner] Asset test - ${testUrl}: ${testResponse.status}`);
+                    if (testResponse.ok) {
+                        console.log(`[processModelCodesForPlanner] ✅ Basic assets are accessible via: ${testUrl}`);
+                        break;
+                    }
+                } catch (e) {
+                    console.log(`[processModelCodesForPlanner] Asset test failed for ${testUrl}: ${e.message}`);
+                }
+            }
+        } catch (testError) {
+            console.warn(`[processModelCodesForPlanner] Asset accessibility test failed:`, testError);
+        }
+
+        // Try multiple URLs with fallback in production
+        const worksheetUrls = CONFIG.getAssetUrlsWithFallback('assets/Worksheets_4.3.25 v1.xlsx');
+        console.log(`[processModelCodesForPlanner] Trying ${worksheetUrls.length} possible URLs:`, worksheetUrls);
         
-        // Enhanced fetch with proper binary handling
-        const worksheetsResponse = await fetch(worksheetUrl, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,*/*'
-            },
-            cache: 'no-cache'
-        });
+        let worksheetsResponse = null;
+        let lastError = null;
+        
+        // Enhanced fetch with proper binary handling and fallback
+        for (let i = 0; i < worksheetUrls.length; i++) {
+            const url = worksheetUrls[i];
+            console.log(`[processModelCodesForPlanner] Attempt ${i + 1}/${worksheetUrls.length}: ${url}`);
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,*/*'
+                    },
+                    cache: 'no-cache'
+                });
+                
+                console.log(`[processModelCodesForPlanner] Response ${i + 1}: ${response.status} ${response.statusText}`);
+                console.log(`[processModelCodesForPlanner] Content-Type: ${response.headers.get('content-type')}`);
+                
+                if (response.ok) {
+                    // Quick check if this looks like binary data
+                    const contentType = response.headers.get('content-type');
+                    if (contentType && (contentType.includes('application/') || contentType.includes('octet-stream'))) {
+                        console.log(`[processModelCodesForPlanner] ✅ Found valid binary response at URL ${i + 1}`);
+                        worksheetsResponse = response;
+                        break;
+                    } else {
+                        console.warn(`[processModelCodesForPlanner] ⚠️ URL ${i + 1} returned wrong content-type: ${contentType}`);
+                        lastError = new Error(`Wrong content-type: ${contentType}`);
+                    }
+                } else {
+                    console.warn(`[processModelCodesForPlanner] ⚠️ URL ${i + 1} returned ${response.status}`);
+                    lastError = new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (fetchError) {
+                console.warn(`[processModelCodesForPlanner] ⚠️ URL ${i + 1} failed:`, fetchError.message);
+                lastError = fetchError;
+            }
+        }
+        
+        if (!worksheetsResponse) {
+            throw new Error(`All worksheet URLs failed. Last error: ${lastError?.message || 'Unknown error'}`);
+        }
         
         console.log(`[processModelCodesForPlanner] Worksheets response status: ${worksheetsResponse.status} ${worksheetsResponse.statusText}`);
         console.log(`[processModelCodesForPlanner] Worksheets response headers:`, Object.fromEntries(worksheetsResponse.headers.entries()));
+        console.log(`[processModelCodesForPlanner] Content-Type: ${worksheetsResponse.headers.get('content-type')}`);
+        console.log(`[processModelCodesForPlanner] Content-Length: ${worksheetsResponse.headers.get('content-length')}`);
         
-        if (!worksheetsResponse.ok) throw new Error(`[processModelCodesForPlanner] Worksheets_4.3.25 v1.xlsx load failed: ${worksheetsResponse.status} ${worksheetsResponse.statusText}`);
+        if (!worksheetsResponse.ok) {
+            console.error(`[processModelCodesForPlanner] Response not OK. Status: ${worksheetsResponse.status}`);
+            console.error(`[processModelCodesForPlanner] Response text (first 200 chars):`, await worksheetsResponse.clone().text().then(t => t.substring(0, 200)));
+            throw new Error(`[processModelCodesForPlanner] Worksheets_4.3.25 v1.xlsx load failed: ${worksheetsResponse.status} ${worksheetsResponse.statusText}`);
+        }
+        
+        // Check if we're actually getting binary data
+        const contentType = worksheetsResponse.headers.get('content-type');
+        if (contentType && !contentType.includes('application/') && !contentType.includes('octet-stream')) {
+            console.warn(`[processModelCodesForPlanner] ⚠️ Unexpected content-type: ${contentType}`);
+            console.warn(`[processModelCodesForPlanner] This suggests we're not getting a binary file`);
+            
+            // Get the actual response as text to see what we're receiving
+            const responseText = await worksheetsResponse.clone().text();
+            console.error(`[processModelCodesForPlanner] Response content (first 500 chars): "${responseText.substring(0, 500)}"`);
+            throw new Error(`Expected binary Excel file but got content-type: ${contentType}`);
+        }
         
         const wsArrayBuffer = await worksheetsResponse.arrayBuffer();
         console.log(`[processModelCodesForPlanner] Worksheets ArrayBuffer size: ${wsArrayBuffer.byteLength} bytes`);

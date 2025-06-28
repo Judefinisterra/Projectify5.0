@@ -13,11 +13,35 @@ export const CONFIG = {
   getAssetUrl(path) {
     // Remove leading slash if present
     const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-    const fullUrl = `${this.baseUrl}/${cleanPath}`;
+    let fullUrl;
+    
     if (this.isDevelopment) {
-      console.log(`[CONFIG] Asset URL: ${cleanPath} -> ${fullUrl}`);
+      fullUrl = `${this.baseUrl}/${cleanPath}`;
+      console.log(`[CONFIG] Asset URL (dev): ${cleanPath} -> ${fullUrl}`);
+    } else {
+      // In production, try relative path first
+      fullUrl = `./${cleanPath}`;
+      console.log(`[CONFIG] Asset URL (prod): ${cleanPath} -> ${fullUrl}`);
     }
+    
     return fullUrl;
+  },
+
+  // Helper function to get multiple possible asset URLs for fallback
+  getAssetUrlsWithFallback(path) {
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    
+    if (this.isDevelopment) {
+      return [`${this.baseUrl}/${cleanPath}`];
+    } else {
+      // In production, try multiple possible paths
+      return [
+        `./${cleanPath}`,           // Relative to current page
+        `/${cleanPath}`,            // Absolute from root
+        `_next/static/${cleanPath}`, // Next.js static folder
+        `assets/${cleanPath.replace('assets/', '')}`, // Direct assets folder
+      ];
+    }
   },
   
   // Helper function to get prompt URL
