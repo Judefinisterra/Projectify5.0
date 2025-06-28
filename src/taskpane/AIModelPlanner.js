@@ -21,7 +21,7 @@ import { getAICallsProcessedResponse, validationCorrection } from './AIcalls.js'
 let modelPlannerConversationHistory = [];
 let AI_MODEL_PLANNER_OPENAI_API_KEY = "";
 let lastPlannerResponseForClient = null; // To store the last response for client mode buttons
-let currentAttachedFile = null; // To store the current attached file data
+let currentAttachedFiles = []; // To store multiple attached files data
 
 import { processModelCodesForPlanner } from './taskpane.js'; // <<< UPDATED IMPORT
 
@@ -809,11 +809,11 @@ export async function plannerHandleSend() {
     if (!userInputElement) { console.error("AIModelPlanner: Client user input element not found."); return; }
     let userInput = userInputElement.value.trim();
 
-    // Check if there's an attached file and include it in the prompt
-    if (currentAttachedFile) {
-        console.log("[plannerHandleSend] Including attached file data:", currentAttachedFile.fileName);
-        const fileDataForAI = formatFileDataForAI(currentAttachedFile);
-        userInput = userInput + fileDataForAI;
+    // Check if there are attached files and include them in the prompt
+    if (currentAttachedFiles.length > 0) {
+        console.log("[plannerHandleSend] Including attached files data:", currentAttachedFiles.map(f => f.fileName).join(', '));
+        const filesDataForAI = formatFileDataForAI(currentAttachedFiles);
+        userInput = userInput + filesDataForAI;
     }
 
     if (!userInput) {
@@ -880,15 +880,16 @@ export async function plannerHandleSend() {
     // Display only the original user input (without file data) in chat log
     const originalUserInput = userInputElement.value.trim();
     let displayMessage = originalUserInput;
-    if (currentAttachedFile) {
-        displayMessage += ` 📎 (${currentAttachedFile.fileName})`;
+    if (currentAttachedFiles.length > 0) {
+        const fileNames = currentAttachedFiles.map(f => f.fileName).join(', ');
+        displayMessage += ` 📎 (${currentAttachedFiles.length} file${currentAttachedFiles.length !== 1 ? 's' : ''}: ${fileNames})`;
     }
     displayInClientChatLogPlanner(displayMessage, true);
     
     userInputElement.value = '';
     
-    // Clear attachment after sending
-    removeAttachment();
+    // Clear attachments after sending
+    removeAllAttachments();
     
     setClientLoadingStatePlanner(true);
 
@@ -1156,8 +1157,8 @@ export function plannerHandleReset() {
     modelPlannerConversationHistory = [];
     lastPlannerResponseForClient = null;
 
-    // >>> ADDED: Clear attached file
-    removeAttachment();
+    // >>> ADDED: Clear attached files
+    removeAllAttachments();
     // <<< END ADDED
 
     const userInput = document.getElementById('user-input-client');
@@ -1428,63 +1429,79 @@ function processWordFile(file) {
     });
 }
 
-// Function to format file data for AI consumption
-function formatFileDataForAI(fileData) {
-    let formattedData = `\n\n📎 **Attached File: ${fileData.fileName}** (${formatFileSize(fileData.fileSize)})\n`;
-    formattedData += `File Type: ${fileData.fileType}\n`;
-    
-    if (fileData.fileType === 'WORD') {
-        // Format Word document content
-        formattedData += `Word Count: ${fileData.content.wordCount}\n`;
-        formattedData += `Character Count: ${fileData.content.characterCount}\n`;
-        formattedData += `Paragraphs: ${fileData.content.paragraphs.length}\n\n`;
-        
-        formattedData += `**Document Content:**\n`;
-        formattedData += '```\n';
-        
-        // Show first 2000 characters with paragraph breaks
-        const previewText = fileData.content.rawText.length > 2000 
-            ? fileData.content.rawText.substring(0, 2000) + '...' 
-            : fileData.content.rawText;
-        
-        formattedData += previewText;
-        formattedData += '\n```\n\n';
-        
-        if (fileData.content.rawText.length > 2000) {
-            formattedData += `*Note: Showing first 2000 characters of ${fileData.content.characterCount} total characters.*\n\n`;
-        }
-    } else {
-        // Format Excel/CSV data
-        formattedData += `Number of Sheets: ${fileData.sheetNames.length}\n\n`;
-        
-        // Process each sheet
-        fileData.sheetNames.forEach((sheetName, index) => {
-            const sheet = fileData.sheets[sheetName];
-            formattedData += `**Sheet ${index + 1}: ${sheetName}**\n`;
-            formattedData += `Range: ${sheet.range}\n`;
-            
-            if (sheet.json && sheet.json.length > 0) {
-                formattedData += `Data Preview (first 10 rows):\n`;
-                formattedData += '```\n';
-                
-                // Show first 10 rows of data
-                const previewRows = sheet.json.slice(0, 10);
-                previewRows.forEach((row, rowIndex) => {
-                    const rowData = row.map(cell => cell !== null && cell !== undefined ? String(cell) : '').join(' | ');
-                    formattedData += `Row ${rowIndex + 1}: ${rowData}\n`;
-                });
-                
-                if (sheet.json.length > 10) {
-                    formattedData += `... (${sheet.json.length - 10} more rows)\n`;
-                }
-                formattedData += '```\n\n';
-            } else {
-                formattedData += 'No data found in this sheet.\n\n';
-            }
-        });
+// Function to format file data for AI consumption (supports multiple files)
+function formatFileDataForAI(filesData) {
+    if (!Array.isArray(filesData)) {
+        filesData = [filesData]; // Convert single file to array for compatibility
     }
     
-    formattedData += `Please analyze this ${fileData.fileType.toLowerCase()} file and help me build a financial model based on the information provided.`;
+    if (filesData.length === 0) {
+        return '';
+    }
+    
+    let formattedData = `\n\n📎 **Attached Files (${filesData.length}):**\n\n`;
+    
+    filesData.forEach((fileData, fileIndex) => {
+        formattedData += `**File ${fileIndex + 1}: ${fileData.fileName}** (${formatFileSize(fileData.fileSize)})\n`;
+        formattedData += `File Type: ${fileData.fileType}\n`;
+        
+        if (fileData.fileType === 'WORD') {
+            // Format Word document content
+            formattedData += `Word Count: ${fileData.content.wordCount}\n`;
+            formattedData += `Character Count: ${fileData.content.characterCount}\n`;
+            formattedData += `Paragraphs: ${fileData.content.paragraphs.length}\n\n`;
+            
+            formattedData += `**Document Content:**\n`;
+            formattedData += '```\n';
+            
+            // Show first 2000 characters with paragraph breaks
+            const previewText = fileData.content.rawText.length > 2000 
+                ? fileData.content.rawText.substring(0, 2000) + '...' 
+                : fileData.content.rawText;
+            
+            formattedData += previewText;
+            formattedData += '\n```\n\n';
+            
+            if (fileData.content.rawText.length > 2000) {
+                formattedData += `*Note: Showing first 2000 characters of ${fileData.content.characterCount} total characters.*\n\n`;
+            }
+        } else {
+            // Format Excel/CSV data
+            formattedData += `Number of Sheets: ${fileData.sheetNames.length}\n\n`;
+            
+            // Process each sheet
+            fileData.sheetNames.forEach((sheetName, index) => {
+                const sheet = fileData.sheets[sheetName];
+                formattedData += `**Sheet ${index + 1}: ${sheetName}**\n`;
+                formattedData += `Range: ${sheet.range}\n`;
+                
+                if (sheet.json && sheet.json.length > 0) {
+                    formattedData += `Data Preview (first 10 rows):\n`;
+                    formattedData += '```\n';
+                    
+                    // Show first 10 rows of data
+                    const previewRows = sheet.json.slice(0, 10);
+                    previewRows.forEach((row, rowIndex) => {
+                        const rowData = row.map(cell => cell !== null && cell !== undefined ? String(cell) : '').join(' | ');
+                        formattedData += `Row ${rowIndex + 1}: ${rowData}\n`;
+                    });
+                    
+                    if (sheet.json.length > 10) {
+                        formattedData += `... (${sheet.json.length - 10} more rows)\n`;
+                    }
+                    formattedData += '```\n\n';
+                } else {
+                    formattedData += 'No data found in this sheet.\n\n';
+                }
+            });
+        }
+        
+        if (fileIndex < filesData.length - 1) {
+            formattedData += `\n${'─'.repeat(50)}\n\n`;
+        }
+    });
+    
+    formattedData += `Please analyze ${filesData.length === 1 ? 'this file' : 'these files'} and help me build a financial model based on the information provided.`;
     
     return formattedData;
 }
@@ -1540,13 +1557,14 @@ async function handleFileAttachment(file) {
             fileData = await processXLSXFile(file);
         }
         
-        // Store the processed file data
-        currentAttachedFile = fileData;
+        // Add the processed file data to the array
+        currentAttachedFiles.push(fileData);
         
-        // Update UI to show attached file
-        showAttachedFile(fileData);
+        // Update UI to show attached files
+        showAttachedFiles(currentAttachedFiles);
         
         console.log('[handleFileAttachment] File processed successfully:', fileData.fileName);
+        console.log('[handleFileAttachment] Total attached files:', currentAttachedFiles.length);
         return fileData;
         
     } catch (error) {
@@ -1557,49 +1575,101 @@ async function handleFileAttachment(file) {
     }
 }
 
-// Function to show attached file in UI
-function showAttachedFile(fileData) {
-    const attachedFileDisplay = document.getElementById('attached-file-display');
-    const attachedFileName = document.getElementById('attached-file-name');
-    const attachedFileSize = document.getElementById('attached-file-size');
+// Function to show attached files in UI
+function showAttachedFiles(filesData) {
+    const attachedFilesContainer = document.getElementById('attached-files-container');
+    const attachedFilesList = document.getElementById('attached-files-list');
+    const attachedFilesCount = document.querySelector('.attached-files-count');
     
-    if (attachedFileDisplay && attachedFileName && attachedFileSize) {
-        attachedFileName.textContent = fileData.fileName;
-        attachedFileSize.textContent = formatFileSize(fileData.fileSize);
-        attachedFileDisplay.style.display = 'block';
+    if (!attachedFilesContainer || !attachedFilesList || !attachedFilesCount) {
+        console.warn('[showAttachedFiles] Required elements not found');
+        return;
+    }
+    
+    // Update count
+    attachedFilesCount.textContent = `${filesData.length} file${filesData.length !== 1 ? 's' : ''} attached`;
+    
+    // Clear existing file items
+    attachedFilesList.innerHTML = '';
+    
+    // Create file items
+    filesData.forEach((fileData, index) => {
+        const fileItem = document.createElement('div');
+        fileItem.className = 'attached-file-item';
+        fileItem.setAttribute('data-file-index', index);
         
-        console.log('[showAttachedFile] Showing attached file in UI:', fileData.fileName);
-    }
-}
-
-// Function to hide attached file in UI
-function hideAttachedFile() {
-    const attachedFileDisplay = document.getElementById('attached-file-display');
+        // Get file type badge color based on type
+        let badgeClass = 'file-type-badge';
+        let badgeText = fileData.fileType;
+        
+        fileItem.innerHTML = `
+            <div class="attached-file-info">
+                <span class="file-name" title="${fileData.fileName}">${fileData.fileName}</span>
+                <span class="file-size">${formatFileSize(fileData.fileSize)}</span>
+                <span class="${badgeClass}">${badgeText}</span>
+            </div>
+            <button class="remove-file-btn" data-file-index="${index}" title="Remove ${fileData.fileName}">×</button>
+        `;
+        
+        // Add remove file event listener
+        const removeBtn = fileItem.querySelector('.remove-file-btn');
+        removeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            removeFileByIndex(parseInt(e.target.getAttribute('data-file-index')));
+        });
+        
+        attachedFilesList.appendChild(fileItem);
+    });
     
-    if (attachedFileDisplay) {
-        attachedFileDisplay.style.display = 'none';
-        console.log('[hideAttachedFile] Hidden attached file from UI');
+    // Show the container
+    attachedFilesContainer.style.display = 'block';
+    
+    console.log('[showAttachedFiles] Showing', filesData.length, 'attached files in UI');
+}
+
+// Function to hide attached files in UI
+function hideAttachedFiles() {
+    const attachedFilesContainer = document.getElementById('attached-files-container');
+    
+    if (attachedFilesContainer) {
+        attachedFilesContainer.style.display = 'none';
+        console.log('[hideAttachedFiles] Hidden attached files from UI');
     }
 }
 
-// Function to remove attachment
-function removeAttachment() {
-    currentAttachedFile = null;
-    hideAttachedFile();
-    console.log('[removeAttachment] Attachment removed');
+// Function to remove a specific file by index
+function removeFileByIndex(index) {
+    if (index >= 0 && index < currentAttachedFiles.length) {
+        const removedFile = currentAttachedFiles.splice(index, 1)[0];
+        console.log('[removeFileByIndex] Removed file:', removedFile.fileName);
+        
+        // Update UI
+        if (currentAttachedFiles.length > 0) {
+            showAttachedFiles(currentAttachedFiles);
+        } else {
+            hideAttachedFiles();
+        }
+    }
+}
+
+// Function to remove all attachments
+function removeAllAttachments() {
+    currentAttachedFiles = [];
+    hideAttachedFiles();
+    console.log('[removeAllAttachments] All attachments removed');
 }
 
 // Function to initialize file attachment event listeners
 export function initializeFileAttachment() {
-    console.log('[initializeFileAttachment] Setting up file attachment listeners - VERSION WITH WORD SUPPORT v2.0');
+    console.log('[initializeFileAttachment] Setting up multiple file attachment listeners - VERSION 3.0');
     
     // Get elements
     const attachFileButton = document.getElementById('attach-file-client');
     const fileInput = document.getElementById('file-input-client');
-    const removeAttachmentButton = document.getElementById('remove-attachment-client');
+    const clearAllButton = document.getElementById('clear-all-attachments');
     
-    if (!attachFileButton || !fileInput || !removeAttachmentButton) {
-        console.warn('[initializeFileAttachment] Some attachment elements not found');
+    if (!attachFileButton || !fileInput) {
+        console.warn('[initializeFileAttachment] Required attachment elements not found');
         return;
     }
     
@@ -1609,28 +1679,36 @@ export function initializeFileAttachment() {
         fileInput.click();
     });
     
-    // File input change
+    // File input change - handle multiple files
     fileInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            console.log('[initializeFileAttachment] File selected:', file.name);
-            try {
-                await handleFileAttachment(file);
-            } catch (error) {
-                // Error already handled in handleFileAttachment
+        const files = Array.from(e.target.files);
+        if (files.length > 0) {
+            console.log('[initializeFileAttachment] Files selected:', files.length);
+            
+            // Process each file
+            for (const file of files) {
+                console.log('[initializeFileAttachment] Processing file:', file.name);
+                try {
+                    await handleFileAttachment(file);
+                } catch (error) {
+                    // Error already handled in handleFileAttachment
+                    console.warn('[initializeFileAttachment] Failed to process file:', file.name);
+                }
             }
         }
-        // Clear the input so the same file can be selected again
+        // Clear the input so the same files can be selected again
         fileInput.value = '';
     });
     
-    // Remove attachment button click
-    removeAttachmentButton.addEventListener('click', () => {
-        console.log('[initializeFileAttachment] Remove attachment button clicked');
-        removeAttachment();
-    });
+    // Clear all attachments button click
+    if (clearAllButton) {
+        clearAllButton.addEventListener('click', () => {
+            console.log('[initializeFileAttachment] Clear all attachments button clicked');
+            removeAllAttachments();
+        });
+    }
     
-    console.log('[initializeFileAttachment] File attachment listeners set up successfully');
+    console.log('[initializeFileAttachment] Multiple file attachment listeners set up successfully');
 }
 
 

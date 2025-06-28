@@ -1158,17 +1158,70 @@ body {
     stroke: currentColor;
 }
 
-.attached-file-display {
+/* Multiple file attachments container */
+.attached-files-container {
     background-color: #f3f4f6;
     border: 1px solid #d1d5db;
     border-radius: 6px;
-    padding: 8px 12px;
     margin-bottom: 8px;
+    font-size: 12px;
+    color: #374151;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.attached-files-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    font-size: 12px;
-    color: #374151;
+    padding: 8px 12px;
+    background-color: #e5e7eb;
+    border-bottom: 1px solid #d1d5db;
+    border-radius: 6px 6px 0 0;
+}
+
+.attached-files-count {
+    font-weight: 500;
+    color: #1f2937;
+    font-size: 11px;
+}
+
+.clear-all-btn {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transition: all 0.2s ease;
+}
+
+.clear-all-btn:hover {
+    background-color: #fee2e2;
+    color: #dc2626;
+}
+
+.attached-files-list {
+    display: flex;
+    flex-direction: column;
+}
+
+.attached-file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-bottom: 1px solid #e5e7eb;
+    transition: background-color 0.2s ease;
+}
+
+.attached-file-item:hover {
+    background-color: #f9fafb;
+}
+
+.attached-file-item:last-child {
+    border-bottom: none;
 }
 
 .attached-file-info {
@@ -1176,36 +1229,52 @@ body {
     align-items: center;
     gap: 8px;
     flex: 1;
+    min-width: 0; /* Allow text truncation */
 }
 
 .file-name {
     font-weight: 500;
     color: #1f2937;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
 }
 
 .file-size {
     color: #6b7280;
     font-size: 11px;
+    white-space: nowrap;
 }
 
-.remove-attachment-btn {
+.file-type-badge {
+    background-color: #e0e7ff;
+    color: #3730a3;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.remove-file-btn {
     background: none;
     border: none;
     color: #9ca3af;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 14px;
     line-height: 1;
-    padding: 0;
-    margin-left: 8px;
-    width: 20px;
-    height: 20px;
+    padding: 2px;
+    width: 18px;
+    height: 18px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
+    border-radius: 3px;
+    transition: all 0.2s ease;
 }
 
-.remove-attachment-btn:hover {
+.remove-file-btn:hover {
     background-color: #fee2e2;
     color: #dc2626;
 }
