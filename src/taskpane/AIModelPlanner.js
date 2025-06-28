@@ -689,9 +689,9 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
         await handleInsertWorksheetsFromBase64(btoa(wsBinaryString));
         console.log("[AIModelPlanner._executePlannerCodes] Base sheets (Worksheets_4.3.25 v1.xlsx) inserted.");
 
-        console.log("[AIModelPlanner._executePlannerCodes] Inserting codes.xlsx...");
-        const codesResponse = await fetch(CONFIG.getAssetUrl('assets/codes.xlsx'));
-        if (!codesResponse.ok) throw new Error(`[AIModelPlanner._executePlannerCodes] codes.xlsx load failed: ${codesResponse.statusText}`);
+        console.log("[AIModelPlanner._executePlannerCodes] Inserting Codes.xlsx...");
+        const codesResponse = await fetch(CONFIG.getAssetUrl('assets/Codes.xlsx'));
+        if (!codesResponse.ok) throw new Error(`[AIModelPlanner._executePlannerCodes] Codes.xlsx load failed: ${codesResponse.statusText}`);
         const codesArrayBuffer = await codesResponse.arrayBuffer();
         const codesUint8Array = new Uint8Array(codesArrayBuffer);
         let codesBinaryString = '';
@@ -699,7 +699,7 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
             codesBinaryString += String.fromCharCode.apply(null, codesUint8Array.slice(i, Math.min(i + 8192, codesUint8Array.length)));
         }
         await handleInsertWorksheetsFromBase64(btoa(codesBinaryString), ["Codes"]); 
-        console.log("[AIModelPlanner._executePlannerCodes] codes.xlsx sheets inserted/updated.");
+        console.log("[AIModelPlanner._executePlannerCodes] Codes.xlsx sheets inserted/updated.");
     
         console.log("[AIModelPlanner._executePlannerCodes] Populating collection...");
         const collection = populateCodeCollection(modelCodesString);

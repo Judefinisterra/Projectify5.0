@@ -134,8 +134,17 @@ module.exports = async (env, options) => {
             to: "assets/[name][ext][query]",
           },
           {
+            from: "assets/*.xlsx",
+            to: "assets/[name][ext]",
+            type: 'resource'
+          },
+          {
             from: "./src/prompts/*",
             to: "prompts/[name][ext]"
+          },
+          {
+            from: "assets/icon-32.png",
+            to: "favicon.ico"
           },
           {
             from: "manifest*.xml",

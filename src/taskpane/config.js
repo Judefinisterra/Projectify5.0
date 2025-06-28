@@ -13,7 +13,11 @@ export const CONFIG = {
   getAssetUrl(path) {
     // Remove leading slash if present
     const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-    return `${this.baseUrl}/${cleanPath}`;
+    const fullUrl = `${this.baseUrl}/${cleanPath}`;
+    if (this.isDevelopment) {
+      console.log(`[CONFIG] Asset URL: ${cleanPath} -> ${fullUrl}`);
+    }
+    return fullUrl;
   },
   
   // Helper function to get prompt URL

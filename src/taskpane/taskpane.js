@@ -1153,8 +1153,11 @@ export async function processModelCodesForPlanner(modelCodesString) {
 
                     // 2. Insert base sheets from Worksheets_4.3.25 v1.xlsx
         console.log("[processModelCodesForPlanner] Inserting base sheets from Worksheets_4.3.25 v1.xlsx...");
-        const worksheetsResponse = await fetch(CONFIG.getAssetUrl('assets/Worksheets_4.3.25 v1.xlsx'));
-        if (!worksheetsResponse.ok) throw new Error(`[processModelCodesForPlanner] Worksheets_4.3.25 v1.xlsx load failed: ${worksheetsResponse.statusText}`);
+        const worksheetUrl = CONFIG.getAssetUrl('assets/Worksheets_4.3.25 v1.xlsx');
+        console.log(`[processModelCodesForPlanner] Loading worksheets from: ${worksheetUrl}`);
+        const worksheetsResponse = await fetch(worksheetUrl);
+        console.log(`[processModelCodesForPlanner] Worksheets response status: ${worksheetsResponse.status} ${worksheetsResponse.statusText}`);
+        if (!worksheetsResponse.ok) throw new Error(`[processModelCodesForPlanner] Worksheets_4.3.25 v1.xlsx load failed: ${worksheetsResponse.status} ${worksheetsResponse.statusText}`);
         const wsArrayBuffer = await worksheetsResponse.arrayBuffer();
         const wsUint8Array = new Uint8Array(wsArrayBuffer);
         let wsBinaryString = '';
@@ -1165,9 +1168,12 @@ export async function processModelCodesForPlanner(modelCodesString) {
         console.log("[processModelCodesForPlanner] Base sheets (Worksheets_4.3.25 v1.xlsx) inserted.");
 
         // 3. Insert codes.xlsx (as runCodes depends on it)
-        console.log("[processModelCodesForPlanner] Inserting codes.xlsx...");
-        const codesResponse = await fetch(CONFIG.getAssetUrl('assets/codes.xlsx'));
-        if (!codesResponse.ok) throw new Error(`[processModelCodesForPlanner] codes.xlsx load failed: ${codesResponse.statusText}`);
+        console.log("[processModelCodesForPlanner] Inserting Codes.xlsx...");
+        const codesUrl = CONFIG.getAssetUrl('assets/Codes.xlsx');
+        console.log(`[processModelCodesForPlanner] Loading codes from: ${codesUrl}`);
+        const codesResponse = await fetch(codesUrl);
+        console.log(`[processModelCodesForPlanner] Codes response status: ${codesResponse.status} ${codesResponse.statusText}`);
+        if (!codesResponse.ok) throw new Error(`[processModelCodesForPlanner] Codes.xlsx load failed: ${codesResponse.status} ${codesResponse.statusText}`);
         const codesArrayBuffer = await codesResponse.arrayBuffer();
         const codesUint8Array = new Uint8Array(codesArrayBuffer);
         let codesBinaryString = '';
@@ -1175,7 +1181,7 @@ export async function processModelCodesForPlanner(modelCodesString) {
             codesBinaryString += String.fromCharCode.apply(null, codesUint8Array.slice(i, Math.min(i + 8192, codesUint8Array.length)));
         }
         await handleInsertWorksheetsFromBase64(btoa(codesBinaryString), ["Codes"]); 
-        console.log("[processModelCodesForPlanner] codes.xlsx sheets inserted/updated.");
+        console.log("[processModelCodesForPlanner] Codes.xlsx sheets inserted/updated.");
     
         // 4. Execute runCodes
         console.log("[processModelCodesForPlanner] Populating collection...");
@@ -1419,8 +1425,8 @@ async function insertSheetsAndRunCodes() {
                     console.log("[Run Codes] Changes detected, but no code content found for validation in new/modified tabs.");
                 }
                 try {
-                    const codesResponse = await fetch(CONFIG.getAssetUrl('assets/codes.xlsx'));
-                    if (!codesResponse.ok) throw new Error(`codes.xlsx load failed: ${codesResponse.statusText}`);
+                    const codesResponse = await fetch(CONFIG.getAssetUrl('assets/Codes.xlsx'));
+                    if (!codesResponse.ok) throw new Error(`Codes.xlsx load failed: ${codesResponse.statusText}`);
                     const codesArrayBuffer = await codesResponse.arrayBuffer();
                     const codesUint8Array = new Uint8Array(codesArrayBuffer);
                     let codesBinaryString = '';
@@ -1428,10 +1434,10 @@ async function insertSheetsAndRunCodes() {
                         codesBinaryString += String.fromCharCode.apply(null, codesUint8Array.slice(i, Math.min(i + 8192, codesUint8Array.length)));
                     }
                     await handleInsertWorksheetsFromBase64(btoa(codesBinaryString), ["Codes"]);
-                    console.log("codes.xlsx sheets inserted.");
+                    console.log("Codes.xlsx sheets inserted.");
                 } catch (e) {
-                    console.error("Failed to insert sheets from codes.xlsx:", e);
-                    showError("Failed to insert necessary sheets from codes.xlsx. Aborting.");
+                    console.error("Failed to insert sheets from Codes.xlsx:", e);
+                    showError("Failed to insert necessary sheets from Codes.xlsx. Aborting.");
                     setButtonLoading(false);
                     return;
                 }
