@@ -23,3 +23,4 @@ dist/taskpane.css.map
 
 # Ignore all files in the dist directory
 dist/
+.vercel
