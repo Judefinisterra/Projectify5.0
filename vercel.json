@@ -3,7 +3,7 @@
   "outputDirectory": "dist",
   "headers": [
     {
-      "source": "/assets/*.xlsx",
+      "source": "/assets/(.*)\\.xlsx$",
       "headers": [
         {
           "key": "Content-Type",
@@ -20,7 +20,7 @@
       ]
     },
     {
-      "source": "/assets/*",
+      "source": "/assets/(.*)",
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
