@@ -4512,6 +4512,26 @@ export async function hideRowsAndColumnsOnSheets(excludedSheetNames = ["Actuals 
  * @param {string[]} [sheetNames] - Optional array of sheet names to insert. If not provided, all sheets will be inserted.
  * @returns {Promise<void>}
  */
+// Test function to verify Excel API works with a simple workbook
+export async function testExcelInsertion() {
+    try {
+        console.log(`[testExcelInsertion] Creating minimal test workbook...`);
+        
+        // Create a minimal Excel workbook programmatically
+        await Excel.run(async (context) => {
+            const newWorksheet = context.workbook.worksheets.add("TestSheet");
+            newWorksheet.getCell(0, 0).values = [["Test Data"]];
+            await context.sync();
+            console.log(`[testExcelInsertion] ✅ Successfully created test worksheet programmatically`);
+        });
+        
+        return true;
+    } catch (error) {
+        console.error(`[testExcelInsertion] ❌ Failed to create test worksheet:`, error);
+        return false;
+    }
+}
+
 export async function handleInsertWorksheetsFromBase64(base64String, sheetNames = null) {
     try {
         // Enhanced validation and debugging
@@ -4536,10 +4556,41 @@ export async function handleInsertWorksheetsFromBase64(base64String, sheetNames 
             throw new Error("Invalid base64 format - contains invalid characters");
         }
 
-        // Test base64 decode capability (without actually using the result)
+        // Test base64 decode capability and check decoded size
         try {
-            atob(base64String.substring(0, 100)); // Test a small portion
+            const testDecode = atob(base64String.substring(0, 100)); // Test a small portion
             console.log(`[handleInsertWorksheetsFromBase64] Base64 format validation passed`);
+            console.log(`[handleInsertWorksheetsFromBase64] Test decode length: ${testDecode.length}`);
+            
+            // Calculate expected decoded size
+            const expectedSize = (base64String.length * 3) / 4;
+            console.log(`[handleInsertWorksheetsFromBase64] Expected decoded size: ${expectedSize} bytes`);
+            console.log(`[handleInsertWorksheetsFromBase64] Base64 first 50 chars: ${base64String.substring(0, 50)}`);
+            console.log(`[handleInsertWorksheetsFromBase64] Base64 last 50 chars: ${base64String.substring(base64String.length - 50)}`);
+            
+            // Check for size limitations (Excel may have limits)
+            const sizeMB = expectedSize / (1024 * 1024);
+            console.log(`[handleInsertWorksheetsFromBase64] File size: ${sizeMB.toFixed(2)} MB`);
+            
+            if (sizeMB > 50) {
+                console.warn(`[handleInsertWorksheetsFromBase64] Large file warning: ${sizeMB.toFixed(2)} MB may exceed Excel API limits`);
+            }
+            
+            // Verify this looks like Excel file header (Excel files start with specific bytes)
+            try {
+                const decodedStart = atob(base64String.substring(0, 20));
+                const bytes = Array.from(decodedStart).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join(' ');
+                console.log(`[handleInsertWorksheetsFromBase64] File header bytes: ${bytes}`);
+                
+                // Excel files typically start with PK (ZIP signature: 50 4B) for .xlsx
+                if (decodedStart.startsWith('PK')) {
+                    console.log(`[handleInsertWorksheetsFromBase64] ✅ Valid Excel file signature detected`);
+                } else {
+                    console.warn(`[handleInsertWorksheetsFromBase64] ⚠️ Unexpected file signature - may not be valid Excel file`);
+                }
+            } catch (headerError) {
+                console.warn(`[handleInsertWorksheetsFromBase64] Could not verify file header:`, headerError);
+            }
         } catch (decodeError) {
             console.error(`[handleInsertWorksheetsFromBase64] Base64 decode test failed:`, decodeError);
             throw new Error(`Base64 string cannot be decoded: ${decodeError.message}`);
@@ -4548,22 +4599,63 @@ export async function handleInsertWorksheetsFromBase64(base64String, sheetNames 
         await Excel.run(async (context) => {
             const workbook = context.workbook;
             
-            // Check if we have the required API version
+            // Enhanced API version checking
+            console.log(`[handleInsertWorksheetsFromBase64] Checking Excel API compatibility...`);
+            
             if (!workbook.insertWorksheetsFromBase64) {
+                console.error(`[handleInsertWorksheetsFromBase64] insertWorksheetsFromBase64 method not available`);
                 throw new Error("This feature requires Excel API requirement set 1.13 or later");
+            }
+            
+            console.log(`[handleInsertWorksheetsFromBase64] Excel API insertWorksheetsFromBase64 method is available`);
+            
+            // Try to get Excel version info if available
+            try {
+                const host = Office.context.host;
+                const platform = Office.context.platform;
+                const version = Office.context.requirements;
+                console.log(`[handleInsertWorksheetsFromBase64] Excel host info:`, { host, platform });
+                console.log(`[handleInsertWorsheetsFromBase64] Requirements info:`, version);
+            } catch (infoError) {
+                console.warn(`[handleInsertWorksheetsFromBase64] Could not get Excel version info:`, infoError);
+            }
+            
+            // Quick test to verify basic Excel API functionality within current context
+            console.log(`[handleInsertWorksheetsFromBase64] Testing basic Excel API functionality...`);
+            try {
+                const testWorksheet = workbook.worksheets.add("TempTestSheet");
+                testWorksheet.getCell(0, 0).values = [["Test"]];
+                await context.sync();
+                testWorksheet.delete();
+                await context.sync();
+                console.log(`[handleInsertWorksheetsFromBase64] ✅ Basic Excel API test passed`);
+            } catch (testError) {
+                console.error(`[handleInsertWorksheetsFromBase64] ❌ Basic Excel API test failed:`, testError);
+                throw new Error(`Basic Excel API test failed: ${testError.message}`);
             }
             
             // Insert the worksheets with enhanced error handling
             try {
                 console.log(`[SHEET OPERATION] Calling Excel insertWorksheetsFromBase64...`);
                 
-                const insertOptions = {};
+                // Prepare options - be careful with empty objects
+                let insertOptions;
                 if (sheetNames && sheetNames.length > 0) {
-                    insertOptions.sheetNames = sheetNames;
+                    insertOptions = { sheetNames: sheetNames };
                     console.log(`[SHEET OPERATION] Requesting specific sheets: ${sheetNames.join(', ')}`);
+                } else {
+                    insertOptions = undefined; // Don't pass empty object
+                    console.log(`[SHEET OPERATION] Requesting all sheets from workbook`);
                 }
                 
-                await workbook.insertWorksheetsFromBase64(base64String, insertOptions);
+                console.log(`[SHEET OPERATION] Insert options:`, insertOptions);
+                
+                // Try the API call with proper error context
+                if (insertOptions) {
+                    await workbook.insertWorksheetsFromBase64(base64String, insertOptions);
+                } else {
+                    await workbook.insertWorksheetsFromBase64(base64String);
+                }
                 
                 await context.sync();
                 console.log("Worksheets inserted successfully");
