@@ -4514,14 +4514,35 @@ export async function hideRowsAndColumnsOnSheets(excludedSheetNames = ["Actuals 
  */
 export async function handleInsertWorksheetsFromBase64(base64String, sheetNames = null) {
     try {
+        // Enhanced validation and debugging
+        console.log(`[handleInsertWorksheetsFromBase64] Starting worksheet insertion`);
+        console.log(`[handleInsertWorksheetsFromBase64] Base64 string type: ${typeof base64String}`);
+        console.log(`[handleInsertWorksheetsFromBase64] Base64 string length: ${base64String ? base64String.length : 'null'}`);
+        console.log(`[handleInsertWorksheetsFromBase64] Sheet names: ${sheetNames ? sheetNames.join(', ') : 'All sheets from source file'}`);
+        
         // Validate base64 string
         if (!base64String || typeof base64String !== 'string') {
-            throw new Error("Invalid base64 string provided");
+            throw new Error("Invalid base64 string provided - string is null, undefined, or not a string");
         }
 
-        // Validate base64 format
-        if (!/^[A-Za-z0-9+/]*={0,2}$/.test(base64String)) {
-            throw new Error("Invalid base64 format");
+        if (base64String.length === 0) {
+            throw new Error("Base64 string is empty");
+        }
+
+        // Enhanced base64 format validation with detailed error message
+        const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+        if (!base64Regex.test(base64String)) {
+            console.error(`[handleInsertWorksheetsFromBase64] Invalid base64 format. First 100 chars: ${base64String.substring(0, 100)}`);
+            throw new Error("Invalid base64 format - contains invalid characters");
+        }
+
+        // Test base64 decode capability (without actually using the result)
+        try {
+            atob(base64String.substring(0, 100)); // Test a small portion
+            console.log(`[handleInsertWorksheetsFromBase64] Base64 format validation passed`);
+        } catch (decodeError) {
+            console.error(`[handleInsertWorksheetsFromBase64] Base64 decode test failed:`, decodeError);
+            throw new Error(`Base64 string cannot be decoded: ${decodeError.message}`);
         }
 
         await Excel.run(async (context) => {
@@ -4532,19 +4553,30 @@ export async function handleInsertWorksheetsFromBase64(base64String, sheetNames 
                 throw new Error("This feature requires Excel API requirement set 1.13 or later");
             }
             
-            // Insert the worksheets with error handling
+            // Insert the worksheets with enhanced error handling
             try {
-                console.log(`[SHEET OPERATION] Inserting worksheets from base64 string. Sheet names: ${sheetNames ? sheetNames.join(', ') : 'All sheets from source file'}`);
-                await workbook.insertWorksheetsFromBase64(base64String, {
-                    sheetNames: sheetNames
-                });
+                console.log(`[SHEET OPERATION] Calling Excel insertWorksheetsFromBase64...`);
+                
+                const insertOptions = {};
+                if (sheetNames && sheetNames.length > 0) {
+                    insertOptions.sheetNames = sheetNames;
+                    console.log(`[SHEET OPERATION] Requesting specific sheets: ${sheetNames.join(', ')}`);
+                }
+                
+                await workbook.insertWorksheetsFromBase64(base64String, insertOptions);
                 
                 await context.sync();
                 console.log("Worksheets inserted successfully");
                 console.log(`[SHEET OPERATION] Successfully inserted worksheets: ${sheetNames ? sheetNames.join(', ') : 'All sheets from source file'}`);
             } catch (error) {
                 console.error("Error during worksheet insertion:", error);
-                throw new Error(`Failed to insert worksheets: ${error.message}`);
+                console.error("Error details:", {
+                    name: error.name,
+                    message: error.message,
+                    code: error.code,
+                    debugInfo: error.debugInfo
+                });
+                throw new Error(`Failed to insert worksheets: ${error.message} (Code: ${error.code || 'Unknown'})`);
             }
         });
     } catch (error) {

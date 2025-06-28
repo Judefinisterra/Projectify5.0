@@ -1158,13 +1158,33 @@ export async function processModelCodesForPlanner(modelCodesString) {
         const worksheetsResponse = await fetch(worksheetUrl);
         console.log(`[processModelCodesForPlanner] Worksheets response status: ${worksheetsResponse.status} ${worksheetsResponse.statusText}`);
         if (!worksheetsResponse.ok) throw new Error(`[processModelCodesForPlanner] Worksheets_4.3.25 v1.xlsx load failed: ${worksheetsResponse.status} ${worksheetsResponse.statusText}`);
+        
         const wsArrayBuffer = await worksheetsResponse.arrayBuffer();
-        const wsUint8Array = new Uint8Array(wsArrayBuffer);
-        let wsBinaryString = '';
-        for (let i = 0; i < wsUint8Array.length; i += 8192) {
-            wsBinaryString += String.fromCharCode.apply(null, wsUint8Array.slice(i, Math.min(i + 8192, wsUint8Array.length)));
+        console.log(`[processModelCodesForPlanner] Worksheets ArrayBuffer size: ${wsArrayBuffer.byteLength} bytes`);
+        
+        // Improved base64 conversion using modern method
+        let wsBase64String;
+        try {
+            // Use FileReader for better binary handling
+            const blob = new Blob([wsArrayBuffer]);
+            wsBase64String = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const dataUrl = reader.result;
+                    const base64 = dataUrl.split(',')[1]; // Remove data:application/octet-stream;base64, prefix
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+            console.log(`[processModelCodesForPlanner] Worksheets base64 length: ${wsBase64String.length} characters`);
+            console.log(`[processModelCodesForPlanner] Worksheets base64 prefix: ${wsBase64String.substring(0, 50)}...`);
+        } catch (conversionError) {
+            console.error(`[processModelCodesForPlanner] Base64 conversion failed:`, conversionError);
+            throw new Error(`Failed to convert worksheets to base64: ${conversionError.message}`);
         }
-        await handleInsertWorksheetsFromBase64(btoa(wsBinaryString));
+        
+        await handleInsertWorksheetsFromBase64(wsBase64String);
         console.log("[processModelCodesForPlanner] Base sheets (Worksheets_4.3.25 v1.xlsx) inserted.");
 
         // 3. Insert codes.xlsx (as runCodes depends on it)
@@ -1174,13 +1194,33 @@ export async function processModelCodesForPlanner(modelCodesString) {
         const codesResponse = await fetch(codesUrl);
         console.log(`[processModelCodesForPlanner] Codes response status: ${codesResponse.status} ${codesResponse.statusText}`);
         if (!codesResponse.ok) throw new Error(`[processModelCodesForPlanner] Codes.xlsx load failed: ${codesResponse.status} ${codesResponse.statusText}`);
+        
         const codesArrayBuffer = await codesResponse.arrayBuffer();
-        const codesUint8Array = new Uint8Array(codesArrayBuffer);
-        let codesBinaryString = '';
-        for (let i = 0; i < codesUint8Array.length; i += 8192) {
-            codesBinaryString += String.fromCharCode.apply(null, codesUint8Array.slice(i, Math.min(i + 8192, codesUint8Array.length)));
+        console.log(`[processModelCodesForPlanner] Codes ArrayBuffer size: ${codesArrayBuffer.byteLength} bytes`);
+        
+        // Improved base64 conversion using modern method
+        let codesBase64String;
+        try {
+            // Use FileReader for better binary handling
+            const blob = new Blob([codesArrayBuffer]);
+            codesBase64String = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const dataUrl = reader.result;
+                    const base64 = dataUrl.split(',')[1]; // Remove data:application/octet-stream;base64, prefix
+                    resolve(base64);
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+            console.log(`[processModelCodesForPlanner] Codes base64 length: ${codesBase64String.length} characters`);
+            console.log(`[processModelCodesForPlanner] Codes base64 prefix: ${codesBase64String.substring(0, 50)}...`);
+        } catch (conversionError) {
+            console.error(`[processModelCodesForPlanner] Codes base64 conversion failed:`, conversionError);
+            throw new Error(`Failed to convert codes to base64: ${conversionError.message}`);
         }
-        await handleInsertWorksheetsFromBase64(btoa(codesBinaryString), ["Codes"]); 
+        
+        await handleInsertWorksheetsFromBase64(codesBase64String, ["Codes"]); 
         console.log("[processModelCodesForPlanner] Codes.xlsx sheets inserted/updated.");
     
         // 4. Execute runCodes
@@ -1336,14 +1376,28 @@ async function insertSheetsAndRunCodes() {
             const worksheetsResponse = await fetch(CONFIG.getAssetUrl('assets/Worksheets_4.3.25 v1.xlsx'));
             if (!worksheetsResponse.ok) throw new Error(`Worksheets load failed: ${worksheetsResponse.statusText}`);
             const worksheetsArrayBuffer = await worksheetsResponse.arrayBuffer();
-            const worksheetsUint8Array = new Uint8Array(worksheetsArrayBuffer);
-            let worksheetsBinaryString = '';
-            const chunkSize = 8192;
-            for (let i = 0; i < worksheetsUint8Array.length; i += chunkSize) {
-                const chunk = worksheetsUint8Array.slice(i, Math.min(i + chunkSize, worksheetsUint8Array.length));
-                worksheetsBinaryString += String.fromCharCode.apply(null, chunk);
+            console.log(`[insertSheetsAndRunCodes] Worksheets ArrayBuffer size: ${worksheetsArrayBuffer.byteLength} bytes`);
+            
+            // Improved base64 conversion using modern method
+            let worksheetsBase64String;
+            try {
+                const blob = new Blob([worksheetsArrayBuffer]);
+                worksheetsBase64String = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const dataUrl = reader.result;
+                        const base64 = dataUrl.split(',')[1]; // Remove data:application/octet-stream;base64, prefix
+                        resolve(base64);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+                console.log(`[insertSheetsAndRunCodes] Worksheets base64 length: ${worksheetsBase64String.length} characters`);
+            } catch (conversionError) {
+                console.error(`[insertSheetsAndRunCodes] Worksheets base64 conversion failed:`, conversionError);
+                throw new Error(`Failed to convert worksheets to base64: ${conversionError.message}`);
             }
-            const worksheetsBase64String = btoa(worksheetsBinaryString);
+            
             await handleInsertWorksheetsFromBase64(worksheetsBase64String);
             console.log("Base sheets inserted.");
         } else {
@@ -1428,12 +1482,29 @@ async function insertSheetsAndRunCodes() {
                     const codesResponse = await fetch(CONFIG.getAssetUrl('assets/Codes.xlsx'));
                     if (!codesResponse.ok) throw new Error(`Codes.xlsx load failed: ${codesResponse.statusText}`);
                     const codesArrayBuffer = await codesResponse.arrayBuffer();
-                    const codesUint8Array = new Uint8Array(codesArrayBuffer);
-                    let codesBinaryString = '';
-                    for (let i = 0; i < codesUint8Array.length; i += 8192) {
-                        codesBinaryString += String.fromCharCode.apply(null, codesUint8Array.slice(i, Math.min(i + 8192, codesUint8Array.length)));
+                    console.log(`[insertSheetsAndRunCodes] Codes ArrayBuffer size: ${codesArrayBuffer.byteLength} bytes`);
+                    
+                    // Improved base64 conversion using modern method
+                    let codesBase64String;
+                    try {
+                        const blob = new Blob([codesArrayBuffer]);
+                        codesBase64String = await new Promise((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                                const dataUrl = reader.result;
+                                const base64 = dataUrl.split(',')[1]; // Remove data:application/octet-stream;base64, prefix
+                                resolve(base64);
+                            };
+                            reader.onerror = reject;
+                            reader.readAsDataURL(blob);
+                        });
+                        console.log(`[insertSheetsAndRunCodes] Codes base64 length: ${codesBase64String.length} characters`);
+                    } catch (conversionError) {
+                        console.error(`[insertSheetsAndRunCodes] Codes base64 conversion failed:`, conversionError);
+                        throw new Error(`Failed to convert codes to base64: ${conversionError.message}`);
                     }
-                    await handleInsertWorksheetsFromBase64(btoa(codesBinaryString), ["Codes"]);
+                    
+                    await handleInsertWorksheetsFromBase64(codesBase64String, ["Codes"]);
                     console.log("Codes.xlsx sheets inserted.");
                 } catch (e) {
                     console.error("Failed to insert sheets from Codes.xlsx:", e);
