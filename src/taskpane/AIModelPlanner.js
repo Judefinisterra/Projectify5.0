@@ -1429,6 +1429,98 @@ function processWordFile(file) {
     });
 }
 
+// Function to process PDF files (.pdf)
+function processPDFFile(file) {
+    return new Promise((resolve, reject) => {
+        // Check if PDF.js is available
+        if (typeof pdfjsLib === 'undefined') {
+            reject(new Error('PDF.js library not loaded. Please refresh the page and try again.'));
+            return;
+        }
+
+        // Set PDF.js worker path
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const arrayBuffer = e.target.result;
+                
+                console.log('[processPDFFile] Using PDF.js to extract text from PDF document');
+                
+                // Load PDF document
+                pdfjsLib.getDocument({ data: arrayBuffer }).promise.then(function(pdf) {
+                    console.log('[processPDFFile] PDF loaded with', pdf.numPages, 'pages');
+                    
+                    const promises = [];
+                    const pages = [];
+                    
+                    // Create promises for all pages
+                    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                        promises.push(
+                            pdf.getPage(pageNum).then(function(page) {
+                                return page.getTextContent().then(function(textContent) {
+                                    const pageText = textContent.items.map(item => item.str).join(' ');
+                                    return {
+                                        pageNumber: pageNum,
+                                        text: pageText,
+                                        wordCount: pageText.split(/\s+/).filter(word => word.length > 0).length
+                                    };
+                                });
+                            })
+                        );
+                    }
+                    
+                    // Wait for all pages to be processed
+                    Promise.all(promises).then(function(pageResults) {
+                        // Sort pages by page number (just in case)
+                        pageResults.sort((a, b) => a.pageNumber - b.pageNumber);
+                        
+                        // Combine all text
+                        const fullText = pageResults.map(page => page.text).join('\n\n');
+                        const totalWordCount = pageResults.reduce((sum, page) => sum + page.wordCount, 0);
+                        
+                        // Split into paragraphs for better formatting
+                        const paragraphs = fullText.split(/\n\s*\n/).filter(p => p.trim().length > 0);
+                        
+                        const fileData = {
+                            fileName: file.name,
+                            fileSize: file.size,
+                            fileType: 'PDF',
+                            content: {
+                                rawText: fullText,
+                                paragraphs: paragraphs,
+                                pages: pageResults,
+                                pageCount: pdf.numPages,
+                                wordCount: totalWordCount,
+                                characterCount: fullText.length
+                            }
+                        };
+                        
+                        console.log('[processPDFFile] Successfully processed PDF file:', fileData.fileName);
+                        console.log(`[processPDFFile] Extracted ${fileData.content.wordCount} words from ${fileData.content.pageCount} pages`);
+                        resolve(fileData);
+                        
+                    }).catch(function(error) {
+                        console.error('[processPDFFile] Error extracting text from PDF pages:', error);
+                        reject(new Error(`Failed to extract text from PDF pages: ${error.message}`));
+                    });
+                    
+                }).catch(function(error) {
+                    console.error('[processPDFFile] Error loading PDF document:', error);
+                    reject(new Error(`Failed to load PDF document: ${error.message}`));
+                });
+                
+            } catch (error) {
+                console.error('[processPDFFile] Error processing PDF file:', error);
+                reject(error);
+            }
+        };
+        reader.onerror = () => reject(new Error('Failed to read PDF file'));
+        reader.readAsArrayBuffer(file);
+    });
+}
+
 // Function to format file data for AI consumption (supports multiple files)
 function formatFileDataForAI(filesData) {
     if (!Array.isArray(filesData)) {
@@ -1464,6 +1556,27 @@ function formatFileDataForAI(filesData) {
             
             if (fileData.content.rawText.length > 2000) {
                 formattedData += `*Note: Showing first 2000 characters of ${fileData.content.characterCount} total characters.*\n\n`;
+            }
+        } else if (fileData.fileType === 'PDF') {
+            // Format PDF document content
+            formattedData += `Page Count: ${fileData.content.pageCount}\n`;
+            formattedData += `Word Count: ${fileData.content.wordCount}\n`;
+            formattedData += `Character Count: ${fileData.content.characterCount}\n`;
+            formattedData += `Paragraphs: ${fileData.content.paragraphs.length}\n\n`;
+            
+            formattedData += `**Document Content:**\n`;
+            formattedData += '```\n';
+            
+            // Show first 2000 characters with paragraph breaks
+            const previewText = fileData.content.rawText.length > 2000 
+                ? fileData.content.rawText.substring(0, 2000) + '...' 
+                : fileData.content.rawText;
+            
+            formattedData += previewText;
+            formattedData += '\n```\n\n';
+            
+            if (fileData.content.rawText.length > 2000) {
+                formattedData += `*Note: Showing first 2000 characters of ${fileData.content.characterCount} total characters from ${fileData.content.pageCount} pages.*\n\n`;
             }
         } else {
             // Format Excel/CSV data
@@ -1519,21 +1632,22 @@ async function handleFileAttachment(file) {
             'application/vnd.ms-excel', // .xls
             'text/csv', // .csv
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-            'application/msword' // .doc
+            'application/msword', // .doc
+            'application/pdf' // .pdf
         ];
         
         const fileExtension = file.name.toLowerCase().split('.').pop();
         console.log('[handleFileAttachment] File extension:', fileExtension);
         
         const mimeTypeAllowed = allowedTypes.includes(file.type);
-        const extensionAllowed = ['xlsx', 'xls', 'csv', 'doc', 'docx'].includes(fileExtension);
+        const extensionAllowed = ['xlsx', 'xls', 'csv', 'doc', 'docx', 'pdf'].includes(fileExtension);
         
         console.log('[handleFileAttachment] MIME type allowed:', mimeTypeAllowed);
         console.log('[handleFileAttachment] Extension allowed:', extensionAllowed);
         
         if (!mimeTypeAllowed && !extensionAllowed) {
             console.log('[handleFileAttachment] File validation failed - neither MIME type nor extension is allowed');
-            throw new Error('Please upload an Excel file (.xlsx, .xls), CSV file (.csv), or Word document (.doc, .docx)');
+            throw new Error('Please upload an Excel file (.xlsx, .xls), CSV file (.csv), Word document (.doc, .docx), or PDF file (.pdf)');
         }
         
         // Validate file size (max 10MB)
@@ -1552,6 +1666,9 @@ async function handleFileAttachment(file) {
                    file.type === 'application/msword') {
             console.log('[handleFileAttachment] Processing as Word document');
             fileData = await processWordFile(file);
+        } else if (fileExtension === 'pdf' || file.type === 'application/pdf') {
+            console.log('[handleFileAttachment] Processing as PDF file');
+            fileData = await processPDFFile(file);
         } else {
             console.log('[handleFileAttachment] Processing as Excel file');
             fileData = await processXLSXFile(file);
@@ -1661,7 +1778,7 @@ function removeAllAttachments() {
 
 // Function to initialize file attachment event listeners
 export function initializeFileAttachment() {
-    console.log('[initializeFileAttachment] Setting up multiple file attachment listeners - VERSION 3.0');
+    console.log('[initializeFileAttachment] Setting up multiple file attachment listeners with PDF support - VERSION 4.0');
     
     // Get elements
     const attachFileButton = document.getElementById('attach-file-client');
