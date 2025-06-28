@@ -86,16 +86,18 @@ async function loadCodeDatabase() {
 export async function initializeAPIKeys() {
   try {
     console.log("Initializing API keys from taskpane.js...");
+    console.log("Environment check - NODE_ENV:", process.env.NODE_ENV);
+    console.log("Environment check - typeof process.env.OPENAI_API_KEY:", typeof process.env.OPENAI_API_KEY);
 
     // Use keys from environment variables via webpack DefinePlugin
-    if (process.env.OPENAI_API_KEY) {
+    if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'undefined') {
         INTERNAL_API_KEYS.OPENAI_API_KEY = process.env.OPENAI_API_KEY;
         console.log("OpenAI API key loaded from environment variables");
     } else {
          console.warn("OpenAI API key not found in environment variables.");
     }
 
-    if (process.env.PINECONE_API_KEY) {
+    if (process.env.PINECONE_API_KEY && process.env.PINECONE_API_KEY !== 'undefined') {
         INTERNAL_API_KEYS.PINECONE_API_KEY = process.env.PINECONE_API_KEY;
         console.log("Pinecone API key loaded from environment variables");
     } else {

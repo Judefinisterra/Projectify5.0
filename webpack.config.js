@@ -8,23 +8,6 @@ const path = require("path");
 const webpack = require("webpack");
 const dotenv = require('dotenv');
 
-// Load environment variables from .env file (local development) or process.env (production)
-const env = dotenv.config().parsed;
-
-// Create an object with the env variables, prioritizing process.env over .env file
-const envKeys = {};
-const requiredEnvVars = ['OPENAI_API_KEY', 'PINECONE_API_KEY', 'CLAUDE_API_KEY'];
-
-requiredEnvVars.forEach(key => {
-  // Use process.env first (for Vercel), then fall back to .env file
-  const value = process.env[key] || (env && env[key]);
-  if (value) {
-    envKeys[`process.env.${key}`] = JSON.stringify(value);
-  }
-});
-
-console.log("Environment variables loaded:", Object.keys(envKeys).map(k => k.replace('process.env.', '')));
-
 const urlDev = "https://localhost:3002/";
 const urlProd = "https://projectify5-0.vercel.app/"; // Vercel production deployment URL
 
@@ -37,6 +20,31 @@ async function getHttpsOptions() {
 
 module.exports = async (env, options) => {
   const dev = options.mode === "development";
+  
+  // Load environment variables from .env file (local development) or process.env (production)
+  const dotenvResult = dotenv.config().parsed;
+
+  // Create an object with the env variables, prioritizing process.env over .env file
+  const envKeys = {};
+  const requiredEnvVars = ['OPENAI_API_KEY', 'PINECONE_API_KEY', 'CLAUDE_API_KEY'];
+
+  console.log("Webpack build mode:", options.mode);
+  console.log("Checking environment variables...");
+
+  requiredEnvVars.forEach(key => {
+    // Use process.env first (for Vercel), then fall back to .env file
+    const value = process.env[key] || (dotenvResult && dotenvResult[key]);
+    if (value) {
+      envKeys[`process.env.${key}`] = JSON.stringify(value);
+      console.log(`✅ ${key}: Found (${value.substring(0, 8)}...)`);
+    } else {
+      console.log(`❌ ${key}: NOT FOUND`);
+      // Still define it as undefined to avoid runtime errors
+      envKeys[`process.env.${key}`] = JSON.stringify(undefined);
+    }
+  });
+
+  console.log("Environment variables to be injected:", Object.keys(envKeys).map(k => k.replace('process.env.', '')));
   const config = {
     devtool: "source-map",
     entry: {
