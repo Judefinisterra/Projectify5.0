@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Projectify 5.0 - Office Add-in</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+        .link-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        .link-card {
+            background: #3498db;
+            color: white;
+            padding: 1rem;
+            border-radius: 4px;
+            text-decoration: none;
+            text-align: center;
+            transition: background-color 0.3s;
+        }
+        .link-card:hover {
+            background: #2980b9;
+        }
+        .description {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Projectify 5.0</h1>
+        <p class="description">
+            Welcome to Projectify 5.0 - an advanced Excel Office Add-in for financial modeling and analysis.
+            This add-in provides AI-powered assistance for creating and managing complex financial models.
+        </p>
+        
+        <div class="link-grid">
+            <a href="/taskpane.html" class="link-card">
+                <h3>Task Pane</h3>
+                <p>Main interface for the add-in</p>
+            </a>
+            <a href="/functions.html" class="link-card">
+                <h3>Custom Functions</h3>
+                <p>Excel custom functions</p>
+            </a>
+            <a href="/commands.html" class="link-card">
+                <h3>Commands</h3>
+                <p>Ribbon commands interface</p>
+            </a>
+            <a href="/manifest.xml" class="link-card">
+                <h3>Manifest</h3>
+                <p>Add-in manifest file</p>
+            </a>
+        </div>
+        
+        <div style="margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #eee; color: #888; text-align: center;">
+            <small>This is an Office Add-in deployment. To use this add-in, sideload it in Excel using the manifest.xml file.</small>
+        </div>
+    </div>
+</body>
+</html> 

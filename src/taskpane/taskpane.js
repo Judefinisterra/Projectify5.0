@@ -24,6 +24,8 @@ import { safeJsonForPrompt } from './AIcalls.js';
 // >>> ADDED: Import conversation handling and validation functions from AIcalls
 // Make sure handleConversation is included here
 import { handleFollowUpConversation, handleInitialConversation, handleConversation, validationCorrection, formatCodeStringsWithGPT, getAICallsProcessedResponse } from './AIcalls.js';
+// >>> ADDED: Import CONFIG for URL management
+import { CONFIG } from './config.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -51,7 +53,7 @@ var lastEditorCursorPosition = null;
 async function loadCodeDatabase() {
   try {
     console.log("Loading code database...");
-    const response = await fetch('https://localhost:3002/assets/codestringDB.txt');
+    const response = await fetch(CONFIG.getAssetUrl('assets/codestringDB.txt'));
     if (!response.ok) {
       throw new Error(`Failed to load codestringDB.txt: ${response.statusText}`);
     }
@@ -484,8 +486,8 @@ async function processActualsWithClaude(csvData, filename) {
         
         // Load the Actuals_System.txt prompt using the same pattern as other prompts
         const paths = [
-            'https://localhost:3002/prompts/Actuals_System.txt',
-            'https://localhost:3002/src/prompts/Actuals_System.txt'
+            CONFIG.getPromptUrl('Actuals_System.txt'),
+            CONFIG.getAssetUrl('src/prompts/Actuals_System.txt')
         ];
         
         let response = null;
@@ -1147,9 +1149,9 @@ export async function processModelCodesForPlanner(modelCodesString) {
             return; 
         }
 
-        // 2. Insert base sheets from Worksheets_4.3.25 v1.xlsx
+                    // 2. Insert base sheets from Worksheets_4.3.25 v1.xlsx
         console.log("[processModelCodesForPlanner] Inserting base sheets from Worksheets_4.3.25 v1.xlsx...");
-        const worksheetsResponse = await fetch('https://localhost:3002/assets/Worksheets_4.3.25 v1.xlsx');
+        const worksheetsResponse = await fetch(CONFIG.getAssetUrl('assets/Worksheets_4.3.25 v1.xlsx'));
         if (!worksheetsResponse.ok) throw new Error(`[processModelCodesForPlanner] Worksheets_4.3.25 v1.xlsx load failed: ${worksheetsResponse.statusText}`);
         const wsArrayBuffer = await worksheetsResponse.arrayBuffer();
         const wsUint8Array = new Uint8Array(wsArrayBuffer);
@@ -1162,7 +1164,7 @@ export async function processModelCodesForPlanner(modelCodesString) {
 
         // 3. Insert codes.xlsx (as runCodes depends on it)
         console.log("[processModelCodesForPlanner] Inserting codes.xlsx...");
-        const codesResponse = await fetch('https://localhost:3002/assets/codes.xlsx');
+        const codesResponse = await fetch(CONFIG.getAssetUrl('assets/codes.xlsx'));
         if (!codesResponse.ok) throw new Error(`[processModelCodesForPlanner] codes.xlsx load failed: ${codesResponse.statusText}`);
         const codesArrayBuffer = await codesResponse.arrayBuffer();
         const codesUint8Array = new Uint8Array(codesArrayBuffer);
@@ -1323,7 +1325,7 @@ async function insertSheetsAndRunCodes() {
             } else {
                 console.log("[Run Codes] No codes to validate on first pass.");
             }
-            const worksheetsResponse = await fetch('https://localhost:3002/assets/Worksheets_4.3.25 v1.xlsx');
+            const worksheetsResponse = await fetch(CONFIG.getAssetUrl('assets/Worksheets_4.3.25 v1.xlsx'));
             if (!worksheetsResponse.ok) throw new Error(`Worksheets load failed: ${worksheetsResponse.statusText}`);
             const worksheetsArrayBuffer = await worksheetsResponse.arrayBuffer();
             const worksheetsUint8Array = new Uint8Array(worksheetsArrayBuffer);
@@ -1415,7 +1417,7 @@ async function insertSheetsAndRunCodes() {
                     console.log("[Run Codes] Changes detected, but no code content found for validation in new/modified tabs.");
                 }
                 try {
-                    const codesResponse = await fetch('https://localhost:3002/assets/codes.xlsx');
+                    const codesResponse = await fetch(CONFIG.getAssetUrl('assets/codes.xlsx'));
                     if (!codesResponse.ok) throw new Error(`codes.xlsx load failed: ${codesResponse.statusText}`);
                     const codesArrayBuffer = await codesResponse.arrayBuffer();
                     const codesUint8Array = new Uint8Array(codesArrayBuffer);

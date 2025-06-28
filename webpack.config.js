@@ -26,7 +26,7 @@ requiredEnvVars.forEach(key => {
 console.log("Environment variables loaded:", Object.keys(envKeys).map(k => k.replace('process.env.', '')));
 
 const urlDev = "https://localhost:3002/";
-const urlProd = "https://www.contoso.com/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
+const urlProd = "https://projectify5-0.vercel.app/"; // Vercel production deployment URL
 
 /* global require, module, process, __dirname */
 
@@ -101,6 +101,11 @@ module.exports = async (env, options) => {
         filename: "commands.html",
         template: "./src/commands/commands.html",
         chunks: ["polyfill", "commands"],
+      }),
+      new HtmlWebpackPlugin({
+        filename: "index.html",
+        template: "./src/index.html",
+        chunks: [],
       }),
       new webpack.DefinePlugin({
         'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),

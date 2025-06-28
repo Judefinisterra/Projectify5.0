@@ -4,6 +4,8 @@
 // Or that callOpenAI is available globally/imported if AIcalls.js exports it.
 // For now, let's assume a local way to call OpenAI or that it's handled by the main taskpane script.
 
+// >>> ADDED: Import CONFIG for URL management
+import { CONFIG } from './config.js';
 // Imports needed for _executePlannerCodes
 import { validateCodeStringsForRun } from './Validation.js';
 import { 
@@ -45,8 +47,8 @@ async function getAIModelPlanningSystemPrompt() {
   const paths = [
     // Try path relative to root if /src/ is not working, assuming 'prompts' is then at root level of served dir
     // THIS IS A GUESS - The original path `https://localhost:3002/src/prompts/...` should work if server is configured for it.
-    `https://localhost:3002/prompts/${promptKey}.txt`, 
-    `https://localhost:3002/src/prompts/${promptKey}.txt` // Original path as a fallback
+    CONFIG.getPromptUrl(`${promptKey}.txt`), 
+    CONFIG.getAssetUrl(`src/prompts/${promptKey}.txt`) // Original path as a fallback
   ];
 
   if (DEBUG_PLANNER) console.log(`AIModelPlanner: Attempting to load prompt file: ${promptKey}.txt`);
@@ -676,7 +678,7 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
         console.log("[AIModelPlanner._executePlannerCodes] === END OF CODESTRINGS ===");
 
         console.log("[AIModelPlanner._executePlannerCodes] Inserting base sheets from Worksheets_4.3.25 v1.xlsx...");
-        const worksheetsResponse = await fetch('https://localhost:3002/assets/Worksheets_4.3.25 v1.xlsx');
+        const worksheetsResponse = await fetch(CONFIG.getAssetUrl('assets/Worksheets_4.3.25 v1.xlsx'));
         if (!worksheetsResponse.ok) throw new Error(`[AIModelPlanner._executePlannerCodes] Worksheets_4.3.25 v1.xlsx load failed: ${worksheetsResponse.statusText}`);
         const wsArrayBuffer = await worksheetsResponse.arrayBuffer();
         const wsUint8Array = new Uint8Array(wsArrayBuffer);
@@ -688,7 +690,7 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
         console.log("[AIModelPlanner._executePlannerCodes] Base sheets (Worksheets_4.3.25 v1.xlsx) inserted.");
 
         console.log("[AIModelPlanner._executePlannerCodes] Inserting codes.xlsx...");
-        const codesResponse = await fetch('https://localhost:3002/assets/codes.xlsx');
+        const codesResponse = await fetch(CONFIG.getAssetUrl('assets/codes.xlsx'));
         if (!codesResponse.ok) throw new Error(`[AIModelPlanner._executePlannerCodes] codes.xlsx load failed: ${codesResponse.statusText}`);
         const codesArrayBuffer = await codesResponse.arrayBuffer();
         const codesUint8Array = new Uint8Array(codesArrayBuffer);

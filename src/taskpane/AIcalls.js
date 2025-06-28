@@ -8,6 +8,8 @@
 // Using direct fetch calls instead
 // Add this test function
 import { validateCodeStrings } from './Validation.js';
+// >>> ADDED: Import CONFIG for URL management
+import { CONFIG } from './config.js';
 // Import the spreadsheet utilities
 // import { handleInsertWorksheetsFromBase64 } from './SpreadsheetUtils.js';
 // Import code collection functions
@@ -126,19 +128,19 @@ export function setAPIKeys(keys) {
 }
 
 const srcPaths = [
-  'https://localhost:3002/src/prompts/Encoder_System.txt',
-  'https://localhost:3002/src/prompts/Encoder_Main.txt',
-  'https://localhost:3002/src/prompts/Followup_System.txt',
-  'https://localhost:3002/src/prompts/Structure_System.txt',
-  'https://localhost:3002/src/prompts/Validation_System.txt',
-  'https://localhost:3002/src/prompts/Validation_Main.txt'
+  CONFIG.getAssetUrl('src/prompts/Encoder_System.txt'),
+  CONFIG.getAssetUrl('src/prompts/Encoder_Main.txt'),
+  CONFIG.getAssetUrl('src/prompts/Followup_System.txt'),
+  CONFIG.getAssetUrl('src/prompts/Structure_System.txt'),
+  CONFIG.getAssetUrl('src/prompts/Validation_System.txt'),
+  CONFIG.getAssetUrl('src/prompts/Validation_Main.txt')
 ];
 
 // Function to load the code string database
 async function loadCodeDatabase() {
   try {
     console.log("Loading code database...");
-    const response = await fetch('https://localhost:3002/assets/codestringDB.txt');
+    const response = await fetch(CONFIG.getAssetUrl('assets/codestringDB.txt'));
     if (!response.ok) {
       throw new Error(`Failed to load codestringDB.txt: ${response.statusText}`);
     }
@@ -965,7 +967,7 @@ export async function createEmbedding(text) {
 export async function loadPromptFromFile(promptKey) {
   try {
     const paths = [
-      `https://localhost:3002/prompts/${promptKey}.txt`,
+      CONFIG.getPromptUrl(`${promptKey}.txt`),
       ...srcPaths // Add fallback paths if needed
     ];
 
@@ -2803,7 +2805,7 @@ async function loadMarginCOGSContent() {
     try {
         if (DEBUG) console.log("[loadMarginCOGSContent] Loading MarginCOGS.txt content...");
         
-        const response = await fetch('https://localhost:3002/prompts/MarginCOGS.txt');
+        const response = await fetch(CONFIG.getPromptUrl('MarginCOGS.txt'));
         if (DEBUG) console.log("[loadMarginCOGSContent] Fetch response status:", response.status, response.statusText);
         
         if (!response.ok) {
@@ -2829,7 +2831,7 @@ async function loadReconTableContent() {
     try {
         if (DEBUG) console.log("[loadReconTableContent] Loading ReconTable.txt content...");
         
-        const response = await fetch('https://localhost:3002/prompts/ReconTable.txt');
+        const response = await fetch(CONFIG.getPromptUrl('ReconTable.txt'));
         if (DEBUG) console.log("[loadReconTableContent] Fetch response status:", response.status, response.statusText);
         
         if (!response.ok) {
@@ -3439,12 +3441,12 @@ export async function loadSelectedPromptModules(selectedModules) {
             if (fileLoaded) break; // Skip remaining variants if we already found the file
             
             // Use the same path patterns as the working functions
-            const paths = [
-                `https://localhost:3002/prompts/${fileName}`, // Primary path (works for files copied to src/prompts/)
-                `https://localhost:3002/src/prompts/${fileName}`, // Direct src path (rarely works due to server config)
-                `https://localhost:3002/src/prompts/Prompt_Modules/${fileName}`, // Specific module subfolder (usually doesn't work)
-                `https://localhost:3002/prompts/Prompt_Modules/${fileName}` // Alternative module subfolder (usually doesn't work)
-            ];
+                    const paths = [
+            CONFIG.getPromptUrl(fileName), // Primary path (works for files copied to src/prompts/)
+            CONFIG.getAssetUrl(`src/prompts/${fileName}`), // Direct src path (rarely works due to server config)
+            CONFIG.getAssetUrl(`src/prompts/Prompt_Modules/${fileName}`), // Specific module subfolder (usually doesn't work)
+            CONFIG.getPromptUrl(`Prompt_Modules/${fileName}`) // Alternative module subfolder (usually doesn't work)
+        ];
             
             let response = null;
             for (const path of paths) {
