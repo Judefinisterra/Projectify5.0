@@ -1907,4 +1907,439 @@ export function initializeFileAttachment() {
     console.log('[initializeFileAttachment] Multiple file attachment listeners set up successfully');
 }
 
+// ========== VOICE INPUT FUNCTIONALITY ==========
+
+let mediaRecorder = null;
+let audioChunks = [];
+let recordingTimer = null;
+let recordingStartTime = null;
+let audioContext = null;
+let analyser = null;
+let waveformCanvas = null;
+let waveformAnimationId = null;
+
+// Function to format recording time
+function formatRecordingTime(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Function to switch to voice recording mode
+function switchToVoiceMode() {
+    const normalMode = document.getElementById('normal-input-mode');
+    const voiceMode = document.getElementById('voice-recording-mode');
+    
+    if (normalMode && voiceMode) {
+        normalMode.style.display = 'none';
+        voiceMode.style.display = 'flex';
+        
+        // Initialize waveform canvas
+        initializeWaveform();
+        
+        // Start recording immediately
+        startVoiceRecording();
+    }
+}
+
+// Function to switch back to normal input mode
+function switchToNormalMode() {
+    const normalMode = document.getElementById('normal-input-mode');
+    const voiceMode = document.getElementById('voice-recording-mode');
+    const loadingMode = document.getElementById('transcription-loading-mode');
+    
+    if (normalMode && voiceMode && loadingMode) {
+        normalMode.style.display = 'flex';
+        voiceMode.style.display = 'none';
+        loadingMode.style.display = 'none';
+        
+        // Stop any ongoing recording
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            stopVoiceRecording();
+        }
+        
+        // Cleanup waveform
+        cleanupWaveform();
+        resetVoiceState();
+    }
+}
+
+// Function to switch to transcription loading mode
+function switchToLoadingMode() {
+    const normalMode = document.getElementById('normal-input-mode');
+    const voiceMode = document.getElementById('voice-recording-mode');
+    const loadingMode = document.getElementById('transcription-loading-mode');
+    
+    if (normalMode && voiceMode && loadingMode) {
+        normalMode.style.display = 'none';
+        voiceMode.style.display = 'none';
+        loadingMode.style.display = 'flex';
+    }
+}
+
+// Function to reset voice state
+function resetVoiceState() {
+    const timer = document.getElementById('voice-recording-timer');
+    
+    if (timer) {
+        timer.textContent = '00:00';
+    }
+    
+    // Clear timer if running
+    if (recordingTimer) {
+        clearInterval(recordingTimer);
+        recordingTimer = null;
+    }
+    
+    // Reset audio data
+    audioChunks = [];
+    recordingStartTime = null;
+}
+
+// Function to initialize waveform visualization
+function initializeWaveform() {
+    waveformCanvas = document.getElementById('voice-waveform');
+    if (!waveformCanvas) return;
+    
+    const ctx = waveformCanvas.getContext('2d');
+    const rect = waveformCanvas.getBoundingClientRect();
+    
+    // Set canvas size to match display size
+    waveformCanvas.width = rect.width * window.devicePixelRatio;
+    waveformCanvas.height = rect.height * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    
+    // Style the canvas
+    waveformCanvas.style.width = rect.width + 'px';
+    waveformCanvas.style.height = rect.height + 'px';
+}
+
+// Function to cleanup waveform
+function cleanupWaveform() {
+    if (waveformAnimationId) {
+        cancelAnimationFrame(waveformAnimationId);
+        waveformAnimationId = null;
+    }
+    
+    if (audioContext && audioContext.state !== 'closed') {
+        audioContext.close();
+        audioContext = null;
+    }
+    
+    analyser = null;
+}
+
+// Function to draw waveform
+function drawWaveform() {
+    if (!waveformCanvas || !analyser) return;
+    
+    const ctx = waveformCanvas.getContext('2d');
+    const rect = waveformCanvas.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    
+    // Get frequency data
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    analyser.getByteFrequencyData(dataArray);
+    
+    // Clear canvas
+    ctx.fillStyle = 'transparent';
+    ctx.fillRect(0, 0, width, height);
+    
+    // Draw waveform bars
+    const barWidth = width / bufferLength * 2.5;
+    let barHeight;
+    let x = 0;
+    
+    for (let i = 0; i < bufferLength; i++) {
+        barHeight = (dataArray[i] / 255) * height * 0.8;
+        
+        // Use black color for waveform bars
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+        
+        x += barWidth + 1;
+    }
+    
+    // Continue animation
+    waveformAnimationId = requestAnimationFrame(drawWaveform);
+}
+
+// Function to start audio recording with waveform
+async function startVoiceRecording() {
+    try {
+        console.log('[Voice] Requesting microphone access...');
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                sampleRate: 44100
+            } 
+        });
+        
+        console.log('[Voice] Microphone access granted');
+        
+        // Setup audio context for waveform visualization
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioContext.createAnalyser();
+        const source = audioContext.createMediaStreamSource(stream);
+        source.connect(analyser);
+        
+        analyser.fftSize = 256;
+        
+        // Start waveform animation
+        drawWaveform();
+        
+        // Create MediaRecorder
+        const options = { mimeType: 'audio/webm;codecs=opus' };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options.mimeType = 'audio/webm';
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options.mimeType = 'audio/mp4';
+            }
+        }
+        
+        mediaRecorder = new MediaRecorder(stream, options);
+        audioChunks = [];
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunks.push(event.data);
+            }
+        };
+        
+        mediaRecorder.onstop = async () => {
+            console.log('[Voice] Recording stopped, processing audio...');
+            
+            // Stop all tracks to release microphone
+            stream.getTracks().forEach(track => track.stop());
+            
+            // Switch to loading mode
+            switchToLoadingMode();
+            
+            if (audioChunks.length > 0) {
+                await processRecordedAudio();
+            }
+        };
+        
+        // Start recording
+        mediaRecorder.start();
+        recordingStartTime = Date.now();
+        
+        console.log('[Voice] Recording started');
+        
+        // Start timer
+        startRecordingTimer();
+        
+    } catch (error) {
+        console.error('[Voice] Error accessing microphone:', error);
+        alert('Unable to access microphone. Please check your permissions and try again.');
+        switchToNormalMode();
+    }
+}
+
+// Function to stop audio recording
+function stopVoiceRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        console.log('[Voice] Stopping recording...');
+        mediaRecorder.stop();
+        
+        // Clear timer
+        if (recordingTimer) {
+            clearInterval(recordingTimer);
+            recordingTimer = null;
+        }
+        
+        // Stop waveform animation
+        cleanupWaveform();
+    }
+}
+
+// Function to start recording timer
+function startRecordingTimer() {
+    const timer = document.getElementById('voice-recording-timer');
+    if (timer) {
+        recordingTimer = setInterval(() => {
+            if (recordingStartTime) {
+                const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+                timer.textContent = formatRecordingTime(elapsed);
+            }
+        }, 1000);
+    }
+}
+
+// Function to process recorded audio and send to OpenAI
+async function processRecordedAudio() {
+    try {
+        console.log('[Voice] Creating audio blob from chunks...');
+        
+        // Create blob from audio chunks
+        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+        console.log('[Voice] Audio blob created, size:', audioBlob.size, 'bytes');
+        
+        if (audioBlob.size === 0) {
+            throw new Error('No audio data recorded');
+        }
+        
+        // Send to OpenAI transcription API
+        const transcription = await transcribeAudio(audioBlob);
+        
+        // Use the transcribed text immediately
+        useTranscribedText(transcription);
+        
+    } catch (error) {
+        console.error('[Voice] Error processing audio:', error);
+        alert(`Error processing audio: ${error.message}`);
+        switchToNormalMode();
+    }
+}
+
+// Function to transcribe audio using OpenAI API
+async function transcribeAudio(audioBlob) {
+    try {
+        console.log('[Voice] Sending audio to OpenAI transcription API...');
+        
+        // Check if API key is available
+        if (!AI_MODEL_PLANNER_OPENAI_API_KEY) {
+            throw new Error('OpenAI API key not available. Please set up your API key first.');
+        }
+        
+        // Create form data
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'audio.webm');
+        formData.append('model', 'whisper-1');
+        formData.append('language', 'en'); // Can be made configurable
+        
+        // Make API call
+        const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${AI_MODEL_PLANNER_OPENAI_API_KEY}`
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: "Failed to parse error response" }));
+            throw new Error(`OpenAI API error: ${response.status} ${response.statusText} - ${errorData.message || JSON.stringify(errorData)}`);
+        }
+        
+        const result = await response.json();
+        console.log('[Voice] Transcription successful:', result.text);
+        
+        return result.text;
+        
+    } catch (error) {
+        console.error('[Voice] Transcription error:', error);
+        throw error;
+    }
+}
+
+// Function to use transcribed text
+function useTranscribedText(text) {
+    const userInput = document.getElementById('user-input-client');
+    
+    if (userInput && text) {
+        // Add text to input, preserving existing content
+        const currentText = userInput.value;
+        const newText = currentText ? `${currentText} ${text}` : text;
+        userInput.value = newText;
+        
+        // Auto-resize textarea if needed
+        userInput.style.height = 'auto';
+        userInput.style.height = Math.min(userInput.scrollHeight, 120) + 'px';
+        
+        console.log('[Voice] Transcribed text added to input:', text);
+    }
+    
+    // Switch back to normal mode
+    switchToNormalMode();
+    
+    // Focus input and move cursor to end
+    if (userInput) {
+        userInput.focus();
+        userInput.setSelectionRange(userInput.value.length, userInput.value.length);
+    }
+}
+
+// Function to initialize voice input functionality
+export function initializeVoiceInput() {
+    console.log('[Voice] Initializing ChatGPT-style voice input functionality');
+    
+    // Check for browser support
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn('[Voice] MediaDevices API not supported in this browser');
+        // Hide voice button if not supported
+        const voiceButton = document.getElementById('voice-input-client');
+        if (voiceButton) {
+            voiceButton.style.display = 'none';
+        }
+        return;
+    }
+    
+    if (!window.MediaRecorder) {
+        console.warn('[Voice] MediaRecorder API not supported in this browser');
+        // Hide voice button if not supported
+        const voiceButton = document.getElementById('voice-input-client');
+        if (voiceButton) {
+            voiceButton.style.display = 'none';
+        }
+        return;
+    }
+    
+    // Get elements
+    const voiceButton = document.getElementById('voice-input-client');
+    const cancelVoiceBtn = document.getElementById('cancel-voice-recording');
+    const acceptVoiceBtn = document.getElementById('accept-voice-recording');
+    
+    // Voice button click - start recording immediately
+    if (voiceButton) {
+        voiceButton.addEventListener('click', () => {
+            console.log('[Voice] Voice button clicked - switching to voice mode');
+            switchToVoiceMode();
+        });
+    }
+    
+    // Cancel recording button
+    if (cancelVoiceBtn) {
+        cancelVoiceBtn.addEventListener('click', () => {
+            console.log('[Voice] Cancel recording clicked');
+            switchToNormalMode();
+        });
+    }
+    
+    // Accept recording button (checkmark)
+    if (acceptVoiceBtn) {
+        acceptVoiceBtn.addEventListener('click', () => {
+            console.log('[Voice] Accept recording clicked');
+            stopVoiceRecording();
+        });
+    }
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        const voiceMode = document.getElementById('voice-recording-mode');
+        const loadingMode = document.getElementById('transcription-loading-mode');
+        
+        // ESC to cancel recording
+        if (e.key === 'Escape') {
+            if (voiceMode && voiceMode.style.display !== 'none') {
+                switchToNormalMode();
+            } else if (loadingMode && loadingMode.style.display !== 'none') {
+                switchToNormalMode();
+            }
+        }
+        
+        // Enter to accept recording
+        if (e.key === 'Enter' && voiceMode && voiceMode.style.display !== 'none') {
+            e.preventDefault();
+            stopVoiceRecording();
+        }
+    });
+    
+    console.log('[Voice] ChatGPT-style voice input functionality initialized successfully');
+}
+
 

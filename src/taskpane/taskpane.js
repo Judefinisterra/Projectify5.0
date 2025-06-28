@@ -26,8 +26,8 @@ import { safeJsonForPrompt } from './AIcalls.js';
 import { handleFollowUpConversation, handleInitialConversation, handleConversation, validationCorrection, formatCodeStringsWithGPT, getAICallsProcessedResponse } from './AIcalls.js';
 // >>> ADDED: Import CONFIG for URL management
 import { CONFIG } from './config.js';
-// >>> ADDED: Import file attachment functionality from AIModelPlanner
-import { initializeFileAttachment } from './AIModelPlanner.js';
+// >>> ADDED: Import file attachment and voice input functionality from AIModelPlanner
+import { initializeFileAttachment, initializeVoiceInput, setAIModelPlannerOpenApiKey } from './AIModelPlanner.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -1724,6 +1724,11 @@ Office.onReady((info) => {
         initializeFileAttachment();
       }
       
+      // Initialize voice input functionality
+      if (typeof initializeVoiceInput === 'function') {
+        initializeVoiceInput();
+      }
+      
       console.log("Client Mode activated");
     }
 
@@ -2241,6 +2246,11 @@ Office.onReady((info) => {
       } else {
         // >>> ADDED: Set the API keys in AIcalls module
         setAPIKeys(keys);
+        
+        // >>> ADDED: Set the API key for AI Model Planner voice input
+        if (keys.OPENAI_API_KEY) {
+          setAIModelPlannerOpenApiKey(keys.OPENAI_API_KEY);
+        }
       }
       
       // >>> ADDED: Clear conversation history on startup to ensure fresh start

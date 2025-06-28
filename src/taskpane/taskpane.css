@@ -1279,6 +1279,151 @@ body {
     color: #dc2626;
 }
 
+/* Input Mode Styles */
+.input-mode {
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+}
+
+/* Voice Input Styles */
+.right-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.voice-button {
+    background: transparent !important;
+    border: none !important;
+    padding: 6px !important;
+    min-width: auto !important;
+    min-height: auto !important;
+    color: #6b7280 !important;
+    transition: color 0.2s ease;
+    border-radius: 50% !important;
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.voice-button:hover {
+    color: #374151 !important;
+    background: rgba(0, 0, 0, 0.08) !important;
+}
+
+.voice-button:active {
+    background: rgba(0, 0, 0, 0.12) !important;
+}
+
+.microphone-icon {
+    width: 16px;
+    height: 16px;
+}
+
+/* Voice Recording Interface */
+.voice-waveform-container {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    min-height: 40px;
+    margin: 0 12px;
+}
+
+.voice-waveform {
+    width: 100%;
+    height: 40px;
+}
+
+.voice-recording-timer {
+    position: absolute;
+    top: -20px;
+    right: 0;
+    font-size: 12px;
+    color: #6b7280;
+    font-family: 'Courier New', monospace;
+    font-weight: 500;
+}
+
+.voice-recording-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.voice-control-button {
+    background: transparent !important;
+    border: none !important;
+    padding: 6px !important;
+    min-width: auto !important;
+    min-height: auto !important;
+    transition: all 0.2s ease;
+    border-radius: 50% !important;
+    width: 32px !important;
+    height: 32px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.voice-control-button:hover {
+    background: rgba(0, 0, 0, 0.08) !important;
+}
+
+.voice-control-button .cancel-icon {
+    width: 16px;
+    height: 16px;
+    color: #6b7280;
+}
+
+.voice-control-button .check-icon {
+    width: 16px;
+    height: 16px;
+    color: #22c55e;
+}
+
+.voice-control-button:hover .cancel-icon {
+    color: #dc2626;
+}
+
+.voice-control-button:hover .check-icon {
+    color: #16a34a;
+}
+
+/* Transcription Loading */
+.transcription-loading-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    padding: 12px;
+}
+
+.transcription-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #e5e7eb;
+    border-top: 2px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.transcription-loading-text {
+    font-size: 14px;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 /* Spacing between textarea and send button */
 .chatgpt-input-bar #user-input-client {
     margin-right: 8px;
