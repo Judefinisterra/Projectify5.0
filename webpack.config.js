@@ -135,8 +135,7 @@ module.exports = async (env, options) => {
           },
           {
             from: "assets/*.xlsx",
-            to: "assets/[name][ext]",
-            type: 'resource'
+            to: "assets/[name][ext]"
           },
           {
             from: "./src/prompts/*",
