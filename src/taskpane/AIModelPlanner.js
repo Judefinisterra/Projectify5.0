@@ -1292,10 +1292,19 @@ function processXLSXFile(file) {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
                 
+                // Determine the actual file type based on extension
+                const fileExtension = file.name.toLowerCase().split('.').pop();
+                let fileType = 'XLSX'; // default
+                if (fileExtension === 'xls') {
+                    fileType = 'XLS';
+                } else if (fileExtension === 'xlsm') {
+                    fileType = 'XLSM';
+                }
+                
                 const result = {
                     fileName: file.name,
                     fileSize: file.size,
-                    fileType: 'XLSX',
+                    fileType: fileType,
                     sheets: {},
                     sheetNames: workbook.SheetNames
                 };
@@ -1317,7 +1326,7 @@ function processXLSXFile(file) {
                     };
                 });
                 
-                console.log('[processXLSXFile] Successfully processed XLSX file:', result.fileName);
+                console.log(`[processXLSXFile] Successfully processed ${fileType} file:`, result.fileName);
                 resolve(result);
             } catch (error) {
                 console.error('[processXLSXFile] Error processing XLSX file:', error);
@@ -1695,6 +1704,7 @@ async function handleFileAttachment(file) {
         const allowedTypes = [
             'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
             'application/vnd.ms-excel', // .xls
+            'application/vnd.ms-excel.sheet.macroEnabled.12', // .xlsm
             'text/csv', // .csv
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
             'application/msword', // .doc
@@ -1706,14 +1716,14 @@ async function handleFileAttachment(file) {
         console.log('[handleFileAttachment] File extension:', fileExtension);
         
         const mimeTypeAllowed = allowedTypes.includes(file.type);
-        const extensionAllowed = ['xlsx', 'xls', 'csv', 'doc', 'docx', 'pdf', 'txt'].includes(fileExtension);
+        const extensionAllowed = ['xlsx', 'xls', 'xlsm', 'csv', 'doc', 'docx', 'pdf', 'txt'].includes(fileExtension);
         
         console.log('[handleFileAttachment] MIME type allowed:', mimeTypeAllowed);
         console.log('[handleFileAttachment] Extension allowed:', extensionAllowed);
         
         if (!mimeTypeAllowed && !extensionAllowed) {
             console.log('[handleFileAttachment] File validation failed - neither MIME type nor extension is allowed');
-            throw new Error('Please upload an Excel file (.xlsx, .xls), CSV file (.csv), Word document (.doc, .docx), PDF file (.pdf), or Text file (.txt)');
+            throw new Error('Please upload an Excel file (.xlsx, .xls, .xlsm), CSV file (.csv), Word document (.doc, .docx), PDF file (.pdf), or Text file (.txt)');
         }
         
         // Validate file size (max 10MB)
@@ -1739,7 +1749,7 @@ async function handleFileAttachment(file) {
             console.log('[handleFileAttachment] Processing as Text file');
             fileData = await processTXTFile(file);
         } else {
-            console.log('[handleFileAttachment] Processing as Excel file');
+            console.log('[handleFileAttachment] Processing as Excel file (.xlsx/.xls/.xlsm)');
             fileData = await processXLSXFile(file);
         }
         
@@ -1847,7 +1857,7 @@ function removeAllAttachments() {
 
 // Function to initialize file attachment event listeners
 export function initializeFileAttachment() {
-    console.log('[initializeFileAttachment] Setting up multiple file attachment listeners with PDF and TXT support - VERSION 5.0');
+    console.log('[initializeFileAttachment] Setting up multiple file attachment listeners with full Excel support (including .xlsm) - VERSION 5.1');
     
     // Get elements
     const attachFileButton = document.getElementById('attach-file-client');
