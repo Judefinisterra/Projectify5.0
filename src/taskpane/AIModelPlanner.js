@@ -2405,6 +2405,457 @@ export function initializeVoiceInput() {
     console.log('[Voice] ChatGPT-style voice input functionality initialized successfully');
 }
 
+// ========== DEVELOPER MODE VOICE INPUT FUNCTIONALITY ==========
+
+// Developer mode specific variables
+let mediaRecorderDev = null;
+let audioChunksDev = [];
+let recordingTimerDev = null;
+let recordingStartTimeDev = null;
+let audioContextDev = null;
+let analyserDev = null;
+let waveformCanvasDev = null;
+let waveformAnimationIdDev = null;
+
+// Function to switch to voice recording mode for developer mode
+function switchToVoiceModeDev() {
+    const normalMode = document.getElementById('normal-input-mode-dev');
+    const voiceMode = document.getElementById('voice-recording-mode-dev');
+    
+    if (normalMode && voiceMode) {
+        normalMode.style.display = 'none';
+        voiceMode.style.display = 'flex';
+        
+        // Initialize waveform canvas
+        initializeWaveformDev();
+        
+        // Start recording immediately
+        startVoiceRecordingDev();
+    }
+}
+
+// Function to switch back to normal input mode for developer mode
+function switchToNormalModeDev() {
+    const normalMode = document.getElementById('normal-input-mode-dev');
+    const voiceMode = document.getElementById('voice-recording-mode-dev');
+    const loadingMode = document.getElementById('transcription-loading-mode-dev');
+    
+    if (normalMode && voiceMode && loadingMode) {
+        normalMode.style.display = 'flex';
+        voiceMode.style.display = 'none';
+        loadingMode.style.display = 'none';
+        
+        // Stop any ongoing recording
+        if (mediaRecorderDev && mediaRecorderDev.state === 'recording') {
+            stopVoiceRecordingDev();
+        }
+        
+        // Cleanup waveform
+        cleanupWaveformDev();
+        resetVoiceStateDev();
+    }
+}
+
+// Function to switch to transcription loading mode for developer mode
+function switchToLoadingModeDev() {
+    const normalMode = document.getElementById('normal-input-mode-dev');
+    const voiceMode = document.getElementById('voice-recording-mode-dev');
+    const loadingMode = document.getElementById('transcription-loading-mode-dev');
+    
+    if (normalMode && voiceMode && loadingMode) {
+        normalMode.style.display = 'none';
+        voiceMode.style.display = 'none';
+        loadingMode.style.display = 'flex';
+    }
+}
+
+// Function to reset voice state for developer mode
+function resetVoiceStateDev() {
+    const timer = document.getElementById('voice-recording-timer-dev');
+    
+    if (timer) {
+        timer.textContent = '00:00';
+    }
+    
+    // Clear timer if running
+    if (recordingTimerDev) {
+        clearInterval(recordingTimerDev);
+        recordingTimerDev = null;
+    }
+    
+    // Reset audio data
+    audioChunksDev = [];
+    recordingStartTimeDev = null;
+}
+
+// Function to initialize waveform visualization for developer mode
+function initializeWaveformDev() {
+    waveformCanvasDev = document.getElementById('voice-waveform-dev');
+    if (!waveformCanvasDev) return;
+    
+    const ctx = waveformCanvasDev.getContext('2d');
+    const rect = waveformCanvasDev.getBoundingClientRect();
+    
+    // Set canvas size to match display size
+    waveformCanvasDev.width = rect.width * window.devicePixelRatio;
+    waveformCanvasDev.height = rect.height * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    
+    // Style the canvas
+    waveformCanvasDev.style.width = rect.width + 'px';
+    waveformCanvasDev.style.height = rect.height + 'px';
+}
+
+// Function to cleanup waveform for developer mode
+function cleanupWaveformDev() {
+    console.log('[Voice-Dev] Cleaning up waveform visualization');
+    
+    if (waveformAnimationIdDev) {
+        cancelAnimationFrame(waveformAnimationIdDev);
+        waveformAnimationIdDev = null;
+    }
+    
+    if (audioContextDev && audioContextDev.state !== 'closed') {
+        audioContextDev.close().catch(err => {
+            console.warn('[Voice-Dev] Error closing audio context:', err);
+        });
+        audioContextDev = null;
+    }
+    
+    analyserDev = null;
+    
+    // Clear the canvas
+    if (waveformCanvasDev) {
+        const ctx = waveformCanvasDev.getContext('2d');
+        const rect = waveformCanvasDev.getBoundingClientRect();
+        ctx.clearRect(0, 0, rect.width, rect.height);
+    }
+}
+
+// Function to draw waveform for developer mode
+function drawWaveformDev() {
+    if (!waveformCanvasDev || !analyserDev) {
+        return;
+    }
+    
+    const ctx = waveformCanvasDev.getContext('2d');
+    const rect = waveformCanvasDev.getBoundingClientRect();
+    const width = rect.width;
+    const height = rect.height;
+    
+    // Get time domain data for real-time audio visualization
+    const bufferLength = analyserDev.fftSize;
+    const dataArray = new Uint8Array(bufferLength);
+    analyserDev.getByteTimeDomainData(dataArray);
+    
+    // Clear canvas with transparent background
+    ctx.clearRect(0, 0, width, height);
+    
+    // Calculate how many bars we want to show
+    const numBars = Math.min(60, Math.floor(width / 4)); // Adjust bar count based on width
+    const barWidth = (width - (numBars - 1)) / numBars; // Account for spacing
+    
+    // Process audio data to create frequency-style visualization
+    const samplesPerBar = Math.floor(bufferLength / numBars);
+    
+    for (let i = 0; i < numBars; i++) {
+        let sum = 0;
+        let amplitude = 0;
+        
+        // Calculate RMS (root mean square) for this bar's audio data
+        for (let j = 0; j < samplesPerBar; j++) {
+            const sample = (dataArray[i * samplesPerBar + j] - 128) / 128; // Normalize to -1 to 1
+            sum += sample * sample;
+        }
+        
+        amplitude = Math.sqrt(sum / samplesPerBar);
+        
+        // Add some smoothing and make it more responsive
+        const minHeight = 3; // Minimum bar height for better visibility
+        const maxHeight = height * 0.8;
+        
+        // Amplify the signal for better visual feedback
+        const amplifiedAmplitude = Math.pow(amplitude * 2, 0.8); // Power curve for better visual response
+        let barHeight = minHeight + (amplifiedAmplitude * maxHeight);
+        
+        // Add subtle animation for visual interest
+        const timeOffset = Date.now() * 0.005; // Slow time-based animation
+        const animationFactor = Math.sin(timeOffset + i * 0.2) * 0.1; // Slight wave effect
+        barHeight += animationFactor * 3;
+        
+        // Add some randomness for visual interest when there's audio
+        if (amplitude > 0.005) { // Lower threshold for better responsiveness
+            barHeight += Math.random() * 3;
+        }
+        
+        // Ensure minimum visibility and cap maximum
+        barHeight = Math.max(barHeight, minHeight);
+        barHeight = Math.min(barHeight, maxHeight);
+        
+        // Calculate x position with spacing
+        const x = i * (barWidth + 1);
+        
+        // Draw the bar centered vertically
+        const y = (height - barHeight) / 2;
+        
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x, y, barWidth, barHeight);
+    }
+    
+    // Continue animation - this ensures continuous updates
+    if (mediaRecorderDev && mediaRecorderDev.state === 'recording') {
+        waveformAnimationIdDev = requestAnimationFrame(drawWaveformDev);
+    }
+}
+
+// Function to start audio recording with waveform for developer mode
+async function startVoiceRecordingDev() {
+    try {
+        console.log('[Voice-Dev] Requesting microphone access...');
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                sampleRate: 44100
+            } 
+        });
+        
+        console.log('[Voice-Dev] Microphone access granted');
+        
+        // Setup audio context for waveform visualization
+        audioContextDev = new (window.AudioContext || window.webkitAudioContext)();
+        analyserDev = audioContextDev.createAnalyser();
+        const source = audioContextDev.createMediaStreamSource(stream);
+        source.connect(analyserDev);
+        
+        // Configure analyser for real-time visualization
+        analyserDev.fftSize = 1024; // Higher resolution for better visualization
+        analyserDev.smoothingTimeConstant = 0.3; // Smooth but responsive
+        analyserDev.minDecibels = -90;
+        analyserDev.maxDecibels = -10;
+        
+        // Start waveform animation
+        drawWaveformDev();
+        
+        // Backup timer to ensure continuous animation (in case requestAnimationFrame fails)
+        const backupTimer = setInterval(() => {
+            if (mediaRecorderDev && mediaRecorderDev.state === 'recording' && !waveformAnimationIdDev) {
+                console.log('[Voice-Dev] Restarting waveform animation via backup timer');
+                drawWaveformDev();
+            } else if (!mediaRecorderDev || mediaRecorderDev.state !== 'recording') {
+                clearInterval(backupTimer);
+            }
+        }, 100); // Check every 100ms
+        
+        // Create MediaRecorder
+        const options = { mimeType: 'audio/webm;codecs=opus' };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options.mimeType = 'audio/webm';
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options.mimeType = 'audio/mp4';
+            }
+        }
+        
+        mediaRecorderDev = new MediaRecorder(stream, options);
+        audioChunksDev = [];
+        
+        mediaRecorderDev.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunksDev.push(event.data);
+            }
+        };
+        
+        mediaRecorderDev.onstop = async () => {
+            console.log('[Voice-Dev] Recording stopped, processing audio...');
+            
+            // Stop all tracks to release microphone
+            stream.getTracks().forEach(track => track.stop());
+            
+            // Switch to loading mode
+            switchToLoadingModeDev();
+            
+            if (audioChunksDev.length > 0) {
+                await processRecordedAudioDev();
+            }
+        };
+        
+        // Start recording
+        mediaRecorderDev.start();
+        recordingStartTimeDev = Date.now();
+        
+        console.log('[Voice-Dev] Recording started with continuous waveform visualization');
+        
+        // Start timer
+        startRecordingTimerDev();
+        
+    } catch (error) {
+        console.error('[Voice-Dev] Error accessing microphone:', error);
+        alert('Unable to access microphone. Please check your permissions and try again.');
+        switchToNormalModeDev();
+    }
+}
+
+// Function to stop audio recording for developer mode
+function stopVoiceRecordingDev() {
+    if (mediaRecorderDev && mediaRecorderDev.state === 'recording') {
+        console.log('[Voice-Dev] Stopping recording...');
+        mediaRecorderDev.stop();
+        
+        // Clear timer
+        if (recordingTimerDev) {
+            clearInterval(recordingTimerDev);
+            recordingTimerDev = null;
+        }
+        
+        // Stop waveform animation
+        cleanupWaveformDev();
+    }
+}
+
+// Function to start recording timer for developer mode
+function startRecordingTimerDev() {
+    const timer = document.getElementById('voice-recording-timer-dev');
+    if (timer) {
+        recordingTimerDev = setInterval(() => {
+            if (recordingStartTimeDev) {
+                const elapsed = Math.floor((Date.now() - recordingStartTimeDev) / 1000);
+                timer.textContent = formatRecordingTime(elapsed);
+            }
+        }, 1000);
+    }
+}
+
+// Function to process recorded audio and send to OpenAI for developer mode
+async function processRecordedAudioDev() {
+    try {
+        console.log('[Voice-Dev] Creating audio blob from chunks...');
+        
+        // Create blob from audio chunks
+        const audioBlob = new Blob(audioChunksDev, { type: 'audio/webm' });
+        console.log('[Voice-Dev] Audio blob created, size:', audioBlob.size, 'bytes');
+        
+        if (audioBlob.size === 0) {
+            throw new Error('No audio data recorded');
+        }
+        
+        // Send to OpenAI transcription API
+        const transcription = await transcribeAudio(audioBlob);
+        
+        // Use the transcribed text immediately
+        useTranscribedTextDev(transcription);
+        
+    } catch (error) {
+        console.error('[Voice-Dev] Error processing audio:', error);
+        alert(`Error processing audio: ${error.message}`);
+        switchToNormalModeDev();
+    }
+}
+
+// Function to use transcribed text for developer mode
+function useTranscribedTextDev(text) {
+    const userInput = document.getElementById('user-input');
+    
+    if (userInput && text) {
+        // Add text to input, preserving existing content
+        const currentText = userInput.value;
+        const newText = currentText ? `${currentText} ${text}` : text;
+        userInput.value = newText;
+        
+        // Trigger auto-resize (the new auto-resize system will handle this)
+        autoResizeTextareaDev(userInput);
+        
+        console.log('[Voice-Dev] Transcribed text added to input:', text);
+    }
+    
+    // Switch back to normal mode
+    switchToNormalModeDev();
+    
+    // Focus input and move cursor to end
+    if (userInput) {
+        userInput.focus();
+        userInput.setSelectionRange(userInput.value.length, userInput.value.length);
+    }
+}
+
+// Function to initialize developer mode voice input functionality
+export function initializeVoiceInputDev() {
+    console.log('[Voice-Dev] Initializing developer mode voice input functionality');
+    
+    // Check for browser support
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn('[Voice-Dev] MediaDevices API not supported in this browser');
+        // Hide voice button if not supported
+        const voiceButton = document.getElementById('voice-input-dev');
+        if (voiceButton) {
+            voiceButton.style.display = 'none';
+        }
+        return;
+    }
+    
+    if (!window.MediaRecorder) {
+        console.warn('[Voice-Dev] MediaRecorder API not supported in this browser');
+        // Hide voice button if not supported
+        const voiceButton = document.getElementById('voice-input-dev');
+        if (voiceButton) {
+            voiceButton.style.display = 'none';
+        }
+        return;
+    }
+    
+    // Get elements
+    const voiceButton = document.getElementById('voice-input-dev');
+    const cancelVoiceBtn = document.getElementById('cancel-voice-recording-dev');
+    const acceptVoiceBtn = document.getElementById('accept-voice-recording-dev');
+    
+    // Voice button click - start recording immediately
+    if (voiceButton) {
+        voiceButton.addEventListener('click', () => {
+            console.log('[Voice-Dev] Voice button clicked - switching to voice mode');
+            switchToVoiceModeDev();
+        });
+    }
+    
+    // Cancel recording button
+    if (cancelVoiceBtn) {
+        cancelVoiceBtn.addEventListener('click', () => {
+            console.log('[Voice-Dev] Cancel recording clicked');
+            switchToNormalModeDev();
+        });
+    }
+    
+    // Accept recording button (checkmark)
+    if (acceptVoiceBtn) {
+        acceptVoiceBtn.addEventListener('click', () => {
+            console.log('[Voice-Dev] Accept recording clicked');
+            stopVoiceRecordingDev();
+        });
+    }
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        const voiceMode = document.getElementById('voice-recording-mode-dev');
+        const loadingMode = document.getElementById('transcription-loading-mode-dev');
+        
+        // ESC to cancel recording
+        if (e.key === 'Escape') {
+            if (voiceMode && voiceMode.style.display !== 'none') {
+                switchToNormalModeDev();
+            } else if (loadingMode && loadingMode.style.display !== 'none') {
+                switchToNormalModeDev();
+            }
+        }
+        
+        // Enter to accept recording
+        if (e.key === 'Enter' && voiceMode && voiceMode.style.display !== 'none') {
+            e.preventDefault();
+            stopVoiceRecordingDev();
+        }
+    });
+    
+    console.log('[Voice-Dev] Developer mode voice input functionality initialized successfully');
+}
+
 // ========== TEXTAREA AUTO-RESIZE FUNCTIONALITY ==========
 
 // Function to auto-resize textarea based on content
@@ -2434,13 +2885,39 @@ function autoResizeTextarea(textarea) {
     console.log(`[TextArea] Auto-resize: required=${requiredHeight}px, set=${textarea.style.height}, scrollable=${textarea.classList.contains('scrollable')}`);
 }
 
-// Function to initialize textarea auto-resize functionality
+// Function to auto-resize textarea for developer mode
+function autoResizeTextareaDev(textarea) {
+    if (!textarea) return;
+    
+    const baseHeight = 24; // Base single-line height (matches CSS min-height)
+    const maxHeight = 120; // Maximum height before scrolling (matches CSS max-height)
+    
+    // Reset height to base to get accurate scrollHeight
+    textarea.style.height = baseHeight + 'px';
+    
+    // Calculate required height based on content
+    const scrollHeight = textarea.scrollHeight;
+    const requiredHeight = Math.max(baseHeight, scrollHeight);
+    
+    // Set height up to maximum, then enable scrolling
+    if (requiredHeight <= maxHeight) {
+        textarea.style.height = requiredHeight + 'px';
+        textarea.classList.remove('scrollable');
+    } else {
+        textarea.style.height = maxHeight + 'px';
+        textarea.classList.add('scrollable');
+    }
+    
+    console.log(`[TextArea-Dev] Auto-resize: required=${requiredHeight}px, set=${textarea.style.height}, scrollable=${textarea.classList.contains('scrollable')}`);
+}
+
+// Function to initialize textarea auto-resize functionality for client mode
 export function initializeTextareaAutoResize() {
-    console.log('[TextArea] Initializing auto-resize functionality');
+    console.log('[TextArea] Initializing client mode auto-resize functionality');
     
     const textarea = document.getElementById('user-input-client');
     if (!textarea) {
-        console.warn('[TextArea] Textarea not found');
+        console.warn('[TextArea] Client textarea not found');
         return;
     }
     
@@ -2473,7 +2950,36 @@ export function initializeTextareaAutoResize() {
     // Initial resize to set proper height
     autoResizeTextarea(textarea);
     
-    console.log('[TextArea] Auto-resize functionality initialized successfully');
+    console.log('[TextArea] Client mode auto-resize functionality initialized successfully');
+}
+
+// Function to initialize textarea auto-resize functionality for developer mode
+export function initializeTextareaAutoResizeDev() {
+    console.log('[TextArea-Dev] Initializing developer mode auto-resize functionality');
+    
+    const textarea = document.getElementById('user-input');
+    if (!textarea) {
+        console.warn('[TextArea-Dev] Developer textarea not found');
+        return;
+    }
+    
+    // Auto-resize on input
+    textarea.addEventListener('input', () => {
+        autoResizeTextareaDev(textarea);
+    });
+    
+    // Auto-resize on paste
+    textarea.addEventListener('paste', () => {
+        // Use setTimeout to wait for paste content to be inserted
+        setTimeout(() => {
+            autoResizeTextareaDev(textarea);
+        }, 10);
+    });
+    
+    // Initial resize to set proper height
+    autoResizeTextareaDev(textarea);
+    
+    console.log('[TextArea-Dev] Developer mode auto-resize functionality initialized successfully');
 }
 
 

@@ -61,10 +61,53 @@
                 </div>
             </div>
             <div class="input-area">
-                <input type="text" id="user-input" placeholder="Enter your request here...">
-                <button id="send" class="ms-Button ms-Button--primary">
-                    <span class="ms-Button-label">Send</span>
-                </button>
+                <div class="dev-input-bar" id="dev-input-bar">
+                    <!-- Normal Input Mode -->
+                    <div id="normal-input-mode-dev" class="input-mode">
+                        <textarea id="user-input" placeholder="Enter your request here..." rows="1"></textarea>
+                        <div class="right-controls">
+                            <button id="voice-input-dev" class="ms-Button ms-Button--icon voice-button" title="Voice input">
+                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="microphone-icon">
+                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill="currentColor"/>
+                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                    <path d="M12 19v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                            <button id="send" class="ms-Button ms-Button--primary">
+                                <span class="ms-Button-label">Send</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Voice Recording Mode -->
+                    <div id="voice-recording-mode-dev" class="input-mode" style="display: none;">
+                        <div class="voice-waveform-container">
+                            <canvas id="voice-waveform-dev" class="voice-waveform"></canvas>
+                            <div id="voice-recording-timer-dev" class="voice-recording-timer">00:00</div>
+                        </div>
+                        <div class="voice-recording-controls">
+                            <button id="cancel-voice-recording-dev" class="ms-Button ms-Button--icon voice-control-button" title="Cancel recording">
+                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="cancel-icon">
+                                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                            <button id="accept-voice-recording-dev" class="ms-Button ms-Button--icon voice-control-button" title="Send for transcription">
+                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="check-icon">
+                                    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Transcription Loading Mode -->
+                    <div id="transcription-loading-mode-dev" class="input-mode" style="display: none;">
+                        <div class="transcription-loading-content">
+                            <div class="transcription-spinner"></div>
+                            <span class="transcription-loading-text">Transcribing...</span>
+                        </div>
+                    </div>
+                </div>
                 <div id="loading-animation" class="loading-animation"></div>
                 <button id="write-to-excel" class="ms-Button">
                     <span class="ms-Button-label">Write Response to Excel</span>

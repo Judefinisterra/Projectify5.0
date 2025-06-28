@@ -27,7 +27,7 @@ import { handleFollowUpConversation, handleInitialConversation, handleConversati
 // >>> ADDED: Import CONFIG for URL management
 import { CONFIG } from './config.js';
 // >>> ADDED: Import file attachment and voice input functionality from AIModelPlanner
-import { initializeFileAttachment, initializeVoiceInput, initializeTextareaAutoResize, setAIModelPlannerOpenApiKey } from './AIModelPlanner.js';
+import { initializeFileAttachment, initializeVoiceInput, initializeVoiceInputDev, initializeTextareaAutoResize, initializeTextareaAutoResizeDev, setAIModelPlannerOpenApiKey } from './AIModelPlanner.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -762,8 +762,11 @@ async function handleSend() {
     // Add user message to chat
     appendMessage(userInput, true);
     
-    // Clear input
-    document.getElementById('user-input').value = '';
+    // Clear input and reset textarea height
+    const userInputElement = document.getElementById('user-input');
+    userInputElement.value = '';
+    userInputElement.style.height = '24px';
+    userInputElement.classList.remove('scrollable');
 
     setButtonLoading(true);
     const progressMessageDiv = document.createElement('div');
@@ -1006,8 +1009,11 @@ function resetChat() {
     persistedTrainingUserInput = null;
     persistedTrainingAiResponse = null;
     
-    // Clear the input field
-    document.getElementById('user-input').value = '';
+    // Clear the input field and reset textarea height
+    const userInputElement = document.getElementById('user-input');
+    userInputElement.value = '';
+    userInputElement.style.height = '24px';
+    userInputElement.classList.remove('scrollable');
     
     console.log("Chat reset completed");
 }
@@ -1038,6 +1044,8 @@ function resetChatClient() {
 
     if (userInputClient) {
         userInputClient.value = '';
+        userInputClient.style.height = '24px';
+        userInputClient.classList.remove('scrollable');
     }
 
     // Reset conversation history for client mode
@@ -1711,6 +1719,17 @@ Office.onReady((info) => {
       if (startupMenu) startupMenu.style.display = 'none';
       if (appBody) appBody.style.display = 'flex'; // Matches .ms-welcome__main display if it's flex
       if (clientModeView) clientModeView.style.display = 'none';
+      
+      // Initialize developer mode voice input functionality
+      if (typeof initializeVoiceInputDev === 'function') {
+        initializeVoiceInputDev();
+      }
+      
+      // Initialize developer mode textarea auto-resize functionality
+      if (typeof initializeTextareaAutoResizeDev === 'function') {
+        initializeTextareaAutoResizeDev();
+      }
+      
       console.log("Developer Mode activated");
     }
 
