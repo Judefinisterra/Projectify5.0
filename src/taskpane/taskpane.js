@@ -1232,7 +1232,7 @@ export async function processModelCodesForPlanner(modelCodesString) {
                 console.error(`[processModelCodesForPlanner] ❌ Even minimal Excel test failed:`, testError);
                 console.error(`[processModelCodesForPlanner] This suggests Excel API issue, not just asset loading issue.`);
             }
-            
+            //dfdf
             throw new Error(`All worksheet URLs failed. Last error: ${lastError?.message || 'Unknown error'}`);
         }
         
