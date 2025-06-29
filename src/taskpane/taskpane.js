@@ -1714,6 +1714,53 @@ Office.onReady((info) => {
     const appBody = document.getElementById('app-body'); // Already exists, ensure it's captured
     const clientModeView = document.getElementById('client-mode-view');
 
+    // >>> ADDED: Check if running on localhost and handle startup behavior
+    const currentHostname = window.location.hostname;
+    const currentHref = window.location.href;
+    const isLocalhost = currentHostname === 'localhost' || 
+                       currentHostname === '127.0.0.1' || 
+                       currentHostname === '::1' ||
+                       currentHostname.includes('localhost') ||
+                       currentHostname.includes('3000') || // Common dev ports
+                       currentHostname.includes('3001') ||
+                       currentHostname.includes('3002') ||
+                       currentHref.includes('localhost');
+    
+    console.log(`[Environment Debug] Full URL: ${currentHref}`);
+    console.log(`[Environment Debug] Hostname: ${currentHostname}`);
+    console.log(`[Environment Debug] Port: ${window.location.port}`);
+    console.log(`[Environment Debug] Protocol: ${window.location.protocol}`);
+    console.log(`[Environment Debug] isLocalhost: ${isLocalhost}`);
+    
+    // >>> ADDED: Alternative production detection methods
+    const isProduction = process.env.NODE_ENV === 'production' || 
+                        currentHref.includes('vercel.app') ||
+                        currentHref.includes('your-production-domain.com') ||
+                        (!currentHref.includes('localhost') && !currentHref.includes('127.0.0.1') && !currentHref.includes('3000') && !currentHref.includes('3001') && !currentHref.includes('3002'));
+    
+    // >>> TEMPORARY: Force production mode (uncomment this line to force production behavior)
+    // const isProduction = true;
+    
+    console.log(`[Environment Debug] NODE_ENV: ${process.env.NODE_ENV}`);
+    console.log(`[Environment Debug] isProduction: ${isProduction}`);
+    
+    // Simplified logic: if production, go to client mode; otherwise show startup menu
+    if (isProduction) {
+      // Production: Skip startup menu and go directly to client mode
+      console.log('[Environment] Production mode detected - going directly to client mode');
+      showClientMode();
+    } else {
+      // Development: Show startup menu with both developer and client mode options
+      console.log('[Environment] Development mode detected - showing startup menu');
+      if (developerModeButton) {
+        developerModeButton.style.display = 'inline-block';
+      }
+      if (startupMenu) {
+        startupMenu.style.display = 'flex';
+      }
+    }
+    // <<< END ADDED
+
     // Functions to switch views
     function showDeveloperMode() {
       if (startupMenu) startupMenu.style.display = 'none';

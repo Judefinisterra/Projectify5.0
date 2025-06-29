@@ -827,13 +827,20 @@ body {
 
 /* Startup Menu Styles */
 #startup-menu {
-    display: flex; /* Changed from initial none to flex, JS will control visibility */
+    /* display: flex; -- Removed! JS will control visibility, default is none from HTML */
     -ms-flex-direction: column; /* IE 10 */
     flex-direction: column;
     justify-content: center;
     align-items: center;
     height: 100vh;
     text-align: center;
+}
+
+/* When startup menu is shown, it should be flex */
+#startup-menu[style*="display: flex"],
+#startup-menu[style*="display:flex"] {
+    display: -ms-flexbox !important; /* IE 10 */
+    display: flex !important;
 }
 
 #startup-menu h1 {
@@ -843,6 +850,20 @@ body {
 #startup-menu .ms-Button {
     margin-top: 10px;
 }
+
+/* >>> ADDED: Mode buttons container styling for dynamic centering */
+#mode-buttons-container {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start; /* Default alignment when both buttons present */
+    gap: 10px;
+    margin-top: 20px;
+}
+
+#mode-buttons-container.centered {
+    justify-content: center; /* Center when only one button */
+}
+/* <<< END ADDED */
 
 /* Training Data Modal Styles */
 .training-data-form {
