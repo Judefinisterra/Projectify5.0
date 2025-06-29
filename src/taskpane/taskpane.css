@@ -1610,6 +1610,40 @@ body {
     color: #999999;
 }
 
+/* Developer mode send button styling */
+.dev-input-bar #send {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #202123; /* Dark gray/black background */
+    color: #FFFFFF; /* White arrow */
+    border: none;
+    border-radius: 50%; /* Circular button */
+    width: 36px; /* Fixed width */
+    height: 36px; /* Fixed height */
+    min-width: 36px; /* Ensure min-width doesn't interfere */
+    min-height: 36px; /* Ensure min-height doesn't interfere */
+    padding: 0; /* Reset padding */
+    box-sizing: border-box; /* Ensure padding/border don't affect final size for circle */
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.dev-input-bar #send:hover {
+    background-color: #3a3b3d; /* Lighter gray on hover */
+}
+
+.dev-input-bar #send:disabled {
+    background-color: #555555; /* Darker gray when disabled */
+    color: #aaaaaa; /* Lighter arrow when disabled */
+    cursor: not-allowed;
+}
+
+.dev-input-bar #send .send-icon {
+    width: 20px; /* Adjust icon size */
+    height: 20px;
+}
+
 /* Update code area styling */
 .code-area {
     margin-top: 20px;

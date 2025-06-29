@@ -2311,8 +2311,14 @@ function useTranscribedText(text) {
         const newText = currentText ? `${currentText} ${text}` : text;
         userInput.value = newText;
         
-        // Trigger auto-resize (the new auto-resize system will handle this)
-        autoResizeTextarea(userInput);
+        // Trigger auto-resize with a small delay to ensure proper alignment
+        setTimeout(() => {
+            autoResizeTextarea(userInput);
+            // Force a style recalculation to maintain proper alignment
+            userInput.style.display = 'none';
+            userInput.offsetHeight; // Trigger reflow
+            userInput.style.display = '';
+        }, 10);
         
         console.log('[Voice] Transcribed text added to input:', text);
     }
@@ -2320,11 +2326,13 @@ function useTranscribedText(text) {
     // Switch back to normal mode
     switchToNormalMode();
     
-    // Focus input and move cursor to end
-    if (userInput) {
-        userInput.focus();
-        userInput.setSelectionRange(userInput.value.length, userInput.value.length);
-    }
+    // Focus input and move cursor to end with proper timing
+    setTimeout(() => {
+        if (userInput) {
+            userInput.focus();
+            userInput.setSelectionRange(userInput.value.length, userInput.value.length);
+        }
+    }, 50);
 }
 
 // Function to initialize voice input functionality
@@ -2762,8 +2770,14 @@ function useTranscribedTextDev(text) {
         const newText = currentText ? `${currentText} ${text}` : text;
         userInput.value = newText;
         
-        // Trigger auto-resize (the new auto-resize system will handle this)
-        autoResizeTextareaDev(userInput);
+        // Trigger auto-resize with a small delay to ensure proper alignment
+        setTimeout(() => {
+            autoResizeTextareaDev(userInput);
+            // Force a style recalculation to maintain proper alignment
+            userInput.style.display = 'none';
+            userInput.offsetHeight; // Trigger reflow
+            userInput.style.display = '';
+        }, 10);
         
         console.log('[Voice-Dev] Transcribed text added to input:', text);
     }
@@ -2771,11 +2785,13 @@ function useTranscribedTextDev(text) {
     // Switch back to normal mode
     switchToNormalModeDev();
     
-    // Focus input and move cursor to end
-    if (userInput) {
-        userInput.focus();
-        userInput.setSelectionRange(userInput.value.length, userInput.value.length);
-    }
+    // Focus input and move cursor to end with proper timing
+    setTimeout(() => {
+        if (userInput) {
+            userInput.focus();
+            userInput.setSelectionRange(userInput.value.length, userInput.value.length);
+        }
+    }, 50);
 }
 
 // Function to initialize developer mode voice input functionality
