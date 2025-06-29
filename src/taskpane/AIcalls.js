@@ -2680,10 +2680,21 @@ Office.onReady(async (info) => {
     }
     
     function showStartupMenuView() { // Renamed
-        if (startupMenu) startupMenu.style.display = 'flex';
-        if (appBody) appBody.style.display = 'none';
-        if (clientModeView) clientModeView.style.display = 'none';
-        console.log("Startup Menu view activated");
+        // >>> DYNAMIC MODE CHECK: Use same detection as main logic
+        const isLocalDev = window.location.hostname === 'localhost' || 
+                          window.location.hostname === '127.0.0.1' ||
+                          window.location.href.includes('localhost:3002');
+        const FORCE_PRODUCTION_MODE = !isLocalDev;
+        
+        if (FORCE_PRODUCTION_MODE) {
+            console.log('[AIcalls.js] Production mode - redirecting to client mode instead of startup menu');
+            showClientModeView();
+        } else {
+            console.log('[AIcalls.js] Development mode - showing startup menu');
+            if (startupMenu) startupMenu.style.display = 'flex';
+            if (appBody) appBody.style.display = 'none';
+            if (clientModeView) clientModeView.style.display = 'none';
+        }
     }
 
     if (developerModeButton) developerModeButton.onclick = showDeveloperModeView;
@@ -2695,9 +2706,24 @@ Office.onReady(async (info) => {
     if (backToMenuClientButton) backToMenuClientButton.onclick = showStartupMenuView;
     
     document.getElementById("sideload-msg").style.display = "none";
-    if (startupMenu) startupMenu.style.display = "flex"; // Show startup menu first
-    if (appBody) appBody.style.display = "none";
-    if (clientModeView) clientModeView.style.display = "none";
+    
+    // >>> DYNAMIC MODE CHECK: Use same detection as taskpane.js
+    const isLocalDevelopment = window.location.hostname === 'localhost' || 
+                              window.location.hostname === '127.0.0.1' ||
+                              window.location.href.includes('localhost:3002');
+    const FORCE_PRODUCTION_MODE = !isLocalDevelopment;
+    
+    if (FORCE_PRODUCTION_MODE) {
+      console.log('[AIcalls.js] Production mode - maintaining client mode');
+      if (startupMenu) startupMenu.style.display = "none"; // Keep startup menu hidden
+      if (appBody) appBody.style.display = "none";
+      if (clientModeView) clientModeView.style.display = "flex"; // Keep client mode active
+    } else {
+      console.log('[AIcalls.js] Development mode - showing startup menu');
+      if (startupMenu) startupMenu.style.display = "flex"; // Show startup menu first
+      if (appBody) appBody.style.display = "none";
+      if (clientModeView) clientModeView.style.display = "none";
+    }
 
     // ... any other existing Office.onReady logic for developer mode ...
   }

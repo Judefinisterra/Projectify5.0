@@ -144,6 +144,48 @@ let lastResponseClient = null;
 // Add this variable to store the last response
 let lastResponse = null;
 
+// >>> ADDED: Production Debug System
+let PRODUCTION_DEBUG = false; // Toggle for production debugging - DISABLED FOR CLEAN UI
+let debugContainer = null;
+
+function productionLog(message) {
+    if (!PRODUCTION_DEBUG) return;
+    
+    console.log(message); // Still log to console if available
+    
+    // Also show in UI for production debugging
+    if (!debugContainer) {
+        debugContainer = document.createElement('div');
+        debugContainer.id = 'production-debug';
+        debugContainer.style.cssText = `
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            font-size: 12px;
+            font-family: monospace;
+            max-width: 300px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 9999;
+            border-radius: 4px;
+        `;
+        document.body.appendChild(debugContainer);
+    }
+    
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = document.createElement('div');
+    logEntry.textContent = `[${timestamp}] ${message}`;
+    debugContainer.appendChild(logEntry);
+    
+    // Keep only last 10 logs
+    while (debugContainer.children.length > 10) {
+        debugContainer.removeChild(debugContainer.firstChild);
+    }
+}
+
 // Add this variable to store the last user input for training data
 let lastUserInput = null;
 
@@ -1706,7 +1748,11 @@ async function insertSheetsAndRunCodes() {
 }
 
 Office.onReady((info) => {
+  productionLog('Office.onReady started');
+  
   if (info.host === Office.HostType.Excel) {
+    productionLog('Excel host detected');
+    
     // Get references to the new elements
     const startupMenu = document.getElementById('startup-menu');
     const developerModeButton = document.getElementById('developer-mode-button');
@@ -1714,44 +1760,27 @@ Office.onReady((info) => {
     const appBody = document.getElementById('app-body'); // Already exists, ensure it's captured
     const clientModeView = document.getElementById('client-mode-view');
 
-    // >>> ADDED: Check if running on localhost and handle startup behavior
-    const currentHostname = window.location.hostname;
-    const currentHref = window.location.href;
-    const isLocalhost = currentHostname === 'localhost' || 
-                       currentHostname === '127.0.0.1' || 
-                       currentHostname === '::1' ||
-                       currentHostname.includes('localhost') ||
-                       currentHostname.includes('3000') || // Common dev ports
-                       currentHostname.includes('3001') ||
-                       currentHostname.includes('3002') ||
-                       currentHref.includes('localhost');
+    productionLog(`Elements found - startupMenu: ${!!startupMenu}, appBody: ${!!appBody}, clientModeView: ${!!clientModeView}`);
+
+    // >>> DYNAMIC MODE DETECTION: Show startup menu on localhost, skip in production
+    const isLocalDevelopment = window.location.hostname === 'localhost' || 
+                              window.location.hostname === '127.0.0.1' ||
+                              window.location.href.includes('localhost:3002');
+    const FORCE_PRODUCTION_MODE = !isLocalDevelopment;
     
-    console.log(`[Environment Debug] Full URL: ${currentHref}`);
-    console.log(`[Environment Debug] Hostname: ${currentHostname}`);
-    console.log(`[Environment Debug] Port: ${window.location.port}`);
-    console.log(`[Environment Debug] Protocol: ${window.location.protocol}`);
-    console.log(`[Environment Debug] isLocalhost: ${isLocalhost}`);
+    productionLog(`URL: ${window.location.href}`);
+    productionLog(`Hostname: ${window.location.hostname}`);
+    productionLog(`isLocalDevelopment: ${isLocalDevelopment}`);
+    productionLog(`FORCE_PRODUCTION_MODE: ${FORCE_PRODUCTION_MODE}`);
     
-    // >>> ADDED: Alternative production detection methods
-    const isProduction = process.env.NODE_ENV === 'production' || 
-                        currentHref.includes('vercel.app') ||
-                        currentHref.includes('your-production-domain.com') ||
-                        (!currentHref.includes('localhost') && !currentHref.includes('127.0.0.1') && !currentHref.includes('3000') && !currentHref.includes('3001') && !currentHref.includes('3002'));
-    
-    // >>> TEMPORARY: Force production mode (uncomment this line to force production behavior)
-    // const isProduction = true;
-    
-    console.log(`[Environment Debug] NODE_ENV: ${process.env.NODE_ENV}`);
-    console.log(`[Environment Debug] isProduction: ${isProduction}`);
-    
-    // Simplified logic: if production, go to client mode; otherwise show startup menu
-    if (isProduction) {
-      // Production: Skip startup menu and go directly to client mode
-      console.log('[Environment] Production mode detected - going directly to client mode');
+    if (FORCE_PRODUCTION_MODE) {
+      // Skip startup menu and go directly to client mode
+      productionLog('Attempting to show client mode...');
       showClientMode();
+      productionLog('showClientMode() called');
     } else {
       // Development: Show startup menu with both developer and client mode options
-      console.log('[Environment] Development mode detected - showing startup menu');
+      productionLog('Development mode - showing startup menu');
       if (developerModeButton) {
         developerModeButton.style.display = 'inline-block';
       }
@@ -1781,38 +1810,70 @@ Office.onReady((info) => {
     }
 
     function showClientMode() {
-      if (startupMenu) startupMenu.style.display = 'none';
-      if (appBody) appBody.style.display = 'none';
-      if (clientModeView) clientModeView.style.display = 'flex'; // Matches .ms-welcome__main display
+      productionLog('showClientMode function called');
+      productionLog(`Before changes - startupMenu display: ${startupMenu ? startupMenu.style.display : 'null'}`);
+      productionLog(`Before changes - clientModeView display: ${clientModeView ? clientModeView.style.display : 'null'}`);
+      
+      if (startupMenu) {
+        startupMenu.style.display = 'none';
+        productionLog('Set startupMenu to display: none');
+      } else {
+        productionLog('startupMenu element not found!');
+      }
+      
+      if (appBody) {
+        appBody.style.display = 'none';
+        productionLog('Set appBody to display: none');
+      } else {
+        productionLog('appBody element not found!');
+      }
+      
+      if (clientModeView) {
+        clientModeView.style.display = 'flex';
+        productionLog('Set clientModeView to display: flex');
+      } else {
+        productionLog('clientModeView element not found!');
+      }
+      
+      productionLog(`After changes - startupMenu display: ${startupMenu ? startupMenu.style.display : 'null'}`);
+      productionLog(`After changes - clientModeView display: ${clientModeView ? clientModeView.style.display : 'null'}`);
       
       // Initialize file attachment functionality
       if (typeof initializeFileAttachment === 'function') {
         initializeFileAttachment();
+        productionLog('initializeFileAttachment called');
       }
       
       // Initialize voice input functionality
       if (typeof initializeVoiceInput === 'function') {
         initializeVoiceInput();
+        productionLog('initializeVoiceInput called');
       }
       
       // Initialize textarea auto-resize functionality
       if (typeof initializeTextareaAutoResize === 'function') {
         initializeTextareaAutoResize();
+        productionLog('initializeTextareaAutoResize called');
       }
       
-      console.log("Client Mode activated");
+      productionLog("Client Mode activation completed");
     }
 
     // >>> ADDED: Function to show startup menu
     function showStartupMenu() {
-      if (startupMenu) startupMenu.style.display = 'flex';
-      if (appBody) appBody.style.display = 'none';
-      if (clientModeView) clientModeView.style.display = 'none';
-      
-      // Reset client mode state when going back to menu
-      resetChatClient();
-      
-      console.log("Returned to startup menu");
+      // >>> PRODUCTION MODE CHECK: Don't show startup menu in production
+      if (FORCE_PRODUCTION_MODE) {
+        productionLog('Production mode - redirecting to client mode instead of startup menu');
+        showClientMode();
+      } else {
+        productionLog('Development mode - showing startup menu');
+        if (startupMenu) startupMenu.style.display = 'flex';
+        if (appBody) appBody.style.display = 'none';
+        if (clientModeView) clientModeView.style.display = 'none';
+        
+        // Reset client mode state when going back to menu
+        resetChatClient();
+      }
     }
     // <<< END ADDED
 
@@ -2410,9 +2471,24 @@ Office.onReady((info) => {
       const appBody = document.getElementById('app-body');
       const clientModeView = document.getElementById('client-mode-view');
 
-      if (startupMenu) startupMenu.style.display = "flex";
-      if (appBody) appBody.style.display = "none";
-      if (clientModeView) clientModeView.style.display = "none";
+      // >>> DYNAMIC MODE CHECK: Use same detection as main logic
+      const isLocalDev = window.location.hostname === 'localhost' || 
+                        window.location.hostname === '127.0.0.1' ||
+                        window.location.href.includes('localhost:3002');
+      const forceProductionMode = !isLocalDev;
+      
+      if (forceProductionMode) {
+        productionLog('Initialization complete - maintaining client mode (production)');
+        // Keep client mode active, don't show startup menu
+        if (startupMenu) startupMenu.style.display = "none";
+        if (appBody) appBody.style.display = "none";
+        if (clientModeView) clientModeView.style.display = "flex";
+      } else {
+        productionLog('Initialization complete - showing startup menu (development)');
+        if (startupMenu) startupMenu.style.display = "flex";
+        if (appBody) appBody.style.display = "none";
+        if (clientModeView) clientModeView.style.display = "none";
+      }
       // End Startup Menu Logic
 
     }).catch(error => {
@@ -2422,9 +2498,24 @@ Office.onReady((info) => {
 
     document.getElementById("sideload-msg").style.display = "none";
     // document.getElementById("app-body").style.display = "block"; // Keep app-body hidden initially
-    if (startupMenu) startupMenu.style.display = "flex"; // Show startup menu instead
-    if (appBody) appBody.style.display = "none";
-    if (clientModeView) clientModeView.style.display = "none";
+    
+    // >>> DYNAMIC MODE CHECK: Use same detection as main logic
+    const isLocalDev2 = window.location.hostname === 'localhost' || 
+                       window.location.hostname === '127.0.0.1' ||
+                       window.location.href.includes('localhost:3002');
+    const forceProductionMode2 = !isLocalDev2;
+    
+    if (forceProductionMode2) {
+      productionLog('Post-initialization - maintaining client mode (production)');
+      if (startupMenu) startupMenu.style.display = "none"; // Keep startup menu hidden
+      if (appBody) appBody.style.display = "none";
+      if (clientModeView) clientModeView.style.display = "flex"; // Keep client mode active
+    } else {
+      productionLog('Post-initialization - showing startup menu (development)');
+      if (startupMenu) startupMenu.style.display = "flex"; // Show startup menu instead
+      if (appBody) appBody.style.display = "none";
+      if (clientModeView) clientModeView.style.display = "none";
+    }
 
     // ... (existing modal logic: applyParamsButton.onclick, window.onclick)
 
