@@ -3767,43 +3767,7 @@ html, body {
     padding-top: 0 !important;
 }
 
-/* TEMPORARY DEBUG CSS - REMOVE AFTER DEBUGGING */
-/* Add colored borders to all containers to identify spacing issues */
-#client-mode-view * {
-    border: 1px solid red !important;
-}
 
-#client-mode-view .client-app-layout {
-    border: 3px solid blue !important;
-}
-
-#client-mode-view .main-content {
-    border: 3px solid green !important;
-}
-
-#client-mode-view .content-panel {
-    border: 3px solid orange !important;
-}
-
-#client-mode-view #client-chat-container {
-    border: 3px solid purple !important;
-}
-
-#client-mode-view .welcome-section {
-    border: 3px solid yellow !important;
-}
-
-#client-mode-view .client-input-area-wrapper {
-    border: 3px solid pink !important;
-}
-
-#client-mode-view .chatgpt-input-bar {
-    border: 3px solid brown !important;
-}
-
-#client-mode-view .content-header {
-    border: 3px solid cyan !important;
-}
 
 /* Simple Header - Clean and Centered */
 .simple-header {
@@ -3975,4 +3939,72 @@ body,
 #client-mode-view .app-subtitle {
     margin: 0 !important;
     line-height: 1 !important;
+}
+
+/* 11. Center the welcome text, steps, and composer */
+#client-mode-view .welcome-section {
+    text-align: center !important;
+    align-items: center !important;
+}
+
+#client-mode-view .welcome-steps {
+    align-items: center !important;
+}
+
+#client-mode-view .step-item {
+    justify-content: center !important;
+    text-align: center !important;
+}
+
+#client-mode-view .client-input-area-wrapper {
+    align-items: center !important;
+}
+
+#client-mode-view .chatgpt-input-bar {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+/* 12. Vertically center the main content below the header */
+#client-mode-view #client-chat-container {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100vh !important;
+}
+
+#client-mode-view .simple-header {
+    flex-shrink: 0 !important; /* Header stays at top */
+}
+
+#client-mode-view .welcome-section {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
+    text-align: center !important;
+}
+
+#client-mode-view .client-input-area-wrapper {
+    flex-shrink: 0 !important; /* Input stays at bottom of welcome section */
+    margin-top: 2rem !important;
+}
+
+/* 13. Prevent header overflow and scroll buttons */
+#client-mode-view .simple-header {
+    overflow: hidden !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+#client-mode-view .app-title,
+#client-mode-view .app-subtitle {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    max-width: 100% !important;
+    width: auto !important;
 }
