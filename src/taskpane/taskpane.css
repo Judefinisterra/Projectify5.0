@@ -1059,7 +1059,7 @@ body {
     -ms-flex-align: stretch; /* IE 10 - stretch children to full width */
     align-items: stretch; /* Changed from center to stretch */
     width: 100%; /* Full width */
-    max-width: none; /* Remove max-width restriction */
+    max-width: 100%; /* Ensure full width */
     padding: 70px 0 20px 0; /* Remove horizontal padding - only keep top/bottom */
     box-sizing: border-box;
     background-color: transparent; /* Transparent to show parent background */
@@ -1072,8 +1072,8 @@ body {
     justify-content: center;
     height: 100vh; /* Use full height */
     padding-top: 0px; /* Maintain top padding even when centered */
-    -ms-flex-align: stretch; /* IE 10 - ensure children stretch */
-    align-items: stretch; /* Keep children full width */
+    -ms-flex-align: stretch; /* IE 10 - stretch children */
+    align-items: stretch; /* Stretch children horizontally */
 }
 
 /* When conversation starts, expand to full height */
@@ -1094,6 +1094,14 @@ body {
     display: block;
     margin-bottom: 20px;
     min-height: 0; /* Important for Firefox flexbox */
+}
+
+/* Add horizontal padding to the direct children that contain text/input */
+#client-chat-container > .welcome-section,
+#client-chat-container > .client-input-area-wrapper {
+    padding-left: 1rem;
+    padding-right: 1rem;
+    box-sizing: border-box;
 }
 
 /* Hide the header when conversation is active */
@@ -3090,7 +3098,8 @@ body {
 }
 
 .client-app-layout {
-    display: block !important;
+    display: flex !important;
+    flex-direction: row !important;
     height: 100vh;
     background-color: var(--gray-50);
     min-height: 100vh;
@@ -3652,31 +3661,73 @@ html, body {
     margin-right: 0 !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
+    box-sizing: border-box !important;
 }
 
 /* Override centering styles in welcome section */
 #client-mode-view .welcome-section {
     text-align: left !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
 }
 
 #client-mode-view .welcome-steps {
     margin: 0 !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
 }
 
 #client-mode-view .step-item {
     justify-content: flex-start !important;
+    text-align: left !important;
+    width: 100% !important;
+    padding: 0.5rem !important;
+    box-sizing: border-box !important;
 }
 
 /* Override centering in client-input-area-wrapper */
 #client-mode-view .client-input-area-wrapper {
     align-items: stretch !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+#client-mode-view .chatgpt-input-bar {
+    max-width: 100% !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Force welcome title to use full width */
+#client-mode-view .welcome-title {
+    text-align: center !important;
+    margin: 0 !important;
+    padding: 1rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Add appropriate padding only to content that needs it */
+#client-mode-view .welcome-steps {
+    padding: 0 1rem !important;
+}
+
+#client-mode-view #chat-log-client {
+    padding: 0 1rem !important;
+}
+
+#client-mode-view .client-input-area-wrapper {
+    padding: 0 1rem !important;
 }
 
 /* FIX ALIGNMENT: Add consistent padding to main-content */
 #client-mode-view .main-content {
-    padding: 0 1rem !important;
+    padding: 0 !important;
 }
 
 /* Remove all padding from children to avoid double padding */
@@ -3691,10 +3742,18 @@ html, body {
     margin-right: 0 !important;
 }
 
-/* Keep header top/bottom padding */
+/* Keep header padding consistent with content */
 #client-mode-view .content-header {
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.5rem !important;
+    padding: 0.5rem 1rem !important;
+    box-sizing: border-box !important;
+}
+
+/* FINAL OVERRIDE TO FIX CENTERING */
+#client-mode-view .container {
+    max-width: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
 }
 
 /* TEMPORARY DEBUG CSS - REMOVE AFTER DEBUGGING */

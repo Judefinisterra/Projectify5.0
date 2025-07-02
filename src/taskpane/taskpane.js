@@ -1857,9 +1857,6 @@ Office.onReady((info) => {
       
       if (clientModeView) {
         clientModeView.style.display = 'flex';
-        clientModeView.style.flexDirection = 'row';
-        clientModeView.style.height = '100vh';
-        clientModeView.style.backgroundColor = 'var(--gray-50)';
         productionLog('Set clientModeView to display: flex with row direction for sidebar layout');
       } else {
         productionLog('clientModeView element not found!');
