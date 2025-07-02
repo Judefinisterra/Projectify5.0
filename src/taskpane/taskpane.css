@@ -4056,3 +4056,330 @@ body,
     max-width: 100% !important;
     width: auto !important;
 }
+
+/* FIXED FONT SIZES FOR CLIENT MODE - NEVER CHANGE REGARDLESS OF WIDTH */
+#client-mode-view .app-title {
+    font-size: 1.25rem !important; /* Fixed header title size */
+}
+
+#client-mode-view .app-subtitle {
+    font-size: 0.75rem !important; /* Fixed header subtitle size */
+}
+
+#client-mode-view .welcome-title {
+    font-size: 1.75rem !important; /* Fixed welcome title size */
+    font-weight: 300 !important; /* Fixed font weight - never bold */
+    line-height: 1.2 !important; /* Fixed line height */
+    text-align: center !important; /* Always centered */
+    color: var(--gray-800) !important; /* Fixed color */
+    font-style: normal !important; /* Never italic */
+}
+
+#client-mode-view .chatgpt-input-bar {
+    border-radius: var(--radius-full) !important; /* Always circular/pill shaped */
+    padding: 8px 0px 8px 0 !important; /* Fixed padding */
+    background-color: var(--primary-white) !important; /* Fixed background */
+    border: 1px solid var(--gray-200) !important; /* Fixed border */
+    box-shadow: var(--shadow-sm) !important; /* Fixed shadow */
+    margin-bottom: 10px !important; /* Fixed margin */
+}
+
+#client-mode-view .step-text {
+    font-size: 0.875rem !important; /* Fixed step text size */
+}
+
+#client-mode-view .step-number {
+    font-size: 0.75rem !important; /* Fixed step number size */
+}
+
+#client-mode-view #user-input-client {
+    font-size: 1rem !important; /* Fixed input text size */
+}
+
+#client-mode-view .chat-message {
+    font-size: 0.875rem !important; /* Fixed chat message size */
+}
+
+/* LOCK DOWN ALL STEP STYLING - PREVENT SCROLL BUTTON APPEARANCE */
+#client-mode-view .step-number {
+    background-color: var(--primary-black) !important; /* Always black background */
+    color: var(--primary-white) !important; /* Always white text */
+    border-radius: var(--radius-full) !important; /* Always circular */
+    width: 1.5rem !important; /* Fixed width */
+    height: 1.5rem !important; /* Fixed height */
+    display: flex !important; /* Always flex */
+    align-items: center !important; /* Always centered */
+    justify-content: center !important; /* Always centered */
+    font-size: 0.75rem !important; /* Fixed font size */
+    font-weight: 600 !important; /* Fixed font weight */
+    flex-shrink: 0 !important; /* Never shrink */
+    border: none !important; /* Never add borders */
+    margin: 0 !important; /* No margins */
+    padding: 0 !important; /* No padding */
+    cursor: default !important; /* Never appear clickable */
+    user-select: none !important; /* Not selectable */
+    pointer-events: none !important; /* Not interactive */
+}
+
+#client-mode-view .step-text {
+    color: var(--gray-600) !important; /* Fixed color */
+    font-size: 0.875rem !important; /* Fixed font size */
+    line-height: 1.5 !important; /* Fixed line height */
+    font-weight: 400 !important; /* Fixed font weight */
+    font-style: normal !important; /* Never italic */
+    text-decoration: none !important; /* Never underlined */
+}
+
+#client-mode-view .step-item {
+    display: flex !important; /* Always flex */
+    align-items: center !important; /* Always center aligned */
+    gap: var(--spacing-md) !important; /* Fixed gap */
+    justify-content: center !important; /* Always centered */
+    text-align: center !important; /* Always center text */
+    background: none !important; /* No background */
+    border: none !important; /* No borders */
+    box-shadow: none !important; /* No shadows */
+    margin: 0 !important; /* No margins */
+    padding: var(--spacing-sm) !important; /* Fixed padding */
+}
+
+/* OVERRIDE ALL MEDIA QUERY CHANGES FOR CLIENT MODE */
+@media (max-width: 500px) and (min-width: 350px) {
+    #client-mode-view .app-title,
+    #client-mode-view .header-title {
+        font-size: 1.25rem !important; /* Override small screen size */
+    }
+    
+    #client-mode-view .app-subtitle,
+    #client-mode-view .header-subtitle {
+        font-size: 0.75rem !important; /* Override small screen size */
+    }
+    
+    #client-mode-view .welcome-title {
+        font-size: 1.75rem !important; /* Fixed welcome title size */
+        font-weight: 300 !important; /* Fixed font weight - never bold */
+        line-height: 1.2 !important; /* Fixed line height */
+        text-align: center !important; /* Always centered */
+        color: var(--gray-800) !important; /* Fixed color */
+        font-style: normal !important; /* Never italic */
+    }
+    
+    #client-mode-view .chatgpt-input-bar {
+        border-radius: var(--radius-full) !important; /* Always circular/pill shaped */
+        padding: 8px 0px 8px 0 !important; /* Fixed padding */
+        background-color: var(--primary-white) !important; /* Fixed background */
+        border: 1px solid var(--gray-200) !important; /* Fixed border */
+        box-shadow: var(--shadow-sm) !important; /* Fixed shadow */
+        margin-bottom: 10px !important; /* Fixed margin */
+    }
+    
+    #client-mode-view .step-text {
+        color: var(--gray-600) !important; /* Fixed color */
+        font-size: 0.875rem !important; /* Fixed font size */
+        line-height: 1.5 !important; /* Fixed line height */
+        font-weight: 400 !important; /* Fixed font weight */
+        font-style: normal !important; /* Never italic */
+        text-decoration: none !important; /* Never underlined */
+    }
+    
+    #client-mode-view .step-number {
+        background-color: var(--primary-black) !important; /* Always black background */
+        color: var(--primary-white) !important; /* Always white text */
+        border-radius: var(--radius-full) !important; /* Always circular */
+        width: 1.5rem !important; /* Fixed width */
+        height: 1.5rem !important; /* Fixed height */
+        font-size: 0.75rem !important; /* Fixed font size */
+        font-weight: 600 !important; /* Fixed font weight */
+        border: none !important; /* Never add borders */
+        margin: 0 !important; /* No margins */
+        padding: 0 !important; /* No padding */
+        cursor: default !important; /* Never appear clickable */
+    }
+    
+    #client-mode-view .step-item {
+        display: flex !important; /* Always flex */
+        align-items: center !important; /* Always center aligned */
+        gap: var(--spacing-md) !important; /* Fixed gap */
+        justify-content: center !important; /* Always centered */
+        text-align: center !important; /* Always center text */
+        background: none !important; /* No background */
+        border: none !important; /* No borders */
+        box-shadow: none !important; /* No shadows */
+        margin: 0 !important; /* No margins */
+        padding: var(--spacing-sm) !important; /* Fixed padding */
+    }
+    
+    #client-mode-view #user-input-client,
+    #client-mode-view #user-input {
+        font-size: 1rem !important; /* Override small screen size */
+    }
+}
+
+@media (max-width: 250px) {
+    #client-mode-view .app-title,
+    #client-mode-view .header-title {
+        font-size: 1.25rem !important; /* Override tiny screen size */
+    }
+    
+    #client-mode-view .app-subtitle,
+    #client-mode-view .header-subtitle {
+        font-size: 0.75rem !important; /* Override tiny screen size */
+    }
+    
+    #client-mode-view .welcome-title {
+        font-size: 1.75rem !important; /* Fixed welcome title size */
+        font-weight: 300 !important; /* Fixed font weight - never bold */
+        line-height: 1.2 !important; /* Fixed line height */
+        text-align: center !important; /* Always centered */
+        color: var(--gray-800) !important; /* Fixed color */
+        font-style: normal !important; /* Never italic */
+    }
+    
+    #client-mode-view .chatgpt-input-bar {
+        border-radius: var(--radius-full) !important; /* Always circular/pill shaped */
+        padding: 8px 0px 8px 0 !important; /* Fixed padding */
+        background-color: var(--primary-white) !important; /* Fixed background */
+        border: 1px solid var(--gray-200) !important; /* Fixed border */
+        box-shadow: var(--shadow-sm) !important; /* Fixed shadow */
+        margin-bottom: 10px !important; /* Fixed margin */
+    }
+    
+    #client-mode-view .step-text {
+        color: var(--gray-600) !important; /* Fixed color */
+        font-size: 0.875rem !important; /* Fixed font size */
+        line-height: 1.5 !important; /* Fixed line height */
+        font-weight: 400 !important; /* Fixed font weight */
+        font-style: normal !important; /* Never italic */
+        text-decoration: none !important; /* Never underlined */
+    }
+    
+    #client-mode-view .step-number {
+        background-color: var(--primary-black) !important; /* Always black background */
+        color: var(--primary-white) !important; /* Always white text */
+        border-radius: var(--radius-full) !important; /* Always circular */
+        width: 1.5rem !important; /* Fixed width */
+        height: 1.5rem !important; /* Fixed height */
+        font-size: 0.75rem !important; /* Fixed font size */
+        font-weight: 600 !important; /* Fixed font weight */
+        border: none !important; /* Never add borders */
+        margin: 0 !important; /* No margins */
+        padding: 0 !important; /* No padding */
+        cursor: default !important; /* Never appear clickable */
+    }
+    
+    #client-mode-view #user-input-client,
+    #client-mode-view #user-input {
+        font-size: 1rem !important; /* Override tiny screen size */
+    }
+}
+
+@media (max-width: 768px) and (min-width: 451px) {
+    #client-mode-view .app-title,
+    #client-mode-view .header-title {
+        font-size: 1.25rem !important; /* Override medium screen size */
+    }
+    
+    #client-mode-view .app-subtitle,
+    #client-mode-view .header-subtitle {
+        font-size: 0.75rem !important; /* Override medium screen size */
+    }
+    
+    #client-mode-view .welcome-title {
+        font-size: 1.75rem !important; /* Fixed welcome title size */
+        font-weight: 300 !important; /* Fixed font weight - never bold */
+        line-height: 1.2 !important; /* Fixed line height */
+        text-align: center !important; /* Always centered */
+        color: var(--gray-800) !important; /* Fixed color */
+        font-style: normal !important; /* Never italic */
+    }
+    
+    #client-mode-view .chatgpt-input-bar {
+        border-radius: var(--radius-full) !important; /* Always circular/pill shaped */
+        padding: 8px 0px 8px 0 !important; /* Fixed padding */
+        background-color: var(--primary-white) !important; /* Fixed background */
+        border: 1px solid var(--gray-200) !important; /* Fixed border */
+        box-shadow: var(--shadow-sm) !important; /* Fixed shadow */
+        margin-bottom: 10px !important; /* Fixed margin */
+    }
+    
+    #client-mode-view .step-text {
+        color: var(--gray-600) !important; /* Fixed color */
+        font-size: 0.875rem !important; /* Fixed font size */
+        line-height: 1.5 !important; /* Fixed line height */
+        font-weight: 400 !important; /* Fixed font weight */
+        font-style: normal !important; /* Never italic */
+        text-decoration: none !important; /* Never underlined */
+    }
+    
+    #client-mode-view .step-number {
+        background-color: var(--primary-black) !important; /* Always black background */
+        color: var(--primary-white) !important; /* Always white text */
+        border-radius: var(--radius-full) !important; /* Always circular */
+        width: 1.5rem !important; /* Fixed width */
+        height: 1.5rem !important; /* Fixed height */
+        font-size: 0.75rem !important; /* Fixed font size */
+        font-weight: 600 !important; /* Fixed font weight */
+        border: none !important; /* Never add borders */
+        margin: 0 !important; /* No margins */
+        padding: 0 !important; /* No padding */
+        cursor: default !important; /* Never appear clickable */
+    }
+}
+
+@media (max-width: 480px) {
+    #client-mode-view .app-title,
+    #client-mode-view .header-title {
+        font-size: 1.25rem !important; /* Override mobile screen size */
+    }
+    
+    #client-mode-view .app-subtitle,
+    #client-mode-view .header-subtitle {
+        font-size: 0.75rem !important; /* Override mobile screen size */
+    }
+    
+    #client-mode-view .welcome-title {
+        font-size: 1.75rem !important; /* Fixed welcome title size */
+        font-weight: 300 !important; /* Fixed font weight - never bold */
+        line-height: 1.2 !important; /* Fixed line height */
+        text-align: center !important; /* Always centered */
+        color: var(--gray-800) !important; /* Fixed color */
+        font-style: normal !important; /* Never italic */
+    }
+    
+    #client-mode-view .chatgpt-input-bar {
+        border-radius: var(--radius-full) !important; /* Always circular/pill shaped */
+        padding: 8px 0px 8px 0 !important; /* Fixed padding */
+        background-color: var(--primary-white) !important; /* Fixed background */
+        border: 1px solid var(--gray-200) !important; /* Fixed border */
+        box-shadow: var(--shadow-sm) !important; /* Fixed shadow */
+        margin-bottom: 10px !important; /* Fixed margin */
+    }
+    
+    #client-mode-view .step-text {
+        color: var(--gray-600) !important; /* Fixed color */
+        font-size: 0.875rem !important; /* Fixed font size */
+        line-height: 1.5 !important; /* Fixed line height */
+        font-weight: 400 !important; /* Fixed font weight */
+        font-style: normal !important; /* Never italic */
+        text-decoration: none !important; /* Never underlined */
+    }
+    
+    #client-mode-view .step-number {
+        background-color: var(--primary-black) !important; /* Always black background */
+        color: var(--primary-white) !important; /* Always white text */
+        border-radius: var(--radius-full) !important; /* Always circular */
+        width: 1.5rem !important; /* Fixed width */
+        height: 1.5rem !important; /* Fixed height */
+        font-size: 0.75rem !important; /* Fixed font size */
+        font-weight: 600 !important; /* Fixed font weight */
+        border: none !important; /* Never add borders */
+        margin: 0 !important; /* No margins */
+        padding: 0 !important; /* No padding */
+        cursor: default !important; /* Never appear clickable */
+    }
+    
+    #client-mode-view #user-input-client,
+    #client-mode-view #user-input {
+        font-size: 1rem !important; /* Override mobile screen size */
+    }
+}
