@@ -1266,20 +1266,20 @@ body {
 .left-controls {
     display: flex;
     align-items: center;
-    margin-right: 4px;
+    margin-right: 2px;
 }
 
 .attachment-button {
     background: transparent !important;
     border: none !important;
-    padding: 6px !important;
+    padding: 4px !important;
     min-width: auto !important;
     min-height: auto !important;
     color: #6b7280 !important;
     transition: color 0.2s ease;
     border-radius: 50% !important;
-    width: 32px !important;
-    height: 32px !important;
+    width: 24px !important;
+    height: 24px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -1291,8 +1291,8 @@ body {
 }
 
 .attachment-button .plus-icon {
-    width: 20px;
-    height: 20px;
+    width: 14px;
+    height: 14px;
     stroke: currentColor;
 }
 
@@ -1426,7 +1426,7 @@ body {
 .right-controls {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 4px;
 }
 
 .voice-button {
@@ -1435,6 +1435,14 @@ body {
     color: var(--gray-500);
     border-radius: var(--radius-full);
     transition: all 0.2s ease-in-out;
+    width: 24px !important;
+    height: 24px !important;
+    padding: 4px !important;
+    min-width: auto !important;
+    min-height: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 .voice-button:hover {
@@ -1447,8 +1455,8 @@ body {
 }
 
 .microphone-icon {
-    width: 16px;
-    height: 16px;
+    width: 12px;
+    height: 12px;
 }
 
 /* Voice Recording Interface */
@@ -1484,13 +1492,13 @@ body {
 .voice-control-button {
     background: transparent !important;
     border: none !important;
-    padding: 6px !important;
+    padding: 4px !important;
     min-width: auto !important;
     min-height: auto !important;
     transition: all 0.2s ease;
     border-radius: 50% !important;
-    width: 32px !important;
-    height: 32px !important;
+    width: 24px !important;
+    height: 24px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -1501,14 +1509,14 @@ body {
 }
 
 .voice-control-button .cancel-icon {
-    width: 16px;
-    height: 16px;
+    width: 12px;
+    height: 12px;
     color: #6b7280;
 }
 
 .voice-control-button .check-icon {
-    width: 16px;
-    height: 16px;
+    width: 12px;
+    height: 12px;
     color: #22c55e;
 }
 
@@ -1900,8 +1908,8 @@ body {
     border-color: var(--primary-black);
     color: var(--primary-white);
     border-radius: var(--radius-full);
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 1.75rem;
+    height: 1.75rem;
     padding: 0;
     display: flex;
     align-items: center;
@@ -1924,8 +1932,8 @@ body {
 }
 
 .send-icon {
-    width: 1.125rem;
-    height: 1.125rem;
+    width: 0.875rem;
+    height: 0.875rem;
 }
 
 /* Developer Mode Welcome Features */
@@ -2280,6 +2288,14 @@ body {
     color: var(--gray-500);
     border-radius: var(--radius-full);
     transition: all 0.2s ease-in-out;
+    width: 24px !important;
+    height: 24px !important;
+    padding: 4px !important;
+    min-width: auto !important;
+    min-height: auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
 .voice-button:hover {
@@ -3082,10 +3098,11 @@ body {
 #client-mode-view .client-input-area-wrapper,
 #client-mode-view .content-panel,
 #client-mode-view #chat-log-client {
-    margin-left: 2rem !important;
-    width: calc(100% - 3rem) !important;
-    max-width: calc(100% - 3rem) !important;
-    padding-right: 0.5rem !important;
+    margin-left: 1.75rem !important;
+    width: calc(100% - 1.75rem) !important;
+    max-width: calc(100% - 1.75rem) !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
     box-sizing: border-box !important;
 }
 
