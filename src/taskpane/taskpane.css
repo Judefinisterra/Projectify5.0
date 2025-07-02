@@ -1019,6 +1019,7 @@ body {
     text-align: center;
     position: relative;
     background-color: #f3f2f1; /* Match body background */
+    overflow: hidden; /* Prevent scrollbar at this level */
 }
 
 /* When client mode view is shown, ensure flex display */
@@ -1055,8 +1056,8 @@ body {
     flex-direction: column;
     -ms-flex-pack: start; /* IE 10 - align content to top */
     justify-content: flex-start;
-    -ms-flex-align: center; /* IE 10 */
-    align-items: center;
+    -ms-flex-align: stretch; /* IE 10 - stretch children to full width */
+    align-items: stretch; /* Changed from center to stretch */
     width: 100%; /* Full width */
     max-width: none; /* Remove max-width restriction */
     padding: 70px 0 20px 0; /* Remove horizontal padding - only keep top/bottom */
@@ -1071,6 +1072,8 @@ body {
     justify-content: center;
     height: 100vh; /* Use full height */
     padding-top: 0px; /* Maintain top padding even when centered */
+    -ms-flex-align: stretch; /* IE 10 - ensure children stretch */
+    align-items: stretch; /* Keep children full width */
 }
 
 /* When conversation starts, expand to full height */
@@ -3575,9 +3578,9 @@ html body.ms-Fabric .ms-welcome__main .dev-input-bar {
     width: 100% !important;
 }
 
-/* Eliminate horizontal scrollbars completely */
+/* Eliminate all scrollbars except main-content */
 html, body {
-    overflow-x: hidden !important;
+    overflow: hidden !important;
 }
 
 #client-mode-view, 
@@ -3631,6 +3634,69 @@ html, body {
     bottom: 0 !important;
 }
 
+/* Add .container to nuclear override to fix the purple box alignment */
+#client-mode-view .container {
+    margin: 0 !important;
+    padding: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+}
+
+/* Force all direct children of client-chat-container to be full width */
+#client-mode-view #client-chat-container > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+/* Override centering styles in welcome section */
+#client-mode-view .welcome-section {
+    text-align: left !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+#client-mode-view .welcome-steps {
+    margin: 0 !important;
+}
+
+#client-mode-view .step-item {
+    justify-content: flex-start !important;
+}
+
+/* Override centering in client-input-area-wrapper */
+#client-mode-view .client-input-area-wrapper {
+    align-items: stretch !important;
+}
+
+/* FIX ALIGNMENT: Add consistent padding to main-content */
+#client-mode-view .main-content {
+    padding: 0 1rem !important;
+}
+
+/* Remove all padding from children to avoid double padding */
+#client-mode-view .content-header,
+#client-mode-view #client-chat-container,
+#client-mode-view .container,
+#client-mode-view .welcome-section,
+#client-mode-view .client-input-area-wrapper {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+/* Keep header top/bottom padding */
+#client-mode-view .content-header {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+}
+
 /* TEMPORARY DEBUG CSS - REMOVE AFTER DEBUGGING */
 /* Add colored borders to all containers to identify spacing issues */
 #client-mode-view * {
@@ -3663,4 +3729,8 @@ html, body {
 
 #client-mode-view .chatgpt-input-bar {
     border: 3px solid brown !important;
+}
+
+#client-mode-view .content-header {
+    border: 3px solid cyan !important;
 }
