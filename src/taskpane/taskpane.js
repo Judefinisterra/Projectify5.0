@@ -1,3 +1,5 @@
+/* global Office, msal */ // Global variables for Office.js and MSAL
+
 import { populateCodeCollection, exportCodeCollectionToText, runCodes, processAssumptionTabs, collapseGroupingsAndNavigateToFinancials, hideColumnsAndNavigate, handleInsertWorksheetsFromBase64, parseFormulaSCustomFormula } from './CodeCollection.js';
 // >>> ADDED: Import the new validation function
 import { validateCodeStringsForRun } from './Validation.js';
@@ -920,17 +922,14 @@ async function handleSendClient() {
         firstUserInput = userInput;
     }
 
-    // >>> ADDED: Hide header and activate conversation layout on first message
-    const clientHeader = document.getElementById('client-mode-header');
+    // >>> ADDED: Hide welcome section and activate conversation layout on first message
+    const welcomeSection = document.querySelector('.welcome-section');
     const clientChatContainer = document.getElementById('client-chat-container');
     const chatLogClient = document.getElementById('chat-log-client');
     
-    if (clientHeader && !clientHeader.classList.contains('hidden')) {
-        clientHeader.classList.add('hidden');
-        // After transition, completely hide it
-        setTimeout(() => {
-            clientHeader.style.display = 'none';
-        }, 300);
+    // Hide the welcome section when conversation starts
+    if (welcomeSection && conversationHistoryClient.length === 0) {
+        welcomeSection.style.display = 'none';
     }
     
     if (clientChatContainer && !clientChatContainer.classList.contains('conversation-active')) {
@@ -1064,7 +1063,7 @@ function resetChat() {
 function resetChatClient() {
     const chatLogClient = document.getElementById('chat-log-client');
     const welcomeMessageClient = document.getElementById('welcome-message-client');
-    const clientModeHeader = document.getElementById('client-mode-header');
+    const welcomeSection = document.querySelector('.welcome-section');
     const clientChatContainer = document.getElementById('client-chat-container');
     const userInputClient = document.getElementById('user-input-client');
 
@@ -1076,8 +1075,9 @@ function resetChatClient() {
         }
     }
 
-    if (clientModeHeader) {
-        clientModeHeader.classList.remove('hidden');
+    // Show the welcome section again
+    if (welcomeSection) {
+        welcomeSection.style.display = 'block';
     }
 
     if (clientChatContainer) {
@@ -1091,7 +1091,8 @@ function resetChatClient() {
     }
 
     // Reset conversation history for client mode
-    // Note: This might need to be adjusted based on how client mode history is managed
+    conversationHistoryClient = [];
+    lastResponseClient = null;
     
     // Reset the stored user inputs for client mode too
     firstUserInput = null;
@@ -1830,7 +1831,10 @@ Office.onReady((info) => {
       
       if (clientModeView) {
         clientModeView.style.display = 'flex';
-        productionLog('Set clientModeView to display: flex');
+        clientModeView.style.flexDirection = 'row';
+        clientModeView.style.height = '100vh';
+        clientModeView.style.backgroundColor = 'var(--gray-50)';
+        productionLog('Set clientModeView to display: flex with row direction for sidebar layout');
       } else {
         productionLog('clientModeView element not found!');
       }
@@ -1856,7 +1860,77 @@ Office.onReady((info) => {
         productionLog('initializeTextareaAutoResize called');
       }
       
+      // >>> ADDED: Initialize authentication UI for client mode
+      if (typeof msal !== 'undefined' && msalInstance) {
+        try {
+          checkAuthState(); // Check if user is already signed in
+          productionLog('Authentication state checked for client mode');
+        } catch (error) {
+          console.error('Error checking authentication state in client mode:', error);
+        }
+      } else {
+        productionLog('Authentication not available in client mode');
+      }
+      
+      // Show the sign-in button (always visible unless user is already authenticated)
+      const signInButton = document.getElementById('sign-in-button');
+      if (signInButton) {
+        if (isUserAuthenticated()) {
+          signInButton.style.display = 'none';
+          productionLog('Sign-in button hidden - user already authenticated');
+        } else {
+          signInButton.style.display = 'flex';
+          productionLog('Sign-in button shown for client mode');
+        }
+      }
+      // <<< END ADDED
+      
+      // Initialize sidebar navigation
+      initializeSidebarNavigation();
+      
       productionLog("Client Mode activation completed");
+    }
+
+    // Sidebar navigation functionality
+    function initializeSidebarNavigation() {
+        const chatTab = document.getElementById('chat-tab');
+        const subscriptionTab = document.getElementById('subscription-tab');
+        const chatPanel = document.getElementById('chat-panel');
+        const subscriptionPanel = document.getElementById('subscription-panel');
+
+        function switchToTab(activeTab, activePanel) {
+            // Remove active class from all tabs
+            document.querySelectorAll('.sidebar-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Hide all panels
+            document.querySelectorAll('.content-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            
+            // Activate selected tab and panel
+            activeTab.classList.add('active');
+            activePanel.classList.add('active');
+        }
+
+        // Chat tab click handler
+        if (chatTab && chatPanel) {
+            chatTab.addEventListener('click', () => {
+                console.log('Switching to chat panel');
+                switchToTab(chatTab, chatPanel);
+            });
+        }
+
+        // Subscription tab click handler
+        if (subscriptionTab && subscriptionPanel) {
+            subscriptionTab.addEventListener('click', () => {
+                console.log('Switching to subscription panel');
+                switchToTab(subscriptionTab, subscriptionPanel);
+            });
+        }
+
+        console.log('Sidebar navigation initialized');
     }
 
     // >>> ADDED: Function to show startup menu
@@ -2857,6 +2931,62 @@ Office.onReady((info) => {
     }
     // <<< END ADDED
 
+    // >>> ADDED: Microsoft Authentication Setup
+    // Initialize authentication system
+    try {
+        console.log('Setting up Microsoft authentication...');
+        
+        if (typeof msal !== 'undefined') {
+            const initSuccess = initializeMSAL();
+            if (initSuccess) {
+                console.log('Authentication system initialized successfully');
+            } else {
+                console.warn('Authentication system failed to initialize');
+            }
+        } else {
+            console.warn('MSAL library not available - authentication features disabled');
+            showError('Microsoft authentication library not loaded. Authentication features are disabled.');
+        }
+    } catch (error) {
+        console.error('Error initializing authentication:', error);
+        showError('Failed to set up authentication: ' + error.message);
+    }
+
+    // Setup authentication event handlers
+    const signInButton = document.getElementById('sign-in-button');
+    if (signInButton) {
+        signInButton.onclick = async () => {
+            try {
+                await signIn();
+            } catch (error) {
+                console.error('Sign-in error:', error);
+                showError('Sign-in failed. Please try again.');
+            }
+        };
+        
+        // Always show the sign-in button initially (it will be managed by auth state)
+        signInButton.style.display = 'flex';
+        console.log('Sign-in button event handler attached and button shown');
+    } else {
+        console.log('Sign-in button not found (may be in different mode)');
+    }
+
+    const signOutButton = document.getElementById('sign-out-button');
+    if (signOutButton) {
+        signOutButton.onclick = async () => {
+            try {
+                await signOut();
+            } catch (error) {
+                console.error('Sign-out error:', error);
+                showError('Sign-out failed. Please try again.');
+            }
+        };
+        console.log('Sign-out button event handler attached');
+    } else {
+        console.log('Sign-out button not found (may be in different mode)');
+    }
+    // <<< END ADDED
+
     // Window click handler to close modals when clicking outside
     window.onclick = function(event) {
         const trainingDataModal = document.getElementById('training-data-modal');
@@ -3348,6 +3478,398 @@ function clearTrainingDataQueue() {
 
 // Make it globally accessible for debugging
 window.clearTrainingDataQueue = clearTrainingDataQueue;
+
+// >>> ADDED: Microsoft Authentication System
+let msalInstance;
+let currentUser = null;
+
+/**
+ * Initialize Microsoft Authentication Library (MSAL)
+ */
+function initializeMSAL() {
+    try {
+        console.log('Initializing MSAL...');
+        
+        // Check if MSAL library is loaded
+        if (typeof msal === 'undefined') {
+            console.error('MSAL library not loaded - authentication will not work');
+            showError('Authentication library not loaded. Please refresh the page.');
+            return false;
+        }
+        
+        console.log('MSAL library found, checking configuration...');
+        
+        // Validate configuration
+        if (!CONFIG || !CONFIG.authentication || !CONFIG.authentication.msalConfig) {
+            console.error('MSAL configuration not found');
+            showError('Authentication configuration missing');
+            return false;
+        }
+        
+        const config = CONFIG.authentication.msalConfig;
+        console.log('MSAL config:', {
+            clientId: config.auth.clientId,
+            authority: config.auth.authority,
+            redirectUri: config.auth.redirectUri
+        });
+        
+        // Check for placeholder values
+        if (CONFIG.authentication.isDevelopmentPlaceholder()) {
+            console.warn('MSAL using placeholder client ID - authentication will not work');
+            
+            const isDev = process.env.NODE_ENV === 'development';
+            const setupMessage = isDev 
+                ? 'Microsoft authentication is not configured. Please follow the setup guide in MICROSOFT_AUTH_SETUP.md to create an Azure app registration.'
+                : 'Microsoft authentication is not configured for production. Please update the client ID in config.js';
+            
+            showError(setupMessage);
+            return false;
+        }
+        
+        // Create MSAL instance
+        console.log('Creating MSAL instance...');
+        msalInstance = new msal.PublicClientApplication(config);
+        
+        // Handle redirect response
+        msalInstance.handleRedirectPromise()
+            .then(handleAuthResponse)
+            .catch(error => {
+                console.error('Error handling redirect response:', error);
+                showError('Authentication redirect error: ' + error.message);
+            });
+
+        // Check if user is already signed in
+        checkAuthState();
+        
+        console.log('MSAL initialized successfully');
+        return true;
+        
+    } catch (error) {
+        console.error('Failed to initialize MSAL:', error);
+        showError('Authentication system initialization failed: ' + error.message);
+        msalInstance = null; // Ensure it's null on failure
+        return false;
+    }
+}
+
+/**
+ * Handle authentication response
+ */
+function handleAuthResponse(response) {
+    if (response && response.account) {
+        console.log('Authentication successful:', response);
+        currentUser = response.account;
+        updateAuthUI(true);
+        getUserProfile();
+    } else {
+        console.log('No authentication response or account');
+        updateAuthUI(false);
+    }
+}
+
+/**
+ * Check current authentication state
+ */
+function checkAuthState() {
+    try {
+        if (!msalInstance) {
+            console.log('MSAL not initialized - cannot check auth state');
+            updateAuthUI(false);
+            return;
+        }
+        
+        const currentAccounts = msalInstance.getAllAccounts();
+        if (currentAccounts.length > 0) {
+            currentUser = currentAccounts[0];
+            updateAuthUI(true);
+            getUserProfile();
+            console.log('User already authenticated:', currentUser);
+        } else {
+            updateAuthUI(false);
+            console.log('No authenticated user found');
+        }
+    } catch (error) {
+        console.error('Error checking auth state:', error);
+        updateAuthUI(false);
+    }
+}
+
+/**
+ * Sign in user
+ */
+async function signIn() {
+    try {
+        console.log('Initiating sign-in...');
+        
+        // Check if MSAL is initialized
+        if (!msalInstance) {
+            console.error('MSAL not initialized - cannot sign in');
+            showError('Authentication not initialized. Please set up Microsoft authentication first.');
+            return;
+        }
+        
+        // Check if configuration is valid
+        if (!CONFIG.authentication.loginRequest) {
+            console.error('Login request configuration missing');
+            showError('Authentication configuration incomplete');
+            return;
+        }
+        
+        console.log('Starting login popup...');
+        const response = await msalInstance.loginPopup(CONFIG.authentication.loginRequest);
+        console.log('Sign-in successful:', response);
+        
+        if (response && response.account) {
+            currentUser = response.account;
+            updateAuthUI(true);
+            getUserProfile();
+            showMessage('Successfully signed in to Microsoft!');
+        } else {
+            console.error('No account in sign-in response');
+            showError('Sign-in completed but no account information received');
+        }
+        
+    } catch (error) {
+        console.error('Sign-in failed:', error);
+        
+        if (error.errorCode === 'popup_window_error' || error.errorCode === 'user_cancelled') {
+            showError('Sign-in was cancelled or blocked. Please allow popups and try again.');
+        } else if (error.errorCode === 'interaction_in_progress') {
+            showError('Another sign-in is already in progress. Please wait and try again.');
+        } else if (error.errorCode === 'invalid_request') {
+            showError('Invalid authentication request. Please check the configuration.');
+        } else {
+            showError(`Sign-in failed: ${error.errorMessage || error.message || 'Unknown error'}`);
+        }
+    }
+}
+
+/**
+ * Sign out user
+ */
+async function signOut() {
+    try {
+        console.log('Signing out...');
+        await msalInstance.logoutPopup();
+        currentUser = null;
+        updateAuthUI(false);
+        console.log('Sign-out successful');
+    } catch (error) {
+        console.error('Sign-out failed:', error);
+        // Even if logout fails, clear local state
+        currentUser = null;
+        updateAuthUI(false);
+    }
+}
+
+/**
+ * Get user profile from Microsoft Graph
+ */
+async function getUserProfile() {
+    try {
+        if (!currentUser) {
+            console.log('No current user for profile fetch');
+            return;
+        }
+
+        // Get access token
+        const tokenResponse = await msalInstance.acquireTokenSilent({
+            ...CONFIG.authentication.tokenRequest,
+            account: currentUser
+        });
+
+        // Fetch user profile
+        const profileResponse = await fetch(CONFIG.authentication.graphConfig.graphMeUrl, {
+            headers: {
+                'Authorization': `Bearer ${tokenResponse.accessToken}`
+            }
+        });
+
+        if (profileResponse.ok) {
+            const profile = await profileResponse.json();
+            console.log('User profile:', profile);
+            updateUserProfile(profile);
+            
+            // Try to get user photo
+            getUserPhoto(tokenResponse.accessToken);
+        } else {
+            console.error('Failed to fetch user profile:', profileResponse.status);
+        }
+    } catch (error) {
+        console.error('Error getting user profile:', error);
+        // If we can't get extended profile, just use basic account info
+        updateUserProfile({
+            displayName: currentUser.name || 'User',
+            mail: currentUser.username || '',
+            userPrincipalName: currentUser.username || ''
+        });
+    }
+}
+
+/**
+ * Get user photo from Microsoft Graph
+ */
+async function getUserPhoto(accessToken) {
+    try {
+        const photoResponse = await fetch(CONFIG.authentication.graphConfig.graphPhotoUrl, {
+            headers: {
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+
+        if (photoResponse.ok) {
+            const photoBlob = await photoResponse.blob();
+            const photoUrl = URL.createObjectURL(photoBlob);
+            
+            const avatarImg = document.getElementById('user-avatar');
+            const initialsDiv = document.getElementById('user-initials');
+            
+            if (avatarImg) {
+                avatarImg.src = photoUrl;
+                avatarImg.style.display = 'block';
+                if (initialsDiv) {
+                    initialsDiv.style.display = 'none';
+                }
+            }
+        } else {
+            console.log('No user photo available or failed to fetch');
+        }
+    } catch (error) {
+        console.log('Error getting user photo:', error);
+        // Photo is optional, so we just log the error
+    }
+}
+
+/**
+ * Update user profile display
+ */
+function updateUserProfile(profile) {
+    const userNameElement = document.getElementById('user-name');
+    const userEmailElement = document.getElementById('user-email');
+    const userInitialsElement = document.getElementById('user-initials');
+
+    if (userNameElement) {
+        userNameElement.textContent = profile.displayName || profile.name || 'User';
+    }
+
+    if (userEmailElement) {
+        userEmailElement.textContent = profile.mail || profile.userPrincipalName || '';
+    }
+
+    if (userInitialsElement) {
+        const name = profile.displayName || profile.name || 'User';
+        const initials = name.split(' ')
+            .map(n => n.charAt(0))
+            .join('')
+            .substring(0, 2)
+            .toUpperCase();
+        userInitialsElement.textContent = initials;
+    }
+}
+
+/**
+ * Update authentication UI based on state
+ */
+function updateAuthUI(isAuthenticated) {
+    const signInButton = document.getElementById('sign-in-button');
+    const userInfo = document.getElementById('user-info');
+
+    console.log('Updating auth UI - authenticated:', isAuthenticated);
+
+    if (isAuthenticated) {
+        // User is signed in - show user info, hide sign-in button
+        if (signInButton) {
+            signInButton.style.display = 'none';
+            console.log('Sign-in button hidden - user authenticated');
+        }
+        if (userInfo) {
+            userInfo.style.display = 'flex';
+            console.log('User info shown');
+        }
+    } else {
+        // User is not signed in - show sign-in button, hide user info
+        if (signInButton) {
+            signInButton.style.display = 'flex';
+            console.log('Sign-in button shown - user not authenticated');
+        }
+        if (userInfo) {
+            userInfo.style.display = 'none';
+            console.log('User info hidden');
+        }
+        
+        // Clear user display
+        const userAvatar = document.getElementById('user-avatar');
+        const userInitials = document.getElementById('user-initials');
+        if (userAvatar) {
+            userAvatar.style.display = 'none';
+            userAvatar.src = '';
+        }
+        if (userInitials) {
+            userInitials.style.display = 'flex';
+            userInitials.textContent = '';
+        }
+    }
+}
+
+/**
+ * Get current authenticated user
+ */
+function getCurrentUser() {
+    return currentUser;
+}
+
+/**
+ * Check if user is authenticated
+ */
+function isUserAuthenticated() {
+    return currentUser !== null;
+}
+
+/**
+ * Test authentication setup - useful for debugging
+ */
+function testAuthSetup() {
+    console.log('=== Microsoft Authentication Setup Test ===');
+    
+    // Check MSAL library
+    console.log('1. MSAL Library:', typeof msal !== 'undefined' ? '✅ Loaded' : '❌ Not loaded');
+    
+    // Check configuration
+    const hasConfig = CONFIG && CONFIG.authentication && CONFIG.authentication.msalConfig;
+    console.log('2. Configuration:', hasConfig ? '✅ Found' : '❌ Missing');
+    
+    if (hasConfig) {
+        const config = CONFIG.authentication.msalConfig;
+        console.log('   - Client ID:', config.auth.clientId);
+        console.log('   - Authority:', config.auth.authority);
+        console.log('   - Redirect URI:', config.auth.redirectUri);
+        console.log('   - Is Placeholder:', CONFIG.authentication.isDevelopmentPlaceholder() ? '⚠️ Yes' : '✅ No');
+    }
+    
+    // Check MSAL instance
+    console.log('3. MSAL Instance:', msalInstance ? '✅ Initialized' : '❌ Not initialized');
+    
+    // Check authentication state
+    console.log('4. User Authentication:', isUserAuthenticated() ? '✅ Signed in' : '❌ Not signed in');
+    
+    if (isUserAuthenticated() && currentUser) {
+        console.log('   - User:', currentUser.name || currentUser.username);
+    }
+    
+    console.log('=== End Test ===');
+    
+    return {
+        msalLoaded: typeof msal !== 'undefined',
+        configExists: hasConfig,
+        isPlaceholder: hasConfig ? CONFIG.authentication.isDevelopmentPlaceholder() : true,
+        msalInitialized: !!msalInstance,
+        userAuthenticated: isUserAuthenticated()
+    };
+}
+
+// Make test function globally available for debugging
+window.testAuthSetup = testAuthSetup;
+// <<< END ADDED
 
 
 
