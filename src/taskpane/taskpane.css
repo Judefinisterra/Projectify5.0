@@ -3228,25 +3228,27 @@ body {
     flex-direction: column;
     overflow-y: auto;
     overflow-x: hidden;
+    width: 100%; /* Ensure main content takes full width */
 }
 
 .content-header {
     background-color: var(--primary-white);
     border-bottom: 1px solid var(--gray-200);
-    padding: var(--spacing-md) 0;
+    padding: var(--spacing-md) var(--spacing-lg); /* Use consistent padding */
     box-shadow: var(--shadow-sm);
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center; /* Center the content */
     flex-shrink: 0;
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
+    margin-bottom: var(--spacing-md); /* Add spacing below header */
 }
 
 .header-info {
-    flex: 1;
     text-align: center;
+    padding: 0 var(--spacing-md); /* Add some padding around the text */
 }
 
 .header-title {
@@ -3255,6 +3257,9 @@ body {
     color: var(--gray-900);
     margin: 0;
     letter-spacing: -0.02em;
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
 }
 
 .header-subtitle {
@@ -3262,6 +3267,15 @@ body {
     color: var(--gray-600);
     margin: 0.25rem 0 0 0;
     font-weight: 400;
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+/* Hide the buttons in client mode since we want centered content */
+#client-mode-view .back-to-menu-button,
+#client-mode-view .reset-button {
+    display: none !important;
 }
 
 .reset-button {
@@ -3554,23 +3568,17 @@ html body.ms-Fabric .ms-welcome__main .dev-input-bar {
 
 /* Optimize header layout for narrow Excel task pane - hide buttons */
 #client-mode-view .content-header {
-    padding: 0.5rem 0 !important;
+    padding: var(--spacing-sm) var(--spacing-md) !important;
     justify-content: center !important;
-}
-
-#client-mode-view .back-to-menu-button,
-#client-mode-view .reset-button {
-    display: none !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    margin: 0 0 var(--spacing-md) 0 !important;
 }
 
 #client-mode-view .header-info {
-    flex: 1 !important;
     text-align: center !important;
     margin: 0 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    justify-content: center !important;
+    padding: 0 !important;
 }
 
 #client-mode-view .header-title {
@@ -3578,6 +3586,7 @@ html body.ms-Fabric .ms-welcome__main .dev-input-bar {
     margin: 0 !important;
     text-align: center !important;
     width: 100% !important;
+    box-sizing: border-box !important;
 }
 
 #client-mode-view .header-subtitle {
@@ -3585,6 +3594,7 @@ html body.ms-Fabric .ms-welcome__main .dev-input-bar {
     margin: 0.25rem 0 0 0 !important;
     text-align: center !important;
     width: 100% !important;
+    box-sizing: border-box !important;
 }
 
 /* Eliminate all scrollbars except main-content */
@@ -3754,6 +3764,7 @@ html, body {
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
+    padding-top: 0 !important;
 }
 
 /* TEMPORARY DEBUG CSS - REMOVE AFTER DEBUGGING */
@@ -3792,4 +3803,176 @@ html, body {
 
 #client-mode-view .content-header {
     border: 3px solid cyan !important;
+}
+
+/* Simple Header - Clean and Centered */
+.simple-header {
+    width: 100%;
+    text-align: center;
+    padding: 0.5rem 0;
+    background-color: var(--primary-white);
+    border-bottom: 1px solid var(--gray-200);
+    margin: 0;
+    box-sizing: border-box;
+}
+
+.app-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+}
+
+.app-subtitle {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    margin: 0.125rem 0 0 0;
+    font-weight: 400;
+    line-height: 1.2;
+}
+
+/* Client mode specific sizing */
+#client-mode-view .app-title {
+    font-size: 1.25rem;
+}
+
+#client-mode-view .app-subtitle {
+    font-size: 0.75rem;
+}
+
+/* Add appropriate padding only to content that needs it */
+#client-mode-view .welcome-steps {
+    padding: 0 1rem !important;
+    margin-top: 1rem !important;
+}
+
+#client-mode-view #chat-log-client {
+    padding: 0 1rem !important;
+}
+
+#client-mode-view .client-input-area-wrapper {
+    padding: 0 1rem !important;
+}
+
+/* ====================================================== */
+/* FINAL OVERRIDE BLOCK TO FIX ALL LAYOUT ISSUES          */
+/* ====================================================== */
+
+/* 1. Force all parent containers to have no top spacing */
+body,
+#client-mode-view,
+.client-app-layout,
+.main-content,
+#client-chat-container,
+.container {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+/* 2. Ensure the main layout is a flex container */
+.client-app-layout {
+    display: flex !important;
+    height: 100vh;
+}
+
+/* 3. Ensure main content takes up remaining space */
+.main-content {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+/* 4. Ensure the chat container fills the main content area */
+#client-chat-container {
+    flex: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* 5. Style the new header to be perfectly centered and at the top */
+.simple-header {
+    width: 100%;
+    text-align: center;
+    padding: 0.5rem 0;
+    background-color: var(--primary-white);
+    border-bottom: 1px solid var(--gray-200);
+    flex-shrink: 0; /* Prevent header from shrinking */
+    box-sizing: border-box;
+}
+
+.app-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.app-subtitle {
+    font-size: 0.75rem;
+    color: var(--gray-600);
+    margin: 0.125rem 0 0 0;
+    font-weight: 400;
+    line-height: 1.2;
+}
+
+/* 6. Ensure the welcome section (content below header) scrolls */
+.welcome-section {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 0.5rem 1rem; /* Reduced top padding */
+}
+
+/* 7. Reduce top margin on the welcome title */
+.welcome-title {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+/* 8. Override spacing for client mode to be more compact */
+#client-mode-view .welcome-title {
+    margin-bottom: 0.5rem !important;
+}
+
+#client-mode-view .welcome-section {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+}
+
+/* 9. Remove ALL spacing between header and welcome section */
+#client-mode-view .simple-header {
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+}
+
+#client-mode-view .simple-header + .welcome-section {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+/* 10. Eliminate gap between app title and subtitle */
+#client-mode-view .simple-header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    row-gap: 0 !important; /* no additional gap */
+    padding-top: 0.25rem !important; /* slight top padding */
+    padding-bottom: 0.25rem !important; /* slight bottom padding */
+}
+
+#client-mode-view .app-title {
+    margin: 0 !important;
+    line-height: 1 !important;
+}
+
+#client-mode-view .app-subtitle {
+    margin: 0 !important;
+    line-height: 1 !important;
 }
