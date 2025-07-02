@@ -415,12 +415,12 @@ b {
     display: -ms-flexbox; /* IE 10 */
     flex-direction: column;
     -ms-flex-direction: column; /* IE 10 */
-    gap: 8px;
-    padding: 8px 10px; /* Adjusted padding */
-    border-radius: 4px;
-    max-width: 90%; /* Adjusted width */
+    gap: 4px; /* Reduced gap */
+    border-radius: var(--radius-lg);
     margin: 4px 0;
-    font-size: 13px; /* Adjusted font size */
+    font-size: 14px; /* Slightly larger font */
+    line-height: 1.5;
+    width: fit-content; /* Only take space needed */
 }
 
 .user-message {
@@ -428,6 +428,8 @@ b {
     color: var(--gray-900);
     align-self: flex-end;
     -ms-flex-item-align: end; /* IE 10 */
+    margin-left: auto; /* Ensure right alignment */
+    margin-right: 0;
 }
 
 .assistant-message {
@@ -436,6 +438,8 @@ b {
     color: var(--gray-900);
     align-self: flex-start;
     -ms-flex-item-align: start; /* IE 10 */
+    margin-right: auto; /* Ensure left alignment */
+    margin-left: 0;
 }
 
 .message-content {
@@ -572,24 +576,30 @@ body {
 }
 
 .chat-message {
-    margin-bottom: 10px;
-    padding: 8px 12px;
-    border-radius: 4px;
-    max-width: 85%;
+    margin-bottom: 8px; /* Reduced spacing */
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--radius-lg);
+    max-width: 70%; /* Reduced from 85% */
+    width: fit-content; /* Only take space needed */
+    word-wrap: break-word;
+    word-break: break-word;
 }
 
 .user-message {
-    background-color: #e8f5e8; /* Light green for user messages */
-    color: #000000; /* black */
+    background-color: var(--gray-100); /* Updated to match modern design */
+    color: var(--gray-900);
     margin-left: auto;
-    text-align: right;
+    margin-right: 0;
+    text-align: left; /* Changed from right to left for better readability */
 }
 
 .assistant-message {
-    background-color: #edebe9; /* neutralLighter */
-    color: #323130; /* neutralPrimary */
+    background-color: var(--gray-50); /* Updated to match modern design */
+    color: var(--gray-900);
     margin-right: auto;
+    margin-left: 0;
     text-align: left;
+    border: 1px solid var(--gray-200);
 }
 
 .message-content {
@@ -3016,7 +3026,8 @@ body {
     }
     
     .chat-message {
-        max-width: 95%;
+        max-width: 85%; /* Reduced from 95% to maintain ChatGPT-like layout */
+        width: fit-content; /* Only take space needed */
         padding: var(--spacing-xs) var(--spacing-sm);
         font-size: 0.75rem;
     }
@@ -3975,16 +3986,7 @@ body,
 }
 
 /* 12. Vertically center the main content below the header */
-#client-mode-view #client-chat-container {
-    display: flex !important;
-    flex-direction: column !important;
-    height: 100vh !important;
-    justify-content: center !important; /* Center the content group vertically */
-}
-
-#client-mode-view .simple-header {
-    flex-shrink: 0 !important; /* Header stays at top */
-}
+/* Removed - now handled by the complete rule below */
 
 #client-mode-view .welcome-section {
     flex: 0 0 auto !important; /* Don't grow, just take content space */
@@ -3996,12 +3998,47 @@ body,
     gap: 1rem !important; /* Tight spacing between all elements */
 }
 
+/* Main container - centers content between header and bottom */
+#client-mode-view #client-chat-container {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100vh !important;
+    justify-content: center !important; /* Center all content */
+    align-items: center !important; /* Center horizontally */
+    padding-top: 5rem !important; /* Space for absolute header */
+    box-sizing: border-box !important;
+}
+
+/* Header stays at top - out of centering flow */
+#client-mode-view .simple-header {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 100 !important;
+    background-color: var(--primary-white) !important;
+}
+
+/* Welcome section - only takes space it needs */
+#client-mode-view .welcome-section {
+    flex: 0 0 auto !important; /* Only space needed */
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 1rem !important; /* Tight spacing */
+    margin-bottom: 0 !important; /* No gap between welcome and input */
+}
+
+/* Input area flows right after welcome content */
 #client-mode-view .client-input-area-wrapper {
-    flex-shrink: 0 !important; /* Keep input as part of the content flow */
-    margin-top: 0 !important; /* Remove extra margin - use gap instead */
+    flex: 0 0 auto !important; /* Only space needed */
+    margin: 0 !important; /* No extra margins */
     width: 100% !important;
     max-width: 100% !important;
 }
+
+/* Top padding handled by the main container rule above */
 
 /* 13. Prevent header overflow and scroll buttons */
 #client-mode-view .simple-header {
