@@ -1151,7 +1151,7 @@ body {
 #client-chat-container:not(.conversation-active) .client-input-area-wrapper {
     margin-top: 0; /* No margin when centered */
     width: 100%;
-    max-width: 700px; /* Reasonable width for input */
+    max-width: none !important;
 }
 
 #client-chat-container.conversation-active .client-input-area-wrapper {
@@ -1163,7 +1163,7 @@ body {
     align-items: flex-end; /* Align items to bottom, useful for textarea and button */
     width: 100%;
     max-width: none !important;
-    padding: 10px 12px;
+    padding: 8px 6px;
     background-color: var(--primary-white);
     border: 1px solid var(--gray-200);
     border-radius: var(--radius-full);
@@ -1266,7 +1266,7 @@ body {
 .left-controls {
     display: flex;
     align-items: center;
-    margin-right: 8px;
+    margin-right: 4px;
 }
 
 .attachment-button {
@@ -1552,7 +1552,7 @@ body {
 
 /* Spacing between textarea and send button */
 .chatgpt-input-bar #user-input-client {
-    margin-right: 8px;
+    margin-right: 4px;
 }
 
 /* Chat log starts hidden and will expand when conversation starts */
@@ -1848,18 +1848,21 @@ body {
 }
 
 .welcome-title {
-    font-size: 2.5rem;
+    font-size: 1.75rem;
     font-weight: 300;
     color: var(--gray-800);
     margin: 0 0 var(--spacing-xl) 0;
     line-height: 1.2;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
 }
 
 .welcome-steps {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-md);
-    max-width: 500px;
+    max-width: none !important;
     margin: 0 auto;
 }
 
@@ -1931,7 +1934,7 @@ body {
     flex-direction: column;
     gap: var(--spacing-md);
     margin-top: var(--spacing-xl);
-    max-width: 400px;
+    max-width: none !important;
     margin-left: auto;
     margin-right: auto;
 }
@@ -2127,7 +2130,7 @@ body {
 
 .startup-container {
     text-align: center;
-    max-width: 600px;
+    max-width: none !important;
     width: 100%;
 }
 
@@ -2165,7 +2168,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: var(--spacing-lg);
-    max-width: 400px;
+    max-width: none !important;
     margin: 0 auto;
 }
 
@@ -3069,15 +3072,20 @@ body {
 #client-mode-view .main-content,
 #client-mode-view .client-app-layout > *:not(.sidebar),
 #client-mode-view .content-header,
+#client-mode-view .header-info,
+#client-mode-view .header-title,
+#client-mode-view .header-subtitle,
+#client-mode-view .reset-button,
+#client-mode-view .back-to-menu-button,
 #client-mode-view .welcome-section,
 #client-mode-view .container,
 #client-mode-view .client-input-area-wrapper,
 #client-mode-view .content-panel,
 #client-mode-view #chat-log-client {
     margin-left: 2rem !important;
-    width: calc(100% - 2rem) !important;
-    max-width: calc(100% - 2rem) !important;
-    padding-right: 0 !important;
+    width: calc(100% - 3rem) !important;
+    max-width: calc(100% - 3rem) !important;
+    padding-right: 0.5rem !important;
     box-sizing: border-box !important;
 }
 
@@ -3221,6 +3229,9 @@ body {
     align-items: center;
     justify-content: space-between;
     flex-shrink: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
 }
 
 .header-info {
@@ -3464,4 +3475,104 @@ body {
     color: var(--gray-600);
     font-size: 0.875rem;
     margin: 0;
+}
+
+/* FINAL OVERRIDE: Force remove ALL Office Fabric width constraints with maximum specificity */
+html body.ms-Fabric .ms-welcome__main,
+html body.ms-Fabric #startup-menu.ms-welcome__main,
+html body.ms-Fabric #app-body.ms-welcome__main,
+html body.ms-Fabric #client-mode-view.ms-welcome__main,
+html body.ms-Fabric .ms-welcome__main .welcome-steps,
+html body.ms-Fabric .ms-welcome__main .startup-container,
+html body.ms-Fabric .ms-welcome__main .mode-buttons,
+html body.ms-Fabric .ms-welcome__main .dev-welcome-features,
+html body.ms-Fabric .ms-welcome__main .subscription-container {
+    max-width: none !important;
+    min-width: unset !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    box-sizing: border-box !important;
+}
+
+/* Allow these containers to properly account for sidebar in client mode */
+html body.ms-Fabric .ms-welcome__main .container,
+html body.ms-Fabric .ms-welcome__main .welcome-section,
+html body.ms-Fabric .ms-welcome__main .content-header,
+html body.ms-Fabric .ms-welcome__main .header-info,
+html body.ms-Fabric .ms-welcome__main .header-title,
+html body.ms-Fabric .ms-welcome__main .header-subtitle,
+html body.ms-Fabric .ms-welcome__main .reset-button,
+html body.ms-Fabric .ms-welcome__main #chat-log-client,
+html body.ms-Fabric .ms-welcome__main #client-chat-container {
+    max-width: none !important;
+    min-width: unset !important;
+    box-sizing: border-box !important;
+}
+
+/* Specific override for input areas - allow them to account for sidebar */
+html body.ms-Fabric .ms-welcome__main .chatgpt-input-bar,
+html body.ms-Fabric .ms-welcome__main .dev-input-bar {
+    max-width: none !important;
+    min-width: unset !important;
+    box-sizing: border-box !important;
+}
+
+/* Client mode welcome title - ensure it fits in narrow Excel task pane */
+#client-mode-view .welcome-title,
+#client-chat-container .welcome-title {
+    font-size: 1.25rem !important;
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+    white-space: normal !important;
+    max-width: 100% !important;
+    padding-right: 0.5rem !important;
+    box-sizing: border-box !important;
+}
+
+/* Ensure reset button fits properly in client mode header */
+#client-mode-view .reset-button {
+    flex-shrink: 0 !important;
+    width: auto !important;
+    max-width: 2rem !important;
+    padding: 0.25rem !important;
+    margin-right: 0 !important;
+    position: relative !important;
+}
+
+/* Optimize header layout for narrow Excel task pane - hide buttons */
+#client-mode-view .content-header {
+    padding: 0.5rem 0 !important;
+    justify-content: center !important;
+}
+
+#client-mode-view .back-to-menu-button,
+#client-mode-view .reset-button {
+    display: none !important;
+}
+
+#client-mode-view .header-info {
+    flex: 1 !important;
+    text-align: center !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+#client-mode-view .header-title {
+    font-size: 1.25rem !important;
+    margin: 0 !important;
+    text-align: center !important;
+    width: 100% !important;
+}
+
+#client-mode-view .header-subtitle {
+    font-size: 0.75rem !important;
+    margin: 0.25rem 0 0 0 !important;
+    text-align: center !important;
+    width: 100% !important;
 }
