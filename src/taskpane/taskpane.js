@@ -1751,6 +1751,32 @@ async function insertSheetsAndRunCodes() {
 Office.onReady((info) => {
   productionLog('Office.onReady started');
   
+  // Try to set optimal task pane width for our sidebar layout
+  try {
+    // Method 1: Set preferred width via CSS (affects internal layout)
+    document.documentElement.style.setProperty('--preferred-width', '500px');
+    
+    // Method 2: Request wider initial size if possible
+    if (Office.context && Office.context.requirements && Office.context.requirements.isSetSupported('AddinCommands', '1.1')) {
+      // Remove explicit width constraints to allow full task pane width usage
+      document.body.style.minWidth = '';
+      document.body.style.width = '';
+      
+      // Set a meta tag to suggest preferred width (but don't force it)
+      const viewportMeta = document.createElement('meta');
+      viewportMeta.name = 'viewport';
+      viewportMeta.content = 'width=device-width, initial-scale=1.0';
+      document.head.appendChild(viewportMeta);
+    }
+    
+    // Method 3: Store user's preferred width in localStorage for consistency
+    const preferredWidth = localStorage.getItem('taskpane-preferred-width') || '500';
+    console.log(`Preferred width from storage: ${preferredWidth}px`);
+    
+  } catch (error) {
+    console.log('Width control not available:', error);
+  }
+  
   if (info.host === Office.HostType.Excel) {
     productionLog('Excel host detected');
     
