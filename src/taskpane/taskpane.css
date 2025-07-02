@@ -3937,7 +3937,7 @@ body,
 }
 
 #client-mode-view .app-subtitle {
-    margin: 0 !important;
+    margin: 0.25rem 0 0 0 !important;
     line-height: 1 !important;
 }
 
