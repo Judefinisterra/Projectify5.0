@@ -1918,7 +1918,7 @@ Office.onReady((info) => {
     function initializeSidebarNavigation() {
         const chatTab = document.getElementById('chat-tab');
         const subscriptionTab = document.getElementById('subscription-tab');
-        const chatPanel = document.getElementById('chat-panel');
+        const chatPanel = document.getElementById('client-chat-container');
         const subscriptionPanel = document.getElementById('subscription-panel');
 
         function switchToTab(activeTab, activePanel) {
@@ -1927,14 +1927,24 @@ Office.onReady((info) => {
                 tab.classList.remove('active');
             });
             
-            // Hide all panels
-            document.querySelectorAll('.content-panel').forEach(panel => {
-                panel.classList.remove('active');
-            });
+            // Hide the subscription panel specifically
+            if (subscriptionPanel) {
+                subscriptionPanel.style.display = 'none';
+            }
             
-            // Activate selected tab and panel
+            // Show the chat container specifically
+            if (chatPanel) {
+                chatPanel.style.display = 'flex';
+            }
+            
+            // For subscription panel, hide chat and show subscription
+            if (activePanel === subscriptionPanel) {
+                if (chatPanel) chatPanel.style.display = 'none';
+                subscriptionPanel.style.display = 'block';
+            }
+            
+            // Activate selected tab
             activeTab.classList.add('active');
-            activePanel.classList.add('active');
         }
 
         // Chat tab click handler
