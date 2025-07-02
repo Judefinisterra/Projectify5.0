@@ -79,44 +79,63 @@
     align-items: center;
  }
 
- /* Updated main container to use flexbox */
- .app-container {
+ /* Updated developer mode layout to allow full page scrolling */
+ #app-body.ms-welcome__main .container {
     display: flex;
     display: -ms-flexbox; /* IE 10 */
     flex-direction: column;
     -ms-flex-direction: column; /* IE 10 */
-    min-height: 100vh; /* Minimum viewport height */
-    width: 100%;
-    padding: 0; /* Remove padding if applied previously */
+    height: 100%; /* Take full height of parent */
+    overflow-y: auto; /* Allow vertical scrolling of entire container */
+    padding: 0;
+    margin: 0;
  }
 
- /* Top chat section */
- .chat-section {
-    display: flex;
-    display: -ms-flexbox; /* IE 10 */
-    flex-direction: column;
-    -ms-flex-direction: column; /* IE 10 */
-    -ms-flex-positive: 1; /* IE 10 */
-    flex-grow: 1; /* Take available space */
-    margin-bottom: 20px; /* Space between chat and code sections */
-    min-height: 300px; /* Ensure minimum height */
-    background-color: transparent; /* Transparent background */
-    border: none; /* Remove border */
-    border-radius: 0; /* Remove border radius */
+ /* Chat section - Natural height based on content */
+ #app-body.ms-welcome__main .container > #chat-log {
+    -ms-flex-positive: 0; /* IE 10 */
+    -ms-flex-negative: 0; /* IE 10 */
+    -ms-flex-preferred-size: auto; /* IE 10 */
+    flex: 0 0 auto; /* Don't grow or shrink, size based on content */
+    min-height: 300px; /* Minimum height for usability */
+    max-height: none; /* Allow unlimited growth */
+    overflow-y: visible; /* No separate scrolling */
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    margin-bottom: 0;
+    padding: var(--spacing-md);
  }
 
- /* Bottom code section */
- .code-section {
+
+
+ /* Input area between chat and code - minimal height */
+ #app-body.ms-welcome__main .container > .input-area {
+    -ms-flex-positive: 0; /* IE 10 */
+    -ms-flex-negative: 0; /* IE 10 */
+    -ms-flex-preferred-size: auto; /* IE 10 */
+    flex: 0 0 auto; /* Don't grow or shrink */
+    padding: var(--spacing-sm) 0;
+    border-top: 1px solid var(--gray-200);
+    border-bottom: 1px solid var(--gray-200);
+    background-color: var(--gray-50);
+ }
+
+ /* Code section - Natural height based on content */
+ #app-body.ms-welcome__main .container > .code-area {
+    -ms-flex-positive: 0; /* IE 10 */
+    -ms-flex-negative: 0; /* IE 10 */
+    -ms-flex-preferred-size: auto; /* IE 10 */
+    flex: 0 0 auto; /* Don't grow or shrink, size based on content */
+    min-height: 400px; /* Minimum height for code editing */
+    overflow: visible; /* Allow natural content flow */
     display: flex;
     display: -ms-flexbox; /* IE 10 */
     flex-direction: column;
     -ms-flex-direction: column; /* IE 10 */
-    -ms-flex-positive: 1; /* IE 10 */
-    flex-grow: 1; /* Take available space */
-    min-height: 200px; /* Ensure minimum height */
-    background-color: transparent; /* Transparent background */
-    border: none; /* Remove border */
-    border-radius: 0; /* Remove border radius */
+    background-color: var(--primary-white);
+    border-radius: 0;
+    padding: var(--spacing-md);
  }
 
  /* Adjust chat log to scroll within its container */
@@ -160,47 +179,78 @@
      min-width: 0;
  }
 
- /* Adjust code controls container */
- .code-controls {
-    display: flex;
-    display: -ms-flexbox; /* IE 10 */
-    flex-direction: column;
-    -ms-flex-direction: column; /* IE 10 */
-    flex-grow: 1; /* Allow this container to grow */
-    -ms-flex-positive: 1; /* IE 10 */
-    min-height: 0; /* Prevent overflow */
-    overflow: hidden;
- }
+ /* Code controls removed - not used in actual HTML structure */
 
- .code-section h2 {
+ /* Code area header styling */
+ #app-body.ms-welcome__main .code-area h2 {
+     -ms-flex-positive: 0; /* IE 10 */
+     -ms-flex-negative: 0; /* IE 10 */
+     -ms-flex-preferred-size: auto; /* IE 10 */
+     flex: 0 0 auto; /* Don't grow or shrink */
      margin-top: 0;
-     margin-bottom: 10px;
-     color: #333;
+     margin-bottom: var(--spacing-md);
+     color: var(--gray-900);
+     font-size: 1.25rem;
+     font-weight: 600;
  }
 
- /* Ensure textarea scrolls */
- .codes-textarea {
-    flex-grow: 1; /* Take remaining space in code controls */
-    -ms-flex-positive: 1; /* IE 10 */
+ /* Code textarea with fixed height and internal scrolling */
+ #app-body.ms-welcome__main .code-area #codes-textarea {
+    -ms-flex-positive: 0; /* IE 10 */
+    -ms-flex-negative: 0; /* IE 10 */
+    -ms-flex-preferred-size: auto; /* IE 10 */
+    flex: 0 0 auto; /* Don't grow or shrink */
+    height: 300px; /* Fixed height for code editing */
     width: 100%;
-    border: 1px solid #ccc;
-    padding: 8px;
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
     box-sizing: border-box;
-    font-family: 'Courier New', monospace;
-    font-size: 12px;
-    resize: vertical;
+    font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+    font-size: 0.875rem;
+    background-color: var(--gray-50);
+    resize: vertical; /* Allow manual vertical resize */
+    overflow-y: auto; /* Enable scrolling within textarea */
+    /* Ensure scrollbar is visible */
+    scrollbar-width: thin;
+    scrollbar-color: var(--gray-400) var(--gray-100);
  }
 
- .code-button-container {
+ /* Custom scrollbar for code textarea in webkit browsers */
+ #app-body.ms-welcome__main .code-area #codes-textarea::-webkit-scrollbar {
+    width: 8px;
+ }
+
+ #app-body.ms-welcome__main .code-area #codes-textarea::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: 4px;
+ }
+
+ #app-body.ms-welcome__main .code-area #codes-textarea::-webkit-scrollbar-thumb {
+    background: var(--gray-400);
+    border-radius: 4px;
+ }
+
+ #app-body.ms-welcome__main .code-area #codes-textarea::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-500);
+ }
+
+ /* Code area buttons - keep at bottom */
+ #app-body.ms-welcome__main .code-area .code-area-buttons {
+    -ms-flex-positive: 0; /* IE 10 */
+    -ms-flex-negative: 0; /* IE 10 */
+    -ms-flex-preferred-size: auto; /* IE 10 */
+    flex: 0 0 auto; /* Don't grow or shrink */
     display: flex;
     display: -ms-flexbox; /* IE 10 */
-    gap: 8px;
-    margin-top: auto; /* Push buttons to the bottom */
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-sm);
+    flex-wrap: wrap;
  }
 
- .code-button-container button {
+ #app-body.ms-welcome__main .code-area .code-area-buttons button {
+     -ms-flex: 1; /* IE 10 */
      flex: 1;
-    -ms-flex: 1; /* IE 10 */
      min-width: 0;
  }
 
@@ -530,10 +580,10 @@ body {
     background-color: #f3f2f1; /* Office UI Fabric neutralLighter */
 }
 
-#app-body {
-    /* Add styles for the main app container if needed */
-    background-color: var(--gray-50); /* Match body background */
-    min-height: 100vh; /* Minimum height instead of fixed height */
+ #app-body {
+    /* Developer mode main container */
+    background-color: var(--gray-50);
+    height: 100vh; /* Full viewport height */
     display: flex;
     display: -ms-flexbox; /* IE 10 */
     flex-direction: column;
@@ -541,8 +591,8 @@ body {
     padding: 0;
     margin: 0;
     box-sizing: border-box;
-    overflow: visible; /* Ensure content can overflow for scrolling */
-}
+    overflow: hidden; /* Hide overflow, let container handle scrolling */
+ }
 
 /* Welcome Message */
 .welcome-message {
@@ -1823,13 +1873,17 @@ body {
     box-shadow: 0 0 0 3px rgb(0 0 0 / 0.1);
 }
 
-/* Modern Header Section */
-.modern-header {
+ /* Modern Header Section - Compact for developer mode */
+ #app-body.ms-welcome__main .modern-header {
+    -ms-flex-positive: 0; /* IE 10 */
+    -ms-flex-negative: 0; /* IE 10 */
+    -ms-flex-preferred-size: auto; /* IE 10 */
+    flex: 0 0 auto; /* Don't grow or shrink */
     text-align: center;
-    padding: var(--spacing-2xl) var(--spacing-xl);
+    padding: var(--spacing-md) var(--spacing-xl);
     background: linear-gradient(135deg, var(--gray-50) 0%, var(--primary-white) 100%);
     border-bottom: 1px solid var(--gray-200);
-}
+ }
 
 .brand-container {
     max-width: 600px;
@@ -2241,21 +2295,22 @@ body {
     line-height: 1.4;
 }
 
-/* Back to Menu Button */
-.back-to-menu-button {
+ /* Back to Menu Button - Developer mode */
+ #app-body.ms-welcome__main .back-to-menu-button {
     position: absolute;
-    top: var(--spacing-md);
-    left: var(--spacing-md);
+    top: var(--spacing-sm);
+    left: var(--spacing-sm);
+    z-index: 1000;
     background-color: var(--primary-white);
     border: 1px solid var(--gray-200);
     color: var(--gray-700);
     border-radius: var(--radius-md);
-    padding: var(--spacing-sm) var(--spacing-md);
-    font-size: 0.875rem;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    font-size: 0.75rem;
     font-weight: 500;
     box-shadow: var(--shadow-sm);
     transition: all 0.2s ease-in-out;
-}
+ }
 
 .back-to-menu-button:hover {
     background-color: var(--gray-100);
