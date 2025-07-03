@@ -121,12 +121,10 @@
     background-color: var(--gray-50);
  }
 
- /* Code section - Natural height based on content */
+ /* Code section - Flexible to fill remaining space */
  #app-body.ms-welcome__main .container > .code-area {
-    -ms-flex-positive: 0; /* IE 10 */
-    -ms-flex-negative: 0; /* IE 10 */
-    -ms-flex-preferred-size: auto; /* IE 10 */
-    flex: 0 0 auto; /* Don't grow or shrink, size based on content */
+    -ms-flex-positive: 1; /* IE 10 */
+    flex: 1; /* Grow to fill remaining space */
     min-height: 400px; /* Minimum height for code editing */
     overflow: visible; /* Allow natural content flow */
     display: flex;
@@ -194,13 +192,11 @@
      font-weight: 600;
  }
 
- /* Code textarea with fixed height and internal scrolling */
+ /* Code textarea that flexes to fill available space */
  #app-body.ms-welcome__main .code-area #codes-textarea {
-    -ms-flex-positive: 0; /* IE 10 */
-    -ms-flex-negative: 0; /* IE 10 */
-    -ms-flex-preferred-size: auto; /* IE 10 */
-    flex: 0 0 auto; /* Don't grow or shrink */
-    height: 300px; /* Fixed height for code editing */
+    -ms-flex-positive: 1; /* IE 10 */
+    flex: 1; /* Grow to fill available space in code area */
+    min-height: 200px; /* Minimum height for usability */
     width: 100%;
     border: 1px solid var(--gray-200);
     border-radius: var(--radius-md);
@@ -209,7 +205,7 @@
     font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
     font-size: 0.875rem;
     background-color: var(--gray-50);
-    resize: vertical; /* Allow manual vertical resize */
+    resize: none; /* Disable manual resize since it auto-sizes */
     overflow-y: auto; /* Enable scrolling within textarea */
     /* Ensure scrollbar is visible */
     scrollbar-width: thin;
