@@ -59,22 +59,6 @@ The system automatically creates formulas that:
 - Jan 2025 total: $1000 (1 restaurant × $1000 month-1 revenue)  
 - Feb 2025 total: $4000 (1 restaurant × $2000 month-2 revenue + 2 restaurants × $1000 month-1 revenue)
 
-## CORRECT CODE SEQUENCE
-
-1. **Volume Driver Code** (before INDEX):
-```
-<SPREAD-E; row1="V1(D)|# of New Restaurants Opened(L)|..."; monthsr1="1|0|0|1|0|0|0|0|1|0|0|0|1">
-```
-
-2. **INDEX Block**:
-```
-<INDEXBEGIN; driver1="V1"; row1="(D)|Growth Curve of One Restaurant(L)|(F)|INDEXBEGIN(C1)|INDEXBEGIN(C2)|(C3)|(C4)|(C5)|(C6)|F(Y1)|F(Y2)|F(Y3)|F(Y4)|F(Y5)|F(Y6)|"; row2="(D)|~Month #(L)|..."; row3="(D)|~Year #(L)|..."; row4="(D)|~Year end #(L)|...">
-
-<SPREAD-E; sumif="year"; driver1="V1"; row1="V2(D)|Sales(L)|is: revenue(F)|..."; monthsr1="0|0|0|0|0|0|1000|2000|3000|6000|11000|12000">
-
-<INDEXEND; row2="(D)|~Aggregate Growth Curve Items:(L)|...">
-```
-
 ## CRITICAL REQUIREMENTS
 
 1. **driver1 Parameter**: INDEXBEGIN must reference the volume driver
@@ -82,6 +66,50 @@ The system automatically creates formulas that:
 3. **sumif Parameter**: Required for annual aggregation (usually "year" or "average")
 4. **Fincode Column**: Items with fincodes in column (F) get aggregated
 5. **Y1-Y6 "F" Values**: Required in INDEXBEGIN row1 for formula generation
+
+## LABELING CONVENTIONS FOR INDEX SYSTEMS
+
+🚨 **CRITICAL RULE**: Within INDEX blocks, NEVER add "per unit", "per restaurant", "per store", etc. to item labels. The INDEX context already establishes that everything is per unit.
+
+### Why This Matters:
+- INDEX blocks model unit economics - the "per unit" context is implicit
+- Items with fincodes use the same label both inside INDEX and for external aggregated items
+- Adding "per unit" creates redundant and confusing labels in the aggregated model
+
+### Correct vs Incorrect Labeling:
+
+❌ **INCORRECT** - Redundant "per restaurant" labels:
+```
+<INDEXBEGIN; driver1="V1">
+  <SPREAD-E; row1="V2(D)|Sales per Restaurant(L)|is: revenue(F)|...">
+  <SPREAD-E; row1="V3(D)|COGS per Restaurant(L)|is: cogs(F)|...">
+<INDEXEND>
+```
+
+✅ **CORRECT** - Clean labels without unit reference:
+```
+<INDEXBEGIN; driver1="V1">
+  <SPREAD-E; row1="V2(D)|Sales(L)|is: revenue(F)|...">
+  <SPREAD-E; row1="V3(D)|COGS(L)|is: cogs(F)|...">
+<INDEXEND>
+```
+
+### Special Attention for Fincode Items:
+- Items with fincodes (F) column appear in both INDEX unit economics AND external aggregated model
+- Their labels must work in both contexts
+- "Sales" works for both unit-level and aggregate-level
+- "Sales per Restaurant" would be confusing in the aggregated external model
+
+### Acceptable Label Patterns Within INDEX:
+- "Sales", "Revenue", "COGS"
+- "Marketing Expense", "Rent", "Labor Costs"  
+- "Capex", "Working Capital", "Depreciation"
+- "Operating Income", "EBITDA"
+
+### Avoid These Patterns Within INDEX:
+- "Sales per Restaurant", "Revenue per Store"
+- "COGS per Unit", "Marketing per Location"
+- "Capex per Restaurant", "Depreciation per Store"
 
 ## ISOLATION REQUIREMENTS (SELF-CONTAINMENT)
 

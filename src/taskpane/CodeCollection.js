@@ -4858,15 +4858,15 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
          }
  
          // --- 4. Insert Rows ---
-         // Insert AFTER INDEXEND (below both INDEXEND rows - INDEXEND creates 2 rows)
-         const newRowStart = lastRow + 2;
+         // Insert AFTER INDEXEND (below all INDEXEND rows - INDEXEND creates 3 rows)
+         const newRowStart = lastRow + 3;
          const numNewRows = indexRows.length;
          const newRowEnd = newRowStart + numNewRows - 1;
          console.log(`🔧 [INDEX GROWTH] INSERTION DETAILS:`);
          console.log(`   INDEXBEGIN at row: ${firstRow}`);
          console.log(`   Last INDEXEND at row: ${lastRow}`);
          console.log(`   Will insert ${numNewRows} aggregate rows at: ${newRowStart}:${newRowEnd}`);
-         console.log(`   This means aggregate rows will be AFTER both INDEXEND rows (+2 offset)`);
+         console.log(`   This means aggregate rows will be AFTER all 3 INDEXEND rows (+3 offset)`);
          const insertRange = currentWorksheet.getRange(`${newRowStart}:${newRowEnd}`);
          insertRange.insert(Excel.InsertShiftDirection.down);
          // Sync required before populating new rows
