@@ -192,6 +192,50 @@
      font-weight: 600;
  }
 
+ /* Code area header with fullscreen button */
+ #app-body.ms-welcome__main .code-area .code-header {
+     display: flex;
+     display: -ms-flexbox; /* IE 10 */
+     align-items: center;
+     -ms-flex-align: center; /* IE 10 */
+     justify-content: space-between;
+     -ms-flex-pack: justify; /* IE 10 */
+     margin-bottom: var(--spacing-md);
+ }
+
+ #app-body.ms-welcome__main .code-area .code-header h2 {
+     margin: 0;
+     flex: 1;
+     -ms-flex: 1; /* IE 10 */
+ }
+
+ /* Fullscreen toggle button */
+ .fullscreen-toggle {
+     background: none;
+     border: 1px solid var(--gray-300);
+     color: var(--gray-600);
+     border-radius: var(--radius-md);
+     padding: var(--spacing-xs);
+     cursor: pointer;
+     transition: all 0.2s ease-in-out;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     width: 2rem;
+     height: 2rem;
+ }
+
+ .fullscreen-toggle:hover {
+     background-color: var(--gray-100);
+     color: var(--gray-800);
+     border-color: var(--gray-400);
+ }
+
+ .fullscreen-toggle svg {
+     width: 1rem;
+     height: 1rem;
+ }
+
  /* Code textarea that flexes to fill available space */
  #app-body.ms-welcome__main .code-area #codes-textarea {
     -ms-flex-positive: 1; /* IE 10 */
@@ -229,6 +273,55 @@
 
  #app-body.ms-welcome__main .code-area #codes-textarea::-webkit-scrollbar-thumb:hover {
     background: var(--gray-500);
+ }
+
+ /* Fullscreen mode styles */
+ #app-body.ms-welcome__main.code-fullscreen {
+     position: fixed;
+     top: 0;
+     left: 0;
+     width: 100vw;
+     height: 100vh;
+     z-index: 9999;
+     background-color: var(--primary-white);
+ }
+
+ /* Hide everything except code area in fullscreen */
+ #app-body.ms-welcome__main.code-fullscreen .modern-header,
+ #app-body.ms-welcome__main.code-fullscreen .back-to-menu-button,
+ #app-body.ms-welcome__main.code-fullscreen #chat-log,
+ #app-body.ms-welcome__main.code-fullscreen .input-area {
+     display: none;
+ }
+
+ /* Make code area take full space in fullscreen */
+ #app-body.ms-welcome__main.code-fullscreen .container {
+     height: 100vh;
+     overflow: hidden;
+ }
+
+ #app-body.ms-welcome__main.code-fullscreen .code-area {
+     height: 100vh;
+     padding: var(--spacing-lg);
+     margin: 0;
+     min-height: 0;
+ }
+
+ #app-body.ms-welcome__main.code-fullscreen .code-area #codes-textarea {
+     min-height: 0;
+ }
+
+ /* Fullscreen exit button styling */
+ .code-fullscreen .fullscreen-toggle {
+     background-color: var(--gray-800);
+     color: var(--primary-white);
+     border-color: var(--gray-700);
+ }
+
+ .code-fullscreen .fullscreen-toggle:hover {
+     background-color: var(--gray-700);
+     color: var(--primary-white);
+     border-color: var(--gray-600);
  }
 
  /* Code area buttons - keep at bottom */

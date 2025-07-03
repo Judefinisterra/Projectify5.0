@@ -3020,6 +3020,57 @@ Office.onReady((info) => {
     }
     // <<< END ADDED
 
+    // >>> ADDED: Fullscreen toggle functionality for code editor
+    const fullscreenToggle = document.getElementById('fullscreen-toggle');
+    if (fullscreenToggle) {
+        let isFullscreen = false;
+        
+        fullscreenToggle.onclick = () => {
+            const appBody = document.getElementById('app-body');
+            if (!appBody) return;
+            
+            if (!isFullscreen) {
+                // Enter fullscreen mode
+                appBody.classList.add('code-fullscreen');
+                fullscreenToggle.title = 'Exit fullscreen';
+                
+                // Update icon to exit fullscreen icon
+                fullscreenToggle.innerHTML = `
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                    </svg>
+                `;
+                isFullscreen = true;
+                console.log('Code editor entered fullscreen mode');
+            } else {
+                // Exit fullscreen mode
+                appBody.classList.remove('code-fullscreen');
+                fullscreenToggle.title = 'Toggle fullscreen';
+                
+                // Update icon back to expand icon
+                fullscreenToggle.innerHTML = `
+                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                    </svg>
+                `;
+                isFullscreen = false;
+                console.log('Code editor exited fullscreen mode');
+            }
+        };
+        
+        // ESC key to exit fullscreen
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && isFullscreen) {
+                fullscreenToggle.click();
+            }
+        });
+        
+        console.log('Fullscreen toggle button initialized');
+    } else {
+        console.error("Could not find fullscreen toggle button with id='fullscreen-toggle'");
+    }
+    // <<< END ADDED
+
     // Window click handler to close modals when clicking outside
     window.onclick = function(event) {
         const trainingDataModal = document.getElementById('training-data-modal');
