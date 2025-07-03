@@ -4798,9 +4798,9 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
         console.log(`Collected ${indexRows.length} index rows:`, indexRows);
  
         // --- 3. Set Background Color for non-green rows ---
-        // Range: B(firstRow+2) to CX(lastRow-2) in VBA, but logic only checks B color. Let's adjust row color based on B.
+        // Range: B(firstRow+2) to CX(lastRow-1) - format up to the row before INDEXEND
         const formatCheckStartRow = firstRow + 2;
-        const formatCheckEndRow = lastRow - 2;
+        const formatCheckEndRow = lastRow - 1;
                 console.log(`Setting background color for non-green rows between ${formatCheckStartRow} and ${formatCheckEndRow}`);
         if (formatCheckStartRow <= formatCheckEndRow) {
              // Check each row individually for background color
