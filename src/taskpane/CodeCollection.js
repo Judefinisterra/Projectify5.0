@@ -4921,11 +4921,11 @@ async function applyIndexGrowthCurveJS(worksheet, initialLastRow) {
              let baseFormula;
              // Check if Col C starts with "BS" or Col A is "AV"
              if (codeC.toUpperCase().startsWith("BS") || String(valueA).toUpperCase() === "AV") {
-                 // "=SUMIF($3:$3,@ INDIRECT(ADDRESS(ROW($A$2),COLUMN(),2)), INDIRECT(ROW() & "":"" & ROW()))"
-                  baseFormula = `=SUMIF($3:$3, INDIRECT(ADDRESS(2,COLUMN())), ${targetRowNum}:${targetRowNum})`;
-             } else {
-                 // "=SUMIF($4:$4,@ INDIRECT(ADDRESS(ROW($A$2),COLUMN(),2)), INDIRECT(ROW() & "":"" & ROW()))"
+                 // BS items use row 4 reference
                   baseFormula = `=SUMIF($4:$4, INDIRECT(ADDRESS(2,COLUMN())), ${targetRowNum}:${targetRowNum})`;
+             } else {
+                 // All other items use row 3 reference
+                  baseFormula = `=SUMIF($3:$3, INDIRECT(ADDRESS(2,COLUMN())), ${targetRowNum}:${targetRowNum})`;
              }
              // Create array for the row
              sumifFormulas.push(Array(numSumifCols).fill(baseFormula));
