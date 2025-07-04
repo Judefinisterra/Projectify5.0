@@ -1,7 +1,12 @@
 # DEBT MODELING GUIDANCE
 
-## ⚠️ LENDING ALERT: MANDATORY SIGN CHECK ⚠️
-**IF THIS IS A LENDING SCENARIO:** Every single cash flow item you create MUST have `negative="true"` or there is absolutely no point in creating it. The entire purpose of creating separate cash flow rows for lending is to flip the signs. Without `negative="true"`, you're just duplicating incorrect cash flows. **THIS IS THE #1 MOST COMMON ERROR IN LENDING MODELS.**
+## ⚠️ CRITICAL DEBT MODELING ALERTS ⚠️
+
+### **🚨 INTEREST PLACEMENT RULE:**
+**INTEREST EXPENSE/INCOME MUST NEVER BE CALCULATED INSIDE BEGIN/END TABLES.** Interest calculations must ALWAYS be placed AFTER the reconciliation table. Only PIK interest can be fed into tables using DIRECT-S.
+
+### **🚨 LENDING SIGN CHECK:**
+**IF THIS IS A LENDING SCENARIO:** Every single cash flow item you create MUST have `negative="true"` or there is absolutely no point in creating it. The entire purpose of creating separate cash flow rows for lending is to flip the signs. Without `negative="true"`, you're just duplicating incorrect cash flows.
 
 ## SIMPLE DEBT CODES vs INDEX APPROACH
 
@@ -61,9 +66,15 @@ Individual loans have **custom, non-standard repayment patterns**:
 - "Monthly equipment financing of $25K, repaid over 36 months at 6% APR."
 
 ### ❌ **Complex Debt Examples** (Use INDEX Growth Curve):
+
+#### **Unit-Based INDEX Examples:**
 - "I borrow 10 loans a month. Each is for $1000. They are repaid in 2 payments: 50% in month 12, 50% in month 24."
-- "We originate mortgages with custom schedules: 10% down, interest-only for 12 months, then principal + interest for remaining term."
-- "Equipment loans have maintenance payments: $500 monthly for months 1-6, then $1000 monthly for months 7-24."
+- "We originate 5 mortgages per quarter for $200K each with custom schedules: 10% down, interest-only for 12 months, then principal + interest."
+
+#### **Dollar-Based INDEX Examples:**
+- "We will originate $1.2M in loans in January, $2.4M in February. Each loan is repaid 50% in month 12, 50% in month 24 with 5% interest."
+- "Monthly equipment financing volume of $500K, repaid with custom schedule: $0 for months 1-6, then equal payments for months 7-24."
+- "Variable lending: $100K in Q1, $250K in Q2, $400K in Q3. All loans have balloon payment structure: full repayment in month 36."
 
 ## INDEX APPROACH FOR COMPLEX DEBT
 
@@ -75,8 +86,12 @@ Individual loans have **custom, non-standard repayment patterns**:
   <CONST-E; row1="V2(D)|Loan Principal(L)|is: liability(F)|...">
   <FORMULA-S; row1="A1(D)|Principal Payment Month 12(L)|is: liability(F)|cd{6-V2}*onetimeindex(12)">
   <FORMULA-S; row1="A2(D)|Principal Payment Month 24(L)|is: liability(F)|cd{6-V2}*onetimeindex(24)">
-  <FORMULA-S; row1="A3(D)|Interest Expense(L)|is: interest expense(F)|-cd{6-V3}/12*average(rd{V2},rd{A4})">
+  
+  <!-- Interest calculations MUST be outside INDEXBEGIN/INDEXEND -->
 <INDEXEND>
+
+<!-- Interest calculations placed AFTER INDEX block -->
+<FORMULA-S; row1="A3(D)|Interest Expense(L)|is: interest expense(F)|-cd{6-V2}/12*average(rd{V2},rd{A1})">
 ```
 
 ### **Key Components:**
@@ -86,6 +101,126 @@ Individual loans have **custom, non-standard repayment patterns**:
 4. **Interest Calculations**: Use FORMULA-S with rd{} references for complex interest logic
 5. **Self-Containment**: All debt logic must be within INDEX block
 
+## 💰 INDEX WITH DOLLAR AMOUNT DRIVERS
+
+### **Two Approaches for INDEX Debt Modeling:**
+
+#### **1. Unit-Based Approach (Number of Loans)**
+- Driver represents **number of loans** originated per period
+- INDEX models **one loan** of specific dollar amount
+- Example: 10 loans per month, each for $1,000
+
+#### **2. Dollar-Based Approach (Total Dollar Amount)**
+- Driver represents **total dollar amount** of lending/borrowing per period
+- INDEX models the behavior of **$1** of debt
+- System automatically scales by driver amount
+
+### **When to Use Dollar-Based Approach:**
+✅ **Use Dollar-Based When:**
+- Client specifies total dollar amounts rather than number of loans
+- Variable loan sizes that aggregate to a total amount
+- Continuous lending amounts (not discrete loans)
+- Easier to think in terms of total lending volume
+
+✅ **Examples Requiring Dollar-Based:**
+- "We will originate $1.2M in loans in January, $2.4M in February"
+- "Monthly lending volume of $500K with balloon payments"
+- "Equipment financing of $50K per month, repaid over custom schedule"
+
+### **Dollar-Based INDEX Structure:**
+```
+<SPREAD-E; row1="V1(D)|New Lending Volume per Month(L)|1200|2400|1800|...">
+
+<INDEXBEGIN; driver1="V1"; row1="...">
+  <CONST-E; row1="V2(D)|Principal per $1 Lent(L)|is: asset(F)|1">
+  <FORMULA-S; row1="A1(D)|Repayment Month 12 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(12)*0.5">
+  <FORMULA-S; row1="A2(D)|Repayment Month 24 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(24)*0.5">
+  
+  <!-- Interest calculations MUST be outside INDEXBEGIN/INDEXEND -->
+<INDEXEND>
+
+<!-- Interest calculations placed AFTER INDEX block -->
+<FORMULA-S; row1="A3(D)|Interest per $1(L)|is: interest income(F)|cd{6-V2}*0.05/12">
+```
+
+### **How Dollar-Based Scaling Works:**
+
+#### **Mathematical Logic:**
+- **V1 Driver**: $1,200 of new lending in January
+- **V2 Inside INDEX**: Models what happens to $1 of lending
+- **System Calculation**: V2 × V1 = $1 × $1,200 = $1,200 of actual principal
+
+#### **Month-by-Month Example:**
+**January (Month 1):**
+- V1 = $1,200 (new lending volume)
+- V2 = $1 (principal per $1 lent)
+- **Result**: $1,200 of new loans originated
+
+**January (Month 13 - 12 months later):**
+- A1 = $1 × ONETIMEINDEX(12) × 0.5 = $0.50 per original $1 lent
+- **Scaled Result**: $0.50 × $1,200 = $600 repayment from January loans
+
+### **Detailed Dollar-Based Example:**
+
+```
+<!-- Driver: Monthly lending volume -->
+<SPREAD-E; row1="V1(D)|Monthly Lending Volume(L)|1200|2400|1800|0|0|...">
+
+<INDEXBEGIN; driver1="V1"; row1="DollarDebtIndex">
+  <!-- Model $1 of principal -->
+  <CONST-E; row1="V2(D)|Principal per $1(L)|is: asset(F)|1">
+  
+  <!-- Model repayments per $1 -->
+  <FORMULA-S; row1="A1(D)|Repayment Month 12 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(12)*0.5">
+  <FORMULA-S; row1="A2(D)|Repayment Month 24 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(24)*0.5">
+  
+  <!-- Cash flow reversals for lending (all with negative="true") -->
+  <MULT2-S; driver1="V2"; driver2="-1"; row1="CF1(D)|Principal Outflow per $1(L)|CF: CFI(F)|negative='true'">
+  <MULT2-S; driver1="A1"; driver2="-1"; row1="CF2(D)|Repayment Month 12 per $1(L)|CF: CFI(F)|negative='true'">
+  <MULT2-S; driver1="A2"; driver2="-1"; row1="CF3(D)|Repayment Month 24 per $1(L)|CF: CFI(F)|negative='true'">
+  
+  <!-- Interest calculations MUST be outside INDEXBEGIN/INDEXEND -->
+<INDEXEND>
+
+<!-- Interest and interest cash flows placed AFTER INDEX block -->
+<FORMULA-S; row1="A3(D)|Monthly Interest per $1(L)|is: interest income(F)|cd{6-V2}*0.05/12">
+<MULT2-S; driver1="A3"; driver2="-1"; row1="CF4(D)|Interest Inflow per $1(L)|CF: CFI(F)|negative='true'">
+```
+
+### **Results from Dollar-Based Example:**
+
+**January Lending ($1,200):**
+- Principal: $1,200 asset created
+- Cash Flow: -$1,200 (cash outflow from lending)
+
+**January + 12 Months:**
+- Repayment: $600 asset reduction (50% of $1,200)
+- Cash Flow: +$600 (cash inflow from repayment)
+
+**January + 24 Months:**
+- Repayment: $600 asset reduction (remaining 50% of $1,200)
+- Cash Flow: +$600 (final cash inflow from repayment)
+
+**Monthly Interest on January Loans:**
+- Interest Income: $1,200 × 5% ÷ 12 = $5 per month
+- Cash Flow: +$5 per month (interest cash inflow)
+
+### **Dollar-Based vs Unit-Based Comparison:**
+
+| Aspect | Dollar-Based | Unit-Based |
+|--------|-------------|------------|
+| **Driver** | Total $ amount per period | Number of loans per period |
+| **INDEX Models** | $1 of debt behavior | 1 loan of specific $ amount |
+| **Principal Inside INDEX** | Always $1 | Actual loan amount (e.g., $1,000) |
+| **Best For** | Variable loan sizes, total volumes | Fixed loan amounts, discrete counting |
+| **Example Driver** | $1,200, $2,400, $1,800 | 1, 2, 3 (loans) |
+
+### **Key Advantages of Dollar-Based:**
+✅ **Flexible loan sizes** - doesn't assume uniform loan amounts
+✅ **Direct volume tracking** - matches how businesses think about lending volumes
+✅ **Easier scaling** - system handles all multiplication automatically
+✅ **Simpler driver setup** - just enter dollar amounts per period
+
 ## DECISION FLOWCHART
 
 ```
@@ -94,6 +229,13 @@ Does the debt have standard repayment terms?
 │   ├── YES → Use Simple Debt Codes (DAMORT, LAMORT, DBULLET, LBULLET)
 │   └── NO → Use INDEX Growth Curve
 └── NO → Use INDEX Growth Curve
+    ├── Does client specify total dollar amounts per period?
+    │   ├── YES → Use Dollar-Based INDEX (model $1, driver = total $)
+    │   └── NO → Does client specify number of loans?
+    │       ├── YES → Use Unit-Based INDEX (model 1 loan, driver = count)
+    │       └── NO → Choose based on context:
+    │           ├── Variable loan sizes → Dollar-Based INDEX
+    │           └── Fixed loan amounts → Unit-Based INDEX
 ```
 
 ## KEY FUNCTIONS FOR COMPLEX DEBT
@@ -123,13 +265,51 @@ Does the debt have standard repayment terms?
 - **Example**: `cd{6-V2}` = column I value from V2 row
 - **Use**: Payment amount calculations
 
+### **🚨 CRITICAL: INTEREST PLACEMENT RULE**
+**INTEREST EXPENSE/INCOME MUST NEVER BE CALCULATED INSIDE BEGIN/END TABLES.**
+
+Interest calculations must ALWAYS be placed **AFTER** the END statement, never inside the debt reconciliation table.
+
+**❌ INCORRECT - Interest Inside Table:**
+```
+<BEGIN-S; row1="...">
+<FORMULA-S; row1="...|New Borrowing(L)|...">
+<FORMULA-S; row1="...|Repayment(L)|...">
+<FORMULA-S; row1="...|Interest Income(L)|..."> <!-- WRONG - Interest inside table -->
+<END-S; row1="...">
+```
+
+**✅ CORRECT - Interest Outside Table:**
+```
+<BEGIN-S; row1="...">
+<FORMULA-S; row1="...|New Borrowing(L)|...">
+<FORMULA-S; row1="...|Repayment(L)|...">
+<END-S; row1="...">
+<!-- Interest calculations come AFTER the reconciliation table -->
+<FORMULA-S; row1="...|Interest Income(L)|is: interest income(F)|...">
+```
+
+**🔍 Exception: PIK Interest Only**
+The ONLY way to feed interest into a reconciliation table is via DIRECT-S code referencing external interest calculations, and this should ONLY be used for PIK (Payment-In-Kind) interest when you want to add interest to the principal balance:
+
+```
+<!-- Interest calculation outside table -->
+<FORMULA-S; row1="A5(D)|Interest Calculation(L)|is: interest expense(F)|...">
+
+<!-- PIK interest added to balance inside table -->
+<BEGIN-S; row1="...">
+<FORMULA-S; row1="...|New Borrowing(L)|...">
+<DIRECT-S; driver1="A5"; row1="...|PIK Interest Added to Balance(L)|...">
+<END-S; row1="...">
+```
+
 ### **AMORT Function Placement Rule**
 🚨 **CRITICAL**: The AMORT custom function must ONLY be added as the **last row before ENDING** in the debt reconciliation table. Never place AMORT in the middle of the reconciliation sequence.
 
 **Correct Placement:**
 ```
 <BEGIN-S; row1="...">
-<FORMULA-S; row1="...|Interest Expense(L)|...">
+<FORMULA-S; row1="...|New Borrowing(L)|...">
 <FORMULA-S; row1="...|Principal Payment(L)|AMORT(...)"> <!-- LAST row before ENDING -->
 <END-S; row1="...">
 ```
@@ -150,9 +330,19 @@ Does the debt have standard repayment terms?
 ### For INDEX Debt:
 ✓ Volume driver exists for loan origination volume
 ✓ Custom payment logic uses ONETIMEINDEX() functions
+✓ Interest calculations placed OUTSIDE INDEX block (never inside INDEXBEGIN/INDEXEND)
 ✓ Interest calculations reference loan balances correctly  
-✓ All debt components self-contained within INDEX
+✓ All debt components self-contained within INDEX (except interest)
 ✓ Principal and payment flows have proper fincodes
+✓ Only PIK interest uses DIRECT-S to feed into reconciliation table
+
+### For Dollar-Based INDEX Debt:
+✓ Driver represents total dollar amounts (not number of loans)
+✓ Principal inside INDEX is exactly $1 (not actual loan amount)
+✓ All formulas reference cd{6-V2} where V2 = $1
+✓ System scaling works: $1 model × dollar driver = correct totals
+✓ Interest rates applied to $1 principal correctly
+✓ Repayment percentages applied to $1 principal correctly
 
 ## BORROWING vs LENDING
 
@@ -250,14 +440,18 @@ Must manually add rows to reverse signs before passing to CF: CFI:
   <CONST-E; row1="V2(D)|Loan Principal(L)|is: asset(F)|1000">
   <FORMULA-S; row1="A1(D)|Principal Payment Month 12(L)|is: asset(F)|-cd{6-V2}*onetimeindex(12)*0.5">
   <FORMULA-S; row1="A2(D)|Principal Payment Month 24(L)|is: asset(F)|-cd{6-V2}*onetimeindex(24)*0.5">
-  <FORMULA-S; row1="A3(D)|Interest Income(L)|is: interest income(F)|cd{6-V2}*0.05/12">
   
-  <!-- CFI Cash Flow Reversals - ALL must have negative="true" -->
+  <!-- CFI Cash Flow Reversals for principal only - ALL must have negative="true" -->
   <MULT2-S; driver1="V2"; driver2="-1"; row1="CF1(D)|Lending - Principal Outflow(L)|CF: CFI(F)|negative='true'">
   <MULT2-S; driver1="A1"; driver2="-1"; row1="CF2(D)|Lending - Principal Inflow Month 12(L)|CF: CFI(F)|negative='true'">
   <MULT2-S; driver1="A2"; driver2="-1"; row1="CF3(D)|Lending - Principal Inflow Month 24(L)|CF: CFI(F)|negative='true'">
-  <MULT2-S; driver1="A3"; driver2="-1"; row1="CF4(D)|Lending - Interest Inflow(L)|CF: CFI(F)|negative='true'">
+  
+  <!-- Interest calculations MUST be outside INDEXBEGIN/INDEXEND -->
 <INDEXEND>
+
+<!-- Interest and interest cash flows placed AFTER INDEX block -->
+<FORMULA-S; row1="A3(D)|Interest Income(L)|is: interest income(F)|cd{6-V2}*0.05/12">
+<MULT2-S; driver1="A3"; driver2="-1"; row1="CF4(D)|Lending - Interest Inflow(L)|CF: CFI(F)|negative='true'">
 ```
 
 #### **Example 2: WRONG Implementation (Missing negative="true")**
@@ -299,11 +493,24 @@ For a $1000 loan originated in Month 1, repaid $500 in Month 12, $500 in Month 2
 ❌ **Wrong**: Forgetting sign reversal rows entirely for INDEX lending
 ❌ **Wrong**: Creating cash flow items without proper sign verification
 
+### **🚨 CRITICAL INTEREST PLACEMENT ERRORS:**
+❌ **FATAL**: Placing interest expense/income calculations inside BEGIN/END tables
+❌ **FATAL**: Using interest calculations as reconciliation table items
+❌ **Wrong**: Including interest in debt balance movements (except PIK interest)
+❌ **Wrong**: Forgetting that interest affects P&L, not debt balance reconciliation
+
 ### **General Debt Modeling Errors:**
 ❌ **Wrong**: Using simple codes for custom repayment schedules
 ❌ **Wrong**: External references to INDEX debt drivers
 ❌ **Wrong**: Missing fincodes on principal and payment flows
 ❌ **Wrong**: Mixing simple debt codes with INDEX approach for same loan type
+
+### **🚨 DOLLAR-BASED INDEX ERRORS:**
+❌ **FATAL**: Using actual loan amount instead of $1 inside INDEX
+❌ **FATAL**: Setting driver to number of loans instead of dollar amounts
+❌ **Wrong**: Forgetting that INDEX models $1, not the full amount
+❌ **Wrong**: Using cd{6-V2} when V2 ≠ $1
+❌ **Wrong**: Applying interest rates to wrong base amount inside INDEX
 
 ### **✅ CORRECT APPROACH:**
 ✅ **Correct**: ALL lending cash flows MUST have `negative="true"`
@@ -314,15 +521,27 @@ For a $1000 loan originated in Month 1, repaid $500 in Month 12, $500 in Month 2
 ✅ **Correct**: Use LAMORT/LBULLET for simple lending scenarios
 ✅ **Correct**: Add manual sign reversal with `negative="true"` for complex INDEX lending
 
-### **🔍 FINAL VERIFICATION CHECKLIST:**
-Before submitting any lending model, ask these questions:
+### **✅ DOLLAR-BASED INDEX BEST PRACTICES:**
+✅ **Correct**: Always model exactly $1 of principal inside INDEX
+✅ **Correct**: Set driver to total dollar amounts, not loan counts
+✅ **Correct**: Let the system handle scaling ($1 model × dollar driver)
+✅ **Correct**: Apply interest rates to $1 principal: cd{6-V2}*rate/12
+✅ **Correct**: Apply repayment percentages to $1: cd{6-V2}*onetimeindex(month)*percentage
+✅ **Correct**: Use dollar-based when client specifies total volumes rather than loan counts
 
-1. **Does every lending cash flow item have `negative="true"`?**
-2. **Do the cash flow directions make economic sense?**
+### **🔍 FINAL VERIFICATION CHECKLIST:**
+Before submitting any debt model, ask these questions:
+
+1. **Are ALL interest calculations placed OUTSIDE of BEGIN/END tables?**
+   - Interest should be calculated AFTER INDEX/reconciliation blocks
+   - Only PIK interest uses DIRECT-S to feed into balance reconciliation
+2. **Does every lending cash flow item have `negative="true"`?**
+3. **Do the cash flow directions make economic sense?**
    - Loan origination = Cash OUT (negative)
    - Loan repayment = Cash IN (positive)
    - Interest received = Cash IN (positive)
-3. **Are all cash flows properly classified as CF: CFI (not CF: CFF)?**
-4. **Did I test the signs by tracing through one complete loan lifecycle?**
+4. **Are all cash flows properly classified as CF: CFI (not CF: CFF)?**
+5. **Did I test the signs by tracing through one complete loan lifecycle?**
+6. **For dollar-based INDEX: Is the principal inside INDEX exactly $1?**
 
 If ANY answer is NO, review and fix the implementation before proceeding. 
