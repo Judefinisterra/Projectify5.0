@@ -79,27 +79,28 @@
     align-items: center;
  }
 
- /* Updated developer mode layout to allow full page scrolling */
+ /* Updated developer mode layout with proper height management */
  #app-body.ms-welcome__main .container {
     display: flex;
     display: -ms-flexbox; /* IE 10 */
     flex-direction: column;
     -ms-flex-direction: column; /* IE 10 */
-    height: 100%; /* Take full height of parent */
-    overflow-y: auto; /* Allow vertical scrolling of entire container */
+    height: 100vh; /* Take full viewport height */
+    max-height: 100vh; /* Prevent overflow beyond viewport */
+    overflow: hidden; /* Prevent container scrolling - let chat-log handle it */
     padding: 0;
     margin: 0;
  }
 
- /* Chat section - Natural height based on content */
+ /* Chat section - Scrollable with fixed height in dev mode */
  #app-body.ms-welcome__main .container > #chat-log {
-    -ms-flex-positive: 0; /* IE 10 */
-    -ms-flex-negative: 0; /* IE 10 */
-    -ms-flex-preferred-size: auto; /* IE 10 */
-    flex: 0 0 auto; /* Don't grow or shrink, size based on content */
+    -ms-flex-positive: 1; /* IE 10 */
+    -ms-flex-negative: 1; /* IE 10 */
+    -ms-flex-preferred-size: 0; /* IE 10 */
+    flex: 1 1 0; /* Allow growth and shrinkage for proper scrolling */
     min-height: 300px; /* Minimum height for usability */
-    max-height: none; /* Allow unlimited growth */
-    overflow-y: visible; /* No separate scrolling */
+    max-height: 60vh; /* Limit height to enable scrolling */
+    overflow-y: auto; /* Enable vertical scrolling */
     background-color: transparent;
     border: none;
     border-radius: 0;

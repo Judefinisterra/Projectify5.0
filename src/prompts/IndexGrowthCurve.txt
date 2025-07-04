@@ -14,6 +14,39 @@ Examples that trigger INDEX usage:
 - "We'll launch new stores quarterly. Each store loses money for 6 months, then becomes profitable."
 - "New subscription cohorts have different retention curves based on how long they've been customers."
 
+## 🚨 CRITICAL INDEX ISOLATION RULE 🚨
+
+**THE INDEX SYSTEM IS A COMPLETELY ISOLATED BOUNDARY. NO CROSS-BOUNDARY LINKING IS EVER ACCEPTABLE.**
+
+### **The ONLY Acceptable Connection:**
+✅ **driver1 parameter on INDEXBEGIN** - This is the ONLY way to connect external volume driver to INDEX system
+
+### **NEVER ACCEPTABLE - Bidirectional Linking Violations:**
+❌ **FATAL**: External codes referencing drivers inside INDEX block  
+❌ **FATAL**: Internal INDEX codes referencing drivers outside INDEX block  
+❌ **FATAL**: Any driver relationships that cross the INDEX boundary in either direction
+
+### **Examples of FORBIDDEN Linking:**
+
+❌ **WRONG - External referencing internal:**
+```
+<INDEXBEGIN; driver1="V1">
+  <CONST-E; row1="V2(D)|Internal Item(L)|...">
+<INDEXEND>
+<FAPPE-S; driver1="V2"; row1="..."> <!-- FORBIDDEN: External code using internal V2 -->
+```
+
+❌ **WRONG - Internal referencing external:**
+```
+<CONST-E; row1="V5(D)|External Item(L)|...">
+<INDEXBEGIN; driver1="V1">
+  <FORMULA-S; row1="A1(D)|Internal Item(L)|rd{V5}*100"> <!-- FORBIDDEN: Internal code using external V5 -->
+<INDEXEND>
+```
+
+### **Enforcement Rule:**
+If ANY code attempts to cross the INDEX boundary (in either direction), the entire model structure is INVALID and must be redesigned. The INDEX system must be completely self-contained with the sole exception of the driver1 connection.
+
 ## INDEX SYSTEM STRUCTURE
 
 ```

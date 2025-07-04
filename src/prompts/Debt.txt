@@ -359,6 +359,55 @@ customformula="TABLEMIN(driver1, driver2)"
 | **Fixed Amount** | `customformula="100"` | ✅ Yes - may overpay in final period |
 | **AMORT** | Standard amortization | ❌ No - but requires complex setup |
 
+### **SUMTABLE Custom Function for Full Loan Repayment**
+🎯 **PURPOSE**: Use SUMTABLE when the entire loan/debt is repaid in full on a given month # or date.
+
+**When to Use SUMTABLE:**
+- Entire loan is repaid in full on a specific month (e.g., loan repaid in full in month 24)
+- PIK interest has been added to the loan and needs to be repaid with the principal
+- Amortizing loan is repaid in full prior to its ending amortization date
+- Need to capture accumulated balance including all accrued interest/fees
+
+**SUMTABLE Syntax:**
+```
+customformula="SUMTABLE(rd{driver of BEG row})"
+```
+- **rd{driver}**: Must reference the BEG code (beginning balance driver) of the debt reconciliation table
+- **Always link to beginning row**: This ensures the formula captures the full accumulated balance
+
+**How SUMTABLE Works:**
+- Formula: `SUM(driver1:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0))`
+- Creates cumulative sum from beginning balance to current row
+- Captures all balance movements including PIK interest additions
+- Returns total accumulated balance for full repayment
+
+**Example Implementation - Loan Repaid in Full Month 24:**
+```
+<BEGIN-S; row1="V1(D)|Outstanding Loan Balance(L)|is: liability(F)|...">
+<FORMULA-S; row1="V2(D)|New Borrowing(L)|is: liability(F)|5000">
+<FORMULA-S; row1="A1(D)|PIK Interest Added to Balance(L)|is: liability(F)|rd{V1}*0.08/12">
+<FORMULA-S; row1="A2(D)|Full Repayment Month 24(L)|is: liability(F)|customformula='SUMTABLE(rd{V1})*onetimeindex(24)'">
+<END-S; row1="V3(D)|Ending Balance(L)|is: liability(F)|...">
+```
+
+**Real-World Scenario:**
+- Client: "We borrowed $5,000. PIK interest of 8% annually is added to the balance. The entire loan plus all accrued interest is repaid in month 24."
+- SUMTABLE captures: Original $5,000 + all accumulated PIK interest over 24 months
+- Repayment occurs only in month 24 using ONETIMEINDEX(24)
+
+**SUMTABLE vs Other Repayment Methods:**
+| Method | Use Case | When to Use |
+|--------|----------|-------------|
+| **SUMTABLE** | Full loan repayment with accumulated balance | Balloon payment + PIK interest, early payoff of amortizing loan |
+| **TABLEMIN** | Fixed monthly payments | Prevent overpayment in regular payment schedule |
+| **Fixed Amount** | Known repayment amount | Standard principal repayment without balance accumulation |
+
+**Key Requirements for SUMTABLE:**
+✅ **Always use rd{BEG_driver}**: Must reference the beginning balance row
+✅ **Combine with ONETIMEINDEX**: Specify exact month for full repayment  
+✅ **Perfect for PIK scenarios**: Captures principal + all accumulated interest
+✅ **Early payoff scenarios**: Ideal when loan repaid before scheduled maturity
+
 ### **AMORT Function Placement Rule**
 🚨 **CRITICAL**: The AMORT custom function must ONLY be added as the **last row before ENDING** in the debt reconciliation table. Never place AMORT in the middle of the reconciliation sequence.
 
