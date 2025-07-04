@@ -65,3 +65,14 @@ function logMessage(message) {
 
   return message;
 }
+
+/**
+ * Returns the minimum of a sum and a comparison value.
+ * @customfunction
+ * @param {number} first First number to sum
+ * @param {number} second Second number to compare
+ * @returns {number} The minimum of the sum and second number
+ */
+function tablemin(first, second) {
+  return Math.min(first, second);
+}

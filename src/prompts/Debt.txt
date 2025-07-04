@@ -76,6 +76,11 @@ Individual loans have **custom, non-standard repayment patterns**:
 - "Monthly equipment financing volume of $500K, repaid with custom schedule: $0 for months 1-6, then equal payments for months 7-24."
 - "Variable lending: $100K in Q1, $250K in Q2, $400K in Q3. All loans have balloon payment structure: full repayment in month 36."
 
+#### **TABLEMIN Function Examples:**
+- "I borrowed $10,000 and will repay it with $500 monthly payments" → Use TABLEMIN(V1, 500) to prevent overpayment in final month
+- "Equipment loan of $25K with fixed $1,000 monthly payments" → Use TABLEMIN(BEG_BALANCE, 1000) for automatic payment adjustment
+- "Multiple loans, each repaid with $200 monthly installments" → Use TABLEMIN within INDEX structure for each loan cohort
+
 ## INDEX APPROACH FOR COMPLEX DEBT
 
 ### **Structure:**
@@ -303,6 +308,59 @@ The ONLY way to feed interest into a reconciliation table is via DIRECT-S code r
 <END-S; row1="...">
 ```
 
+### **TABLEMIN Custom Function for Fixed Monthly Payments**
+🎯 **PURPOSE**: Use TABLEMIN for fixed monthly debt payments to prevent overpaying the remaining loan balance.
+
+**When to Use TABLEMIN:**
+- Client specifies fixed monthly payment amounts (e.g., "$100 monthly payment")
+- Need to ensure payments never exceed remaining loan balance
+- Want automatic payment adjustment in final payment period
+
+**TABLEMIN Syntax:**
+```
+customformula="TABLEMIN(driver1, driver2)"
+```
+- **driver1**: Reference to BEG code (starting balance for payment calculation)
+- **driver2**: Fixed monthly payment amount
+
+**How TABLEMIN Works:**
+- Formula: `MIN(SUM(driver1 : OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0)), driver2)`
+- Creates dynamic sum from beginning balance to current row
+- Returns minimum of accumulated balance and fixed payment
+- Prevents overpayment by capping payment at remaining balance
+
+**Example Implementation:**
+```
+<BEGIN-S; row1="V1(D)|Loan Balance(L)|is: liability(F)|...">
+<FORMULA-S; row1="V2(D)|New Borrowing(L)|is: liability(F)|1000">
+<FORMULA-S; row1="A1(D)|Fixed Monthly Payment(L)|is: liability(F)|customformula='TABLEMIN(V1,100)'">
+<END-S; row1="V3(D)|Ending Balance(L)|is: liability(F)|...">
+```
+
+**Real-World Scenario:**
+- Client: "I borrowed $1,000 and will repay it with $100 monthly payments"
+- Month 1-9: Pays exactly $100 (remaining balance > $100)
+- Month 10: Pays only $100 (final payment, remaining balance = $100)
+- Result: Total payments = $1,000 (no overpayment)
+
+**Complete TABLEMIN Implementation:**
+```
+<BEGIN-S; row1="V1(D)|Outstanding Loan Balance(L)|is: liability(F)|...">
+<FORMULA-S; row1="V2(D)|New Borrowing(L)|is: liability(F)|1000">
+<FORMULA-S; row1="A1(D)|Monthly Payment(L)|is: liability(F)|customformula='TABLEMIN(V1,100)'">
+<END-S; row1="V3(D)|Ending Balance(L)|is: liability(F)|...">
+
+<!-- Interest calculation OUTSIDE the reconciliation table -->
+<FORMULA-S; row1="A2(D)|Interest Expense(L)|is: interest expense(F)|V1*0.05/12">
+```
+
+**TABLEMIN vs Other Payment Methods:**
+| Method | Use Case | Overpayment Risk |
+|--------|----------|------------------|
+| **TABLEMIN** | Fixed monthly payments | ❌ No - auto-adjusts final payment |
+| **Fixed Amount** | `customformula="100"` | ✅ Yes - may overpay in final period |
+| **AMORT** | Standard amortization | ❌ No - but requires complex setup |
+
 ### **AMORT Function Placement Rule**
 🚨 **CRITICAL**: The AMORT custom function must ONLY be added as the **last row before ENDING** in the debt reconciliation table. Never place AMORT in the middle of the reconciliation sequence.
 
@@ -513,6 +571,7 @@ For a $1000 loan originated in Month 1, repaid $500 in Month 12, $500 in Month 2
 ❌ **Wrong**: Applying interest rates to wrong base amount inside INDEX
 
 ### **✅ CORRECT APPROACH:**
+✅ **Correct**: ALL interest calculations MUST be placed OUTSIDE BEGIN/END tables
 ✅ **Correct**: ALL lending cash flows MUST have `negative="true"`
 ✅ **Correct**: Verify cash flow direction matches actual cash movement
 ✅ **Correct**: Choose one approach per debt type consistently
@@ -520,6 +579,8 @@ For a $1000 loan originated in Month 1, repaid $500 in Month 12, $500 in Month 2
 ✅ **Correct**: Model single loan within INDEX, scale by volume driver
 ✅ **Correct**: Use LAMORT/LBULLET for simple lending scenarios
 ✅ **Correct**: Add manual sign reversal with `negative="true"` for complex INDEX lending
+✅ **Correct**: Only use DIRECT-S for PIK interest feeding into reconciliation tables
+✅ **Correct**: Use TABLEMIN for fixed monthly payments to prevent overpayment
 
 ### **✅ DOLLAR-BASED INDEX BEST PRACTICES:**
 ✅ **Correct**: Always model exactly $1 of principal inside INDEX
@@ -543,5 +604,8 @@ Before submitting any debt model, ask these questions:
 4. **Are all cash flows properly classified as CF: CFI (not CF: CFF)?**
 5. **Did I test the signs by tracing through one complete loan lifecycle?**
 6. **For dollar-based INDEX: Is the principal inside INDEX exactly $1?**
+7. **For fixed monthly payments: Did I use TABLEMIN to prevent overpayment?**
+   - TABLEMIN(beginning_balance_driver, fixed_payment_amount)
+   - Ensures final payment doesn't exceed remaining balance
 
 If ANY answer is NO, review and fix the implementation before proceeding. 

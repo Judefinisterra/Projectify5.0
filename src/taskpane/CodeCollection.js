@@ -1634,6 +1634,16 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         console.log(`    Converting ENDINDEX(${driver1}) to ${newFormula}`);
         return newFormula;
     });
+    
+    // Process TABLEMIN function: TABLEMIN(driver1,driver2) -> MIN(SUM(driver1:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0)),driver2)
+    result = result.replace(/TABLEMIN\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
+        // Trim whitespace from drivers
+        driver1 = driver1.trim();
+        driver2 = driver2.trim();
+        const newFormula = `MIN(SUM(${driver1}:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0)),${driver2})`;
+        console.log(`    Converting TABLEMIN(${driver1},${driver2}) to ${newFormula}`);
+        return newFormula;
+    });
 
     
     // Replace timeseriesdivisor with U$7
