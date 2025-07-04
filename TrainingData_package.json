@@ -1,0 +1,16 @@
+{
+  "name": "training-data-generator",
+  "version": "1.0.0",
+  "description": "Generate training data variations using OpenAI",
+  "main": "TrainingData.js",
+  "type": "module",
+  "scripts": {
+    "start": "node TrainingData.js"
+  },
+  "dependencies": {
+    "openai": "^4.0.0"
+  },
+  "keywords": ["openai", "training-data", "ai"],
+  "author": "",
+  "license": "MIT"
+} 

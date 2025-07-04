@@ -1,1 +1,328 @@
- 
+# DEBT MODELING GUIDANCE
+
+## ⚠️ LENDING ALERT: MANDATORY SIGN CHECK ⚠️
+**IF THIS IS A LENDING SCENARIO:** Every single cash flow item you create MUST have `negative="true"` or there is absolutely no point in creating it. The entire purpose of creating separate cash flow rows for lending is to flip the signs. Without `negative="true"`, you're just duplicating incorrect cash flows. **THIS IS THE #1 MOST COMMON ERROR IN LENDING MODELS.**
+
+## SIMPLE DEBT CODES vs INDEX APPROACH
+
+### **Use Simple Debt Codes When:**
+All loans follow **identical, predictable patterns** with standard repayment structures:
+
+**Simple Debt Code Types:**
+- **DAMORT**: Amortizing debt (with down payment/origination)
+- **LAMORT**: Amortizing debt (loan-style)  
+- **DBULLET**: Bullet/balloon payment debt (with down payment)
+- **LBULLET**: Bullet/balloon payment debt (loan-style)
+
+### **Bullet vs Amortizing Decision Logic**
+🚨 **DEFAULT TO BULLET STRUCTURE** when client describes:
+- "Loan is due on [specific date]"
+- "Repaid after [time period]" 
+- "Matures in X years"
+- "Balloon payment"
+- No mention of monthly/regular payments
+
+✅ **Use BULLET codes (DBULLET/LBULLET)** for these scenarios
+
+🔄 **Only use AMORTIZING codes (DAMORT/LAMORT)** when client explicitly mentions:
+- "Monthly payments"
+- "Amortizes over X period"
+- "Regular installments"
+- "Principal and interest payments"
+
+### **Example Interpretations:**
+- ❌ "I need a $100K loan due in 2 years" → **BULLET** (not amortizing)
+- ❌ "Equipment financing repaid after 36 months" → **BULLET** (not amortizing)  
+- ✅ "Equipment loan with monthly payments over 36 months" → **AMORTIZING**
+- ✅ "Mortgage that amortizes over 30 years" → **AMORTIZING**
+
+**Characteristics of Simple Debt:**
+- Same principal amount across all loans
+- Same interest rate and term
+- Standard amortization schedule OR single balloon payment
+- Predictable monthly payments
+- No custom payment milestones
+
+### **Use INDEX Growth Curve When:**
+Individual loans have **custom, non-standard repayment patterns**:
+
+**Characteristics of Complex Debt:**
+- Non-standard repayment schedules
+- Multiple payment milestones at specific ages
+- Variable payment amounts over loan life
+- Custom amortization curves
+- Age-dependent payment patterns
+
+## EXAMPLES
+
+### ✅ **Simple Debt Examples** (Use Standard Codes):
+- "I will originate 10 loans per month for $1000 each. They amortize over 24 months and have 5% interest."
+- "We issue $50K of bonds annually. They mature in 5 years with 4% interest paid quarterly."
+- "Monthly equipment financing of $25K, repaid over 36 months at 6% APR."
+
+### ❌ **Complex Debt Examples** (Use INDEX Growth Curve):
+- "I borrow 10 loans a month. Each is for $1000. They are repaid in 2 payments: 50% in month 12, 50% in month 24."
+- "We originate mortgages with custom schedules: 10% down, interest-only for 12 months, then principal + interest for remaining term."
+- "Equipment loans have maintenance payments: $500 monthly for months 1-6, then $1000 monthly for months 7-24."
+
+## INDEX APPROACH FOR COMPLEX DEBT
+
+### **Structure:**
+```
+<SPREAD-E; row1="V1(D)|# of New Loans per Month(L)|...">
+
+<INDEXBEGIN; driver1="V1"; row1="...">
+  <CONST-E; row1="V2(D)|Loan Principal(L)|is: liability(F)|...">
+  <FORMULA-S; row1="A1(D)|Principal Payment Month 12(L)|is: liability(F)|cd{6-V2}*onetimeindex(12)">
+  <FORMULA-S; row1="A2(D)|Principal Payment Month 24(L)|is: liability(F)|cd{6-V2}*onetimeindex(24)">
+  <FORMULA-S; row1="A3(D)|Interest Expense(L)|is: interest expense(F)|-cd{6-V3}/12*average(rd{V2},rd{A4})">
+<INDEXEND>
+```
+
+### **Key Components:**
+1. **Volume Driver**: Number of new loans per period (outside INDEX)
+2. **Principal**: Initial loan amount using CONST-E or SPREADINDEX-E
+3. **Custom Payments**: Use FORMULA-S with ONETIMEINDEX() for specific payment dates
+4. **Interest Calculations**: Use FORMULA-S with rd{} references for complex interest logic
+5. **Self-Containment**: All debt logic must be within INDEX block
+
+## DECISION FLOWCHART
+
+```
+Does the debt have standard repayment terms?
+├── YES → Are all loans identical in structure?
+│   ├── YES → Use Simple Debt Codes (DAMORT, LAMORT, DBULLET, LBULLET)
+│   └── NO → Use INDEX Growth Curve
+└── NO → Use INDEX Growth Curve
+```
+
+## KEY FUNCTIONS FOR COMPLEX DEBT
+
+### **ONETIMEINDEX(month)**
+- **Purpose**: Triggers payment only at specific loan age month
+- **Example**: `ONETIMEINDEX(12)` = payment occurs only in month 12 of loan's life
+- **Use**: Custom payment schedules, balloon payments, milestone payments
+
+### **BEGINDEX(month)**
+- **Purpose**: Starts payment from specific loan age month and continues
+- **Example**: `BEGINDEX(6)` = payments start in month 6 of loan's life and continue
+- **Use**: Delayed payment starts, grace periods ending
+
+### **ENDINDEX(month)**
+- **Purpose**: Ends payment at specific loan age month
+- **Example**: `ENDINDEX(24)` = payments end at month 24 of loan's life
+- **Use**: Limited payment periods, temporary payments
+
+### **rd{driverName}** 
+- **Purpose**: References other rows within INDEX for calculations
+- **Example**: `rd{V2}` = references loan principal row
+- **Use**: Interest calculations, balance references
+
+### **cd{column-driver}**
+- **Purpose**: References specific column value from driver row
+- **Example**: `cd{6-V2}` = column I value from V2 row
+- **Use**: Payment amount calculations
+
+### **AMORT Function Placement Rule**
+🚨 **CRITICAL**: The AMORT custom function must ONLY be added as the **last row before ENDING** in the debt reconciliation table. Never place AMORT in the middle of the reconciliation sequence.
+
+**Correct Placement:**
+```
+<BEGIN-S; row1="...">
+<FORMULA-S; row1="...|Interest Expense(L)|...">
+<FORMULA-S; row1="...|Principal Payment(L)|AMORT(...)"> <!-- LAST row before ENDING -->
+<END-S; row1="...">
+```
+
+**Why This Matters:**
+- AMORT calculations depend on cumulative balance calculations
+- Placing AMORT in wrong position breaks debt reconciliation mathematics
+- System expects AMORT as final calculation before closing balance
+
+## VALIDATION CHECKLIST
+
+### For Simple Debt:
+✓ All loans have identical terms and structure
+✓ Standard amortization OR bullet payment structure
+✓ No custom payment schedules or milestones
+✓ Uses appropriate prefix (D=down payment, L=loan)
+
+### For INDEX Debt:
+✓ Volume driver exists for loan origination volume
+✓ Custom payment logic uses ONETIMEINDEX() functions
+✓ Interest calculations reference loan balances correctly  
+✓ All debt components self-contained within INDEX
+✓ Principal and payment flows have proper fincodes
+
+## BORROWING vs LENDING
+
+### **Borrowing (Default Behavior)**
+- Debt codes model the company **receiving loans**
+- Principal increases liabilities (positive)
+- Repayments decrease liabilities (negative)
+- Uses **CF: CFF** (Cash Flow from Financing) fincodes
+
+### **Lending (Company Making Loans)**
+- Company **originating loans to others**
+- Requires **sign reversal** in debt reconciliation table
+- Must **remove CF: CFF fincodes** and use **CF: CFI** (Cash Flow from Investing)
+- Principal becomes an asset (positive)
+- Repayments reduce the asset (negative)
+
+## 🚨 CRITICAL: LENDING CASH FLOW SIGN REQUIREMENTS
+
+### **The Golden Rule for Lending Cash Flows:**
+**ALL lending cash flow items MUST have `negative="true"` attribute or there is NO POINT in adding them.**
+
+The entire purpose of creating separate cash flow rows for lending is to flip the signs. Without `negative="true"`, you're just duplicating the same cash flow direction as borrowing, which defeats the purpose.
+
+### **Sign Logic Verification Checklist:**
+
+#### **For Lending Scenarios - ALWAYS Verify:**
+✅ **Principal Outflow** (when making loans):
+- Balance sheet: Asset increases (+)
+- Cash flow: Cash decreases (-) → **MUST have `negative="true"`**
+
+✅ **Principal Inflow** (when receiving repayments):
+- Balance sheet: Asset decreases (-)
+- Cash flow: Cash increases (+) → **MUST have `negative="true"`** to flip the negative asset change
+
+✅ **Interest Income**:
+- Income statement: Revenue increases (+)
+- Cash flow: Cash increases (+) → **MUST have `negative="true"`** if sourced from negative interest expense
+
+#### **Common Sign Flow Patterns:**
+
+**📊 CORRECT Lending Flow:**
+```
+Balance Sheet Asset: +$1000 (loan originated)
+Cash Flow Item: -$1000 (cash out) with negative="true"
+Final Cash Flow: -$1000 (correct - cash decreased when loan was made)
+```
+
+**❌ INCORRECT Lending Flow (Missing negative="true"):**
+```
+Balance Sheet Asset: +$1000 (loan originated)
+Cash Flow Item: +$1000 (WRONG - no negative="true")
+Final Cash Flow: +$1000 (WRONG - shows cash increased when loan was made)
+```
+
+### **Double-Check Questions for All Lending Cash Flows:**
+
+1. **"Does this cash flow item have `negative="true"`?"**
+   - If NO → **FIX IT** or remove the item entirely
+
+2. **"What actually happened to cash when this transaction occurred?"**
+   - Made a loan → Cash went OUT (negative)
+   - Received repayment → Cash came IN (positive)
+   - Received interest → Cash came IN (positive)
+
+3. **"Does my final cash flow direction match the actual cash movement?"**
+   - If NO → Check your `negative="true"` attributes
+
+4. **"Am I creating unnecessary cash flow items?"**
+   - Only create separate CF items if you need to flip signs or change classifications
+   - If the original debt reconciliation already produces correct cash flows, don't add redundant items
+
+### **Implementation for Lending:**
+
+#### **Simple Debt Codes:**
+- **LAMORT** and **LBULLET** automatically handle lending logic
+- No additional rows needed - built-in sign reversal and CFI classification
+
+#### **Complex INDEX Debt:**
+Must manually add rows to reverse signs before passing to CF: CFI:
+```
+<INDEXBEGIN; driver1="V1">
+  <CONST-E; row1="V2(D)|Loan Principal(L)|is: asset(F)|...">
+  <FORMULA-S; row1="A1(D)|Principal Payment(L)|is: asset(F)|-cd{6-V2}*onetimeindex(12)">
+  <!-- Manual reversal rows for CFI reconciliation -->
+  <MULT2-S; driver1="V2"; driver2="-1"; row1="A2(D)|Lending - Principal Outflow(L)|CF: CFI(F)|negative='true'">
+  <MULT2-S; driver1="A1"; driver2="-1"; row1="A3(D)|Lending - Principal Inflow(L)|CF: CFI(F)|negative='true'">
+<INDEXEND>
+```
+
+### **🔍 DETAILED SIGN VERIFICATION EXAMPLES:**
+
+#### **Example 1: Correct Lending Implementation**
+```
+<INDEXBEGIN; driver1="V1">
+  <CONST-E; row1="V2(D)|Loan Principal(L)|is: asset(F)|1000">
+  <FORMULA-S; row1="A1(D)|Principal Payment Month 12(L)|is: asset(F)|-cd{6-V2}*onetimeindex(12)*0.5">
+  <FORMULA-S; row1="A2(D)|Principal Payment Month 24(L)|is: asset(F)|-cd{6-V2}*onetimeindex(24)*0.5">
+  <FORMULA-S; row1="A3(D)|Interest Income(L)|is: interest income(F)|cd{6-V2}*0.05/12">
+  
+  <!-- CFI Cash Flow Reversals - ALL must have negative="true" -->
+  <MULT2-S; driver1="V2"; driver2="-1"; row1="CF1(D)|Lending - Principal Outflow(L)|CF: CFI(F)|negative='true'">
+  <MULT2-S; driver1="A1"; driver2="-1"; row1="CF2(D)|Lending - Principal Inflow Month 12(L)|CF: CFI(F)|negative='true'">
+  <MULT2-S; driver1="A2"; driver2="-1"; row1="CF3(D)|Lending - Principal Inflow Month 24(L)|CF: CFI(F)|negative='true'">
+  <MULT2-S; driver1="A3"; driver2="-1"; row1="CF4(D)|Lending - Interest Inflow(L)|CF: CFI(F)|negative='true'">
+<INDEXEND>
+```
+
+#### **Example 2: WRONG Implementation (Missing negative="true")**
+```
+❌ INCORRECT - DO NOT DO THIS:
+<MULT2-S; driver1="V2"; driver2="-1"; row1="CF1(D)|Lending - Principal Outflow(L)|CF: CFI(F)">
+<!-- Missing negative="true" means cash flow shows POSITIVE when loan is made -->
+<!-- This is WRONG - when you lend money, cash should DECREASE -->
+```
+
+#### **Example 3: Cash Flow Logic Verification**
+For a $1000 loan originated in Month 1, repaid $500 in Month 12, $500 in Month 24, with 5% interest:
+
+**Month 1 (Loan Origination):**
+- Balance Sheet: Asset +$1000
+- Cash Flow: Should be -$1000 (cash decreases when loan is made)
+- Code: `<MULT2-S; driver1="V2"; driver2="-1"; row1="CF1(D)|Principal Outflow(L)|CF: CFI(F)|negative='true'">`
+- Result: V2 = +1000, multiplied by -1 = -1000, then negative="true" flips to -1000 ✅
+
+**Month 12 (First Repayment):**
+- Balance Sheet: Asset -$500
+- Cash Flow: Should be +$500 (cash increases when repayment received)
+- Code: `<MULT2-S; driver1="A1"; driver2="-1"; row1="CF2(D)|Principal Inflow(L)|CF: CFI(F)|negative='true'">`
+- Result: A1 = -500, multiplied by -1 = +500, then negative="true" flips to +500 ✅
+
+### **Key Requirements for Lending:**
+✓ Remove all **CF: CFF** fincodes from debt items
+✓ Add **CF: CFI** fincodes for cash flow classification  
+✓ Create sign reversal rows for INDEX debt reconciliation
+✓ Principal becomes asset, not liability
+✓ Use **LAMORT/LBULLET** for simple lending scenarios
+
+## COMMON MISTAKES
+
+### **🚨 CRITICAL LENDING ERRORS:**
+❌ **FATAL**: Missing `negative="true"` on lending cash flow items
+❌ **FATAL**: Cash flows showing wrong direction (positive when should be negative)
+❌ **Wrong**: Using CF: CFF fincodes for lending scenarios (should be CF: CFI)
+❌ **Wrong**: Forgetting sign reversal rows entirely for INDEX lending
+❌ **Wrong**: Creating cash flow items without proper sign verification
+
+### **General Debt Modeling Errors:**
+❌ **Wrong**: Using simple codes for custom repayment schedules
+❌ **Wrong**: External references to INDEX debt drivers
+❌ **Wrong**: Missing fincodes on principal and payment flows
+❌ **Wrong**: Mixing simple debt codes with INDEX approach for same loan type
+
+### **✅ CORRECT APPROACH:**
+✅ **Correct**: ALL lending cash flows MUST have `negative="true"`
+✅ **Correct**: Verify cash flow direction matches actual cash movement
+✅ **Correct**: Choose one approach per debt type consistently
+✅ **Correct**: Use INDEX for ANY custom repayment logic
+✅ **Correct**: Model single loan within INDEX, scale by volume driver
+✅ **Correct**: Use LAMORT/LBULLET for simple lending scenarios
+✅ **Correct**: Add manual sign reversal with `negative="true"` for complex INDEX lending
+
+### **🔍 FINAL VERIFICATION CHECKLIST:**
+Before submitting any lending model, ask these questions:
+
+1. **Does every lending cash flow item have `negative="true"`?**
+2. **Do the cash flow directions make economic sense?**
+   - Loan origination = Cash OUT (negative)
+   - Loan repayment = Cash IN (positive)
+   - Interest received = Cash IN (positive)
+3. **Are all cash flows properly classified as CF: CFI (not CF: CFF)?**
+4. **Did I test the signs by tracing through one complete loan lifecycle?**
+
+If ANY answer is NO, review and fix the implementation before proceeding. 

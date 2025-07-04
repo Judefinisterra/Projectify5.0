@@ -1566,14 +1566,14 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         return newFormula;
     });
     
-    // Process AMORT function: AMORT(driver1,driver2,driver3,driver4) -> IFERROR(PMT(driver1/U$7,driver2-U$8+1,SUM(driver3,OFFSET(driver4,-1,0),0,0),0),0)
+    // Process AMORT function: AMORT(driver1,driver2,driver3,driver4) -> IFERROR(PPMT(driver1/U$7,1,driver2-U$8+1,SUM(driver3,OFFSET(driver4,-1,0),0,0),0),0)
     result = result.replace(/AMORT\(([^,]+),([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3, driver4) => {
         // Trim whitespace from drivers
         driver1 = driver1.trim();
         driver2 = driver2.trim();
         driver3 = driver3.trim();
         driver4 = driver4.trim();
-        const newFormula = `IFERROR(PMT(${driver1}/U$7,${driver2}-U$8+1,SUM(${driver3},OFFSET(${driver4},-1,0),0,0),0),0)`;
+        const newFormula = `IFERROR(PPMT(${driver1}/U$7,1,${driver2}-U$8+1,SUM(${driver3},OFFSET(${driver4},-1,0),0,0),0),0)`;
         console.log(`    Converting AMORT(${driver1},${driver2},${driver3},${driver4}) to ${newFormula}`);
         return newFormula;
     });
@@ -1614,6 +1614,24 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         driver1 = driver1.trim();
         const newFormula = `(U$8=${driver1})`;
         console.log(`    Converting ONETIMEINDEX(${driver1}) to ${newFormula}`);
+        return newFormula;
+    });
+    
+    // Process BEGINDEX function: BEGINDEX(driver1) -> (U$8>=driver1) (Start from index month and continue)
+    result = result.replace(/BEGINDEX\(([^)]+)\)/gi, (match, driver1) => {
+        // Trim whitespace from driver
+        driver1 = driver1.trim();
+        const newFormula = `(U$8>=${driver1})`;
+        console.log(`    Converting BEGINDEX(${driver1}) to ${newFormula}`);
+        return newFormula;
+    });
+    
+    // Process ENDINDEX function: ENDINDEX(driver1) -> (U$8<=driver1) (End at index month)
+    result = result.replace(/ENDINDEX\(([^)]+)\)/gi, (match, driver1) => {
+        // Trim whitespace from driver
+        driver1 = driver1.trim();
+        const newFormula = `(U$8<=${driver1})`;
+        console.log(`    Converting ENDINDEX(${driver1}) to ${newFormula}`);
         return newFormula;
     });
 
@@ -5451,17 +5469,17 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                 return newFormula;
             });
             
-            // Process AMORT function: AMORT(driver1,driver2,driver3,driver4) -> IFERROR(PMT(driver1/U$7,driver2-U$8+1,SUM(driver3,OFFSET(driver4,-1,0),0,0),0),0)
-            formula = formula.replace(/AMORT\(([^,]+),([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3, driver4) => {
-                // Trim whitespace from drivers
-                driver1 = driver1.trim();
-                driver2 = driver2.trim();
-                driver3 = driver3.trim();
-                driver4 = driver4.trim();
-                const newFormula = `IFERROR(PMT(${driver1}/U$7,${driver2}-U$8+1,SUM(${driver3},OFFSET(${driver4},-1,0),0,0),0),0)`;
-                console.log(`    Converting AMORT(${driver1},${driver2},${driver3},${driver4}) to ${newFormula}`);
-                return newFormula;
-            });
+                    // Process AMORT function: AMORT(driver1,driver2,driver3,driver4) -> IFERROR(PPMT(driver1/U$7,1,driver2-U$8+1,SUM(driver3,OFFSET(driver4,-1,0),0,0),0),0)
+        formula = formula.replace(/AMORT\(([^,]+),([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3, driver4) => {
+            // Trim whitespace from drivers
+            driver1 = driver1.trim();
+            driver2 = driver2.trim();
+            driver3 = driver3.trim();
+            driver4 = driver4.trim();
+            const newFormula = `IFERROR(PPMT(${driver1}/U$7,1,${driver2}-U$8+1,SUM(${driver3},OFFSET(${driver4},-1,0),0,0),0),0)`;
+            console.log(`    Converting AMORT(${driver1},${driver2},${driver3},${driver4}) to ${newFormula}`);
+            return newFormula;
+        });
             
             // Process BULLET function: BULLET(driver1,driver2,driver3) -> IF(driver2=U$8,SUM(driver1,OFFSET(driver3,-1,0)),0)
             formula = formula.replace(/BULLET\(([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3) => {
@@ -5493,14 +5511,32 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                 return newFormula;
             });
             
-            // Process ONETIMEINDEX function: ONETIMEINDEX(driver1) -> (U$8=driver1) (One-time event at specific index month)
-            formula = formula.replace(/ONETIMEINDEX\(([^)]+)\)/gi, (match, driver1) => {
-                // Trim whitespace from driver
-                driver1 = driver1.trim();
-                const newFormula = `(U$8=${driver1})`;
-                console.log(`    Converting ONETIMEINDEX(${driver1}) to ${newFormula}`);
-                return newFormula;
-            });
+                    // Process ONETIMEINDEX function: ONETIMEINDEX(driver1) -> (U$8=driver1) (One-time event at specific index month)
+        formula = formula.replace(/ONETIMEINDEX\(([^)]+)\)/gi, (match, driver1) => {
+            // Trim whitespace from driver
+            driver1 = driver1.trim();
+            const newFormula = `(U$8=${driver1})`;
+            console.log(`    Converting ONETIMEINDEX(${driver1}) to ${newFormula}`);
+            return newFormula;
+        });
+        
+        // Process BEGINDEX function: BEGINDEX(driver1) -> (U$8>=driver1) (Start from index month and continue)
+        formula = formula.replace(/BEGINDEX\(([^)]+)\)/gi, (match, driver1) => {
+            // Trim whitespace from driver
+            driver1 = driver1.trim();
+            const newFormula = `(U$8>=${driver1})`;
+            console.log(`    Converting BEGINDEX(${driver1}) to ${newFormula}`);
+            return newFormula;
+        });
+        
+        // Process ENDINDEX function: ENDINDEX(driver1) -> (U$8<=driver1) (End at index month)
+        formula = formula.replace(/ENDINDEX\(([^)]+)\)/gi, (match, driver1) => {
+            // Trim whitespace from driver
+            driver1 = driver1.trim();
+            const newFormula = `(U$8<=${driver1})`;
+            console.log(`    Converting ENDINDEX(${driver1}) to ${newFormula}`);
+            return newFormula;
+        });
             
             // Ensure the formula starts with '='
             if (!formula.startsWith('=')) {

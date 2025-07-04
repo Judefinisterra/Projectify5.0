@@ -66,6 +66,42 @@ The system automatically creates formulas that:
 3. **sumif Parameter**: Required for annual aggregation (usually "year" or "average")
 4. **Fincode Column**: Items with fincodes in column (F) get aggregated
 5. **Y1-Y6 "F" Values**: Required in INDEXBEGIN row1 for formula generation
+6. **Header Labels**: Within INDEX blocks, use ONLY LABELH3 for section headers. Never use LABELH1 or LABELH2 within INDEX systems
+
+## INDEX-SPECIFIC FUNCTIONS
+
+These custom functions work specifically within INDEX systems for unit age-based calculations:
+
+### **ONETIMEINDEX(month)**
+- **Formula**: `(U$8=month)`
+- **Purpose**: One-time event at specific unit age month
+- **Example**: `ONETIMEINDEX(12)` = True only in month 12 of unit's life
+- **Use**: Single payments, milestone events, one-time costs
+
+### **BEGINDEX(month)**
+- **Formula**: `(U$8>=month)`
+- **Purpose**: Start from specific unit age month and continue
+- **Example**: `BEGINDEX(6)` = True from month 6 onwards in unit's life
+- **Use**: Delayed starts, post-ramp costs, ongoing expenses after grace period
+
+### **ENDINDEX(month)**
+- **Formula**: `(U$8<=month)`
+- **Purpose**: End at specific unit age month
+- **Example**: `ENDINDEX(24)` = True until month 24 of unit's life
+- **Use**: Limited-time costs, initial period expenses, temporary benefits
+
+### **INTONLY(month)**
+- **Formula**: `(U$8>month)`
+- **Purpose**: Condition for periods after specific month
+- **Example**: `INTONLY(6)` = True for months 7+ of unit's life
+- **Use**: Interest-only periods, costs that start after delays
+
+### **Usage in FORMULA-S:**
+```
+<FORMULA-S; row1="A1(D)|Grace Period Cost(L)|is: expense(F)|1000*ENDINDEX(6)">
+<FORMULA-S; row1="A2(D)|Ongoing Revenue(L)|is: revenue(F)|5000*BEGINDEX(7)">
+<FORMULA-S; row1="A3(D)|Year 1 Bonus(L)|is: expense(F)|2000*ONETIMEINDEX(12)">
+```
 
 ## LABELING CONVENTIONS FOR INDEX SYSTEMS
 

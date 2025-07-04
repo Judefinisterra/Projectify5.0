@@ -1,0 +1,88 @@
+# LENDING & BORROWING MODELING GUIDE
+
+## WHEN TO USE SIMPLE DEBT CODES
+
+Use standard debt codes for **uniform, predictable debt structures** where all loans follow the same pattern:
+
+### Simple Debt Code Types:
+- **DAMORT**: Amortizing debt (with down payment/origination)
+- **LAMORT**: Amortizing debt (loan-style)
+- **DBULLET**: Bullet/balloon payment debt (with down payment)
+- **LBULLET**: Bullet/balloon payment debt (loan-style)
+
+### Examples of Simple Debt:
+✅ **Use Simple Codes**: "I will originate 10 loans per month for $1000 each. They amortize over 24 months and have 5% interest."
+✅ **Use Simple Codes**: "We issue $50K of bonds annually. They mature in 5 years with 4% interest paid quarterly."
+✅ **Use Simple Codes**: "Monthly equipment financing of $25K, repaid over 36 months at 6% APR."
+
+## WHEN TO USE INDEX GROWTH CURVE FOR DEBT
+
+Use INDEX system for **complex, custom debt structures** where individual loans have unique repayment patterns:
+
+### Complex Debt Characteristics:
+- Non-standard repayment schedules
+- Multiple payment milestones
+- Variable payment amounts
+- Age-dependent payment patterns
+- Custom amortization curves
+
+### Examples Requiring INDEX Approach:
+❌ **Don't Use Simple Codes**: "I borrow 10 loans a month. Each is for $1000. They are repaid in 2 payments: 50% in month 12, 50% in month 24."
+❌ **Don't Use Simple Codes**: "We originate mortgages with custom schedules: 10% down, interest-only for 12 months, then principal + interest for remaining term."
+❌ **Don't Use Simple Codes**: "Equipment loans have maintenance payments: $500 monthly for months 1-6, then $1000 monthly for months 7-24."
+
+## INDEX APPROACH FOR COMPLEX DEBT
+
+### Structure for Complex Debt:
+```
+<SPREAD-E; row1="V1(D)|# of New Loans per Month(L)|...">
+
+<INDEXBEGIN; driver1="V1"; row1="...">
+  <CONST-E; row1="V2(D)|Loan Principal(L)|is: liability(F)|...">
+  <FORMULA-S; row1="A1(D)|Principal Payment Month 12(L)|is: liability(F)|cd{6-V2}*onetimeindex(12)">
+  <FORMULA-S; row1="A2(D)|Principal Payment Month 24(L)|is: liability(F)|cd{6-V2}*onetimeindex(24)">
+  <FORMULA-S; row1="A3(D)|Interest Expense(L)|is: interest expense(F)|-cd{6-V3}/12*average(rd{V2},rd{A4})">
+<INDEXEND>
+```
+
+### Key INDEX Debt Components:
+1. **Volume Driver**: Number of new loans per period
+2. **Principal**: Initial loan amount using CONST-E
+3. **Custom Payments**: Use FORMULA-S with ONETIMEINDEX() for specific payment dates
+4. **Interest Calculations**: Use FORMULA-S with rd{} references for complex interest logic
+5. **Self-Containment**: All debt logic must be within INDEX block
+
+## DECISION FLOWCHART
+
+```
+Does the debt have uniform repayment terms?
+├── YES → Are all loans identical in structure?
+│   ├── YES → Use Simple Debt Codes (DAMORT, LAMORT, DBULLET, LBULLET)
+│   └── NO → Use INDEX Growth Curve
+└── NO → Use INDEX Growth Curve
+```
+
+## VALIDATION CHECKLIST
+
+### For Simple Debt Codes:
+✓ All loans have identical terms
+✓ Standard amortization or bullet structure
+✓ No custom payment schedules
+✓ Uses appropriate D/L prefix (D=down payment, L=loan)
+
+### For INDEX Debt Systems:
+✓ Volume driver exists for loan origination
+✓ Custom payment logic uses ONETIMEINDEX() functions
+✓ Interest calculations reference loan balances correctly
+✓ All debt components are self-contained within INDEX
+✓ Principal and payment flows have proper fincodes
+
+## COMMON MISTAKES TO AVOID
+
+❌ **Wrong**: Using simple codes for non-uniform repayment schedules
+❌ **Wrong**: Mixing simple debt codes with INDEX approach for same loan type
+❌ **Wrong**: External references to INDEX debt drivers
+❌ **Wrong**: Missing fincodes on principal and payment flows
+✅ **Correct**: Choose one approach per debt type and stick with it
+✅ **Correct**: Use INDEX for any custom or complex repayment logic
+✅ **Correct**: Ensure all debt components flow to appropriate financial statement sections 

@@ -3357,6 +3357,16 @@ export async function determinePromptModules(clientRequest) {
         
         console.log("📊 Raw Claude response type:", Array.isArray(moduleResponse) ? "Array" : typeof moduleResponse);
         console.log("📊 Raw Claude response:", moduleResponse);
+        console.log("📊 Input keywords analysis:", {
+            hasLoan: clientRequest.toLowerCase().includes('loan'),
+            hasDebt: clientRequest.toLowerCase().includes('debt'),
+            hasBorrow: clientRequest.toLowerCase().includes('borrow'),
+            hasLend: clientRequest.toLowerCase().includes('lend'),
+            hasInterest: clientRequest.toLowerCase().includes('interest'),
+            hasBalloon: clientRequest.toLowerCase().includes('balloon'),
+            hasPayment: clientRequest.toLowerCase().includes('payment'),
+            hasOriginate: clientRequest.toLowerCase().includes('originate')
+        });
         
         // Parse the response - expecting an array of section labels
         let selectedModules = [];
@@ -3577,18 +3587,27 @@ function generateFilenameVariants(moduleName) {
     // 1. Exact match with .txt extension
     variants.push(`${baseName}.txt`);
     
-    // 2. Replace spaces with underscores
+    // 2. Special mapping for common module name variations
+    if (baseName.toLowerCase() === 'debt') {
+        variants.push('Debt.txt');
+        variants.push('LendingBorrowing.txt');
+    } else if (baseName.toLowerCase() === 'lendingborrowing') {
+        variants.push('LendingBorrowing.txt');
+        variants.push('Debt.txt');
+    }
+    
+    // 3. Replace spaces with underscores
     if (baseName.includes(' ')) {
         variants.push(`${baseName.replace(/\s+/g, '_')}.txt`);
     }
     
-    // 3. Remove spaces entirely (camelCase-like)
+    // 4. Remove spaces entirely (camelCase-like)
     if (baseName.includes(' ')) {
         const noSpaces = baseName.replace(/\s+/g, '');
         variants.push(`${noSpaces}.txt`);
     }
     
-    // 4. PascalCase (capitalize first letter of each word, remove spaces)
+    // 5. PascalCase (capitalize first letter of each word, remove spaces)
     if (baseName.includes(' ')) {
         const pascalCase = baseName
             .split(/\s+/)
@@ -3597,25 +3616,25 @@ function generateFilenameVariants(moduleName) {
         variants.push(`${pascalCase}.txt`);
     }
     
-    // 5. Snake_case (lowercase with underscores)
+    // 6. Snake_case (lowercase with underscores)
     if (baseName.includes(' ')) {
         const snakeCase = baseName.toLowerCase().replace(/\s+/g, '_');
         variants.push(`${snakeCase}.txt`);
     }
     
-    // 6. kebab-case (lowercase with hyphens)
+    // 7. kebab-case (lowercase with hyphens)
     if (baseName.includes(' ')) {
         const kebabCase = baseName.toLowerCase().replace(/\s+/g, '-');
         variants.push(`${kebabCase}.txt`);
     }
     
-    // 7. All lowercase
+    // 8. All lowercase
     const lowercase = baseName.toLowerCase();
     if (lowercase !== baseName) {
         variants.push(`${lowercase}.txt`);
     }
     
-    // 8. All uppercase
+    // 9. All uppercase
     const uppercase = baseName.toUpperCase();
     if (uppercase !== baseName) {
         variants.push(`${uppercase}.txt`);
