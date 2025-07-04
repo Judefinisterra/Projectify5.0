@@ -5560,23 +5560,57 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             return newFormula;
         });
         
-        // Process TABLEMIN function: TABLEMIN(driver1,driver2) -> MIN(SUM(driver1:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0)),driver2)
-        console.log(`    Checking for TABLEMIN function in: "${formula}"`);
-        const tableminMatches = formula.match(/TABLEMIN\(([^,]+),([^)]+)\)/gi);
-        if (tableminMatches) {
-            console.log(`    Found TABLEMIN matches: ${tableminMatches.join(', ')}`);
-        } else {
-            console.log(`    No TABLEMIN matches found`);
-        }
-        
-        formula = formula.replace(/TABLEMIN\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
-            // Trim whitespace from drivers
-            driver1 = driver1.trim();
-            driver2 = driver2.trim();
-            const newFormula = `MIN(SUM(${driver1}:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0)),${driver2})`;
-            console.log(`    Converting TABLEMIN(${driver1},${driver2}) to ${newFormula}`);
-            return newFormula;
-        });
+            // Process SUMTABLE function: SUMTABLE(driver1) -> SUM(driver1:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0))
+    console.log(`    Checking for SUMTABLE function in: "${formula}"`);
+    const sumtableMatchesParser = formula.match(/SUMTABLE\(([^)]+)\)/gi);
+    if (sumtableMatchesParser) {
+        console.log(`    Found SUMTABLE matches: ${sumtableMatchesParser.join(', ')}`);
+    } else {
+        console.log(`    No SUMTABLE matches found`);
+    }
+    
+    formula = formula.replace(/SUMTABLE\(([^)]+)\)/gi, (match, driver1) => {
+        // Trim whitespace from driver
+        driver1 = driver1.trim();
+        const newFormula = `SUM(${driver1}:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0))`;
+        console.log(`    Converting SUMTABLE(${driver1}) to ${newFormula}`);
+        return newFormula;
+    });
+    
+                // Process SUMTABLE function: SUMTABLE(driver1) -> SUM(driver1:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0))
+            console.log(`    Checking for SUMTABLE function in: "${formula}"`);
+            const sumtableMatchesFormulaSRows = formula.match(/SUMTABLE\(([^)]+)\)/gi);
+            if (sumtableMatchesFormulaSRows) {
+                console.log(`    Found SUMTABLE matches: ${sumtableMatchesFormulaSRows.join(', ')}`);
+            } else {
+                console.log(`    No SUMTABLE matches found`);
+            }
+            
+            formula = formula.replace(/SUMTABLE\(([^)]+)\)/gi, (match, driver1) => {
+                // Trim whitespace from driver
+                driver1 = driver1.trim();
+                const newFormula = `SUM(${driver1}:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0))`;
+                console.log(`    Converting SUMTABLE(${driver1}) to ${newFormula}`);
+                return newFormula;
+            });
+            
+            // Process TABLEMIN function: TABLEMIN(driver1,driver2) -> MIN(SUM(driver1:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0)),driver2)
+            console.log(`    Checking for TABLEMIN function in: "${formula}"`);
+            const tableminMatches = formula.match(/TABLEMIN\(([^,]+),([^)]+)\)/gi);
+            if (tableminMatches) {
+                console.log(`    Found TABLEMIN matches: ${tableminMatches.join(', ')}`);
+            } else {
+                console.log(`    No TABLEMIN matches found`);
+            }
+            
+            formula = formula.replace(/TABLEMIN\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
+                // Trim whitespace from drivers
+                driver1 = driver1.trim();
+                driver2 = driver2.trim();
+                const newFormula = `MIN(SUM(${driver1}:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0)),${driver2})`;
+                console.log(`    Converting TABLEMIN(${driver1},${driver2}) to ${newFormula}`);
+                return newFormula;
+            });
             
             // Ensure the formula starts with '='
             if (!formula.startsWith('=')) {
@@ -6981,14 +7015,14 @@ export async function getModelCodesFromFinancials() {
 }
 
 /**
- * Test function for TABLEMIN conversion
+ * Test function for TABLEMIN and SUMTABLE conversion
  */
 export async function testTableminConversion() {
-    console.log("🧪 Testing TABLEMIN conversion...");
+    console.log("🧪 Testing TABLEMIN and SUMTABLE conversion...");
     
-    // Test the exact case from the user
+    // Test TABLEMIN - the exact case from the user
     const testFormula = "TABLEMIN(rd{V1},cd{6-V5})";
-    console.log(`Original formula: ${testFormula}`);
+    console.log(`Original TABLEMIN formula: ${testFormula}`);
     
     // Test without worksheet context first (rd{} and cd{} won't be converted)
     const result1 = await parseFormulaSCustomFormula(testFormula, 15);
@@ -6996,17 +7030,35 @@ export async function testTableminConversion() {
     
     // Test with simplified formula where references are already resolved
     const testFormula2 = "TABLEMIN(U$15,$I15)";
-    console.log(`\nSimplified formula: ${testFormula2}`);
+    console.log(`\nSimplified TABLEMIN formula: ${testFormula2}`);
     
     const result2 = await parseFormulaSCustomFormula(testFormula2, 15);
     console.log(`Result with resolved references: ${result2}`);
+    
+    // Test SUMTABLE
+    console.log("\n🧪 Testing SUMTABLE function:");
+    const sumtableFormula1 = "SUMTABLE(rd{V1})";
+    console.log(`Original SUMTABLE formula: ${sumtableFormula1}`);
+    
+    const sumtableResult1 = await parseFormulaSCustomFormula(sumtableFormula1, 15);
+    console.log(`Result without worksheet context: ${sumtableResult1}`);
+    
+    const sumtableFormula2 = "SUMTABLE(U$15)";
+    console.log(`\nSimplified SUMTABLE formula: ${sumtableFormula2}`);
+    
+    const sumtableResult2 = await parseFormulaSCustomFormula(sumtableFormula2, 15);
+    console.log(`Result with resolved references: ${sumtableResult2}`);
     
     // Test edge cases
     const testCases = [
         "TABLEMIN(A1,B1)",
         "MIN(TABLEMIN(A1,B1),C1)",
         "TABLEMIN(rd{Driver1},cd{5})",
-        "=TABLEMIN(U$15,$I15)"
+        "=TABLEMIN(U$15,$I15)",
+        "SUMTABLE(A1)",
+        "SUMTABLE(rd{Driver1})",
+        "=SUMTABLE(U$15)",
+        "SUMTABLE(A1)+TABLEMIN(B1,C1)"
     ];
     
     console.log("\n🧪 Testing additional cases:");
@@ -7016,5 +7068,5 @@ export async function testTableminConversion() {
         console.log(`Output: ${result}\n`);
     }
     
-    console.log("✅ TABLEMIN conversion test complete");
+    console.log("✅ TABLEMIN and SUMTABLE conversion test complete");
 }
