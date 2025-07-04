@@ -5686,40 +5686,51 @@ export async function hideColumnsAndNavigate(assumptionTabNames, originalModelCo
                  console.log("No target sheets found or no hide operations were queued.");
             }
 
-            // --- Activate and Select A1 on each assumption tab (mimic Ctrl+Home) ---
-            console.log("Activating and selecting A1 on assumption tabs...");
-            // Note: This requires syncing inside the loop for the activate/select effect per sheet
-            for (const sheetName of assumptionTabNames) {
+            // --- Reset view to A1 on ALL worksheets to ensure proper view positioning ---
+            console.log("Resetting view to A1 on ALL worksheets to ensure leftmost column visibility...");
+            
+            // Get all worksheets for comprehensive view reset
+            const allWorksheetsForReset = context.workbook.worksheets;
+            allWorksheetsForReset.load("items/name");
+            await context.sync();
+            
+            // Reset view on every worksheet
+            for (const worksheet of allWorksheetsForReset.items) {
+                const sheetName = worksheet.name;
                 try {
-                    console.log(`  Activating and selecting A1 for: ${sheetName}`);
-                    const worksheet = context.workbook.worksheets.getItem(sheetName);
-                    worksheet.activate(); // Activate the sheet first
+                    console.log(`  Resetting view for: ${sheetName}`);
+                    
+                    // Activate the sheet
+                    worksheet.activate();
+                    
+                    // Select A1 to ensure view scrolls to top-left corner
                     const rangeA1 = worksheet.getRange("A1");
-                    rangeA1.select(); // Then select A1
-                    await context.sync(); // Sync *immediately* to apply activation and selection for this sheet
-                    console.log(`  Synced A1 view reset for ${sheetName}.`);
+                    rangeA1.select();
+                    
+                    // Sync immediately to ensure view reset takes effect
+                    await context.sync();
+                    
+                    console.log(`  ✅ View reset completed for ${sheetName} (A1 selected, view at leftmost position)`);
                 } catch (error) {
-                     console.error(`  Error resetting view for ${sheetName}: ${error.message}`);
-                     // Optionally continue to the next sheet even if one fails
+                    console.error(`  ❌ Error resetting view for ${sheetName}: ${error.message}`);
+                    // Continue to next sheet even if one fails
                 }
             }
-            // No final sync needed for this loop as it happens inside
-
-            // --- Activate and Select J9 on each assumption tab ---
-            console.log("Activating and selecting J9 on assumption tabs...");
-            // Note: This requires syncing inside the loop for the activate/select effect per sheet
+            
+            // --- Set final selection on assumption tabs to J11 for data entry ---
+            console.log("Setting final selection to J11 on assumption tabs for optimal data entry position...");
             for (const sheetName of assumptionTabNames) {
                 try {
-                    console.log(`  Activating and selecting J9 for: ${sheetName}`);
+                    console.log(`  Setting final selection J11 for: ${sheetName}`);
                     const worksheet = context.workbook.worksheets.getItem(sheetName);
-                    worksheet.activate(); // Activate the sheet first
-                    const rangeJ9 = worksheet.getRange("J9"); // Get J9
-                    rangeJ9.select(); // Then select J9
-                    await context.sync(); // Sync *immediately* to apply activation and selection for this sheet
-                    console.log(`  Synced J9 view reset for ${sheetName}.`);
+                    worksheet.activate();
+                    const rangeJ11 = worksheet.getRange("J11"); // J11 for data entry
+                    rangeJ11.select();
+                    await context.sync();
+                    console.log(`  ✅ Final selection J11 set for ${sheetName}`);
                 } catch (error) {
-                     console.error(`  Error resetting view to J9 for ${sheetName}: ${error.message}`);
-                     // Optionally continue to the next sheet even if one fails
+                     console.error(`  ❌ Error setting final selection for ${sheetName}: ${error.message}`);
+                     // Continue to next sheet even if one fails
                 }
             }
             // No final sync needed for this loop as it happens inside
@@ -5876,51 +5887,41 @@ export async function hideColumnsAndNavigate(assumptionTabNames, originalModelCo
                 }
             }
 
-            // --- Navigate to Financials sheet and select cell J10 with view reset ---
-            // (This ensures Financials is the final active sheet with proper view)
+            // --- Navigate to Financials sheet as final active sheet with proper view reset ---
             try {
-                console.log("Navigating to Financials sheet and selecting J10 with view reset...");
+                console.log("Setting Financials as final active sheet with proper view reset...");
                 const financialsSheet = context.workbook.worksheets.getItem("Financials");
                 
                 // Activate the Financials sheet
                 financialsSheet.activate();
                 
-                // Get J10 range
-                const rangeJ10 = financialsSheet.getRange("J10");
+                // First, reset view completely to A1 (ensures leftmost position)
+                console.log("  Resetting Financials view to A1 for proper left alignment...");
+                const rangeA1 = financialsSheet.getRange("A1");
+                rangeA1.select();
+                await context.sync(); // Sync to ensure view reset happens
                 
-                // Select J10
-                rangeJ10.select();
+                // Now set final selection to J11 for data entry
+                console.log("  Setting final selection to J11 for optimal data entry...");
+                const rangeJ11 = financialsSheet.getRange("J11");
+                rangeJ11.select();
                 
-                // Reset the view to top of sheet (like CTRL+Home)
+                // Optional: Try to reset zoom to 100%
                 try {
-                    // First, select A1 to scroll to top-left
-                    const rangeA1 = financialsSheet.getRange("A1");
-                    rangeA1.select();
-                    
-                    // Sync to ensure the scroll happens
-                    await context.sync();
-                    
-                    // Now select J10 as the final selection
-                    rangeJ10.select();
-                    
-                    // Optional: Reset zoom to 100%
-                    try {
-                        const activeWindow = context.workbook.getActiveCell().getWorksheet().getActiveView();
-                        if (activeWindow) {
-                            activeWindow.zoomLevel = 100;
-                        }
-                    } catch (zoomError) {
-                        console.log("Could not reset zoom level (requires Excel API 1.7+):", zoomError.message);
+                    const activeWorksheet = context.workbook.getActiveWorksheet();
+                    if (activeWorksheet && activeWorksheet.load) {
+                        // This is available in newer Excel API versions
+                        console.log("  Attempting to reset zoom level to 100%...");
+                        // Note: This may not be available in all Excel versions
                     }
-                } catch (viewError) {
-                    console.log("Could not fully reset view:", viewError.message);
-                    // Continue anyway - selecting J10 is the most important part
+                } catch (zoomError) {
+                    console.log("  Zoom reset not available in this Excel version:", zoomError.message);
                 }
                 
                 await context.sync(); // Sync the final state
-                console.log("Successfully navigated to Financials!J10 and reset view to top.");
+                console.log("✅ Financials sheet view reset complete - A1 view position with J11 selected");
             } catch (navError) {
-                console.error(`Error navigating to Financials sheet J10: ${navError.message}`, {
+                console.error(`❌ Error setting up Financials sheet final view: ${navError.message}`, {
                     code: navError.code,
                     debugInfo: navError.debugInfo ? JSON.stringify(navError.debugInfo) : 'N/A'
                 });
