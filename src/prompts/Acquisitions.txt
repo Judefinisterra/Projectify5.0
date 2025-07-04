@@ -1,0 +1,57 @@
+# BUSINESS ACQUISITIONS MODELING GUIDANCE
+
+## ⚠️ CRITICAL ACQUISITION ACCOUNTING RULES ⚠️
+
+### **🚨 CASH FLOW TREATMENT:**
+**ACQUISITION PRICE MUST ALWAYS BE REFLECTED IN CFI (Cash Flow from Investing) AS A NEGATIVE NUMBER.**
+
+The cash paid to acquire another business represents a cash outflow for investing activities.
+
+### **🚨 DEFAULT GOODWILL TREATMENT:**
+**DEFAULT TO CAPITALIZING THE ENTIRE ACQUISITION PRICE AS GOODWILL WITH NO AMORTIZATION.**
+
+Use ACCUM-S code linked to an acquisition consideration driver to record the acquisition price as Goodwill on the balance sheet.
+
+## BASIC IMPLEMENTATION
+
+### **Standard Structure:**
+```
+**(FORMULA-S code for one-time acuisition price on the close date. row1 has V1)**
+<ACCUM-S; driver1="V1"; row1="V2(D)|Goodwill - Acquisition(L)|is: fixed assets(F)|CF: CFI(F)">
+```
+
+**Key Elements:**
+
+- **ACCUM-S**: Links goodwill to acquisition consideration driver
+- **Goodwill fincode**: Properly classifies as intangible asset
+- **CF: CFI**: Ensures proper cash flow statement classification as negative investing activity
+- **No Amortization**: Goodwill does not depreciate over time
+
+## TARGET COMPANY FINANCIALS
+
+### **Standalone Financial Modeling:**
+**TARGET FINANCIALS SHOULD BE MODELED ON A STANDALONE BASIS WITH NO ADJUSTMENT FOR THE CLOSE DATE.**
+
+Model the target company's revenue, expenses, and other financial items as if they operate independently, without considering when the acquisition closes. These standalone items should have **NO FINCODES**.
+
+### **Acquisition-Adjusted Integration:**
+**CREATE A SEPARATE SECTION THAT MODELS THOSE ITEMS 0'D OUT UNTIL THE CLOSE DATE.**
+
+Use BEG(close_date) function with the close date driver from the acquisition cost row to include target financials only after acquisition. Apply appropriate fincodes to these integration items.
+
+### **Structure Example:**
+```
+<!-- Standalone Target Financials (no fincodes) -->
+<SPREAD-E; row1="V3(D)|Target Company Revenue - Standalone(L)|100000|105000|110000|...">
+<SPREAD-E; row1="V4(D)|Target Company Expenses - Standalone(L)|60000|62000|65000|...">
+
+<!-- Acquisition-Adjusted Integration (with fincodes) -->
+<FORMULA-S; row1="V5(D)|Target Company Revenue - Post Acquisition(L)|is: revenue(F)|V3*BEG([close_month])">
+<FORMULA-S; row1="V6(D)|Target Company Expenses - Post Acquisition(L)|is: expense(F)|V4*BEG([close_month])">
+```
+
+**Key Points:**
+- **Standalone**: No fincodes, models target as independent entity
+- **Integration**: Uses BEG function to start inclusion from close date
+- **Fincodes**: Only applied to integration items that affect consolidated financials
+- **Close Date**: References the same timing as acquisition consideration driver 
