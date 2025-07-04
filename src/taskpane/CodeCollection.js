@@ -5632,9 +5632,9 @@ export async function hideColumnsAndNavigate(assumptionTabNames, originalModelCo
                 if (targetSheetNames.includes(sheetName)) { // Check if sheet is in our target list
                     console.log(`Queueing hide operations for: ${sheetName}`);
                     try {
-                        // Hide Rows 2:8 (Applies to both)
-                        const rows28 = worksheet.getRange("2:8");
-                        rows28.rowHidden = true;
+                        // Hide Rows 2:10 (Applies to both)
+                        const rows210 = worksheet.getRange("2:10");
+                        rows210.rowHidden = true;
 
                         // Conditional Column Hiding
                         if (sheetName === "Financials") {
