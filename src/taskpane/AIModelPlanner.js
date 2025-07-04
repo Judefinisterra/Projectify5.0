@@ -940,6 +940,12 @@ export async function plannerHandleSend() {
                     jsonObjectToProcess = parsedResponse;
                     lastPlannerResponseForClient = parsedResponse; // Update to store parsed object
                     console.log("AIModelPlanner: Streamed text successfully parsed to an object for tab processing.");
+                    
+                    // >>> ADDED: Replace JSON content with user-friendly message
+                    assistantMessageContent.textContent = "✅ Model plan confirmed! Building your financial model now...";
+                    if (chatLogClient) chatLogClient.scrollTop = chatLogClient.scrollHeight;
+                    console.log("AIModelPlanner: Replaced JSON content with user-friendly message");
+                    // <<< END ADDED
                 }
             } catch (e) {
                 // Not a JSON string, or parsing did not result in a suitable object.
@@ -947,11 +953,6 @@ export async function plannerHandleSend() {
                 console.log("AIModelPlanner: Streamed text was not a parsable JSON object. Displaying as text.");
             }
         }
-        
-        // If UI was updated with text and it turned out to be JSON object for processing, 
-        // we might want to clear/replace the text content with a message like "Processing JSON..."
-        // or just let the text remain. For now, text remains.
-        // If it wasn't JSON, the text is already correctly displayed.
 
         if (jsonObjectToProcess) {
             console.log("AIModelPlanner: Starting to process JSON object for ModelCodes generation.");
