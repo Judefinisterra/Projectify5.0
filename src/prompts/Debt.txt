@@ -3,7 +3,7 @@
 ## ⚠️ CRITICAL DEBT MODELING ALERTS ⚠️
 
 ### **🚨 INTEREST PLACEMENT RULE:**
-**INTEREST EXPENSE/INCOME MUST NEVER BE CALCULATED INSIDE BEGIN/END TABLES.** Interest calculations must ALWAYS be placed AFTER the reconciliation table. Only PIK interest can be fed into tables using DIRECT-S.
+**INTEREST EXPENSE/INCOME MUST NEVER BE CALCULATED INSIDE DEBT RECONCILIATION TABLES (BEGIN/END).** Interest calculations must ALWAYS be placed AFTER the debt reconciliation table but WITHIN the INDEX block when using INDEX approach. Only PIK interest can be fed into reconciliation tables using DIRECT-S.
 
 ### **🚨 LENDING SIGN CHECK:**
 **IF THIS IS A LENDING SCENARIO:** Every single cash flow item you create MUST have `negative="true"` or there is absolutely no point in creating it. The entire purpose of creating separate cash flow rows for lending is to flip the signs. Without `negative="true"`, you're just duplicating incorrect cash flows.
@@ -88,15 +88,15 @@ Individual loans have **custom, non-standard repayment patterns**:
 <SPREAD-E; row1="V1(D)|# of New Loans per Month(L)|...">
 
 <INDEXBEGIN; driver1="V1"; row1="...">
-  <CONST-E; row1="V2(D)|Loan Principal(L)|is: liability(F)|...">
+  <BEGIN-S; row1="V3(D)|Outstanding Balance(L)|is: liability(F)|...">
+  <CONST-E; row1="V2(D)|New Borrowing(L)|is: liability(F)|...">
   <FORMULA-S; row1="A1(D)|Principal Payment Month 12(L)|is: liability(F)|cd{6-V2}*onetimeindex(12)">
   <FORMULA-S; row1="A2(D)|Principal Payment Month 24(L)|is: liability(F)|cd{6-V2}*onetimeindex(24)">
+  <END-S; row1="V4(D)|Ending Balance(L)|is: liability(F)|...">
   
-  <!-- Interest calculations MUST be outside INDEXBEGIN/INDEXEND -->
+  <!-- Interest calculations WITHIN INDEX but OUTSIDE debt reconciliation table -->
+  <FORMULA-S; row1="A3(D)|Interest Expense(L)|is: interest expense(F)|cd{6-V3}*0.05/12">
 <INDEXEND>
-
-<!-- Interest calculations placed AFTER INDEX block -->
-<FORMULA-S; row1="A3(D)|Interest Expense(L)|is: interest expense(F)|-cd{6-V2}/12*average(rd{V2},rd{A1})">
 ```
 
 ### **Key Components:**
@@ -137,15 +137,15 @@ Individual loans have **custom, non-standard repayment patterns**:
 <SPREAD-E; row1="V1(D)|New Lending Volume per Month(L)|1200|2400|1800|...">
 
 <INDEXBEGIN; driver1="V1"; row1="...">
+  <BEGIN-S; row1="V3(D)|Outstanding Balance per $1(L)|is: asset(F)|...">
   <CONST-E; row1="V2(D)|Principal per $1 Lent(L)|is: asset(F)|1">
   <FORMULA-S; row1="A1(D)|Repayment Month 12 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(12)*0.5">
   <FORMULA-S; row1="A2(D)|Repayment Month 24 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(24)*0.5">
+  <END-S; row1="V4(D)|Ending Balance per $1(L)|is: asset(F)|...">
   
-  <!-- Interest calculations MUST be outside INDEXBEGIN/INDEXEND -->
+  <!-- Interest calculations WITHIN INDEX but OUTSIDE debt reconciliation table -->
+  <FORMULA-S; row1="A3(D)|Interest per $1(L)|is: interest income(F)|cd{6-V3}*0.05/12">
 <INDEXEND>
-
-<!-- Interest calculations placed AFTER INDEX block -->
-<FORMULA-S; row1="A3(D)|Interest per $1(L)|is: interest income(F)|cd{6-V2}*0.05/12">
 ```
 
 ### **How Dollar-Based Scaling Works:**
@@ -172,24 +172,22 @@ Individual loans have **custom, non-standard repayment patterns**:
 <SPREAD-E; row1="V1(D)|Monthly Lending Volume(L)|1200|2400|1800|0|0|...">
 
 <INDEXBEGIN; driver1="V1"; row1="DollarDebtIndex">
-  <!-- Model $1 of principal -->
+  <!-- Debt reconciliation table for $1 -->
+  <BEGIN-S; row1="V3(D)|Outstanding Balance per $1(L)|is: asset(F)|...">
   <CONST-E; row1="V2(D)|Principal per $1(L)|is: asset(F)|1">
-  
-  <!-- Model repayments per $1 -->
   <FORMULA-S; row1="A1(D)|Repayment Month 12 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(12)*0.5">
   <FORMULA-S; row1="A2(D)|Repayment Month 24 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(24)*0.5">
+  <END-S; row1="V4(D)|Ending Balance per $1(L)|is: asset(F)|...">
+  
+  <!-- Interest calculations WITHIN INDEX but OUTSIDE debt reconciliation table -->
+  <FORMULA-S; row1="A3(D)|Monthly Interest per $1(L)|is: interest income(F)|cd{6-V3}*0.05/12">
   
   <!-- Cash flow reversals for lending (all with negative="true") -->
   <MULT2-S; driver1="V2"; driver2="-1"; row1="CF1(D)|Principal Outflow per $1(L)|CF: CFI(F)|negative='true'">
   <MULT2-S; driver1="A1"; driver2="-1"; row1="CF2(D)|Repayment Month 12 per $1(L)|CF: CFI(F)|negative='true'">
   <MULT2-S; driver1="A2"; driver2="-1"; row1="CF3(D)|Repayment Month 24 per $1(L)|CF: CFI(F)|negative='true'">
-  
-  <!-- Interest calculations MUST be outside INDEXBEGIN/INDEXEND -->
+  <MULT2-S; driver1="A3"; driver2="-1"; row1="CF4(D)|Interest Inflow per $1(L)|CF: CFI(F)|negative='true'">
 <INDEXEND>
-
-<!-- Interest and interest cash flows placed AFTER INDEX block -->
-<FORMULA-S; row1="A3(D)|Monthly Interest per $1(L)|is: interest income(F)|cd{6-V2}*0.05/12">
-<MULT2-S; driver1="A3"; driver2="-1"; row1="CF4(D)|Interest Inflow per $1(L)|CF: CFI(F)|negative='true'">
 ```
 
 ### **Results from Dollar-Based Example:**
@@ -271,37 +269,37 @@ Does the debt have standard repayment terms?
 - **Use**: Payment amount calculations
 
 ### **🚨 CRITICAL: INTEREST PLACEMENT RULE**
-**INTEREST EXPENSE/INCOME MUST NEVER BE CALCULATED INSIDE BEGIN/END TABLES.**
+**INTEREST EXPENSE/INCOME MUST NEVER BE CALCULATED INSIDE DEBT RECONCILIATION TABLES (BEGIN/END).**
 
-Interest calculations must ALWAYS be placed **AFTER** the END statement, never inside the debt reconciliation table.
+Interest calculations must ALWAYS be placed **AFTER** the debt reconciliation table (END statement), but **WITHIN** the INDEX block when using INDEX approach. Never place interest calculations inside the debt reconciliation table itself.
 
-**❌ INCORRECT - Interest Inside Table:**
+**❌ INCORRECT - Interest Inside Debt Reconciliation Table:**
 ```
 <BEGIN-S; row1="...">
 <FORMULA-S; row1="...|New Borrowing(L)|...">
 <FORMULA-S; row1="...|Repayment(L)|...">
-<FORMULA-S; row1="...|Interest Income(L)|..."> <!-- WRONG - Interest inside table -->
+<FORMULA-S; row1="...|Interest Income(L)|..."> <!-- WRONG - Interest inside debt reconciliation -->
 <END-S; row1="...">
 ```
 
-**✅ CORRECT - Interest Outside Table:**
+**✅ CORRECT - Interest Outside Debt Reconciliation Table:**
 ```
 <BEGIN-S; row1="...">
 <FORMULA-S; row1="...|New Borrowing(L)|...">
 <FORMULA-S; row1="...|Repayment(L)|...">
 <END-S; row1="...">
-<!-- Interest calculations come AFTER the reconciliation table -->
+<!-- Interest calculations come AFTER the debt reconciliation table -->
 <FORMULA-S; row1="...|Interest Income(L)|is: interest income(F)|...">
 ```
 
 **🔍 Exception: PIK Interest Only**
-The ONLY way to feed interest into a reconciliation table is via DIRECT-S code referencing external interest calculations, and this should ONLY be used for PIK (Payment-In-Kind) interest when you want to add interest to the principal balance:
+The ONLY way to feed interest into a debt reconciliation table is via DIRECT-S code referencing external interest calculations, and this should ONLY be used for PIK (Payment-In-Kind) interest when you want to add interest to the principal balance:
 
 ```
-<!-- Interest calculation outside table -->
+<!-- Interest calculation outside debt reconciliation table -->
 <FORMULA-S; row1="A5(D)|Interest Calculation(L)|is: interest expense(F)|...">
 
-<!-- PIK interest added to balance inside table -->
+<!-- PIK interest added to balance inside debt reconciliation table -->
 <BEGIN-S; row1="...">
 <FORMULA-S; row1="...|New Borrowing(L)|...">
 <DIRECT-S; driver1="A5"; row1="...|PIK Interest Added to Balance(L)|...">
@@ -388,11 +386,12 @@ customformula="TABLEMIN(driver1, driver2)"
 ### For INDEX Debt:
 ✓ Volume driver exists for loan origination volume
 ✓ Custom payment logic uses ONETIMEINDEX() functions
-✓ Interest calculations placed OUTSIDE INDEX block (never inside INDEXBEGIN/INDEXEND)
+✓ Interest calculations placed OUTSIDE debt reconciliation table (never inside BEGIN/END)
+✓ Interest calculations placed WITHIN INDEX block (inside INDEXBEGIN/INDEXEND)
 ✓ Interest calculations reference loan balances correctly  
-✓ All debt components self-contained within INDEX (except interest)
+✓ All debt components self-contained within INDEX
 ✓ Principal and payment flows have proper fincodes
-✓ Only PIK interest uses DIRECT-S to feed into reconciliation table
+✓ Only PIK interest uses DIRECT-S to feed into debt reconciliation table
 
 ### For Dollar-Based INDEX Debt:
 ✓ Driver represents total dollar amounts (not number of loans)
@@ -552,10 +551,11 @@ For a $1000 loan originated in Month 1, repaid $500 in Month 12, $500 in Month 2
 ❌ **Wrong**: Creating cash flow items without proper sign verification
 
 ### **🚨 CRITICAL INTEREST PLACEMENT ERRORS:**
-❌ **FATAL**: Placing interest expense/income calculations inside BEGIN/END tables
-❌ **FATAL**: Using interest calculations as reconciliation table items
+❌ **FATAL**: Placing interest expense/income calculations inside debt reconciliation tables (BEGIN/END)
+❌ **FATAL**: Using interest calculations as debt reconciliation table items
 ❌ **Wrong**: Including interest in debt balance movements (except PIK interest)
 ❌ **Wrong**: Forgetting that interest affects P&L, not debt balance reconciliation
+❌ **Wrong**: Placing interest calculations outside INDEX block when using INDEX approach
 
 ### **General Debt Modeling Errors:**
 ❌ **Wrong**: Using simple codes for custom repayment schedules
@@ -571,7 +571,8 @@ For a $1000 loan originated in Month 1, repaid $500 in Month 12, $500 in Month 2
 ❌ **Wrong**: Applying interest rates to wrong base amount inside INDEX
 
 ### **✅ CORRECT APPROACH:**
-✅ **Correct**: ALL interest calculations MUST be placed OUTSIDE BEGIN/END tables
+✅ **Correct**: ALL interest calculations MUST be placed OUTSIDE debt reconciliation tables (BEGIN/END)
+✅ **Correct**: ALL interest calculations MUST be placed WITHIN INDEX block when using INDEX approach
 ✅ **Correct**: ALL lending cash flows MUST have `negative="true"`
 ✅ **Correct**: Verify cash flow direction matches actual cash movement
 ✅ **Correct**: Choose one approach per debt type consistently
@@ -579,7 +580,7 @@ For a $1000 loan originated in Month 1, repaid $500 in Month 12, $500 in Month 2
 ✅ **Correct**: Model single loan within INDEX, scale by volume driver
 ✅ **Correct**: Use LAMORT/LBULLET for simple lending scenarios
 ✅ **Correct**: Add manual sign reversal with `negative="true"` for complex INDEX lending
-✅ **Correct**: Only use DIRECT-S for PIK interest feeding into reconciliation tables
+✅ **Correct**: Only use DIRECT-S for PIK interest feeding into debt reconciliation tables
 ✅ **Correct**: Use TABLEMIN for fixed monthly payments to prevent overpayment
 
 ### **✅ DOLLAR-BASED INDEX BEST PRACTICES:**
@@ -593,9 +594,9 @@ For a $1000 loan originated in Month 1, repaid $500 in Month 12, $500 in Month 2
 ### **🔍 FINAL VERIFICATION CHECKLIST:**
 Before submitting any debt model, ask these questions:
 
-1. **Are ALL interest calculations placed OUTSIDE of BEGIN/END tables?**
-   - Interest should be calculated AFTER INDEX/reconciliation blocks
-   - Only PIK interest uses DIRECT-S to feed into balance reconciliation
+1. **Are ALL interest calculations placed OUTSIDE of debt reconciliation tables (BEGIN/END)?**
+   - Interest should be calculated AFTER debt reconciliation blocks but WITHIN INDEX blocks
+   - Only PIK interest uses DIRECT-S to feed into debt balance reconciliation
 2. **Does every lending cash flow item have `negative="true"`?**
 3. **Do the cash flow directions make economic sense?**
    - Loan origination = Cash OUT (negative)

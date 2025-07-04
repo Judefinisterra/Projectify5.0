@@ -1379,6 +1379,7 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
     }
     
     let result = formulaString;
+    console.log(`🔧 [FORMULA-S PARSER] Starting with: "${result}"`);
     
     // Build driver map if worksheet is provided (for cd{1-V1} syntax)
     let driverMap = null;
@@ -1503,6 +1504,8 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         const replacement = `$${column}${rowToUse}`;
         return replacement;
     });
+    
+    console.log(`🔧 [FORMULA-S PARSER] After rd{}/cd{} processing: "${result}"`);
     
     // Process SPREAD function: SPREAD(driver) -> driver/U$7
     result = result.replace(/SPREAD\(([^)]+)\)/gi, (match, driver) => {
@@ -1636,6 +1639,14 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
     });
     
     // Process TABLEMIN function: TABLEMIN(driver1,driver2) -> MIN(SUM(driver1:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0)),driver2)
+    console.log(`    Checking for TABLEMIN function in: "${result}"`);
+    const tableminMatches = result.match(/TABLEMIN\(([^,]+),([^)]+)\)/gi);
+    if (tableminMatches) {
+        console.log(`    Found TABLEMIN matches: ${tableminMatches.join(', ')}`);
+    } else {
+        console.log(`    No TABLEMIN matches found`);
+    }
+    
     result = result.replace(/TABLEMIN\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
         // Trim whitespace from drivers
         driver1 = driver1.trim();
@@ -1688,6 +1699,7 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         return replacement;
     });
     
+    console.log(`🔧 [FORMULA-S PARSER] Final result: "${result}"`);
     return result;
 }
 
@@ -5547,6 +5559,24 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             console.log(`    Converting ENDINDEX(${driver1}) to ${newFormula}`);
             return newFormula;
         });
+        
+        // Process TABLEMIN function: TABLEMIN(driver1,driver2) -> MIN(SUM(driver1:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0)),driver2)
+        console.log(`    Checking for TABLEMIN function in: "${formula}"`);
+        const tableminMatches = formula.match(/TABLEMIN\(([^,]+),([^)]+)\)/gi);
+        if (tableminMatches) {
+            console.log(`    Found TABLEMIN matches: ${tableminMatches.join(', ')}`);
+        } else {
+            console.log(`    No TABLEMIN matches found`);
+        }
+        
+        formula = formula.replace(/TABLEMIN\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
+            // Trim whitespace from drivers
+            driver1 = driver1.trim();
+            driver2 = driver2.trim();
+            const newFormula = `MIN(SUM(${driver1}:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0)),${driver2})`;
+            console.log(`    Converting TABLEMIN(${driver1},${driver2}) to ${newFormula}`);
+            return newFormula;
+        });
             
             // Ensure the formula starts with '='
             if (!formula.startsWith('=')) {
@@ -6947,4 +6977,43 @@ export async function getModelCodesFromFinancials() {
         console.error("❌ [MODEL CODES RETRIEVAL] Critical error in getModelCodesFromFinancials:", error);
         return null;
     }
+}
+
+/**
+ * Test function for TABLEMIN conversion
+ */
+export async function testTableminConversion() {
+    console.log("🧪 Testing TABLEMIN conversion...");
+    
+    // Test the exact case from the user
+    const testFormula = "TABLEMIN(rd{V1},cd{6-V5})";
+    console.log(`Original formula: ${testFormula}`);
+    
+    // Test without worksheet context first (rd{} and cd{} won't be converted)
+    const result1 = await parseFormulaSCustomFormula(testFormula, 15);
+    console.log(`Result without worksheet context: ${result1}`);
+    
+    // Test with simplified formula where references are already resolved
+    const testFormula2 = "TABLEMIN(U$15,$I15)";
+    console.log(`\nSimplified formula: ${testFormula2}`);
+    
+    const result2 = await parseFormulaSCustomFormula(testFormula2, 15);
+    console.log(`Result with resolved references: ${result2}`);
+    
+    // Test edge cases
+    const testCases = [
+        "TABLEMIN(A1,B1)",
+        "MIN(TABLEMIN(A1,B1),C1)",
+        "TABLEMIN(rd{Driver1},cd{5})",
+        "=TABLEMIN(U$15,$I15)"
+    ];
+    
+    console.log("\n🧪 Testing additional cases:");
+    for (const testCase of testCases) {
+        console.log(`Input: ${testCase}`);
+        const result = await parseFormulaSCustomFormula(testCase, 15);
+        console.log(`Output: ${result}\n`);
+    }
+    
+    console.log("✅ TABLEMIN conversion test complete");
 }
