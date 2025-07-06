@@ -4,8 +4,8 @@
   <Version>1.0.0.0</Version>
   <ProviderName>Contoso</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="Projectify4.0"/>
-  <Description DefaultValue="Write your own Excel functions in JavaScript."/>
+  <DisplayName DefaultValue="Build Financial Models with AI"/>
+  <Description DefaultValue="Build Financial Models with AI"/>
   <IconUrl DefaultValue="https://localhost:3002/assets/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="https://localhost:3002/assets/icon-64.png"/>
   <SupportUrl DefaultValue="https://www.contoso.com/help"/>
@@ -99,8 +99,8 @@
       <bt:ShortStrings>
         <bt:String id="Functions.Namespace" DefaultValue="CONTOSO"/>
         <bt:String id="GetStarted.Title" DefaultValue="Get started with your sample add-in!"/>
-        <bt:String id="CommandsGroup.Label" DefaultValue="Commands Group"/>
-        <bt:String id="TaskpaneButton.Label" DefaultValue="Show Task Pane"/>
+        <bt:String id="CommandsGroup.Label" DefaultValue="EBITDAI.co"/>
+        <bt:String id="TaskpaneButton.Label" DefaultValue="Build Financial Models with AI"/>
       </bt:ShortStrings>
       <bt:LongStrings>
         <bt:String id="GetStarted.Description" DefaultValue="Your sample add-in loaded successfully. Go to the HOME tab and click the 'Show Task Pane' button to get started."/>

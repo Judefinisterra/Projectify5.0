@@ -1,0 +1,237 @@
+# FIXED ASSETS MODELING GUIDANCE
+
+## 🚨 CRITICAL CAPEX REQUIREMENTS
+
+### **MANDATORY CAPEX SIGN RULE:**
+**ALL CAPEX MUST BE EXPRESSED AS NEGATIVE NUMBERS**
+
+**Why Capex Must Be Negative:**
+- Capex represents cash flowing OUT of the business
+- Negative capex correctly reduces cash flow in CFI section
+- Positive capex would incorrectly show cash flowing IN
+- This aligns with standard financial modeling conventions
+
+**Examples:**
+✅ **CORRECT**: `-$100,000` for truck purchase
+✅ **CORRECT**: `-$50,000` for equipment acquisition
+❌ **WRONG**: `$100,000` for capex (would show cash inflow)
+
+## DEFAULT DEPRECIATION APPROACH
+
+### **Use FAPPE-S for All Fixed Asset Depreciation**
+**FAPPE-S is the default and preferred method for:**
+- Equipment purchases
+- Vehicle acquisitions
+- Machinery investments
+- Building improvements
+- Technology infrastructure
+- Any depreciable fixed asset
+
+**When NOT to use FAPPE-S:**
+- Land purchases (not depreciable)
+- Intangible assets with specific amortization patterns
+- Assets with non-standard depreciation methods
+
+## FAPPE-S CODE TEMPLATE
+
+### **Complete FAPPE-S Implementation:**
+```
+<FAPPE-S; driver1="[CAPEX_DRIVER]"; row1 = "(D)|~Assumptions:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row2 = "AS5(D)|~# of Months Useful Life(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|~60(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row3 = "(D)|(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row4 = "(D)|~Income statement:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row5 = "C1(D)|Depreciation - [ASSET_NAME](L)|IS: D&A(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|"; row6 = "(D)|(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row7 = "(D)|~Balance sheet:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row8 = "(D)|Gross PP&E - [ASSET_NAME](L)|BS: fixed assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|"; row9 = "(D)|Accumulated depreciation - [ASSET_NAME](L)|BS: fixed assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|"; row10 = "A1(D)|Net PP&E - [ASSET_NAME](L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|"; row11 = "(D)|(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row12 = "(D)|~Cash Flow From Operations:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row13 = "(D)|Depreciation - [ASSET_NAME](L)|CF: Non-cash(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+```
+
+### **FAPPE-S Components Explained:**
+
+**Row 1**: Section header for assumptions
+**Row 2**: Useful life assumption (default 60 months = 5 years)
+**Row 4**: Income statement section header
+**Row 5**: Depreciation expense (flows to IS: D&A)
+**Row 7**: Balance sheet section header
+**Row 8**: Gross PP&E (cumulative capex)
+**Row 9**: Accumulated depreciation (cumulative depreciation)
+**Row 10**: Net PP&E (Gross - Accumulated)
+**Row 12**: Cash flow section header
+**Row 13**: Depreciation add-back (non-cash expense)
+
+## IMPLEMENTATION STEPS
+
+### **Step 1: Create Capex Driver**
+Create the capex assumption BEFORE the FAPPE-S code:
+```
+<SPREAD-E; row1="V1(D)|Capex - [ASSET_NAME](L)|CF: CFI(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|-$100000(Y1)|-$50000(Y2)|$0(Y3)|$0(Y4)|$0(Y5)|$0(Y6)|">
+```
+
+### **Step 2: Connect FAPPE-S to Capex Driver**
+Set `driver1="V1"` in the FAPPE-S code to reference the capex driver.
+
+### **Step 3: Customize Labels and Useful Life**
+- Replace `[ASSET_NAME]` with specific asset type (Trucks, Equipment, etc.)
+- Adjust useful life in row2 (C6 column) based on asset type
+- Customize the driver code (AS5) if needed
+
+## USEFUL LIFE GUIDELINES
+
+### **Standard Useful Lives (in months):**
+- **Vehicles/Trucks**: 60 months (5 years)
+- **Computer Equipment**: 36 months (3 years)
+- **Office Equipment**: 84 months (7 years)
+- **Machinery**: 120 months (10 years)
+- **Buildings/Improvements**: 480 months (40 years)
+- **Furniture/Fixtures**: 84 months (7 years)
+
+### **Useful Life Selection:**
+```
+|(C6)| value should be: ~36, ~60, ~84, ~120, or ~480
+```
+
+## COMPLETE EXAMPLE
+
+### **Truck Purchase Model:**
+```
+<!-- Capex assumption -->
+<SPREAD-E; row1="V1(D)|Capex - Delivery Trucks(L)|CF: CFI(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|-$150000(Y1)|-$75000(Y2)|$0(Y3)|$0(Y4)|$0(Y5)|$0(Y6)|">
+
+<!-- FAPPE-S depreciation -->
+<FAPPE-S; driver1="V1"; row1 = "(D)|~Assumptions:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row2 = "AS5(D)|~# of Months Useful Life(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|~60(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row3 = "(D)|(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row4 = "(D)|~Income statement:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row5 = "C1(D)|Depreciation - Delivery Trucks(L)|IS: D&A(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|"; row6 = "(D)|(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row7 = "(D)|~Balance sheet:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row8 = "(D)|Gross PP&E - Delivery Trucks(L)|BS: fixed assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|"; row9 = "(D)|Accumulated depreciation - Delivery Trucks(L)|BS: fixed assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|"; row10 = "A1(D)|Net PP&E - Delivery Trucks(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|"; row11 = "(D)|(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row12 = "(D)|~Cash Flow From Operations:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|"; row13 = "(D)|Depreciation - Delivery Trucks(L)|CF: Non-cash(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+```
+
+## MULTIPLE ASSET TYPES
+
+### **When Multiple Asset Categories Exist:**
+Create separate FAPPE-S blocks for each major asset category:
+
+```
+<!-- Equipment capex -->
+<SPREAD-E; row1="V1(D)|Capex - Manufacturing Equipment(L)|CF: CFI(F)|...|-$200000(Y1)|...">
+<FAPPE-S; driver1="V1"; row2 = "AS1(D)|~# of Months Useful Life(L)|...~120(C6)|..."> <!-- 10 years -->
+
+<!-- Vehicle capex -->
+<SPREAD-E; row1="V2(D)|Capex - Company Vehicles(L)|CF: CFI(F)|...|-$80000(Y1)|...">
+<FAPPE-S; driver1="V2"; row2 = "AS2(D)|~# of Months Useful Life(L)|...~60(C6)|..."> <!-- 5 years -->
+
+<!-- IT capex -->
+<SPREAD-E; row1="V3(D)|Capex - Computer Equipment(L)|CF: CFI(F)|...|-$25000(Y1)|...">
+<FAPPE-S; driver1="V3"; row2 = "AS3(D)|~# of Months Useful Life(L)|...~36(C6)|..."> <!-- 3 years -->
+```
+
+## FINANCIAL STATEMENT INTEGRATION
+
+### **FAPPE-S Automatically Creates:**
+
+**Income Statement:**
+- Depreciation expense (reduces net income)
+
+**Balance Sheet:**
+- Gross PP&E (cumulative capex)
+- Accumulated depreciation (cumulative depreciation)
+- Net PP&E (book value)
+
+**Cash Flow Statement:**
+- Capex (cash outflow in CFI)
+- Depreciation add-back (non-cash adjustment in CFO)
+
+## VALIDATION CHECKLIST
+
+### **Pre-Implementation Checks:**
+✅ **Capex is negative** - All capex amounts show as negative numbers
+✅ **CF: CFI fincode** - Capex has proper cash flow classification
+✅ **Useful life appropriate** - Matches asset type and industry standards
+✅ **Driver connection** - FAPPE-S driver1 references correct capex code
+✅ **Unique driver codes** - Each FAPPE-S has unique AS codes (AS1, AS2, etc.)
+
+### **Post-Implementation Verification:**
+✅ **Depreciation flows to IS** - Shows up in D&A section
+✅ **PP&E builds correctly** - Gross PP&E accumulates capex over time
+✅ **Accumulated depreciation grows** - Increases each period
+✅ **Net PP&E calculation** - Gross minus accumulated equals net
+✅ **Cash flow add-back** - Depreciation added back in CFO section
+
+## COMMON MISTAKES TO AVOID
+
+### **🚨 CRITICAL ERRORS:**
+❌ **Positive capex** - Will show cash inflow instead of outflow
+❌ **Missing CF: CFI** - Capex won't appear in cash flow statement
+❌ **Wrong useful life** - Too short/long depreciation period
+❌ **Duplicate AS codes** - Multiple FAPPE-S with same AS number
+❌ **Missing driver connection** - FAPPE-S not linked to capex assumption
+
+### **❌ COMMON FORMATTING ERRORS:**
+❌ **Wrong row structure** - Missing required row parameters
+❌ **Incorrect fincode placement** - Wrong financial statement classification
+❌ **Label inconsistency** - Asset names don't match across rows
+❌ **Missing dollar signs** - Financial values without $ formatting
+
+## ASSET DISPOSAL MODELING
+
+### **For Asset Sales/Disposals:**
+Use separate codes to model asset disposals:
+```
+<!-- Disposal proceeds -->
+<SPREAD-E; row1="V4(D)|Asset Disposal Proceeds(L)|CF: CFI(F)|...|$50000(Y3)|...">
+
+<!-- Gain/loss on disposal -->
+<FORMULA-S; customformula="rd{V4}-rd{A1}"; row1="A2(D)|Gain on Asset Disposal(L)|IS: other income(F)|...|$F(Y3)|...">
+```
+
+## BEST PRACTICES
+
+### **✅ RECOMMENDED APPROACH:**
+✅ **Use FAPPE-S by default** for all depreciable assets
+✅ **Group similar assets** together when appropriate
+✅ **Conservative useful lives** - Better to depreciate faster than slower
+✅ **Consistent labeling** - Use same asset names across all rows
+✅ **Proper sequencing** - Capex assumption before FAPPE-S code
+✅ **Regular validation** - Check that all components flow correctly
+
+### **✅ ORGANIZATIONAL TIPS:**
+✅ **Section headers** - Use LABELH codes to organize different asset types
+✅ **Line breaks** - Use BR codes between asset categories
+✅ **Logical grouping** - Group related assets together
+✅ **Clear naming** - Use descriptive asset category names
+
+## SPECIAL SCENARIOS
+
+### **Maintenance Capex vs Growth Capex:**
+```
+<!-- Separate into maintenance and growth if needed -->
+<SPREAD-E; row1="V1(D)|Maintenance Capex(L)|CF: CFI(F)|...">
+<SPREAD-E; row1="V2(D)|Growth Capex(L)|CF: CFI(F)|...">
+<SUM2-S; driver1="V1"; driver2="V2"; row1="V3(D)|Total Capex(L)|(F)|...">
+<FAPPE-S; driver1="V3"; ...>
+```
+
+### **Timing of Depreciation:**
+FAPPE-S automatically handles:
+- Monthly depreciation calculations
+- Partial year depreciation for mid-year purchases
+- Straight-line depreciation method
+- Proper accumulation over time
+
+## INTEGRATION WITH OTHER MODELS
+
+### **When Combined with Revenue Models:**
+Ensure capex supports revenue generation:
+```
+<!-- Revenue-generating assets -->
+<SPREAD-E; row1="V1(D)|Revenue per Truck per Month(L)|...">
+<MULT2-S; driver1="A1"; driver2="V1"; row1="V2(D)|Revenue from Truck Fleet(L)|IS: revenue(F)|...">
+```
+
+### **When Combined with Debt Models:**
+Consider financing of asset purchases:
+```
+<!-- Equipment financing -->
+<SPREAD-E; row1="V1(D)|Equipment Purchase(L)|CF: CFI(F)|...|-$100000(Y1)|...">
+<SPREAD-E; row1="V2(D)|Equipment Loan Proceeds(L)|CF: CFF(F)|...|$80000(Y1)|...">
+<SUBTRACT2-S; driver1="V1"; driver2="V2"; row1="V3(D)|Net Cash for Equipment(L)|(F)|...">
+```
+
+## FINAL IMPLEMENTATION REMINDER
+
+**🚨 MANDATORY REQUIREMENTS:**
+1. **ALL CAPEX MUST BE NEGATIVE**
+2. **USE FAPPE-S AS DEFAULT DEPRECIATION METHOD**
+3. **CONNECT FAPPE-S TO CAPEX DRIVER**
+4. **SET APPROPRIATE USEFUL LIFE**
+5. **VALIDATE ALL FINANCIAL STATEMENT FLOWS**
+
+**Remember:** FAPPE-S creates a complete fixed asset subledger that properly flows through all three financial statements with correct signs and classifications. 

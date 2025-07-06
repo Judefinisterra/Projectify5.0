@@ -58,6 +58,73 @@ Individual loans have **custom, non-standard repayment patterns**:
 - Custom amortization curves
 - Age-dependent payment patterns
 
+## TERM LOANS - DBULLET-S vs INDEX APPROACH
+
+### **When to Use DBULLET-S for Term Loans:**
+**DBULLET-S should ONLY be used when:**
+- Multiple loans/debt borrowing at **different times**
+- Repayment is **relative to the borrowing time**
+- Each loan has a **fixed term** from its origination date
+
+**Example Scenario for DBULLET-S:**
+- "I borrow in month 1 and repay 12 months later"
+- "I borrow in month 5 and repay 12 months later" 
+- "I borrow in month 10 and repay 12 months later"
+- Each loan matures exactly 12 months after its origination
+
+### **When to Use INDEX Approach for Date-Based Loans:**
+**Use INDEX Growth Curve when:**
+- Loans are repaid on **specific calendar dates** (not relative to borrowing time)
+- All loans mature on the **same date** regardless of origination timing
+- Custom repayment schedules based on **absolute dates**
+
+**Example Scenario for INDEX Approach:**
+- "All loans mature on December 31st regardless of when they were originated"
+- "Loans repaid on specific dates: June 30th, September 30th, December 31st"
+- "Variable repayment amounts based on calendar dates"
+
+### **INDEX Structure for Date-Based Term Loans:**
+**When a specific date is given, model the reconciliation table using:**
+
+```
+<INDEXBEGIN; driver1="V1"; row1="DateBasedTermLoans">
+  <BEG-S; row1="V2(D)|Outstanding Balance(L)|is: liability(F)|...">
+  <FORMULA-S; row1="V3(D)|New Borrowing(L)|is: liability(F)|[date and amount assumptions]">
+  <FORMULA-S; row1="A1(D)|Principal Repayment(L)|is: liability(F)|[date-based repayment formula]">
+  <END-S; row1="V4(D)|Ending Balance(L)|is: liability(F)|...">
+  
+  <!-- Interest calculations OUTSIDE debt reconciliation table but WITHIN INDEX -->
+  <AVGMULT2-S; driver1="V2"; driver2="V4"; row1="A2(D)|Interest Expense(L)|is: interest expense(F)|[interest rate formula]">
+<INDEXEND>
+```
+
+**Key Components for Date-Based Term Loans:**
+- **BEG-S**: Starting balance for the period
+- **FORMULA-S**: New borrowing based on date and amount assumptions
+- **FORMULA-S**: Principal repayment based on specific calendar dates
+- **END-S**: Ending balance reconciliation
+- **AVGMULT2-S**: Interest expense calculation using average of beginning and ending balances
+
+### **Decision Logic for Term Loans:**
+
+```
+Are loan repayments relative to individual loan origination dates?
+├── YES → Use DBULLET-S
+│   └── Each loan repays X months after its origination
+└── NO → Use INDEX Growth Curve
+    └── Loans repay on specific calendar dates regardless of origination
+```
+
+**Examples:**
+
+**✅ DBULLET-S Example:**
+- "Equipment financing: Each loan repays 24 months after origination"
+- "Working capital loans: Each loan matures 6 months after issuance"
+
+**✅ INDEX Approach Example:**
+- "All loans mature on fiscal year-end regardless of origination date"
+- "Seasonal repayments: All loans repay on March 31st and September 30th"
+
 ## EXAMPLES
 
 ### ✅ **Simple Debt Examples** (Use Standard Codes):
@@ -330,8 +397,8 @@ customformula="TABLEMIN(driver1, driver2)"
 **Example Implementation:**
 ```
 <BEGIN-S; row1="V1(D)|Loan Balance(L)|is: liability(F)|...">
-<FORMULA-S; row1="V2(D)|New Borrowing(L)|is: liability(F)|1000">
-<FORMULA-S; row1="A1(D)|Fixed Monthly Payment(L)|is: liability(F)|customformula='TABLEMIN(V1,100)'">
+<FORMULA-S; row1="V2(D)|New Borrowing(L)|is: liability(F)|...">
+<FORMULA-S; row1="A1(D)|Fixed Monthly Payment(L)|is: liability(F)|customformula="-TABLEMIN(rd{V1},100)"...>
 <END-S; row1="V3(D)|Ending Balance(L)|is: liability(F)|...">
 ```
 
@@ -465,12 +532,149 @@ customformula="SUMTABLE(rd{driver of BEG row})"
 - Principal becomes an asset (positive)
 - Repayments reduce the asset (negative)
 
-## 🚨 CRITICAL: LENDING CASH FLOW SIGN REQUIREMENTS
+## 🚨 CRITICAL: FINCODE SIGN REQUIREMENTS
+
+### **The Golden Rule for Fincode Signs:**
+**Signs in fincode items must reflect the ACTUAL ECONOMIC IMPACT on the balance sheet and cash flow.**
+
+### **LENDING (Company Making Loans) - Sign Requirements:**
+**When the company is LENDING money to others:**
+
+✅ **New Borrowing/Loan Origination:**
+- **Fincode Sign**: NEGATIVE (-)
+- **Economic Logic**: Cash flows OUT when making loans
+- **Balance Sheet**: Asset increases, Cash decreases
+- **Example**: `-1000` when lending $1,000
+
+✅ **Repayment Received:**
+- **Fincode Sign**: POSITIVE (+)
+- **Economic Logic**: Cash flows IN when receiving repayments
+- **Balance Sheet**: Asset decreases, Cash increases
+- **Example**: `+500` when receiving $500 repayment
+
+✅ **Interest Income:**
+- **Fincode Sign**: POSITIVE (+)
+- **Economic Logic**: Cash flows IN when receiving interest
+- **Income Statement**: Revenue increases
+- **Example**: `+25` when receiving $25 interest payment
+
+### **BORROWING (Company Receiving Loans) - Sign Requirements:**
+**When the company is BORROWING money from others:**
+
+✅ **New Borrowing/Loan Receipt:**
+- **Fincode Sign**: POSITIVE (+)
+- **Economic Logic**: Cash flows IN when receiving loans
+- **Balance Sheet**: Liability increases, Cash increases
+- **Example**: `+1000` when borrowing $1,000
+
+✅ **Repayment Made:**
+- **Fincode Sign**: NEGATIVE (-)
+- **Economic Logic**: Cash flows OUT when making repayments
+- **Balance Sheet**: Liability decreases, Cash decreases
+- **Example**: `-500` when paying $500 repayment
+
+✅ **Interest Expense:**
+- **Fincode Sign**: NEGATIVE (-)
+- **Economic Logic**: Cash flows OUT when paying interest
+- **Income Statement**: Expense increases
+- **Example**: `-25` when paying $25 interest
+
+### **Sign Verification Table:**
+
+| Transaction Type | Lending (Company Lends) | Borrowing (Company Borrows) |
+|------------------|-------------------------|------------------------------|
+| **New Loan** | NEGATIVE (-) | POSITIVE (+) |
+| **Repayment** | POSITIVE (+) | NEGATIVE (-) |
+| **Interest** | POSITIVE (+) | NEGATIVE (-) |
+
+### **🚨 CRITICAL: LENDING CASH FLOW SIGN REQUIREMENTS**
 
 ### **The Golden Rule for Lending Cash Flows:**
 **ALL lending cash flow items MUST have `negative="true"` attribute or there is NO POINT in adding them.**
 
 The entire purpose of creating separate cash flow rows for lending is to flip the signs. Without `negative="true"`, you're just duplicating the same cash flow direction as borrowing, which defeats the purpose.
+
+### **📋 PRACTICAL FINCODE SIGN EXAMPLES:**
+
+#### **Example 1: Lending Scenario - $10,000 Loan**
+**Company lends $10,000, receives $5,000 repayment in month 12, $5,000 in month 24, plus monthly interest:**
+
+```
+<INDEXBEGIN; driver1="V1">
+  <BEGIN-S; row1="V2(D)|Outstanding Balance(L)|is: asset(F)|...">
+  <FORMULA-S; row1="V3(D)|New Loan Origination(L)|is: asset(F)|10000">  <!-- POSITIVE for asset increase -->
+  <FORMULA-S; row1="A1(D)|Repayment Month 12(L)|is: asset(F)|-5000*onetimeindex(12)">  <!-- NEGATIVE for asset decrease -->
+  <FORMULA-S; row1="A2(D)|Repayment Month 24(L)|is: asset(F)|-5000*onetimeindex(24)">  <!-- NEGATIVE for asset decrease -->
+  <END-S; row1="V4(D)|Ending Balance(L)|is: asset(F)|...">
+  
+  <!-- Interest calculations OUTSIDE debt reconciliation table but WITHIN INDEX -->
+  <FORMULA-S; row1="A3(D)|Interest Income(L)|is: interest income(F)|rd{V2}*0.05/12">  <!-- POSITIVE for income -->
+  
+  <!-- Cash flow reversals for lending (all with negative="true") -->
+  <MULT2-S; driver1="V3"; driver2="-1"; row1="CF1(D)|Lending Cash Out(L)|CF: CFI(F)|negative='true'">
+  <MULT2-S; driver1="A1"; driver2="-1"; row1="CF2(D)|Repayment Cash In Month 12(L)|CF: CFI(F)|negative='true'">
+  <MULT2-S; driver1="A2"; driver2="-1"; row1="CF3(D)|Repayment Cash In Month 24(L)|CF: CFI(F)|negative='true'">
+  <MULT2-S; driver1="A3"; driver2="-1"; row1="CF4(D)|Interest Cash In(L)|CF: CFI(F)|negative='true'">
+<INDEXEND>
+```
+
+**Result Verification:**
+- **Month 1**: Cash Flow = -$10,000 (cash out when lending) ✅
+- **Month 12**: Cash Flow = +$5,000 (cash in from repayment) ✅
+- **Month 24**: Cash Flow = +$5,000 (cash in from repayment) ✅
+- **Monthly**: Cash Flow = +$X (cash in from interest) ✅
+
+#### **Example 2: Borrowing Scenario - $10,000 Loan**
+**Company borrows $10,000, makes $5,000 repayment in month 12, $5,000 in month 24, plus monthly interest:**
+
+```
+<INDEXBEGIN; driver1="V1">
+  <BEGIN-S; row1="V2(D)|Outstanding Balance(L)|is: liability(F)|...">
+  <FORMULA-S; row1="V3(D)|New Borrowing(L)|is: liability(F)|10000">  <!-- POSITIVE for liability increase -->
+  <FORMULA-S; row1="A1(D)|Repayment Month 12(L)|is: liability(F)|-5000*onetimeindex(12)">  <!-- NEGATIVE for liability decrease -->
+  <FORMULA-S; row1="A2(D)|Repayment Month 24(L)|is: liability(F)|-5000*onetimeindex(24)">  <!-- NEGATIVE for liability decrease -->
+  <END-S; row1="V4(D)|Ending Balance(L)|is: liability(F)|...">
+  
+  <!-- Interest calculations OUTSIDE debt reconciliation table but WITHIN INDEX -->
+  <FORMULA-S; row1="A3(D)|Interest Expense(L)|is: interest expense(F)|rd{V2}*0.05/12">  <!-- POSITIVE for expense -->
+<INDEXEND>
+```
+
+**Result Verification:**
+- **Month 1**: Cash Flow = +$10,000 (cash in when borrowing) ✅
+- **Month 12**: Cash Flow = -$5,000 (cash out for repayment) ✅
+- **Month 24**: Cash Flow = -$5,000 (cash out for repayment) ✅
+- **Monthly**: Cash Flow = -$X (cash out for interest) ✅
+
+### **🔍 FINCODE SIGN VERIFICATION CHECKLIST:**
+
+**Before implementing any debt model, verify these signs:**
+
+#### **For LENDING (Company Making Loans):**
+✅ **New Loan Origination**: Asset fincode = POSITIVE (+)
+✅ **Repayment Received**: Asset fincode = NEGATIVE (-)
+✅ **Interest Income**: Income fincode = POSITIVE (+)
+✅ **Cash Flow Items**: ALL must have `negative="true"` attribute
+
+#### **For BORROWING (Company Receiving Loans):**
+✅ **New Borrowing**: Liability fincode = POSITIVE (+)
+✅ **Repayment Made**: Liability fincode = NEGATIVE (-)
+✅ **Interest Expense**: Expense fincode = POSITIVE (+)
+✅ **Cash Flow Items**: Use standard CF: CFF fincodes
+
+### **❌ COMMON FINCODE SIGN ERRORS:**
+
+**🚨 LENDING ERRORS:**
+- ❌ New loan origination with NEGATIVE asset fincode
+- ❌ Repayment with POSITIVE asset fincode
+- ❌ Interest income with NEGATIVE income fincode
+- ❌ Missing `negative="true"` on lending cash flow items
+
+**🚨 BORROWING ERRORS:**
+- ❌ New borrowing with NEGATIVE liability fincode
+- ❌ Repayment with POSITIVE liability fincode
+- ❌ Interest expense with NEGATIVE expense fincode
+- ❌ Using CF: CFI instead of CF: CFF for borrowing
 
 ### **Sign Logic Verification Checklist:**
 
@@ -646,16 +850,37 @@ Before submitting any debt model, ask these questions:
 1. **Are ALL interest calculations placed OUTSIDE of debt reconciliation tables (BEGIN/END)?**
    - Interest should be calculated AFTER debt reconciliation blocks but WITHIN INDEX blocks
    - Only PIK interest uses DIRECT-S to feed into debt balance reconciliation
-2. **Does every lending cash flow item have `negative="true"`?**
-3. **Do the cash flow directions make economic sense?**
-   - Loan origination = Cash OUT (negative)
-   - Loan repayment = Cash IN (positive)
-   - Interest received = Cash IN (positive)
-4. **Are all cash flows properly classified as CF: CFI (not CF: CFF)?**
-5. **Did I test the signs by tracing through one complete loan lifecycle?**
-6. **For dollar-based INDEX: Is the principal inside INDEX exactly $1?**
-7. **For fixed monthly payments: Did I use TABLEMIN to prevent overpayment?**
+
+2. **Are ALL fincode signs correct for the scenario?**
+   - **For LENDING**: New loan (+), Repayment (-), Interest income (+)
+   - **For BORROWING**: New borrowing (+), Repayment (-), Interest expense (+)
+
+3. **Does every lending cash flow item have `negative="true"`?**
+   - ALL lending cash flow items MUST have this attribute
+
+4. **Do the cash flow directions make economic sense?**
+   - **Lending**: Loan origination = Cash OUT (-), Repayment = Cash IN (+), Interest = Cash IN (+)
+   - **Borrowing**: Loan receipt = Cash IN (+), Repayment = Cash OUT (-), Interest = Cash OUT (-)
+
+5. **Are all cash flows properly classified?**
+   - **Lending**: Use CF: CFI (Cash Flow from Investing)
+   - **Borrowing**: Use CF: CFF (Cash Flow from Financing)
+
+6. **Did I test the signs by tracing through one complete loan lifecycle?**
+   - Verify month 1 (origination), repayment months, and interest payments
+
+7. **For dollar-based INDEX: Is the principal inside INDEX exactly $1?**
+
+8. **For fixed monthly payments: Did I use TABLEMIN to prevent overpayment?**
    - TABLEMIN(beginning_balance_driver, fixed_payment_amount)
    - Ensures final payment doesn't exceed remaining balance
+
+9. **Are asset/liability increases and decreases properly signed?**
+   - **Assets**: Increase = POSITIVE (+), Decrease = NEGATIVE (-)
+   - **Liabilities**: Increase = POSITIVE (+), Decrease = NEGATIVE (-)
+
+10. **Are income/expense items properly signed?**
+    - **Income**: Always POSITIVE (+) for revenue recognition
+    - **Expenses**: Always POSITIVE (+) for expense recognition
 
 If ANY answer is NO, review and fix the implementation before proceeding. 

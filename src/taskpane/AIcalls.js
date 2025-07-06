@@ -3594,6 +3594,10 @@ function generateFilenameVariants(moduleName) {
     } else if (baseName.toLowerCase() === 'lendingborrowing') {
         variants.push('LendingBorrowing.txt');
         variants.push('Debt.txt');
+    } else if (baseName.toLowerCase() === 'fixedassets') {
+        variants.push('FixedAssets.txt');
+    } else if (baseName.toLowerCase() === 'fixed assets') {
+        variants.push('FixedAssets.txt');
     }
     
     // 3. Replace spaces with underscores
