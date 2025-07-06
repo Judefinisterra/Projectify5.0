@@ -1914,56 +1914,250 @@ Office.onReady((info) => {
       productionLog("Client Mode activation completed");
     }
 
+    let sidebarInitialized = false;
     // Sidebar navigation functionality
     function initializeSidebarNavigation() {
-        const chatTab = document.getElementById('chat-tab');
-        const subscriptionTab = document.getElementById('subscription-tab');
-        const chatPanel = document.getElementById('client-chat-container');
+      if (sidebarInitialized) {
+        console.log("Sidebar navigation already initialized. Skipping.");
+        return;
+      }
+      const chatTab = document.getElementById("chat-tab");
+      const subscriptionTab = document.getElementById("subscription-tab");
+      const chatPanel = document.getElementById('client-chat-container');
+      const subscriptionPanel = document.getElementById('subscription-panel');
+
+          function switchToTab(activeTab, activePanel) {
+        // Remove active class from all tabs
+        document.querySelectorAll('.sidebar-tab').forEach(tab => {
+            tab.classList.remove('active');
+        });
+        
+        // Hide both panels by setting inline display styles
+        console.log('=== BEFORE HIDING PANELS ===');
+        console.log('Chat panel display:', chatPanel ? chatPanel.style.display : 'null');
+        console.log('Subscription panel display:', subscriptionPanel ? subscriptionPanel.style.display : 'null');
+        
+        if (chatPanel) {
+            chatPanel.style.display = 'none';
+            console.log('Chat panel hidden');
+        }
+        if (subscriptionPanel) {
+            subscriptionPanel.style.display = 'none';
+            console.log('Subscription panel hidden');
+        }
+        
+        console.log('=== AFTER HIDING PANELS ===');
+        console.log('Chat panel display:', chatPanel ? chatPanel.style.display : 'null');
+        console.log('Subscription panel display:', subscriptionPanel ? subscriptionPanel.style.display : 'null');
+        
+        // Show the selected panel
+        if (activePanel === subscriptionPanel) {
+            subscriptionPanel.style.display = 'block'; // Use inline style since it's not a content-panel
+            subscriptionPanel.style.position = 'absolute'; // Position absolutely to occupy same space as chat
+            subscriptionPanel.style.top = '0'; // Start at top of parent
+            subscriptionPanel.style.left = '0'; // Start at left of parent  
+            subscriptionPanel.style.right = '0'; // Stretch to right edge
+            subscriptionPanel.style.bottom = '0'; // Stretch to bottom edge
+            subscriptionPanel.style.overflow = 'auto'; // Allow scrolling if needed
+            subscriptionPanel.style.zIndex = '10'; // Ensure it's on top
+            console.log('=== AFTER SHOWING SUBSCRIPTION PANEL ===');
+            console.log('Subscription panel display:', subscriptionPanel.style.display);
+            console.log('Subscription panel getBoundingClientRect():', subscriptionPanel.getBoundingClientRect());
+        } else if (activePanel === chatPanel) {
+            chatPanel.style.display = 'flex';
+            chatPanel.style.position = 'relative'; // Ensure chat panel uses normal positioning
+            console.log('=== AFTER SHOWING CHAT PANEL ===');
+            console.log('Chat panel display:', chatPanel.style.display);
+        }
+        
+        // Activate selected tab
+        activeTab.classList.add('active');
+    }
+
+      // Chat tab click handler
+      if (chatTab && chatPanel) {
+        chatTab.addEventListener('click', () => {
+          console.log('Switching to chat panel');
+          switchToTab(chatTab, chatPanel);
+        });
+      }
+
+      // Subscription tab click handler
+      if (subscriptionTab && subscriptionPanel) {
+        subscriptionTab.addEventListener('click', () => {
+          console.log('Subscription tab clicked');
+          console.log('subscriptionPanel element:', subscriptionPanel);
+          console.log('chatPanel element:', chatPanel);
+          switchToTab(subscriptionTab, subscriptionPanel);
+          
+          // Initialize pricing buttons when subscription panel is shown
+          setTimeout(() => {
+            console.log('Initializing pricing buttons after tab switch');
+            initializePricingButtons();
+          }, 100); // Small delay to ensure panel is fully visible
+        });
+      } else {
+        console.error('Subscription tab or panel not found:', {
+          subscriptionTab: !!subscriptionTab,
+          subscriptionPanel: !!subscriptionPanel
+        });
+      }
+
+      sidebarInitialized = true;
+      console.log('Sidebar navigation initialized');
+    }
+
+    // >>> ADDED: Function to initialize pricing plan buttons
+    function initializePricingButtons() {
+        console.log('=== initializePricingButtons called ===');
         const subscriptionPanel = document.getElementById('subscription-panel');
-
-        function switchToTab(activeTab, activePanel) {
-            // Remove active class from all tabs
-            document.querySelectorAll('.sidebar-tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
+        if (!subscriptionPanel) {
+            console.error('Subscription panel not found in DOM');
+            return;
+        }
+        
+        const isVisible = subscriptionPanel.style.display !== 'none';
+        const computedStyle = window.getComputedStyle(subscriptionPanel);
+        const computedDisplay = computedStyle.display;
+        
+        console.log(`Subscription panel found:`);
+        console.log(`- Style display: ${subscriptionPanel.style.display}`);
+        console.log(`- Computed display: ${computedDisplay}`);
+        console.log(`- Is visible: ${isVisible}`);
+        console.log(`- Panel HTML (first 200 chars):`, subscriptionPanel.innerHTML.substring(0, 200));
+        
+        const planButtons = subscriptionPanel.querySelectorAll('.plan-button');
+        console.log(`Found ${planButtons.length} plan buttons in subscription panel`);
+        
+        if (planButtons.length === 0) {
+            console.warn('No plan buttons found - checking panel structure:');
+            console.log('Plan cards:', subscriptionPanel.querySelectorAll('.plan-card').length);
+            console.log('All buttons:', subscriptionPanel.querySelectorAll('button').length);
+            return;
+        }
+        
+        planButtons.forEach((button, index) => {
+            console.log(`Processing button ${index}:`, button.textContent);
             
-            // Hide the subscription panel specifically
-            if (subscriptionPanel) {
-                subscriptionPanel.style.display = 'none';
+            // Check if button already has listener
+            if (button.hasAttribute('data-listener-attached')) {
+                console.log(`Button ${index} already has listener attached`);
+                return;
             }
             
-            // Show the chat container specifically
-            if (chatPanel) {
-                chatPanel.style.display = 'flex';
-            }
+            console.log(`Adding listener to button ${index}`);
             
-            // For subscription panel, hide chat and show subscription
-            if (activePanel === subscriptionPanel) {
-                if (chatPanel) chatPanel.style.display = 'none';
-                subscriptionPanel.style.display = 'block';
-            }
+            // Add click event listener
+            button.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log(`=== Button ${index} clicked! ===`);
+                
+                // Get the plan card parent to determine which plan was selected
+                const planCard = button.closest('.plan-card');
+                if (!planCard) {
+                    console.error('Could not find plan card parent');
+                    return;
+                }
+                
+                const planNameElement = planCard.querySelector('.plan-name');
+                if (!planNameElement) {
+                    console.error('Could not find plan name element');
+                    return;
+                }
+                
+                const planName = planNameElement.textContent;
+                console.log(`Pricing plan selected: ${planName}`);
+                
+                // Handle different plan selections
+                handlePlanSelection(planName.toLowerCase(), planCard);
+            });
             
-            // Activate selected tab
-            activeTab.classList.add('active');
-        }
+            // Mark as having listener attached
+            button.setAttribute('data-listener-attached', 'true');
+            console.log(`Button ${index} listener attached successfully`);
+        });
+        
+        console.log('=== Pricing plan buttons initialization complete ===');
+    }
 
-        // Chat tab click handler
-        if (chatTab && chatPanel) {
-            chatTab.addEventListener('click', () => {
-                console.log('Switching to chat panel');
-                switchToTab(chatTab, chatPanel);
-            });
+    // >>> ADDED: Function to handle plan selection
+    function handlePlanSelection(planName, planCard) {
+        console.log(`Handling selection for plan: ${planName}`);
+        
+        // Remove active class from all plan cards
+        document.querySelectorAll('.plan-card').forEach(card => {
+            card.classList.remove('selected');
+        });
+        
+        // Add active class to selected plan
+        planCard.classList.add('selected');
+        
+        // Handle specific plan logic
+        switch(planName) {
+            case 'starter':
+                handleStarterPlan();
+                break;
+            case 'professional':
+                handleProfessionalPlan();
+                break;
+            case 'unlimited':
+                handleUnlimitedPlan();
+                break;
+            default:
+                console.warn(`Unknown plan: ${planName}`);
         }
+    }
 
-        // Subscription tab click handler
-        if (subscriptionTab && subscriptionPanel) {
-            subscriptionTab.addEventListener('click', () => {
-                console.log('Switching to subscription panel');
-                switchToTab(subscriptionTab, subscriptionPanel);
-            });
+    // >>> ADDED: Plan-specific handlers
+    function handleStarterPlan() {
+        console.log('handleStarterPlan called');
+        const message = 'Starter plan selected! This would redirect to payment processing.';
+        console.log(message);
+        
+        // Try to show message if function exists
+        if (typeof showMessage === 'function') {
+            showMessage(message);
+        } else {
+            alert(message); // Fallback
         }
+    }
 
-        console.log('Sidebar navigation initialized');
+    function handleProfessionalPlan() {
+        console.log('handleProfessionalPlan called');
+        const message = 'Professional plan selected! This would redirect to payment processing.';
+        console.log(message);
+        
+        // Try to show message if function exists
+        if (typeof showMessage === 'function') {
+            showMessage(message);
+        } else {
+            alert(message); // Fallback
+        }
+    }
+
+    function handleUnlimitedPlan() {
+        console.log('handleUnlimitedPlan called');
+        
+        // Handle the special case of the API key input in the unlimited plan
+        const apiKeyInput = document.getElementById('claude-api-key');
+        let message = 'Unlimited plan selected! This would redirect to payment processing.';
+        
+        if (apiKeyInput) {
+            const apiKey = apiKeyInput.value.trim();
+            if (apiKey) {
+                console.log('Claude API key provided for unlimited plan');
+                message = 'Unlimited plan selected with custom API key! This would redirect to payment processing.';
+            }
+        }
+        
+        console.log(message);
+        
+        // Try to show message if function exists
+        if (typeof showMessage === 'function') {
+            showMessage(message);
+        } else {
+            alert(message); // Fallback
+        }
     }
 
     // >>> ADDED: Function to show startup menu
