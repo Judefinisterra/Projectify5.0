@@ -523,9 +523,6 @@ export async function runCodes(codeCollection) {
         let currentWorksheetName = null;
         const assumptionTabs = [];
         
-        // Storage for ACTUALS codes to process at the end
-        const actualsCodes = [];
-        
         endTimer("runCodes-initialization");
         startTimer("runCodes-main-loop");
         
@@ -542,10 +539,13 @@ export async function runCodes(codeCollection) {
                     continue;
                 }
 
-                // Handle ACTUALS code type - store for later processing
+                // Handle ACTUALS code type - process immediately
                 if (codeType === "ACTUALS") {
-                    console.log("ACTUALS code type encountered - storing for later processing");
-                    actualsCodes.push(code);
+                    console.log("ACTUALS code type encountered - processing immediately");
+                    startTimer(`ACTUALS-processing-${codeType}-${i}`);
+                    await processActualsSingle(code);
+                    endTimer(`ACTUALS-processing-${codeType}-${i}`);
+                    result.processedCodes++;
                     continue;
                 }
                 
@@ -1282,20 +1282,7 @@ export async function runCodes(codeCollection) {
         }
         console.log("Completed column S border restoration.");
 
-        // Process ACTUALS codes at the end
-        if (actualsCodes.length > 0) {
-            console.log("Processing ACTUALS codes...");
-            try {
-                await processActualsCodes(actualsCodes);
-                console.log("Completed ACTUALS codes processing.");
-            } catch (actualsError) {
-                console.error(`Error processing ACTUALS codes: ${actualsError.message}`);
-                result.errors.push({
-                    codeType: "ACTUALS",
-                    error: `Error processing ACTUALS codes: ${actualsError.message}`
-                });
-            }
-        }
+        // ACTUALS codes are now processed immediately when encountered (no batch processing needed)
         
         // Print timing summary for runCodes only
         printTimingSummary();
@@ -1796,6 +1783,14 @@ function parseValueWithSymbols(valueString) {
         if (cleanValue.endsWith('%')) {
             formatType = 'percent';
             cleanValue = cleanValue.substring(0, cleanValue.length - 1); // Remove % from clean value
+        }
+        // Check if it ends with "x" for factor formatting (e.g., "~10x")
+        else if (cleanValue.toLowerCase().endsWith('x') && cleanValue.length > 1) {
+            const numberPart = cleanValue.substring(0, cleanValue.length - 1);
+            if (!isNaN(Number(numberPart)) && numberPart.trim() !== '') {
+                formatType = 'factor';
+                cleanValue = numberPart; // Remove the 'x' from the clean value
+            }
         }
         // If after removing ~, it's a number or "F", apply volume formatting
         else if (cleanValue === 'F' || (!isNaN(Number(cleanValue)) && cleanValue.trim() !== '')) {
@@ -2466,6 +2461,137 @@ async function processActualsCodes(actualsCodes) {
         });
     } catch (error) {
         console.error("Error processing ACTUALS codes:", error);
+        throw error;
+    }
+}
+
+/**
+ * Processes a single ACTUALS code immediately when encountered
+ * @param {Object} code - The ACTUALS code object with parameters
+ * @returns {Promise<void>}
+ */
+async function processActualsSingle(code) {
+    console.log(`Processing single ACTUALS code with parameters:`, code.params);
+
+    try {
+        await Excel.run(async (context) => {
+            // Get or create the Actuals worksheet
+            let actualsSheet;
+            try {
+                actualsSheet = context.workbook.worksheets.getItem("Actuals");
+                console.log("Found existing Actuals worksheet");
+            } catch (error) {
+                console.log("Actuals worksheet not found, creating new one");
+                actualsSheet = context.workbook.worksheets.add("Actuals");
+            }
+
+            actualsSheet.load("name");
+            await context.sync();
+
+            // Find the next available row starting from row 2
+            let currentRow = 2;
+            const usedRange = actualsSheet.getUsedRange();
+            if (usedRange) {
+                usedRange.load("rowIndex, rowCount");
+                await context.sync();
+                const lastUsedRow = usedRange.rowIndex + usedRange.rowCount;
+                currentRow = Math.max(2, lastUsedRow + 1); // Start from row 2 or after last used row
+            }
+            
+            console.log(`Inserting ACTUALS data at row ${currentRow}`);
+
+            // Get the values parameter (support both 'values' and 'data' for flexibility)
+            const valuesData = code.params.values || code.params.data;
+            
+            if (!valuesData) {
+                console.warn("ACTUALS code missing 'values' parameter, skipping");
+                return;
+            }
+
+            console.log(`Processing values data: ${valuesData}`);
+
+            // Parse the CSV-like data: rows delimited by *, cells delimited by |
+            const rows = valuesData.split('*');
+            const dataToInsert = [];
+
+            for (const row of rows) {
+                if (row.trim() === '') continue; // Skip empty rows
+                
+                const cells = row.split('|');
+                if (cells.length === 4) {
+                    // Parse the amount as a number if possible
+                    let amount = cells[1];
+                    if (!isNaN(amount) && amount.trim() !== '') {
+                        amount = parseFloat(amount);
+                    }
+                    
+                    // Parse the date and convert to last day of the month
+                    let date = cells[2];
+                    if (date && date.trim() !== '') {
+                        const parsedDate = new Date(date);
+                        if (!isNaN(parsedDate.getTime())) {
+                            // Convert to last day of the month
+                            const year = parsedDate.getFullYear();
+                            const month = parsedDate.getMonth();
+                            // Create date for first day of next month, then subtract 1 day
+                            const lastDayOfMonth = new Date(year, month + 1, 0);
+                            
+                            // Format as mm/dd/yyyy string
+                            const formattedMonth = String(lastDayOfMonth.getMonth() + 1).padStart(2, '0');
+                            const formattedDay = String(lastDayOfMonth.getDate()).padStart(2, '0');
+                            const formattedYear = lastDayOfMonth.getFullYear();
+                            date = `${formattedMonth}/${formattedDay}/${formattedYear}`;
+                            
+                            console.log(`  Converted date ${cells[2]} to last day of month: ${date}`);
+                        }
+                    }
+
+                    dataToInsert.push([
+                        cells[0], // Description
+                        amount,   // Amount (number or string)
+                        date,     // Date (Date object or string)
+                        cells[3]  // Category
+                    ]);
+                    
+                    console.log(`  Parsed row: ${cells[0]} | ${amount} | ${date} | ${cells[3]}`);
+                } else {
+                    console.warn(`Invalid row format (expected 4 columns, got ${cells.length}): ${row}`);
+                }
+            }
+
+            // Insert the data into the worksheet
+            if (dataToInsert.length > 0) {
+                const endRow = currentRow + dataToInsert.length - 1;
+                const dataRange = actualsSheet.getRange(`A${currentRow}:D${endRow}`);
+                dataRange.values = dataToInsert;
+                
+                // Format the data range
+                dataRange.format.borders.getItemAt(Excel.BorderIndex.insideHorizontal).style = "Continuous";
+                dataRange.format.borders.getItemAt(Excel.BorderIndex.insideVertical).style = "Continuous";
+                dataRange.format.borders.getItemAt(Excel.BorderIndex.edgeTop).style = "Continuous";
+                dataRange.format.borders.getItemAt(Excel.BorderIndex.edgeBottom).style = "Continuous";
+                dataRange.format.borders.getItemAt(Excel.BorderIndex.edgeLeft).style = "Continuous";
+                dataRange.format.borders.getItemAt(Excel.BorderIndex.edgeRight).style = "Continuous";
+                
+                // Format amount column (B) as currency
+                const amountRange = actualsSheet.getRange(`B${currentRow}:B${endRow}`);
+                amountRange.numberFormat = [["_(* $ #,##0_);_(* $ (#,##0);_(* \"$\" -\"\"?_);_(@_)"]];
+                
+                // Format date column (C) as date
+                const dateRange = actualsSheet.getRange(`C${currentRow}:C${endRow}`);
+                dateRange.numberFormat = [["mm/dd/yyyy"]];
+                
+                console.log(`Inserted ${dataToInsert.length} rows of data starting at row ${currentRow}`);
+            }
+
+            // Auto-fit columns
+            actualsSheet.getRange("A:D").format.autofitColumns();
+
+            await context.sync();
+            console.log("Completed processing single ACTUALS code and populating Actuals worksheet");
+        });
+    } catch (error) {
+        console.error("Error processing single ACTUALS code:", error);
         throw error;
     }
 }
