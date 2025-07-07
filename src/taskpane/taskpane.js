@@ -527,43 +527,34 @@ function extractFinancialItems() {
     }
 }
 
-// Process CSV data with Claude API using Actuals_System.txt prompt
+// Process CSV data and generate ACTUALS code directly
 async function processActualsWithClaude(csvData, filename) {
     try {
-        console.log('[processActualsWithClaude] Loading Actuals_System.txt prompt...');
-        
-        // Load the Actuals_System.txt prompt using the same pattern as other prompts
-        const paths = [
-            CONFIG.getPromptUrl('Actuals_System.txt'),
-            CONFIG.getAssetUrl('src/prompts/Actuals_System.txt')
-        ];
-        
-        let response = null;
-        for (const path of paths) {
-            try {
-                console.log(`[processActualsWithClaude] Trying path: ${path}`);
-                response = await fetch(path);
-                if (response.ok) {
-                    console.log(`[processActualsWithClaude] Successfully loaded from: ${path}`);
-                    break;
-                }
-            } catch (err) {
-                console.log(`[processActualsWithClaude] Path ${path} failed: ${err.message}`);
-            }
-        }
-        
-        if (!response || !response.ok) {
-            throw new Error('Failed to load Actuals_System.txt prompt from any path');
-        }
-        
-        const systemPrompt = await response.text();
-        
-        console.log('[processActualsWithClaude] System prompt loaded, extracting financial items...');
+        console.log('[processActualsWithClaude] Processing CSV data and generating ACTUALS code directly...');
         
         // Extract financial items from the code editor
         const financialItems = extractFinancialItems();
+        console.log('[processActualsWithClaude] Extracted financial items:', financialItems);
         
-        console.log('[processActualsWithClaude] Calling Claude API...');
+        // Prepare system prompt for ACTUALS code generation
+        const systemPrompt = `You are a financial data processing specialist. Convert the provided CSV financial statement data into a single ACTUALS code.
+
+ACTUALS CODE FORMAT: <ACTUALS; values="Description|Amount|Date|Category*Description|Amount|Date|Category*...";>
+
+RULES:
+- Column 1 (Description): Financial line item name
+- Column 2 (Amount): Monetary value (positive for revenue/assets, negative for expenses)  
+- Column 3 (Date): Use provided date, will be auto-converted to month-end
+- Column 4 (Category): DEFAULT to same name as Column 1 (Description). Only use different categories if they exist in the Financial Items list below
+- Use "|" to separate columns, "*" to separate rows
+- IGNORE subtotals (Total Revenue, Total Expenses, etc.)
+- FOCUS ONLY on line items
+- NO explanations or additional text - ONLY output the ACTUALS code
+
+FINANCIAL ITEMS LIST:
+${financialItems.length > 0 ? financialItems.map((item, index) => `${index + 1}. ${item}`).join('\n') : 'None found - use fallback categories: Other Income/(Expense), Other Assets, Other Liabilities'}`;
+
+        console.log('[processActualsWithClaude] Calling Claude API for ACTUALS code generation...');
         
         // Import necessary functions from AIcalls.js
         const { callClaudeAPI, initializeAPIKeys } = await import('./AIcalls.js');
@@ -571,26 +562,8 @@ async function processActualsWithClaude(csvData, filename) {
         // Ensure API keys are initialized
         await initializeAPIKeys();
         
-        // Prepare the user message with CSV data and financial items
-        let userMessage = `Please process this financial data from file "${filename}" and generate the corresponding ACTUALS code:\n\n`;
-        
-        // Add Financial Items section if any items were found
-        if (financialItems.length > 0) {
-            userMessage += `Financial Items to choose from for 4th column:\n`;
-            financialItems.forEach((item, index) => {
-                userMessage += `${index + 1}. ${item}\n`;
-            });
-            userMessage += `\n`;
-        } else {
-            userMessage += `Financial Items to choose from for 4th column: None found in current model\n\n`;
-        }
-        
-        userMessage += `CSV Data:\n${csvData}`;
-        
-        console.log('[processActualsWithClaude] User message with financial items prepared');
-        if (financialItems.length > 0) {
-            console.log(`[processActualsWithClaude] Including ${financialItems.length} financial items:`, financialItems);
-        }
+        // Prepare the user message with CSV data
+        const userMessage = `Process this financial data from file "${filename}" and generate the ACTUALS code:\n\n${csvData}`;
         
         // Prepare messages for Claude API
         const messages = [
@@ -614,8 +587,11 @@ async function processActualsWithClaude(csvData, filename) {
         console.log('[processActualsWithClaude] Claude API response received');
         console.log('[processActualsWithClaude] Response:', claudeResponse);
         
-        // Display result in client mode
-        displayActualsResult(claudeResponse, filename);
+        // Clean up the response to ensure it's just the ACTUALS code
+        const actualsCode = claudeResponse.trim();
+        
+        // Display result in developer mode
+        displayActualsResult(actualsCode, filename);
         
     } catch (error) {
         console.error('[processActualsWithClaude] Error:', error);

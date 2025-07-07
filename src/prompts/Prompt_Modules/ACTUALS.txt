@@ -1,0 +1,107 @@
+# ACTUALS MODULE: INTEGRATING HISTORICAL FINANCIAL DATA
+
+## PURPOSE
+Use when the client mentions incorporating actual financial data, historical results, real financial statements, or past performance data into their financial model. The ACTUALS code bridges the gap between historical data and forward-looking projections.
+
+## WHEN TO USE ACTUALS
+- Client mentions "actual results", "historical data", "past performance", "real financials"
+- Client has income statements, balance sheets, or cash flow statements from prior periods
+- Client wants to compare projections against actual results
+- Client mentions "actuals vs. budget", "variance analysis", or "historical trends"
+- Client has accounting data they want to incorporate
+
+## ACTUALS CODE STRUCTURE
+
+The ACTUALS code follows this exact format:
+```
+<ACTUALS; values="Description|Amount|Date|Category*Description|Amount|Date|Category*...";>
+```
+
+### Column Structure:
+- **Column 1 (Description)**: Financial line item name (e.g., "Revenue", "Operating Expenses")
+- **Column 2 (Amount)**: Monetary value (positive for revenue/assets, negative for expenses)
+- **Column 3 (Date)**: Date within the reporting period (auto-converted to month-end)
+- **Column 4 (Category)**: Default to same name as Column 1 (Description), unless specific model categories exist
+
+### Delimiter Rules:
+- Use "|" (pipe) to separate columns within each row
+- Use "*" (asterisk) to separate different rows of data
+- No spaces around delimiters
+
+## EXAMPLE ACTUALS IMPLEMENTATIONS
+
+### Example 1: Simple Income Statement Data
+```
+<ACTUALS; values="Product Sales|500000|12/31/2024|Product Sales*Cost of Goods Sold|-300000|12/31/2024|Cost of Goods Sold*Operating Expenses|-150000|12/31/2024|Operating Expenses*Interest Expense|-10000|12/31/2024|Interest Expense";>
+```
+
+### Example 2: Mixed Financial Statement Data
+```
+<ACTUALS; values="Service Revenue|750000|6/30/2024|Service Revenue*Salaries Expense|-200000|6/30/2024|Salaries Expense*Equipment Purchase|-50000|6/30/2024|Equipment Purchase*Accounts Receivable|125000|6/30/2024|Accounts Receivable*Long-term Debt|400000|6/30/2024|Long-term Debt";>
+```
+
+### Example 3: Multiple Periods
+```
+<ACTUALS; values="Monthly Revenue|100000|1/31/2024|Monthly Revenue*Monthly Revenue|120000|2/29/2024|Monthly Revenue*Monthly Revenue|135000|3/31/2024|Monthly Revenue*Operating Costs|-60000|1/31/2024|Operating Costs*Operating Costs|-70000|2/29/2024|Operating Costs*Operating Costs|-75000|3/31/2024|Operating Costs";>
+```
+
+### Example 4: Beginning Balance Sheet Items (Pre-Projection Date)
+```
+<ACTUALS; values="Cash|250000|12/31/2024|Cash*Accounts Receivable|180000|12/31/2024|Accounts Receivable*Inventory|120000|12/31/2024|Inventory*Equipment|500000|12/31/2024|Equipment*Accounts Payable|85000|12/31/2024|Accounts Payable*Long-term Debt|300000|12/31/2024|Long-term Debt";>
+```
+
+## INTEGRATION WITH FINANCIAL MODELS
+
+### Categories Default to Description Names
+The 4th column (Category) should default to the same name as the 1st column (Description):
+- "Product Sales" → Category: "Product Sales"
+- "Cost of Goods Sold" → Category: "Cost of Goods Sold"  
+- "Cash" → Category: "Cash"
+- "Accounts Receivable" → Category: "Accounts Receivable"
+
+Only use different category names if your model has specific existing financial categories that need to be matched.
+
+### Data Processing Rules:
+- **Expenses must be negative**: Cost of Goods Sold = -300000, not 300000
+- **Revenue must be positive**: Sales Revenue = 500000, not -500000
+- **Dates are standardized**: Any date converts to month-end (e.g., 1/15/2024 becomes 1/31/2024)
+- **Skip subtotals**: Include only line items, not "Total Revenue" or "Total Expenses"
+
+## COMMON ACTUALS SCENARIOS
+
+### Scenario 1: Year-end Financials
+Client: "I want to include our 2024 actual results"
+→ Use ACTUALS code with 12/31/2024 dates for annual data
+
+### Scenario 2: Monthly Actuals
+Client: "I have actual monthly results for Q1 2024"
+→ Use ACTUALS code with separate entries for each month
+
+### Scenario 3: Partial Period Data
+Client: "I have 6 months of actual data and need to project the rest"
+→ Use ACTUALS code for historical months, then regular projection codes for future periods
+
+### Scenario 4: Balance Sheet Data
+Client: "I need to include our actual balance sheet as of year-end"
+→ Use ACTUALS code with asset, liability, and equity line items
+
+### Scenario 5: Beginning Balance Sheet Items
+Client: "I need to set up beginning balances for my model"
+→ Use ACTUALS code with beginning balance sheet items dated one month before projections begin
+
+## BEST PRACTICES
+
+1. **One ACTUALS code per data set**: Don't mix different time periods or statement types unnecessarily
+2. **Consistent categorization**: Ensure categories align with your model's financial structure
+3. **Complete data sets**: Include all relevant line items for the period
+4. **Proper sign conventions**: Follow standard accounting conventions (expenses negative, revenues positive)
+5. **Date consistency**: Use consistent date formats within each ACTUALS code
+6. **Beginning Balance Sheet Timing**: For beginning balance sheet items (Cash, Accounts Receivable, Debt, etc.), use a date of one month before projections begin. Default assumption: projections start January 2025, so beginning balances should be dated 12/31/2024.
+
+## RECONCILIATION NOTES
+
+- For Income Statements: Include "Net Income PLUG" entries if line items don't reconcile perfectly
+- For Balance Sheets: Ensure assets equal liabilities plus equity
+- For Cash Flow: Ensure operating, investing, and financing activities reconcile to net change in cash
+
+The ACTUALS code automatically creates or updates an "Actuals" worksheet in your Excel model, properly formatting the data with borders, currency formatting, and date formatting for easy analysis alongside your projections. 

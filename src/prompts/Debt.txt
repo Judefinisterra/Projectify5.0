@@ -963,4 +963,171 @@ Before submitting any debt model, ask these questions:
     - **Income**: Always POSITIVE (+) for revenue recognition
     - **Expenses**: Always POSITIVE (+) for expense recognition
 
-If ANY answer is NO, review and fix the implementation before proceeding. 
+If ANY answer is NO, review and fix the implementation before proceeding.
+
+## 🚨 CRITICAL: REFINANCING AND DATE ASSUMPTION LINKING
+
+### **🔗 THE REFINANCING RULE: ONE DATE, ONE ASSUMPTION**
+
+**When modeling debt refinancing scenarios, the repayment date of the old loan and the borrowing date of the new loan MUST reference the same date assumption. NEVER create separate date assumptions for the same refinancing event.**
+
+### **❌ WRONG APPROACH - Duplicate Date Assumptions:**
+```
+<!-- Loan 1 - Wrong: Creates separate repayment date assumption -->
+<COLUMN-E; row1="V1(D)|Borrowing Date(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|1/1/2025(C6)|...">
+<COLUMN-E; row1="V2(D)|Repayment Date(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|1/1/2026(C6)|...">
+
+<!-- Loan 2 - Wrong: Creates duplicate date assumption for same event -->
+<COLUMN-E; row1="V11(D)|Borrowing Date(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|1/1/2026(C6)|...">
+<COLUMN-E; row1="V12(D)|Repayment Date(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|1/1/2027(C6)|...">
+```
+
+**Problems with this approach:**
+- Creates TWO separate assumptions for the refinancing date (V2 and V11 both = 1/1/2026)
+- If user wants to change refinancing date, they must update TWO places
+- Risk of inconsistent dates if one is updated but not the other
+- Violates DRY principle (Don't Repeat Yourself)
+
+### **✅ CORRECT APPROACH - Linked Date Assumptions:**
+```
+<!-- Shared date assumptions for refinancing -->
+<COLUMN-E; row1="V1(D)|Initial Borrowing Date(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|1/1/2025(C6)|...">
+<COLUMN-E; row1="V2(D)|Refinancing Date(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|1/1/2026(C6)|...">
+<COLUMN-E; row1="V3(D)|Final Repayment Date(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|1/1/2027(C6)|...">
+
+<!-- Loan 1 - References shared refinancing date -->
+<COLUMN-E; row1="V10(D)|~Amount - Loan 1(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|~$1000000(C6)|...">
+<COLUMN-E; row1="V11(D)|~% Interest Rate - Loan 1(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|~25%(C6)|...">
+
+<!-- Loan 1 reconciliation references V1 for borrowing, V2 for repayment -->
+<FORMULA-S; row1="V12(D)|New Borrowing - Loan 1(L)|CF: cff(F)|customformula="cd{6-V10}*ONETIMEDATE(cd{6-V1})"|...">
+<FORMULA-S; row1="V13(D)|Repayment - Loan 1(L)|CF: cff(F)|customformula="-sumtable(rd{V_BEGINNING})*ONETIMEDATE(cd{6-V2})"|...">
+
+<!-- Loan 2 - References same refinancing date for borrowing -->
+<COLUMN-E; row1="V20(D)|~% Interest Rate - Loan 2(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|~15%(C6)|...">
+
+<!-- Loan 2 reconciliation references V2 for borrowing (same as Loan 1 repayment), V3 for repayment -->
+<FORMULA-S; row1="V21(D)|New Borrowing - Loan 2(L)|CF: cff(F)|customformula="rd{V13}*ONETIMEDATE(cd{6-V2})"|...">
+<FORMULA-S; row1="V22(D)|Repayment - Loan 2(L)|CF: cff(F)|customformula="-sumtable(rd{V_BEGINNING_2})*ONETIMEDATE(cd{6-V3})"|...">
+```
+
+### **Benefits of Correct Approach:**
+✅ **Single source of truth**: Refinancing date defined once in V2
+✅ **Easy updates**: Change refinancing date in one place, both loans update automatically  
+✅ **Consistency guaranteed**: Impossible to have mismatched dates
+✅ **Clear intent**: Model clearly shows these are linked events
+✅ **Maintainability**: Future changes are simple and error-free
+
+### **🔗 LINKING PRINCIPLES FOR ALL SHARED DATES:**
+
+#### **1. Refinancing Scenarios:**
+- **Old loan repayment date** = **New loan borrowing date**
+- Create ONE shared date assumption
+- Both loans reference the same date driver
+
+#### **2. Multiple Loan Maturities:**
+- If multiple loans mature on the same date, create ONE maturity date assumption
+- All loans reference the same maturity date driver
+
+#### **3. Synchronized Events:**
+- Any loans that have events occurring on the same date should share date assumptions
+- Examples: Quarterly payment dates, fiscal year-end maturities, seasonal refinancing
+
+### **🎯 IMPLEMENTATION STEPS:**
+
+#### **Step 1: Identify Shared Dates**
+Review the debt scenario for dates that appear multiple times:
+- Refinancing dates (old loan repayment = new loan borrowing)
+- Common maturity dates
+- Synchronized payment schedules
+
+#### **Step 2: Create Shared Date Assumptions**
+Create ONE date assumption for each unique date:
+```
+<COLUMN-E; row1="V1(D)|Event Date Name(L)|(F)|...|MM/DD/YYYY(C6)|...">
+```
+
+#### **Step 3: Link All References**
+Use cd{6-V1} syntax to reference the shared date in all relevant formulas:
+```
+customformula="...ONETIMEDATE(cd{6-V1})..."
+```
+
+#### **Step 4: Validate Consistency**
+Verify that:
+- No duplicate date assumptions exist for the same event
+- All related loans reference the correct shared date assumption
+- Date changes propagate correctly throughout the model
+
+### **🚨 COMMON REFINANCING SCENARIOS:**
+
+#### **Bridge Loan Refinancing:**
+```
+<!-- Shared dates -->
+<COLUMN-E; row1="V1(D)|Initial Funding Date(L)|(F)|...|1/1/2025(C6)|...">
+<COLUMN-E; row1="V2(D)|Bridge Loan Repayment Date(L)|(F)|...|6/1/2025(C6)|...">
+<COLUMN-E; row1="V3(D)|Permanent Loan Maturity(L)|(F)|...|1/1/2030(C6)|...">
+
+<!-- Bridge loan: Borrow V1, Repay V2 -->
+<FORMULA-S; customformula="cd{6-Amount}*ONETIMEDATE(cd{6-V1})" row1="...|Bridge Loan Borrowing(L)|...">
+<FORMULA-S; customformula="-sumtable(rd{V_BEG})*ONETIMEDATE(cd{6-V2})" row1="...|Bridge Loan Repayment(L)|...">
+
+<!-- Permanent loan: Borrow V2 (same date as bridge repayment), Repay V3 -->
+<FORMULA-S; customformula="rd{BridgeRepayment}*ONETIMEDATE(cd{6-V2})" row1="...|Permanent Loan Borrowing(L)|...">
+<FORMULA-S; customformula="-sumtable(rd{V_BEG_2})*ONETIMEDATE(cd{6-V3})" row1="...|Permanent Loan Repayment(L)|...">
+```
+
+#### **Acquisition Financing Refinancing:**
+```
+<!-- Shared dates -->
+<COLUMN-E; row1="V1(D)|Acquisition Date(L)|(F)|...|3/1/2025(C6)|...">
+<COLUMN-E; row1="V2(D)|Refinancing Date(L)|(F)|...|3/1/2027(C6)|...">
+
+<!-- Acquisition loan: Borrow V1, Repay V2 -->
+<FORMULA-S; customformula="cd{6-AcqAmount}*ONETIMEDATE(cd{6-V1})" row1="...|Acquisition Loan Borrowing(L)|...">
+<FORMULA-S; customformula="-sumtable(rd{V_BEG})*ONETIMEDATE(cd{6-V2})" row1="...|Acquisition Loan Repayment(L)|...">
+
+<!-- Refinance loan: Borrow V2 (same date as acquisition repayment), Better terms -->
+<FORMULA-S; customformula="rd{AcqRepayment}*ONETIMEDATE(cd{6-V2})" row1="...|Refinance Loan Borrowing(L)|...">
+```
+
+### **🔍 VALIDATION CHECKLIST FOR REFINANCING:**
+
+Before finalizing any refinancing model:
+
+1. **❓ Are there any duplicate date assumptions?**
+   - Look for multiple COLUMN-E codes with the same date value
+   - Consolidate duplicates into shared assumptions
+
+2. **❓ Do repayment and borrowing dates match for refinancing?**
+   - Old loan repayment date = New loan borrowing date
+   - Both should reference the same date driver
+
+3. **❓ Can I change the refinancing date in one place?**
+   - Test: Change the shared date assumption
+   - Verify: Both old loan repayment and new loan borrowing update
+
+4. **❓ Are all ONETIMEDATE references correct?**
+   - Each formula should reference the appropriate shared date driver
+   - No hardcoded dates in formulas
+
+5. **❓ Is the debt reconciliation sequence logical?**
+   - Old loan should have positive balance before repayment
+   - New loan should start borrowing after old loan repayment
+   - Cash flows should net to zero for the refinancing transaction
+
+6. **❓ Are related assumptions properly grouped?**
+   - Group shared dates together in the model
+   - Label clearly to show their relationship
+   - Order logically (chronological sequence)
+
+### **⚠️ WARNING SIGNS OF POOR DATE LINKING:**
+
+❌ **Multiple date assumptions with identical values**
+❌ **Separate borrowing/repayment dates for the same refinancing event**  
+❌ **Hardcoded dates in ONETIMEDATE functions**
+❌ **Date changes requiring updates in multiple places**
+❌ **Inconsistent timing between related debt events**
+❌ **Cash flow mismatches during refinancing periods**
+
+If you see any of these warning signs, stop and redesign the date assumption structure using the linking principles above. 

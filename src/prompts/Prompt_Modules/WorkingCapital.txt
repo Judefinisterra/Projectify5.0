@@ -1,0 +1,192 @@
+# WORKING CAPITAL MODULE: MODELING BALANCE SHEET WORKING CAPITAL ITEMS
+
+## PURPOSE
+Use when clients need to model working capital items on the balance sheet such as Accounts Receivable, Inventory, Accounts Payable, Prepaid Expenses, or Accrued Liabilities. Working capital items represent the short-term assets and liabilities that fluctuate based on business operations.
+
+## WHEN TO USE WORKING CAPITAL
+- Client mentions accounts receivable, inventory, accounts payable, or other current assets/liabilities
+- Client discusses payment terms, collection periods, or supplier payment schedules
+- Client mentions DSO (Days Sales Outstanding), DIO (Days Inventory Outstanding), or DPO (Days Payable Outstanding)
+- Client discusses cash conversion cycle or working capital management
+- Client mentions lead times for inventory purchases or customer payment terms
+- Client discusses seasonal working capital fluctuations
+
+## TWO MAIN WORKING CAPITAL CODES
+
+### 1. WCDSO2-S: Days Outstanding Approach
+**Purpose**: Uses days outstanding to approximate working capital needed relative to an income statement item.
+
+**When to Use**:
+- Client mentions specific days outstanding (DSO, DIO, DPO)
+- Client discusses payment terms like "30 day payment terms" or "45 days to collect"
+- Client wants to tie working capital to a percentage of monthly sales/expenses
+- Standard working capital modeling approach
+
+**Code Structure**:
+```
+<WCDSO2-S; driver1="[Income Statement Driver]"; driver2="[Days Outstanding Driver]"; row1="[Working Capital Item]";>
+```
+
+**How It Works**:
+- Takes monthly income statement amount (driver1)
+- Multiplies by (days outstanding / 30) from driver2
+- Calculates working capital balance needed
+
+**Example Scenarios**:
+
+1. **Accounts Receivable with 25 DSO**:
+```
+<CONST-E; row1="V2(D)|Days Sales Outstanding(L)|(F)|25(Y1)|25(Y2)|25(Y3)|";>
+<WCDSO2-S; driver1="V1"; driver2="V2"; row1="A1(D)|Accounts Receivable(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CHANGE-S; negative="true"; driver1="A1"; row1="V13(D)|Change in Accounts Receivable(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+```
+*If monthly sales (V1) = $100k and DSO (V2) = 25 days, then AR = $100k × (25/30) = $83.3k*
+
+2. **Inventory with 45 Days Inventory Outstanding**:
+```
+<CONST-E; row1="V3(D)|Days Inventory Outstanding(L)|(F)|45(Y1)|45(Y2)|45(Y3)|";>
+<WCDSO2-S; driver1="V4"; driver2="V3"; row1="A2(D)|Inventory(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CHANGE-S; negative="true"; driver1="A2"; row1="V14(D)|Change in Inventory(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+```
+*Where V4 represents monthly COGS*
+
+3. **Accounts Payable with 30 DPO**:
+```
+<CONST-E; row1="V5(D)|Days Payable Outstanding(L)|(F)|30(Y1)|30(Y2)|30(Y3)|";>
+<WCDSO2-S; driver1="V6"; driver2="V5"; row1="L1(D)|Accounts Payable(L)|BS: current liabilities(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CHANGE-S; negative="false"; driver1="L1"; row1="V15(D)|Change in Accounts Payable(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+```
+*Where V6 represents monthly operating expenses or COGS*
+
+### 2. WCOFFSET-S: Forward-Looking Offset Approach
+**Purpose**: Uses offset function to look forward several months at an income statement item. More literal way to tie working capital to future financial statement items.
+
+**When to Use**:
+- Client mentions lead times for inventory purchases
+- Client discusses advance payments or prepaid expenses
+- Client needs to purchase/prepare for future periods
+- Client mentions specific timing relationships between expenses and working capital
+
+**Code Structure**:
+```
+<WCOFFSET-S; driver1="[Income Statement Driver]"; driver2="[Days Forward Driver]"; row1="[Working Capital Item]";>
+```
+
+**How It Works**:
+- Looks forward roundup(days/2,0) months at income statement item (driver1)
+- Uses days from driver2 to determine how many months to look forward
+- Sets working capital balance equal to future period amount
+
+**Example Scenarios**:
+
+1. **Inventory with 60-Day Lead Time**:
+```
+<CONST-E; row1="V7(D)|Inventory Lead Time Days(L)|(F)|60(Y1)|60(Y2)|60(Y3)|";>
+<WCOFFSET-S; driver1="V8"; driver2="V7"; row1="A3(D)|Inventory(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CHANGE-S; negative="true"; driver1="A3"; row1="V16(D)|Change in Inventory(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+```
+*Where V8 represents COGS. Function looks roundup(60/2,0) = 2 months forward at COGS. If COGS will be -$100k in 2 months, purchase $100k inventory this month.*
+
+2. **Prepaid Rent with 90-Day Advance**:
+```
+<CONST-E; row1="V9(D)|Rent Prepayment Days(L)|(F)|90(Y1)|90(Y2)|90(Y3)|";>
+<WCOFFSET-S; driver1="V10"; driver2="V9"; row1="A4(D)|Prepaid Rent(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CHANGE-S; negative="true"; driver1="A4"; row1="V17(D)|Change in Prepaid Rent(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+```
+*Where V10 represents monthly rent expense. Looks roundup(90/2,0) = 3 months forward.*
+
+3. **Raw Materials with 45-Day Lead Time**:
+```
+<CONST-E; row1="V11(D)|Raw Materials Lead Time(L)|(F)|45(Y1)|45(Y2)|45(Y3)|";>
+<WCOFFSET-S; driver1="V12"; driver2="V11"; row1="A5(D)|Raw Materials Inventory(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CHANGE-S; negative="true"; driver1="A5"; row1="V18(D)|Change in Raw Materials Inventory(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+```
+*Where V12 represents material costs. Looks roundup(45/2,0) = 1 month forward.*
+
+## REQUIRED: WORKING CAPITAL CASH FLOW IMPACT
+
+**IMPORTANT**: ALWAYS use CHANGE-S codes in conjunction with WCDSO2-S and WCOFFSET-S to calculate the impact to the statement of cash flows.
+
+**CHANGE-S Code Structure**:
+```
+<CHANGE-S; negative="[true/false]"; driver1="[Working Capital Driver]"; row1="[CF Driver](D)|Change in [Working Capital Item](L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+```
+
+**Critical Rules**:
+- **Fincode**: Always use "CF: wc" for working capital cash flow items
+- **Current Assets**: Set negative="true" (increases in assets reduce cash flow)
+- **Current Liabilities**: Set negative="false" (increases in liabilities improve cash flow)
+
+**Examples**:
+
+**Current Assets (negative="true")**:
+- Accounts Receivable: `<CHANGE-S; negative="true"; driver1="A1"; row1="V13(D)|Change in Accounts Receivable(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>`
+- Inventory: `<CHANGE-S; negative="true"; driver1="A2"; row1="V14(D)|Change in Inventory(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>`
+- Prepaid Expenses: `<CHANGE-S; negative="true"; driver1="A3"; row1="V15(D)|Change in Prepaid Expenses(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>`
+
+**Current Liabilities (negative="false")**:
+- Accounts Payable: `<CHANGE-S; negative="false"; driver1="L1"; row1="V16(D)|Change in Accounts Payable(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>`
+- Accrued Liabilities: `<CHANGE-S; negative="false"; driver1="L2"; row1="V17(D)|Change in Accrued Liabilities(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>`
+
+## DECISION FRAMEWORK: WCDSO2-S vs WCOFFSET-S
+
+**Use WCDSO2-S when**:
+- Client mentions days outstanding, payment terms, or collection periods
+- Standard working capital modeling approach is appropriate
+- Working capital should be proportional to monthly activity levels
+- Client discusses DSO, DIO, DPO metrics
+
+**Use WCOFFSET-S when**:
+- Client mentions specific lead times or advance requirements
+- Timing relationship between working capital and future periods is critical
+- Client needs to prepare/purchase for specific future periods
+- More literal interpretation of business requirements is needed
+
+## COMMON WORKING CAPITAL SCENARIOS
+
+### Scenario 1: Standard AR/AP Model
+```
+<CONST-E; row1="V2(D)|Days Sales Outstanding(L)|(F)|30(Y1)|30(Y2)|30(Y3)|";>
+<WCDSO2-S; driver1="V1"; driver2="V2"; row1="A1(D)|Accounts Receivable(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CHANGE-S; negative="true"; driver1="A1"; row1="V20(D)|Change in Accounts Receivable(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CONST-E; row1="V3(D)|Days Payable Outstanding(L)|(F)|45(Y1)|45(Y2)|45(Y3)|";>
+<WCDSO2-S; driver1="V4"; driver2="V3"; row1="L1(D)|Accounts Payable(L)|BS: current liabilities(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CHANGE-S; negative="false"; driver1="L1"; row1="V21(D)|Change in Accounts Payable(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+```
+
+### Scenario 2: Manufacturing Inventory with Lead Times
+```
+<CONST-E; row1="V5(D)|Raw Materials Lead Time(L)|(F)|60(Y1)|60(Y2)|60(Y3)|";>
+<WCOFFSET-S; driver1="V6"; driver2="V5"; row1="A2(D)|Raw Materials(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CHANGE-S; negative="true"; driver1="A2"; row1="V22(D)|Change in Raw Materials(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CONST-E; row1="V7(D)|Finished Goods DIO(L)|(F)|30(Y1)|30(Y2)|30(Y3)|";>
+<WCDSO2-S; driver1="V8"; driver2="V7"; row1="A3(D)|Finished Goods(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CHANGE-S; negative="true"; driver1="A3"; row1="V23(D)|Change in Finished Goods(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+```
+
+### Scenario 3: Service Business with Prepaid Expenses
+```
+<CONST-E; row1="V9(D)|Prepaid Insurance Months(L)|(F)|3(Y1)|3(Y2)|3(Y3)|";>
+<WCOFFSET-S; driver1="V10"; driver2="V9"; row1="A4(D)|Prepaid Insurance(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CHANGE-S; negative="true"; driver1="A4"; row1="V24(D)|Change in Prepaid Insurance(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+```
+
+## BEST PRACTICES
+
+1. **Choose the right method**: Use WCDSO2-S for standard terms, WCOFFSET-S for lead times
+2. **ALWAYS include CHANGE-S codes**: REQUIRED for every WCDSO2-S and WCOFFSET-S code
+3. **Correct fincode**: Always use "CF: wc" for working capital cash flow items
+4. **Proper negative attributes**: negative="true" for current assets, negative="false" for current liabilities
+5. **Use realistic assumptions**: Base days outstanding on industry standards or client data
+6. **Consider seasonality**: Adjust assumptions if working capital varies by season
+7. **Balance sheet integrity**: Ensure working capital changes tie to cash flow statement
+8. **Sign conventions**: Current assets reduce cash flow when they increase, current liabilities improve cash flow when they increase
+
+## INTEGRATION WITH OTHER MODULES
+
+- **ACTUALS**: Use beginning working capital balances from historical data
+- **Debt**: Working capital facilities may be needed for growing businesses
+- **Corporate Overhead**: Some overhead expenses may create working capital items
+- **FixedAssets**: Distinguish between current and fixed assets in modeling
+
+The Working Capital module ensures proper modeling of short-term assets and liabilities that fluctuate with business operations, providing accurate cash flow projections and balance sheet management. 
