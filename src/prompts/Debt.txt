@@ -491,6 +491,86 @@ customformula="SUMTABLE(rd{driver of BEG row})"
 - Placing AMORT in wrong position breaks debt reconciliation mathematics
 - System expects AMORT as final calculation before closing balance
 
+## ORIGINATION FEES AND ADDITIONAL DEBT COSTS
+
+### **🚨 CRITICAL: ORIGINATION FEES MUST BE CALCULATED OUTSIDE DEBT CODES**
+
+**NEVER add origination fees directly into debt reconciliation tables or debt codes.**
+
+### **Correct Approach for Origination Fees:**
+**Origination fees should:**
+1. **Use assumptions taken OUTSIDE of debt tables/codes**
+2. **Be multiplied by items WITHIN the debt table/codes**
+3. **Specifically multiply by new borrowing/lending amounts**
+
+### **✅ CORRECT Implementation Examples:**
+
+#### **Simple Debt Codes with Origination Fees:**
+```
+<!-- Debt code (unchanged) -->
+<DAMORT-S; driver1="V1"; row1="V2(D)|New Borrowing(L)|is: liability(F)|..."; row2="AS1(D)|Interest Rate(L)|(F)|..."; row3="AS2(D)|Term in Months(L)|(F)|...">
+
+<!-- Origination fee assumption (outside debt code) -->
+<CONST-E; row1="V3(D)|Origination Fee Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|2%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+
+<!-- Origination fee calculation (references debt code output) -->
+<MULT2-S; driver1="V2"; driver2="V3"; row1="V4(D)|Origination Fee Expense(L)|IS: interest expense(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+```
+
+#### **INDEX Debt with Origination Fees:**
+```
+<INDEXBEGIN; driver1="V1"; row1="DebtWithFees">
+  <BEGIN-S; row1="V2(D)|Outstanding Balance(L)|is: liability(F)|...">
+  <FORMULA-S; row1="V3(D)|New Borrowing(L)|is: liability(F)|cd{6-V1}">
+  <FORMULA-S; row1="A1(D)|Principal Repayment(L)|is: liability(F)|-cd{6-V3}*onetimeindex(24)">
+  <END-S; row1="V4(D)|Ending Balance(L)|is: liability(F)|...">
+  
+  <!-- Interest calculations OUTSIDE debt reconciliation table -->
+  <FORMULA-S; row1="A2(D)|Interest Expense(L)|is: interest expense(F)|rd{V2}*0.05/12">
+<INDEXEND>
+
+<!-- Origination fee assumption (outside INDEX) -->
+<CONST-E; row1="V5(D)|Origination Fee Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|1.5%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+
+<!-- Origination fee calculation (references INDEX output) -->
+<MULT2-S; driver1="V3"; driver2="V5"; row1="V6(D)|Origination Fee Expense(L)|IS: interest expense(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+```
+
+### **Why This Approach is Required:**
+✅ **Preserves debt code integrity** - Never modifies training data structures
+✅ **Maintains calculation accuracy** - References actual borrowing amounts
+✅ **Proper financial statement flow** - Origination fees flow to correct expense categories
+✅ **Flexibility** - Easy to adjust fee rates without breaking debt logic
+✅ **System compatibility** - Doesn't break script execution
+
+### **❌ WRONG Approaches:**
+❌ **Adding row parameters to debt codes** - Breaks system functionality
+❌ **Embedding fees in debt reconciliation tables** - Violates debt table structure
+❌ **Hardcoding fee amounts** - Loses connection to actual borrowing volumes
+❌ **Including fees in principal amounts** - Distorts debt balance calculations
+
+### **Additional Debt Costs:**
+**This same approach applies to other debt-related costs:**
+- **Closing costs**: Multiply closing cost rate × new borrowing
+- **Loan processing fees**: Multiply processing rate × new borrowing  
+- **Legal fees**: Multiply legal fee rate × new borrowing
+- **Appraisal fees**: Use CONST-E for fixed amounts or rates
+- **Insurance premiums**: Multiply insurance rate × outstanding balance
+
+### **Cash Flow Treatment:**
+**Origination fees typically affect cash flow differently than principal:**
+```
+<!-- If origination fees reduce cash at origination -->
+<MULT2-S; driver1="V4"; driver2="-1"; row1="V7(D)|Origination Fee Cash Outflow(L)|CF: CFF(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+```
+
+### **Key Implementation Rules:**
+1. **Always use separate codes** for fee calculations
+2. **Reference debt code outputs** using rd{} syntax  
+3. **Place fee calculations AFTER debt codes** in sequence
+4. **Use appropriate fincodes** (typically IS: interest expense)
+5. **Consider cash flow timing** - fees may affect cash differently than principal
+
 ## VALIDATION CHECKLIST
 
 ### For Simple Debt:
