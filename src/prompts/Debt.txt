@@ -8,6 +8,52 @@
 ### **🚨 LENDING SIGN CHECK:**
 **IF THIS IS A LENDING SCENARIO:** Every single cash flow item you create MUST have `negative="true"` or there is absolutely no point in creating it. The entire purpose of creating separate cash flow rows for lending is to flip the signs. Without `negative="true"`, you're just duplicating incorrect cash flows.
 
+### **🚨 DEBT RECONCILIATION TABLE STRUCTURE:**
+**ALL debt/loan reconciliation tables MUST follow this exact structure:**
+
+1. **LABELH3 Header**: Must always equal the END-S label + ":" (e.g., if END-S shows "Debt", LABELH3 shows "Debt:")
+2. **BEGIN-S and END-S Driver Linking**: BEGIN-S and END-S must reference each other via driver1 parameters
+3. **END-S Label Simplification**: Never use "Ending" in the label - use simple item name only
+   - ❌ WRONG: `"Ending Debt Balance"`
+   - ✅ CORRECT: `"Debt"`
+4. **Complete Structure**: Always include LABELH3 → BEGIN-S → [reconciliation items] → END-S
+
+### **🚨 FINCODE HANDLING WITHIN DEBT RECONCILIATION TABLES:**
+
+#### **For BORROWING (Company Receiving Loans - Liabilities):**
+✅ **Add CF: CFF fincodes DIRECTLY within the reconciliation table:**
+```
+<LABELH3; row1="(D)|~Debt:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<BEGIN-S; driver1="V4"; row1="V2(D)|Beginning Balance(L)|is: liability(F)|...">
+<FORMULA-S; row1="V3(D)|New Borrowing(L)|is: liability(F)|CF: CFF(F)|...">
+<FORMULA-S; row1="A1(D)|Principal Repayment(L)|is: liability(F)|CF: CFF(F)|...">
+<END-S; driver1="V2"; row1="V4(D)|Debt(L)|is: liability(F)|...">
+
+<!-- Interest calculations OUTSIDE reconciliation table -->
+<FORMULA-S; row1="A2(D)|Interest Expense(L)|is: interest expense(F)|-rd{V2}*0.05/12">  <!-- NEGATIVE for borrowing -->
+```
+
+#### **For LENDING (Company Making Loans - Assets):**
+✅ **NO fincodes inside reconciliation table, use DIRECT-S codes outside:**
+```
+<LABELH3; row1="(D)|~Loan Portfolio:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<BEGIN-S; driver1="V4"; row1="V2(D)|Beginning Balance(L)|is: asset(F)|...">
+<FORMULA-S; row1="V3(D)|New Loan Origination(L)|is: asset(F)|...">  <!-- NO fincode here -->
+<FORMULA-S; row1="A1(D)|Principal Repayment(L)|is: asset(F)|...">     <!-- NO fincode here -->
+<END-S; driver1="V2"; row1="V4(D)|Loan Portfolio(L)|is: asset(F)|...">
+
+<!-- Cash flow handling OUTSIDE reconciliation table using DIRECT-S -->
+<DIRECT-S; driver1="V3"; negative="true"; row1="CF1(D)|Lending Cash Outflow(L)|CF: CFI(F)|...">
+<DIRECT-S; driver1="A1"; negative="true"; row1="CF2(D)|Repayment Cash Inflow(L)|CF: CFI(F)|...">
+
+<!-- Interest calculations OUTSIDE reconciliation table -->
+<FORMULA-S; row1="A2(D)|Interest Income(L)|is: interest income(F)|rd{V2}*0.05/12">  <!-- POSITIVE for lending -->
+```
+
+#### **Interest Sign Rules:**
+- **BORROWING**: Interest expense = NEGATIVE (cash flows out when paying interest)
+- **LENDING**: Interest income = POSITIVE (cash flows in when receiving interest)
+
 ## SIMPLE DEBT CODES vs INDEX APPROACH
 
 ### **Use Simple Debt Codes When:**
@@ -87,11 +133,12 @@ Individual loans have **custom, non-standard repayment patterns**:
 **When a specific date is given, model the reconciliation table using:**
 
 ```
+<LABELH3; row1="(D)|~Term Loans:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
 <INDEXBEGIN; driver1="V1"; row1="DateBasedTermLoans">
-  <BEG-S; row1="V2(D)|Outstanding Balance(L)|is: liability(F)|...">
+  <BEGIN-S; driver1="V4"; row1="V2(D)|Beginning Balance(L)|is: liability(F)|...">
   <FORMULA-S; row1="V3(D)|New Borrowing(L)|is: liability(F)|[date and amount assumptions]">
   <FORMULA-S; row1="A1(D)|Principal Repayment(L)|is: liability(F)|[date-based repayment formula]">
-  <END-S; row1="V4(D)|Ending Balance(L)|is: liability(F)|...">
+  <END-S; driver1="V2"; row1="V4(D)|Term Loans(L)|is: liability(F)|...">
   
   <!-- Interest calculations OUTSIDE debt reconciliation table but WITHIN INDEX -->
   <AVGMULT2-S; driver1="V2"; driver2="V4"; row1="A2(D)|Interest Expense(L)|is: interest expense(F)|[interest rate formula]">
@@ -150,19 +197,20 @@ Are loan repayments relative to individual loan origination dates?
 
 ## INDEX APPROACH FOR COMPLEX DEBT
 
-### **Structure:**
+### **Structure (Borrowing Example):**
 ```
+<LABELH3; row1="(D)|~Loans:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
 <SPREAD-E; row1="V1(D)|# of New Loans per Month(L)|...">
 
 <INDEXBEGIN; driver1="V1"; row1="...">
-  <BEGIN-S; row1="V3(D)|Outstanding Balance(L)|is: liability(F)|...">
-  <CONST-E; row1="V2(D)|New Borrowing(L)|is: liability(F)|...">
-  <FORMULA-S; row1="A1(D)|Principal Payment Month 12(L)|is: liability(F)|cd{6-V2}*onetimeindex(12)">
-  <FORMULA-S; row1="A2(D)|Principal Payment Month 24(L)|is: liability(F)|cd{6-V2}*onetimeindex(24)">
-  <END-S; row1="V4(D)|Ending Balance(L)|is: liability(F)|...">
+  <BEGIN-S; driver1="V4"; row1="V3(D)|Beginning Balance(L)|is: liability(F)|...">
+  <CONST-E; row1="V2(D)|New Borrowing(L)|is: liability(F)|CF: CFF(F)|...">  <!-- CF: CFF fincode included -->
+  <FORMULA-S; row1="A1(D)|Principal Payment Month 12(L)|is: liability(F)|CF: CFF(F)|cd{6-V2}*onetimeindex(12)">  <!-- CF: CFF fincode included -->
+  <FORMULA-S; row1="A2(D)|Principal Payment Month 24(L)|is: liability(F)|CF: CFF(F)|cd{6-V2}*onetimeindex(24)">  <!-- CF: CFF fincode included -->
+  <END-S; driver1="V3"; row1="V4(D)|Loans(L)|is: liability(F)|...">
   
   <!-- Interest calculations WITHIN INDEX but OUTSIDE debt reconciliation table -->
-  <FORMULA-S; row1="A3(D)|Interest Expense(L)|is: interest expense(F)|cd{6-V3}*0.05/12">
+  <FORMULA-S; row1="A3(D)|Interest Expense(L)|is: interest expense(F)|-cd{6-V3}*0.05/12">  <!-- NEGATIVE for borrowing -->
 <INDEXEND>
 ```
 
@@ -201,14 +249,15 @@ Are loan repayments relative to individual loan origination dates?
 
 ### **Dollar-Based INDEX Structure:**
 ```
+<LABELH3; row1="(D)|~Lending Portfolio:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
 <SPREAD-E; row1="V1(D)|New Lending Volume per Month(L)|1200|2400|1800|...">
 
 <INDEXBEGIN; driver1="V1"; row1="...">
-  <BEGIN-S; row1="V3(D)|Outstanding Balance per $1(L)|is: asset(F)|...">
+  <BEGIN-S; driver1="V4"; row1="V3(D)|Beginning Balance per $1(L)|is: asset(F)|...">
   <CONST-E; row1="V2(D)|Principal per $1 Lent(L)|is: asset(F)|1">
   <FORMULA-S; row1="A1(D)|Repayment Month 12 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(12)*0.5">
   <FORMULA-S; row1="A2(D)|Repayment Month 24 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(24)*0.5">
-  <END-S; row1="V4(D)|Ending Balance per $1(L)|is: asset(F)|...">
+  <END-S; driver1="V3"; row1="V4(D)|Lending Portfolio(L)|is: asset(F)|...">
   
   <!-- Interest calculations WITHIN INDEX but OUTSIDE debt reconciliation table -->
   <FORMULA-S; row1="A3(D)|Interest per $1(L)|is: interest income(F)|cd{6-V3}*0.05/12">
@@ -235,26 +284,27 @@ Are loan repayments relative to individual loan origination dates?
 ### **Detailed Dollar-Based Example:**
 
 ```
+<LABELH3; row1="(D)|~Lending Portfolio:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
 <!-- Driver: Monthly lending volume -->
 <SPREAD-E; row1="V1(D)|Monthly Lending Volume(L)|1200|2400|1800|0|0|...">
 
 <INDEXBEGIN; driver1="V1"; row1="DollarDebtIndex">
   <!-- Debt reconciliation table for $1 -->
-  <BEGIN-S; row1="V3(D)|Outstanding Balance per $1(L)|is: asset(F)|...">
-  <CONST-E; row1="V2(D)|Principal per $1(L)|is: asset(F)|1">
-  <FORMULA-S; row1="A1(D)|Repayment Month 12 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(12)*0.5">
-  <FORMULA-S; row1="A2(D)|Repayment Month 24 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(24)*0.5">
-  <END-S; row1="V4(D)|Ending Balance per $1(L)|is: asset(F)|...">
+  <BEGIN-S; driver1="V4"; row1="V3(D)|Beginning Balance per $1(L)|is: asset(F)|...">
+  <CONST-E; row1="V2(D)|Principal per $1(L)|is: asset(F)|1">  <!-- NO fincode in reconciliation table -->
+  <FORMULA-S; row1="A1(D)|Repayment Month 12 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(12)*0.5">  <!-- NO fincode -->
+  <FORMULA-S; row1="A2(D)|Repayment Month 24 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(24)*0.5">  <!-- NO fincode -->
+  <END-S; driver1="V3"; row1="V4(D)|Lending Portfolio(L)|is: asset(F)|...">
   
   <!-- Interest calculations WITHIN INDEX but OUTSIDE debt reconciliation table -->
-  <FORMULA-S; row1="A3(D)|Monthly Interest per $1(L)|is: interest income(F)|cd{6-V3}*0.05/12">
-  
-  <!-- Cash flow reversals for lending (all with negative="true") -->
-  <MULT2-S; driver1="V2"; driver2="-1"; row1="CF1(D)|Principal Outflow per $1(L)|CF: CFI(F)|negative='true'">
-  <MULT2-S; driver1="A1"; driver2="-1"; row1="CF2(D)|Repayment Month 12 per $1(L)|CF: CFI(F)|negative='true'">
-  <MULT2-S; driver1="A2"; driver2="-1"; row1="CF3(D)|Repayment Month 24 per $1(L)|CF: CFI(F)|negative='true'">
-  <MULT2-S; driver1="A3"; driver2="-1"; row1="CF4(D)|Interest Inflow per $1(L)|CF: CFI(F)|negative='true'">
+  <FORMULA-S; row1="A3(D)|Monthly Interest per $1(L)|is: interest income(F)|cd{6-V3}*0.05/12">  <!-- POSITIVE for lending -->
 <INDEXEND>
+
+<!-- Cash flow handling OUTSIDE reconciliation table using DIRECT-S with negative="true" -->
+<DIRECT-S; driver1="V2"; negative="true"; row1="CF1(D)|Principal Outflow per $1(L)|CF: CFI(F)|...">
+<DIRECT-S; driver1="A1"; negative="true"; row1="CF2(D)|Repayment Month 12 per $1(L)|CF: CFI(F)|...">
+<DIRECT-S; driver1="A2"; negative="true"; row1="CF3(D)|Repayment Month 24 per $1(L)|CF: CFI(F)|...">
+<DIRECT-S; driver1="A3"; negative="true"; row1="CF4(D)|Interest Inflow per $1(L)|CF: CFI(F)|...">
 ```
 
 ### **Results from Dollar-Based Example:**
@@ -410,10 +460,11 @@ customformula="TABLEMIN(driver1, driver2)"
 
 **Complete TABLEMIN Implementation:**
 ```
-<BEGIN-S; row1="V1(D)|Outstanding Loan Balance(L)|is: liability(F)|...">
+<LABELH3; row1="(D)|~Loan:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<BEGIN-S; driver1="V3"; row1="V1(D)|Beginning Balance(L)|is: liability(F)|...">
 <FORMULA-S; row1="V2(D)|New Borrowing(L)|is: liability(F)|1000">
 <FORMULA-S; row1="A1(D)|Monthly Payment(L)|is: liability(F)|customformula='TABLEMIN(V1,100)'">
-<END-S; row1="V3(D)|Ending Balance(L)|is: liability(F)|...">
+<END-S; driver1="V1"; row1="V3(D)|Loan(L)|is: liability(F)|...">
 
 <!-- Interest calculation OUTSIDE the reconciliation table -->
 <FORMULA-S; row1="A2(D)|Interest Expense(L)|is: interest expense(F)|V1*0.05/12">
@@ -450,11 +501,12 @@ customformula="SUMTABLE(rd{driver of BEG row})"
 
 **Example Implementation - Loan Repaid in Full Month 24:**
 ```
-<BEGIN-S; row1="V1(D)|Outstanding Loan Balance(L)|is: liability(F)|...">
+<LABELH3; row1="(D)|~Loan:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<BEGIN-S; driver1="V3"; row1="V1(D)|Beginning Balance(L)|is: liability(F)|...">
 <FORMULA-S; row1="V2(D)|New Borrowing(L)|is: liability(F)|5000">
 <FORMULA-S; row1="A1(D)|PIK Interest Added to Balance(L)|is: liability(F)|rd{V1}*0.08/12">
 <FORMULA-S; row1="A2(D)|Full Repayment Month 24(L)|is: liability(F)|customformula='SUMTABLE(rd{V1})*onetimeindex(24)'">
-<END-S; row1="V3(D)|Ending Balance(L)|is: liability(F)|...">
+<END-S; driver1="V1"; row1="V3(D)|Loan(L)|is: liability(F)|...">
 ```
 
 **Real-World Scenario:**
@@ -599,18 +651,22 @@ customformula="SUMTABLE(rd{driver of BEG row})"
 
 ## BORROWING vs LENDING
 
-### **Borrowing (Default Behavior)**
-- Debt codes model the company **receiving loans**
+### **Borrowing (Default Behavior - Company Receiving Loans)**
+- Debt codes model the company **receiving loans** (liabilities)
 - Principal increases liabilities (positive)
 - Repayments decrease liabilities (negative)
-- Uses **CF: CFF** (Cash Flow from Financing) fincodes
+- **✅ FINCODE HANDLING**: Add **CF: CFF fincodes DIRECTLY** within reconciliation table
+- **Interest**: NEGATIVE (company pays interest expense)
 
-### **Lending (Company Making Loans)**
-- Company **originating loans to others**
-- Requires **sign reversal** in debt reconciliation table
-- Must **remove CF: CFF fincodes** and use **CF: CFI** (Cash Flow from Investing)
+### **Lending (Company Making Loans to Others)**
+- Company **originating loans to others** (assets)
 - Principal becomes an asset (positive)
 - Repayments reduce the asset (negative)
+- **✅ FINCODE HANDLING**: 
+  - **NO fincodes** within reconciliation table items
+  - Use **DIRECT-S codes with negative="true"** OUTSIDE reconciliation table
+  - DIRECT-S codes have **CF: CFI** fincodes (Cash Flow from Investing)
+- **Interest**: POSITIVE (company receives interest income)
 
 ## 🚨 CRITICAL: FINCODE SIGN REQUIREMENTS
 
@@ -680,22 +736,23 @@ The entire purpose of creating separate cash flow rows for lending is to flip th
 **Company lends $10,000, receives $5,000 repayment in month 12, $5,000 in month 24, plus monthly interest:**
 
 ```
+<LABELH3; row1="(D)|~Loan Portfolio:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
 <INDEXBEGIN; driver1="V1">
-  <BEGIN-S; row1="V2(D)|Outstanding Balance(L)|is: asset(F)|...">
-  <FORMULA-S; row1="V3(D)|New Loan Origination(L)|is: asset(F)|10000">  <!-- POSITIVE for asset increase -->
-  <FORMULA-S; row1="A1(D)|Repayment Month 12(L)|is: asset(F)|-5000*onetimeindex(12)">  <!-- NEGATIVE for asset decrease -->
-  <FORMULA-S; row1="A2(D)|Repayment Month 24(L)|is: asset(F)|-5000*onetimeindex(24)">  <!-- NEGATIVE for asset decrease -->
-  <END-S; row1="V4(D)|Ending Balance(L)|is: asset(F)|...">
+  <BEGIN-S; driver1="V4"; row1="V2(D)|Beginning Balance(L)|is: asset(F)|...">
+  <FORMULA-S; row1="V3(D)|New Loan Origination(L)|is: asset(F)|10000">  <!-- NO fincode in reconciliation table -->
+  <FORMULA-S; row1="A1(D)|Repayment Month 12(L)|is: asset(F)|-5000*onetimeindex(12)">  <!-- NO fincode in reconciliation table -->
+  <FORMULA-S; row1="A2(D)|Repayment Month 24(L)|is: asset(F)|-5000*onetimeindex(24)">  <!-- NO fincode in reconciliation table -->
+  <END-S; driver1="V2"; row1="V4(D)|Loan Portfolio(L)|is: asset(F)|...">
   
   <!-- Interest calculations OUTSIDE debt reconciliation table but WITHIN INDEX -->
-  <FORMULA-S; row1="A3(D)|Interest Income(L)|is: interest income(F)|rd{V2}*0.05/12">  <!-- POSITIVE for income -->
-  
-  <!-- Cash flow reversals for lending (all with negative="true") -->
-  <MULT2-S; driver1="V3"; driver2="-1"; row1="CF1(D)|Lending Cash Out(L)|CF: CFI(F)|negative='true'">
-  <MULT2-S; driver1="A1"; driver2="-1"; row1="CF2(D)|Repayment Cash In Month 12(L)|CF: CFI(F)|negative='true'">
-  <MULT2-S; driver1="A2"; driver2="-1"; row1="CF3(D)|Repayment Cash In Month 24(L)|CF: CFI(F)|negative='true'">
-  <MULT2-S; driver1="A3"; driver2="-1"; row1="CF4(D)|Interest Cash In(L)|CF: CFI(F)|negative='true'">
+  <FORMULA-S; row1="A3(D)|Interest Income(L)|is: interest income(F)|rd{V2}*0.05/12">  <!-- POSITIVE for lending -->
 <INDEXEND>
+
+<!-- Cash flow handling OUTSIDE reconciliation table using DIRECT-S with negative="true" -->
+<DIRECT-S; driver1="V3"; negative="true"; row1="CF1(D)|Lending Cash Out(L)|CF: CFI(F)|...">
+<DIRECT-S; driver1="A1"; negative="true"; row1="CF2(D)|Repayment Cash In Month 12(L)|CF: CFI(F)|...">
+<DIRECT-S; driver1="A2"; negative="true"; row1="CF3(D)|Repayment Cash In Month 24(L)|CF: CFI(F)|...">
+<DIRECT-S; driver1="A3"; negative="true"; row1="CF4(D)|Interest Cash In(L)|CF: CFI(F)|...">
 ```
 
 **Result Verification:**
@@ -708,15 +765,16 @@ The entire purpose of creating separate cash flow rows for lending is to flip th
 **Company borrows $10,000, makes $5,000 repayment in month 12, $5,000 in month 24, plus monthly interest:**
 
 ```
+<LABELH3; row1="(D)|~Debt:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
 <INDEXBEGIN; driver1="V1">
-  <BEGIN-S; row1="V2(D)|Outstanding Balance(L)|is: liability(F)|...">
-  <FORMULA-S; row1="V3(D)|New Borrowing(L)|is: liability(F)|10000">  <!-- POSITIVE for liability increase -->
-  <FORMULA-S; row1="A1(D)|Repayment Month 12(L)|is: liability(F)|-5000*onetimeindex(12)">  <!-- NEGATIVE for liability decrease -->
-  <FORMULA-S; row1="A2(D)|Repayment Month 24(L)|is: liability(F)|-5000*onetimeindex(24)">  <!-- NEGATIVE for liability decrease -->
-  <END-S; row1="V4(D)|Ending Balance(L)|is: liability(F)|...">
+  <BEGIN-S; driver1="V4"; row1="V2(D)|Beginning Balance(L)|is: liability(F)|...">
+  <FORMULA-S; row1="V3(D)|New Borrowing(L)|is: liability(F)|CF: CFF(F)|10000">  <!-- CF: CFF fincode included -->
+  <FORMULA-S; row1="A1(D)|Repayment Month 12(L)|is: liability(F)|CF: CFF(F)|-5000*onetimeindex(12)">  <!-- CF: CFF fincode included -->
+  <FORMULA-S; row1="A2(D)|Repayment Month 24(L)|is: liability(F)|CF: CFF(F)|-5000*onetimeindex(24)">  <!-- CF: CFF fincode included -->
+  <END-S; driver1="V2"; row1="V4(D)|Debt(L)|is: liability(F)|...">
   
   <!-- Interest calculations OUTSIDE debt reconciliation table but WITHIN INDEX -->
-  <FORMULA-S; row1="A3(D)|Interest Expense(L)|is: interest expense(F)|rd{V2}*0.05/12">  <!-- POSITIVE for expense -->
+  <FORMULA-S; row1="A3(D)|Interest Expense(L)|is: interest expense(F)|-rd{V2}*0.05/12">  <!-- NEGATIVE for borrowing -->
 <INDEXEND>
 ```
 
@@ -826,22 +884,25 @@ Must manually add rows to reverse signs before passing to CF: CFI:
 
 #### **Example 1: Correct Lending Implementation**
 ```
+<LABELH3; row1="(D)|~Loan Portfolio:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
 <INDEXBEGIN; driver1="V1">
-  <CONST-E; row1="V2(D)|Loan Principal(L)|is: asset(F)|1000">
-  <FORMULA-S; row1="A1(D)|Principal Payment Month 12(L)|is: asset(F)|-cd{6-V2}*onetimeindex(12)*0.5">
-  <FORMULA-S; row1="A2(D)|Principal Payment Month 24(L)|is: asset(F)|-cd{6-V2}*onetimeindex(24)*0.5">
-  
-  <!-- CFI Cash Flow Reversals for principal only - ALL must have negative="true" -->
-  <MULT2-S; driver1="V2"; driver2="-1"; row1="CF1(D)|Lending - Principal Outflow(L)|CF: CFI(F)|negative='true'">
-  <MULT2-S; driver1="A1"; driver2="-1"; row1="CF2(D)|Lending - Principal Inflow Month 12(L)|CF: CFI(F)|negative='true'">
-  <MULT2-S; driver1="A2"; driver2="-1"; row1="CF3(D)|Lending - Principal Inflow Month 24(L)|CF: CFI(F)|negative='true'">
+  <BEGIN-S; driver1="V4"; row1="V3(D)|Beginning Balance(L)|is: asset(F)|...">
+  <CONST-E; row1="V2(D)|Loan Principal(L)|is: asset(F)|1000">  <!-- NO fincode in reconciliation table -->
+  <FORMULA-S; row1="A1(D)|Principal Payment Month 12(L)|is: asset(F)|-cd{6-V2}*onetimeindex(12)*0.5">  <!-- NO fincode -->
+  <FORMULA-S; row1="A2(D)|Principal Payment Month 24(L)|is: asset(F)|-cd{6-V2}*onetimeindex(24)*0.5">  <!-- NO fincode -->
+  <END-S; driver1="V3"; row1="V4(D)|Loan Portfolio(L)|is: asset(F)|...">
   
   <!-- Interest calculations MUST be outside INDEXBEGIN/INDEXEND -->
 <INDEXEND>
 
+<!-- Cash flow handling OUTSIDE reconciliation table using DIRECT-S with negative="true" -->
+<DIRECT-S; driver1="V2"; negative="true"; row1="CF1(D)|Lending - Principal Outflow(L)|CF: CFI(F)|...">
+<DIRECT-S; driver1="A1"; negative="true"; row1="CF2(D)|Lending - Principal Inflow Month 12(L)|CF: CFI(F)|...">
+<DIRECT-S; driver1="A2"; negative="true"; row1="CF3(D)|Lending - Principal Inflow Month 24(L)|CF: CFI(F)|...">
+
 <!-- Interest and interest cash flows placed AFTER INDEX block -->
-<FORMULA-S; row1="A3(D)|Interest Income(L)|is: interest income(F)|cd{6-V2}*0.05/12">
-<MULT2-S; driver1="A3"; driver2="-1"; row1="CF4(D)|Lending - Interest Inflow(L)|CF: CFI(F)|negative='true'">
+<FORMULA-S; row1="A3(D)|Interest Income(L)|is: interest income(F)|cd{6-V2}*0.05/12">  <!-- POSITIVE for lending -->
+<DIRECT-S; driver1="A3"; negative="true"; row1="CF4(D)|Lending - Interest Inflow(L)|CF: CFI(F)|...">
 ```
 
 #### **Example 2: WRONG Implementation (Missing negative="true")**
@@ -1068,13 +1129,19 @@ Verify that:
 <COLUMN-E; row1="V2(D)|Bridge Loan Repayment Date(L)|(F)|...|6/1/2025(C6)|...">
 <COLUMN-E; row1="V3(D)|Permanent Loan Maturity(L)|(F)|...|1/1/2030(C6)|...">
 
-<!-- Bridge loan: Borrow V1, Repay V2 -->
-<FORMULA-S; customformula="cd{6-Amount}*ONETIMEDATE(cd{6-V1})" row1="...|Bridge Loan Borrowing(L)|...">
-<FORMULA-S; customformula="-sumtable(rd{V_BEG})*ONETIMEDATE(cd{6-V2})" row1="...|Bridge Loan Repayment(L)|...">
+<!-- Bridge loan debt reconciliation -->
+<LABELH3; row1="(D)|~Bridge Loan:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<BEGIN-S; driver1="V_BEG_BRIDGE"; row1="V_BEG_BRIDGE(D)|Beginning Balance(L)|is: liability(F)|...">
+<FORMULA-S; customformula="cd{6-Amount}*ONETIMEDATE(cd{6-V1})" row1="...|Bridge Loan Borrowing(L)|is: liability(F)|...">
+<FORMULA-S; customformula="-sumtable(rd{V_BEG_BRIDGE})*ONETIMEDATE(cd{6-V2})" row1="...|Bridge Loan Repayment(L)|is: liability(F)|...">
+<END-S; driver1="V_BEG_BRIDGE"; row1="V_END_BRIDGE(D)|Bridge Loan(L)|is: liability(F)|...">
 
-<!-- Permanent loan: Borrow V2 (same date as bridge repayment), Repay V3 -->
-<FORMULA-S; customformula="rd{BridgeRepayment}*ONETIMEDATE(cd{6-V2})" row1="...|Permanent Loan Borrowing(L)|...">
-<FORMULA-S; customformula="-sumtable(rd{V_BEG_2})*ONETIMEDATE(cd{6-V3})" row1="...|Permanent Loan Repayment(L)|...">
+<!-- Permanent loan debt reconciliation -->
+<LABELH3; row1="(D)|~Permanent Loan:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<BEGIN-S; driver1="V_END_PERM"; row1="V_BEG_PERM(D)|Beginning Balance(L)|is: liability(F)|...">
+<FORMULA-S; customformula="rd{BridgeRepayment}*ONETIMEDATE(cd{6-V2})" row1="...|Permanent Loan Borrowing(L)|is: liability(F)|...">
+<FORMULA-S; customformula="-sumtable(rd{V_BEG_PERM})*ONETIMEDATE(cd{6-V3})" row1="...|Permanent Loan Repayment(L)|is: liability(F)|...">
+<END-S; driver1="V_BEG_PERM"; row1="V_END_PERM(D)|Permanent Loan(L)|is: liability(F)|...">
 ```
 
 #### **Acquisition Financing Refinancing:**
@@ -1083,12 +1150,18 @@ Verify that:
 <COLUMN-E; row1="V1(D)|Acquisition Date(L)|(F)|...|3/1/2025(C6)|...">
 <COLUMN-E; row1="V2(D)|Refinancing Date(L)|(F)|...|3/1/2027(C6)|...">
 
-<!-- Acquisition loan: Borrow V1, Repay V2 -->
-<FORMULA-S; customformula="cd{6-AcqAmount}*ONETIMEDATE(cd{6-V1})" row1="...|Acquisition Loan Borrowing(L)|...">
-<FORMULA-S; customformula="-sumtable(rd{V_BEG})*ONETIMEDATE(cd{6-V2})" row1="...|Acquisition Loan Repayment(L)|...">
+<!-- Acquisition loan debt reconciliation -->
+<LABELH3; row1="(D)|~Acquisition Loan:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<BEGIN-S; driver1="V_END_ACQ"; row1="V_BEG_ACQ(D)|Beginning Balance(L)|is: liability(F)|...">
+<FORMULA-S; customformula="cd{6-AcqAmount}*ONETIMEDATE(cd{6-V1})" row1="...|Acquisition Loan Borrowing(L)|is: liability(F)|...">
+<FORMULA-S; customformula="-sumtable(rd{V_BEG_ACQ})*ONETIMEDATE(cd{6-V2})" row1="...|Acquisition Loan Repayment(L)|is: liability(F)|...">
+<END-S; driver1="V_BEG_ACQ"; row1="V_END_ACQ(D)|Acquisition Loan(L)|is: liability(F)|...">
 
-<!-- Refinance loan: Borrow V2 (same date as acquisition repayment), Better terms -->
-<FORMULA-S; customformula="rd{AcqRepayment}*ONETIMEDATE(cd{6-V2})" row1="...|Refinance Loan Borrowing(L)|...">
+<!-- Refinance loan debt reconciliation -->
+<LABELH3; row1="(D)|~Refinance Loan:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<BEGIN-S; driver1="V_END_REF"; row1="V_BEG_REF(D)|Beginning Balance(L)|is: liability(F)|...">
+<FORMULA-S; customformula="rd{AcqRepayment}*ONETIMEDATE(cd{6-V2})" row1="...|Refinance Loan Borrowing(L)|is: liability(F)|...">
+<END-S; driver1="V_BEG_REF"; row1="V_END_REF(D)|Refinance Loan(L)|is: liability(F)|...">
 ```
 
 ### **🔍 VALIDATION CHECKLIST FOR REFINANCING:**
@@ -1124,6 +1197,28 @@ Before finalizing any refinancing model:
 ### **⚠️ WARNING SIGNS OF POOR DATE LINKING:**
 
 ❌ **Multiple date assumptions with identical values**
+
+## DEBT VALIDATION CHECKLIST
+
+### **For All Debt/Loan Structures:**
+1. **✅ Balance Sheet Category**: Verify liabilities (borrowing) vs assets (lending)
+2. **✅ Driver Linking**: Ensure BEGIN-S and END-S reference each other
+3. **✅ LABELH3 Format**: Label equals END-S item name + ":"
+4. **✅ Interest Calculations**: Always placed OUTSIDE reconciliation table
+5. **✅ Sign Conventions**: Positive for increases, negative for decreases
+6. **✅ Interest Formulas**: Use rd{} or cd{} with proper timing references
+7. **✅ Cash Flow Classifications**: CFF for borrowing, CFI for lending
+8. **✅ Fincode Requirements**: Use absolute value + negative attribute, NOT negative formulas
+
+### **Fincode Handling Verification:**
+✅ **BORROWING (Liabilities)**:
+- CF: CFF fincodes DIRECTLY in reconciliation table items
+- Interest expense = NEGATIVE value
+
+✅ **LENDING (Assets)**:
+- NO fincodes in reconciliation table items
+- DIRECT-S codes with negative="true" OUTSIDE table with CF: CFI fincodes
+- Interest income = POSITIVE value
 ❌ **Separate borrowing/repayment dates for the same refinancing event**  
 ❌ **Hardcoded dates in ONETIMEDATE functions**
 ❌ **Date changes requiring updates in multiple places**

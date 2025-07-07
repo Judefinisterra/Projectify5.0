@@ -21,7 +21,7 @@ The ACTUALS code follows this exact format:
 - **Column 1 (Description)**: Financial line item name (e.g., "Revenue", "Operating Expenses")
 - **Column 2 (Amount)**: Monetary value (positive for revenue/assets, negative for expenses)
 - **Column 3 (Date)**: Date within the reporting period (auto-converted to month-end)
-- **Column 4 (Category)**: Default to same name as Column 1 (Description), unless specific model categories exist
+- **Column 4 (Category)**: **CRITICAL: Must match exactly with the balance sheet item name in the forecast.** If the forecast shows "Ending Debt Balance", use "Ending Debt Balance" - NOT "Current Debt Balance" or any variation. Names must be identical.
 
 ### Delimiter Rules:
 - Use "|" (pipe) to separate columns within each row
@@ -52,14 +52,26 @@ The ACTUALS code follows this exact format:
 
 ## INTEGRATION WITH FINANCIAL MODELS
 
-### Categories Default to Description Names
-The 4th column (Category) should default to the same name as the 1st column (Description):
-- "Product Sales" → Category: "Product Sales"
-- "Cost of Goods Sold" → Category: "Cost of Goods Sold"  
-- "Cash" → Category: "Cash"
-- "Accounts Receivable" → Category: "Accounts Receivable"
+### Categories Must Match Forecast Item Names
+**CRITICAL NAMING REQUIREMENT**: The 4th column (Category) must match exactly with the corresponding item name in the forecast model:
+- If forecast shows "Ending Debt Balance" → Category: "Ending Debt Balance" (NOT "Current Debt Balance")
+- If forecast shows "Accounts Receivable" → Category: "Accounts Receivable"
+- If forecast shows "Cash and Cash Equivalents" → Category: "Cash and Cash Equivalents" (NOT "Cash")
+- If forecast shows "Inventory" → Category: "Inventory"
 
-Only use different category names if your model has specific existing financial categories that need to be matched.
+**WRONG Example**: 
+```
+<ACTUALS; values="Current Debt Balance|100000|12/31/2024|Current Debt Balance">
+<END-S; ...row1="V4(D)|Ending Debt Balance(L)|BS: LT liabilities(F)|...">
+```
+
+**CORRECT Example**:
+```
+<ACTUALS; values="Ending Debt Balance|100000|12/31/2024|Ending Debt Balance">
+<END-S; ...row1="V4(D)|Ending Debt Balance(L)|BS: LT liabilities(F)|...">
+```
+
+The category name in ACTUALS must be identical to the label in the forecast model to ensure proper data integration.
 
 ### Data Processing Rules:
 - **Expenses must be negative**: Cost of Goods Sold = -300000, not 300000
@@ -91,10 +103,11 @@ Client: "I need to set up beginning balances for my model"
 
 ## BEST PRACTICES
 
-1. **One ACTUALS code per data set**: Don't mix different time periods or statement types unnecessarily
-2.. **Proper sign conventions**: Follow standard accounting conventions (expenses negative, revenues positive)
-5. **Date consistency**: Use consistent date formats within each ACTUALS code
-6. **Beginning Balance Sheet Timing**: For beginning balance sheet items (Cash, Accounts Receivable, Debt, etc.), use a date of one month before projections begin. Default assumption: projections start January 2025, so beginning balances should be dated 12/31/2024.
+1. **Category name matching**: **MOST IMPORTANT** - The 4th column (Category) must match exactly with the forecast item name. If the forecast model uses "Ending Debt Balance", use "Ending Debt Balance" in ACTUALS, not "Current Debt Balance" or any variation.
+2. **One ACTUALS code per data set**: Don't mix different time periods or statement types unnecessarily
+3. **Proper sign conventions**: Follow standard accounting conventions (expenses negative, revenues positive)
+4. **Date consistency**: Use consistent date formats within each ACTUALS code
+5. **Beginning Balance Sheet Timing**: For beginning balance sheet items (Cash, Accounts Receivable, Debt, etc.), use a date of one month before projections begin. Default assumption: projections start January 2025, so beginning balances should be dated 12/31/2024.
 
 ## RECONCILIATION NOTES
 

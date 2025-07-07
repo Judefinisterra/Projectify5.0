@@ -36,6 +36,8 @@ Use when clients need to model working capital items on the balance sheet such a
 
 1. **Accounts Receivable with 25 DSO**:
 ```
+<LABELH3; row1="(D)|~Accounts Receivable:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<ACTUALS; values="Accounts Receivable|15000|12/31/2024|Accounts Receivable";>
 <CONST-E; indent="2"; row1="V2(D)|~Days Sales Outstanding(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~25(Y1)|~25(Y2)|~25(Y3)|~25(Y4)|~25(Y5)|~25(Y6)|";>
 <WCDSO2-S; driver1="V1"; driver2="V2"; topborder="true"; indent="1"; row1="A1(D)|Accounts Receivable(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
@@ -45,6 +47,8 @@ Use when clients need to model working capital items on the balance sheet such a
 
 2. **Inventory with 45 Days Inventory Outstanding**:
 ```
+<LABELH3; row1="(D)|~Inventory:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<ACTUALS; values="Inventory|10000|12/31/2024|Inventory";>
 <CONST-E; indent="2"; row1="V3(D)|~Days Inventory Outstanding(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~45(Y1)|~45(Y2)|~45(Y3)|~45(Y4)|~45(Y5)|~45(Y6)|";>
 <WCDSO2-S; driver1="V4"; driver2="V3"; topborder="true"; indent="1"; row1="A2(D)|Inventory(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
@@ -54,6 +58,8 @@ Use when clients need to model working capital items on the balance sheet such a
 
 3. **Accounts Payable with 30 DPO**:
 ```
+<LABELH3; row1="(D)|~Accounts Payable:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<ACTUALS; values="Accounts Payable|8000|12/31/2024|Accounts Payable";>
 <CONST-E; indent="2"; row1="V5(D)|~Days Payable Outstanding(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~30(Y1)|~30(Y2)|~30(Y3)|~30(Y4)|~30(Y5)|~30(Y6)|";>
 <WCDSO2-S; driver1="V6"; driver2="V5"; topborder="true"; indent="1"; row1="L1(D)|Accounts Payable(L)|BS: current liabilities(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
@@ -84,6 +90,8 @@ Use when clients need to model working capital items on the balance sheet such a
 
 1. **Inventory with 60-Day Lead Time**:
 ```
+<LABELH3; row1="(D)|~Inventory:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<ACTUALS; values="Inventory|10000|12/31/2024|Inventory";>
 <CONST-E; indent="2"; row1="V7(D)|~Inventory Lead Time Days(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~60(Y1)|~60(Y2)|~60(Y3)|~60(Y4)|~60(Y5)|~60(Y6)|";>
 <WCOFFSET-S; driver1="V8"; driver2="V7"; topborder="true"; indent="1"; row1="A3(D)|Inventory(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
@@ -93,6 +101,8 @@ Use when clients need to model working capital items on the balance sheet such a
 
 2. **Prepaid Rent with 90-Day Advance**:
 ```
+<LABELH3; row1="(D)|~Prepaid Rent:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<ACTUALS; values="Prepaid Rent|3000|12/31/2024|Prepaid Rent";>
 <CONST-E; indent="2"; row1="V9(D)|~Rent Prepayment Days(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~90(Y1)|~90(Y2)|~90(Y3)|~90(Y4)|~90(Y5)|~90(Y6)|";>
 <WCOFFSET-S; driver1="V10"; driver2="V9"; topborder="true"; indent="1"; row1="A4(D)|Prepaid Rent(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
@@ -102,6 +112,8 @@ Use when clients need to model working capital items on the balance sheet such a
 
 3. **Raw Materials with 45-Day Lead Time**:
 ```
+<LABELH3; row1="(D)|~Raw Materials Inventory:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<ACTUALS; values="Raw Materials Inventory|5000|12/31/2024|Raw Materials Inventory";>
 <CONST-E; indent="2"; row1="V11(D)|~Raw Materials Lead Time(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~45(Y1)|~45(Y2)|~45(Y3)|~45(Y4)|~45(Y5)|~45(Y6)|";>
 <WCOFFSET-S; driver1="V12"; driver2="V11"; topborder="true"; indent="1"; row1="A5(D)|Raw Materials Inventory(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
@@ -115,12 +127,18 @@ Use when clients need to model working capital items on the balance sheet such a
 
 **Required Code Structure**:
 ```
+<LABELH3; row1="(D)|~[Working Capital Item]:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<ACTUALS; values="[Working Capital Item]|[Amount]|[Date]|[Working Capital Item]";>
+<CONST-E; indent="2"; row1="[Days Driver](D)|~[Days Description](L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~[Value](Y1)|~[Value](Y2)|~[Value](Y3)|~[Value](Y4)|~[Value](Y5)|~[Value](Y6)|";>
 <WCDSO2-S; driver1="[Income Statement Driver]"; driver2="[Days Driver]"; topborder="true"; indent="1"; row1="[WC Driver](D)|[Working Capital Item](L)|BS: [current assets/current liabilities](F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
 <CHANGE-S; negative="[true/false]"; driver1="[WC Driver]"; indent="1"; row1="[CF Driver](D)|Change in [Working Capital Item](L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 ```
 
 **Critical Rules**:
+- **LABELH3 header**: ALWAYS start working capital sections with LABELH3 using exact balance sheet item name + ":" (e.g., "Inventory:", "Accounts Receivable:", "Accounts Payable:")
+- **No extra words**: Don't add words like "Working Capital" or "Management" to LABELH3 labels
+- **ACTUALS integration**: Include ACTUALS code after LABELH3 if historical/current values are mentioned. CRITICAL: The 4th column in ACTUALS must match exactly with the balance sheet item name in the forecast (e.g., if balance sheet shows "Accounts Receivable", use "Accounts Receivable" in ACTUALS, not "AR" or any variation)
 - **Top border**: ALWAYS include topborder="true" for all working capital codes (WCDSO2-S and WCOFFSET-S)
 - **BR code**: ALWAYS include a BR code between the working capital code and CHANGE-S code
 - **Fincode**: Always use "CF: wc" for working capital cash flow items
@@ -157,10 +175,14 @@ Use when clients need to model working capital items on the balance sheet such a
 
 ### Scenario 1: Standard AR/AP Model
 ```
+<LABELH3; row1="(D)|~Accounts Receivable:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<ACTUALS; values="Accounts Receivable|15000|12/31/2024|Accounts Receivable";>
 <CONST-E; indent="2"; row1="V2(D)|~Days Sales Outstanding(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~30(Y1)|~30(Y2)|~30(Y3)|~30(Y4)|~30(Y5)|~30(Y6)|";>
 <WCDSO2-S; driver1="V1"; driver2="V2"; topborder="true"; indent="1"; row1="A1(D)|Accounts Receivable(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
 <CHANGE-S; negative="true"; driver1="A1"; indent="1"; row1="V20(D)|Change in Accounts Receivable(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<LABELH3; row1="(D)|~Accounts Payable:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<ACTUALS; values="Accounts Payable|8000|12/31/2024|Accounts Payable";>
 <CONST-E; indent="2"; row1="V3(D)|~Days Payable Outstanding(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~45(Y1)|~45(Y2)|~45(Y3)|~45(Y4)|~45(Y5)|~45(Y6)|";>
 <WCDSO2-S; driver1="V4"; driver2="V3"; topborder="true"; indent="1"; row1="L1(D)|Accounts Payable(L)|BS: current liabilities(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
@@ -169,10 +191,14 @@ Use when clients need to model working capital items on the balance sheet such a
 
 ### Scenario 2: Manufacturing Inventory with Lead Times
 ```
+<LABELH3; row1="(D)|~Raw Materials:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<ACTUALS; values="Raw Materials|5000|12/31/2024|Raw Materials";>
 <CONST-E; indent="2"; row1="V5(D)|~Raw Materials Lead Time(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~60(Y1)|~60(Y2)|~60(Y3)|~60(Y4)|~60(Y5)|~60(Y6)|";>
 <WCOFFSET-S; driver1="V6"; driver2="V5"; topborder="true"; indent="1"; row1="A2(D)|Raw Materials(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
 <CHANGE-S; negative="true"; driver1="A2"; indent="1"; row1="V22(D)|Change in Raw Materials(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<LABELH3; row1="(D)|~Finished Goods:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<ACTUALS; values="Finished Goods|12000|12/31/2024|Finished Goods";>
 <CONST-E; indent="2"; row1="V7(D)|~Finished Goods DIO(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~30(Y1)|~30(Y2)|~30(Y3)|~30(Y4)|~30(Y5)|~30(Y6)|";>
 <WCDSO2-S; driver1="V8"; driver2="V7"; topborder="true"; indent="1"; row1="A3(D)|Finished Goods(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
@@ -181,6 +207,8 @@ Use when clients need to model working capital items on the balance sheet such a
 
 ### Scenario 3: Service Business with Prepaid Expenses
 ```
+<LABELH3; row1="(D)|~Prepaid Insurance:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<ACTUALS; values="Prepaid Insurance|3000|12/31/2024|Prepaid Insurance";>
 <CONST-E; indent="2"; row1="V9(D)|~Prepaid Insurance Months(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~3(Y1)|~3(Y2)|~3(Y3)|~3(Y4)|~3(Y5)|~3(Y6)|";>
 <WCOFFSET-S; driver1="V10"; driver2="V9"; topborder="true"; indent="1"; row1="A4(D)|Prepaid Insurance(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
@@ -189,19 +217,22 @@ Use when clients need to model working capital items on the balance sheet such a
 
 ## BEST PRACTICES
 
-1. **Choose the right method**: Use WCDSO2-S for standard terms, WCOFFSET-S for lead times
-2. **ALWAYS include CHANGE-S codes**: REQUIRED for every WCDSO2-S and WCOFFSET-S code
-3. **ALWAYS include BR codes**: REQUIRED between working capital codes and CHANGE-S codes for proper formatting
-4. **ALWAYS include topborder="true"**: REQUIRED for all working capital codes (WCDSO2-S and WCOFFSET-S)
-5. **Correct fincode**: Always use "CF: wc" for working capital cash flow items
-6. **Proper negative attributes**: negative="true" for current assets, negative="false" for current liabilities
-7. **Use full column structure**: Include (C1)-(C6) and (Y1)-(Y6) columns with proper indentation
-8. **Proper indentation**: Use indent="2" for assumption drivers, indent="1" for balance sheet and cash flow items
-9. **Tilde formatting**: Use ~value for assumption drivers to indicate they are input assumptions
-10. **Use realistic assumptions**: Base days outstanding on industry standards or client data
-11. **Consider seasonality**: Adjust assumptions if working capital varies by season
-12. **Balance sheet integrity**: Ensure working capital changes tie to cash flow statement
-13. **Sign conventions**: Current assets reduce cash flow when they increase, current liabilities improve cash flow when they increase
+1. **ALWAYS start with LABELH3**: Begin each working capital section with LABELH3 using exact balance sheet item name + ":"
+2. **Exact naming only**: Use precise balance sheet item names - no extra words like "Working Capital" or "Management"
+3. **Include ACTUALS when relevant**: Add ACTUALS code after LABELH3 if historical/current values are mentioned
+4. **Choose the right method**: Use WCDSO2-S for standard terms, WCOFFSET-S for lead times
+5. **ALWAYS include CHANGE-S codes**: REQUIRED for every WCDSO2-S and WCOFFSET-S code
+6. **ALWAYS include BR codes**: REQUIRED between working capital codes and CHANGE-S codes for proper formatting
+7. **ALWAYS include topborder="true"**: REQUIRED for all working capital codes (WCDSO2-S and WCOFFSET-S)
+8. **Correct fincode**: Always use "CF: wc" for working capital cash flow items
+9. **Proper negative attributes**: negative="true" for current assets, negative="false" for current liabilities
+10. **Use full column structure**: Include (C1)-(C6) and (Y1)-(Y6) columns with proper indentation
+11. **Proper indentation**: Use indent="2" for assumption drivers, indent="1" for balance sheet and cash flow items
+12. **Tilde formatting**: Use ~value for assumption drivers to indicate they are input assumptions
+13. **Use realistic assumptions**: Base days outstanding on industry standards or client data
+14. **Consider seasonality**: Adjust assumptions if working capital varies by season
+15. **Balance sheet integrity**: Ensure working capital changes tie to cash flow statement
+16. **Sign conventions**: Current assets reduce cash flow when they increase, current liabilities improve cash flow when they increase
 
 ## INTEGRATION WITH OTHER MODULES
 
