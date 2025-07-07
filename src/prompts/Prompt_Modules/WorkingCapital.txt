@@ -11,9 +11,62 @@ Use when clients need to model working capital items on the balance sheet such a
 - Client mentions lead times for inventory purchases or customer payment terms
 - Client discusses seasonal working capital fluctuations
 
-## TWO MAIN WORKING CAPITAL CODES
+## THREE MAIN WORKING CAPITAL APPROACHES
 
-### 1. WCDSO2-S: Days Outstanding Approach
+### 1. CONST-E: Static/Constant Working Capital Items
+**Purpose**: Models working capital items that remain constant throughout the projection period and don't fluctuate with operations.
+
+**When to Use**:
+- Client mentions security deposits that remain constant
+- Utility deposits that don't change
+- Escrow accounts that maintain fixed balances
+- Other current assets/liabilities that are static
+- Items that exist on beginning balance sheet but don't vary with business activity
+
+**Code Structure**:
+```
+<LABELH1; row1="(D)|~[Working Capital Item]:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; bold="true"; indent="1"; sumif="yearend"; row1="[Driver](D)|[Working Capital Item](L)|BS: [current assets/current liabilities](F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$[Amount](Y1)|$[Amount](Y2)|$[Amount](Y3)|$[Amount](Y4)|$[Amount](Y5)|$[Amount](Y6)|">
+<ACTUALS; values="[Working Capital Item]|[Amount]|[Date]|[Working Capital Item]">
+```
+
+**How It Works**:
+- Sets working capital item to same value in all periods
+- No calculation based on income statement items
+- Maintains constant balance throughout projection
+- No CHANGE-S code needed since balance doesn't change
+
+**Example Scenarios**:
+
+1. **Security Deposits**:
+```
+<LABELH1; row1="(D)|~Deposits:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; bold="true"; indent="1"; sumif="yearend"; row1="V1(D)|Deposits(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$1000(Y1)|$1000(Y2)|$1000(Y3)|$1000(Y4)|$1000(Y5)|$1000(Y6)|">
+<ACTUALS; values="Deposits|1000|12/31/2024|Deposits">
+```
+
+2. **Utility Deposits**:
+```
+<LABELH1; row1="(D)|~Utility Deposits:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; bold="true"; indent="1"; sumif="yearend"; row1="V2(D)|Utility Deposits(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$2500(Y1)|$2500(Y2)|$2500(Y3)|$2500(Y4)|$2500(Y5)|$2500(Y6)|">
+<ACTUALS; values="Utility Deposits|2500|12/31/2024|Utility Deposits">
+```
+
+3. **Escrow Account**:
+```
+<LABELH1; row1="(D)|~Escrow Account:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; bold="true"; indent="1"; sumif="yearend"; row1="V3(D)|Escrow Account(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$5000(Y1)|$5000(Y2)|$5000(Y3)|$5000(Y4)|$5000(Y5)|$5000(Y6)|">
+<ACTUALS; values="Escrow Account|5000|12/31/2024|Escrow Account">
+```
+
+**Key Characteristics**:
+- **LABELH1 header**: Use LABELH1 (not LABELH3) for static items
+- **No CHANGE-S code**: Static items don't impact cash flow changes
+- **CONST-E attributes**: Include bold="true", indent="1", sumif="yearend" 
+- **ACTUALS integration**: Always include ACTUALS for beginning balance
+- **Exact label matching**: ACTUALS value must match CONST-E label exactly
+
+### 2. WCDSO2-S: Days Outstanding Approach
 **Purpose**: Uses days outstanding to approximate working capital needed relative to an income statement item.
 
 **When to Use**:
@@ -67,7 +120,7 @@ Use when clients need to model working capital items on the balance sheet such a
 ```
 *Where V6 represents monthly operating expenses or COGS*
 
-### 2. WCOFFSET-S: Forward-Looking Offset Approach
+### 3. WCOFFSET-S: Forward-Looking Offset Approach
 **Purpose**: Uses offset function to look forward several months at an income statement item. More literal way to tie working capital to future financial statement items.
 
 **When to Use**:
@@ -157,7 +210,14 @@ Use when clients need to model working capital items on the balance sheet such a
 - Accounts Payable: `<CHANGE-S; negative="false"; driver1="L1"; indent="1"; row1="V16(D)|Change in Accounts Payable(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>`
 - Accrued Liabilities: `<CHANGE-S; negative="false"; driver1="L2"; indent="1"; row1="V17(D)|Change in Accrued Liabilities(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>`
 
-## DECISION FRAMEWORK: WCDSO2-S vs WCOFFSET-S
+## DECISION FRAMEWORK: CONST-E vs WCDSO2-S vs WCOFFSET-S
+
+**Use CONST-E when**:
+- Client mentions static deposits or balances that don't change
+- Working capital item exists but doesn't fluctuate with operations
+- Items like security deposits, utility deposits, escrow accounts
+- Balance remains constant throughout projection period
+- No operational relationship to income statement items
 
 **Use WCDSO2-S when**:
 - Client mentions days outstanding, payment terms, or collection periods
@@ -215,8 +275,19 @@ Use when clients need to model working capital items on the balance sheet such a
 <CHANGE-S; negative="true"; driver1="A4"; indent="1"; row1="V24(D)|Change in Prepaid Insurance(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 ```
 
+### Scenario 4: Static Working Capital Items
+```
+<LABELH1; row1="(D)|~Security Deposits:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; bold="true"; indent="1"; sumif="yearend"; row1="V11(D)|Security Deposits(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$2000(Y1)|$2000(Y2)|$2000(Y3)|$2000(Y4)|$2000(Y5)|$2000(Y6)|">
+<ACTUALS; values="Security Deposits|2000|12/31/2024|Security Deposits">
+<LABELH1; row1="(D)|~Utility Deposits:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; bold="true"; indent="1"; sumif="yearend"; row1="V12(D)|Utility Deposits(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$1500(Y1)|$1500(Y2)|$1500(Y3)|$1500(Y4)|$1500(Y5)|$1500(Y6)|">
+<ACTUALS; values="Utility Deposits|1500|12/31/2024|Utility Deposits">
+```
+
 ## BEST PRACTICES
 
+### For Dynamic Working Capital (WCDSO2-S/WCOFFSET-S):
 1. **ALWAYS start with LABELH3**: Begin each working capital section with LABELH3 using exact balance sheet item name + ":"
 2. **Exact naming only**: Use precise balance sheet item names - no extra words like "Working Capital" or "Management"
 3. **Include ACTUALS when relevant**: Add ACTUALS code after LABELH3 if historical/current values are mentioned
@@ -229,10 +300,21 @@ Use when clients need to model working capital items on the balance sheet such a
 10. **Use full column structure**: Include (C1)-(C6) and (Y1)-(Y6) columns with proper indentation
 11. **Proper indentation**: Use indent="2" for assumption drivers, indent="1" for balance sheet and cash flow items
 12. **Tilde formatting**: Use ~value for assumption drivers to indicate they are input assumptions
-13. **Use realistic assumptions**: Base days outstanding on industry standards or client data
-14. **Consider seasonality**: Adjust assumptions if working capital varies by season
-15. **Balance sheet integrity**: Ensure working capital changes tie to cash flow statement
-16. **Sign conventions**: Current assets reduce cash flow when they increase, current liabilities improve cash flow when they increase
+
+### For Static Working Capital (CONST-E):
+1. **ALWAYS start with LABELH1**: Begin static working capital sections with LABELH1 using exact balance sheet item name + ":"
+2. **No CHANGE-S codes**: Static items don't require CHANGE-S codes since balance doesn't change
+3. **CONST-E attributes**: Always include bold="true", indent="1", sumif="yearend"
+4. **ACTUALS required**: Static items must have ACTUALS codes for beginning balance
+5. **Exact label matching**: ACTUALS value must match CONST-E label exactly
+6. **Same amount in all periods**: Set identical dollar amounts across all projection periods
+
+### General Best Practices:
+1. **Use realistic assumptions**: Base days outstanding on industry standards or client data
+2. **Consider seasonality**: Adjust assumptions if working capital varies by season
+3. **Balance sheet integrity**: Ensure working capital changes tie to cash flow statement
+4. **Sign conventions**: Current assets reduce cash flow when they increase, current liabilities improve cash flow when they increase
+5. **Choose appropriate approach**: Static for deposits/constant items, dynamic for operational working capital
 
 ## INTEGRATION WITH OTHER MODULES
 
