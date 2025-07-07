@@ -24,7 +24,7 @@ Use when clients need to model working capital items on the balance sheet such a
 
 **Code Structure**:
 ```
-<WCDSO2-S; driver1="[Income Statement Driver]"; driver2="[Days Outstanding Driver]"; row1="[Working Capital Item]";>
+<WCDSO2-S; driver1="[Income Statement Driver]"; driver2="[Days Outstanding Driver]"; topborder="true"; indent="1"; row1="[Working Capital Item](D)|[Working Capital Item](L)|BS: [current assets/current liabilities](F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 ```
 
 **How It Works**:
@@ -36,25 +36,28 @@ Use when clients need to model working capital items on the balance sheet such a
 
 1. **Accounts Receivable with 25 DSO**:
 ```
-<CONST-E; row1="V2(D)|Days Sales Outstanding(L)|(F)|25(Y1)|25(Y2)|25(Y3)|";>
-<WCDSO2-S; driver1="V1"; driver2="V2"; row1="A1(D)|Accounts Receivable(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
-<CHANGE-S; negative="true"; driver1="A1"; row1="V13(D)|Change in Accounts Receivable(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CONST-E; indent="2"; row1="V2(D)|~Days Sales Outstanding(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~25(Y1)|~25(Y2)|~25(Y3)|~25(Y4)|~25(Y5)|~25(Y6)|";>
+<WCDSO2-S; driver1="V1"; driver2="V2"; topborder="true"; indent="1"; row1="A1(D)|Accounts Receivable(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<CHANGE-S; negative="true"; driver1="A1"; indent="1"; row1="V13(D)|Change in Accounts Receivable(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 ```
 *If monthly sales (V1) = $100k and DSO (V2) = 25 days, then AR = $100k × (25/30) = $83.3k*
 
 2. **Inventory with 45 Days Inventory Outstanding**:
 ```
-<CONST-E; row1="V3(D)|Days Inventory Outstanding(L)|(F)|45(Y1)|45(Y2)|45(Y3)|";>
-<WCDSO2-S; driver1="V4"; driver2="V3"; row1="A2(D)|Inventory(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
-<CHANGE-S; negative="true"; driver1="A2"; row1="V14(D)|Change in Inventory(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CONST-E; indent="2"; row1="V3(D)|~Days Inventory Outstanding(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~45(Y1)|~45(Y2)|~45(Y3)|~45(Y4)|~45(Y5)|~45(Y6)|";>
+<WCDSO2-S; driver1="V4"; driver2="V3"; topborder="true"; indent="1"; row1="A2(D)|Inventory(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<CHANGE-S; negative="true"; driver1="A2"; indent="1"; row1="V14(D)|Change in Inventory(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 ```
 *Where V4 represents monthly COGS*
 
 3. **Accounts Payable with 30 DPO**:
 ```
-<CONST-E; row1="V5(D)|Days Payable Outstanding(L)|(F)|30(Y1)|30(Y2)|30(Y3)|";>
-<WCDSO2-S; driver1="V6"; driver2="V5"; row1="L1(D)|Accounts Payable(L)|BS: current liabilities(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
-<CHANGE-S; negative="false"; driver1="L1"; row1="V15(D)|Change in Accounts Payable(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CONST-E; indent="2"; row1="V5(D)|~Days Payable Outstanding(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~30(Y1)|~30(Y2)|~30(Y3)|~30(Y4)|~30(Y5)|~30(Y6)|";>
+<WCDSO2-S; driver1="V6"; driver2="V5"; topborder="true"; indent="1"; row1="L1(D)|Accounts Payable(L)|BS: current liabilities(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<CHANGE-S; negative="false"; driver1="L1"; indent="1"; row1="V15(D)|Change in Accounts Payable(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 ```
 *Where V6 represents monthly operating expenses or COGS*
 
@@ -69,7 +72,7 @@ Use when clients need to model working capital items on the balance sheet such a
 
 **Code Structure**:
 ```
-<WCOFFSET-S; driver1="[Income Statement Driver]"; driver2="[Days Forward Driver]"; row1="[Working Capital Item]";>
+<WCOFFSET-S; driver1="[Income Statement Driver]"; driver2="[Days Forward Driver]"; topborder="true"; indent="1"; row1="[Working Capital Item](D)|[Working Capital Item](L)|BS: [current assets/current liabilities](F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 ```
 
 **How It Works**:
@@ -81,25 +84,28 @@ Use when clients need to model working capital items on the balance sheet such a
 
 1. **Inventory with 60-Day Lead Time**:
 ```
-<CONST-E; row1="V7(D)|Inventory Lead Time Days(L)|(F)|60(Y1)|60(Y2)|60(Y3)|";>
-<WCOFFSET-S; driver1="V8"; driver2="V7"; row1="A3(D)|Inventory(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
-<CHANGE-S; negative="true"; driver1="A3"; row1="V16(D)|Change in Inventory(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CONST-E; indent="2"; row1="V7(D)|~Inventory Lead Time Days(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~60(Y1)|~60(Y2)|~60(Y3)|~60(Y4)|~60(Y5)|~60(Y6)|";>
+<WCOFFSET-S; driver1="V8"; driver2="V7"; topborder="true"; indent="1"; row1="A3(D)|Inventory(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<CHANGE-S; negative="true"; driver1="A3"; indent="1"; row1="V16(D)|Change in Inventory(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 ```
 *Where V8 represents COGS. Function looks roundup(60/2,0) = 2 months forward at COGS. If COGS will be -$100k in 2 months, purchase $100k inventory this month.*
 
 2. **Prepaid Rent with 90-Day Advance**:
 ```
-<CONST-E; row1="V9(D)|Rent Prepayment Days(L)|(F)|90(Y1)|90(Y2)|90(Y3)|";>
-<WCOFFSET-S; driver1="V10"; driver2="V9"; row1="A4(D)|Prepaid Rent(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
-<CHANGE-S; negative="true"; driver1="A4"; row1="V17(D)|Change in Prepaid Rent(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CONST-E; indent="2"; row1="V9(D)|~Rent Prepayment Days(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~90(Y1)|~90(Y2)|~90(Y3)|~90(Y4)|~90(Y5)|~90(Y6)|";>
+<WCOFFSET-S; driver1="V10"; driver2="V9"; topborder="true"; indent="1"; row1="A4(D)|Prepaid Rent(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<CHANGE-S; negative="true"; driver1="A4"; indent="1"; row1="V17(D)|Change in Prepaid Rent(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 ```
 *Where V10 represents monthly rent expense. Looks roundup(90/2,0) = 3 months forward.*
 
 3. **Raw Materials with 45-Day Lead Time**:
 ```
-<CONST-E; row1="V11(D)|Raw Materials Lead Time(L)|(F)|45(Y1)|45(Y2)|45(Y3)|";>
-<WCOFFSET-S; driver1="V12"; driver2="V11"; row1="A5(D)|Raw Materials Inventory(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
-<CHANGE-S; negative="true"; driver1="A5"; row1="V18(D)|Change in Raw Materials Inventory(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CONST-E; indent="2"; row1="V11(D)|~Raw Materials Lead Time(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~45(Y1)|~45(Y2)|~45(Y3)|~45(Y4)|~45(Y5)|~45(Y6)|";>
+<WCOFFSET-S; driver1="V12"; driver2="V11"; topborder="true"; indent="1"; row1="A5(D)|Raw Materials Inventory(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<CHANGE-S; negative="true"; driver1="A5"; indent="1"; row1="V18(D)|Change in Raw Materials Inventory(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 ```
 *Where V12 represents material costs. Looks roundup(45/2,0) = 1 month forward.*
 
@@ -107,26 +113,31 @@ Use when clients need to model working capital items on the balance sheet such a
 
 **IMPORTANT**: ALWAYS use CHANGE-S codes in conjunction with WCDSO2-S and WCOFFSET-S to calculate the impact to the statement of cash flows.
 
-**CHANGE-S Code Structure**:
+**Required Code Structure**:
 ```
-<CHANGE-S; negative="[true/false]"; driver1="[Working Capital Driver]"; row1="[CF Driver](D)|Change in [Working Capital Item](L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<WCDSO2-S; driver1="[Income Statement Driver]"; driver2="[Days Driver]"; topborder="true"; indent="1"; row1="[WC Driver](D)|[Working Capital Item](L)|BS: [current assets/current liabilities](F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<CHANGE-S; negative="[true/false]"; driver1="[WC Driver]"; indent="1"; row1="[CF Driver](D)|Change in [Working Capital Item](L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 ```
 
 **Critical Rules**:
+- **Top border**: ALWAYS include topborder="true" for all working capital codes (WCDSO2-S and WCOFFSET-S)
+- **BR code**: ALWAYS include a BR code between the working capital code and CHANGE-S code
 - **Fincode**: Always use "CF: wc" for working capital cash flow items
 - **Current Assets**: Set negative="true" (increases in assets reduce cash flow)
 - **Current Liabilities**: Set negative="false" (increases in liabilities improve cash flow)
+- **Formatting**: Use full column structure with (C1)-(C6) and (Y1)-(Y6), include indent="1" for balance sheet and cash flow items
 
 **Examples**:
 
 **Current Assets (negative="true")**:
-- Accounts Receivable: `<CHANGE-S; negative="true"; driver1="A1"; row1="V13(D)|Change in Accounts Receivable(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>`
-- Inventory: `<CHANGE-S; negative="true"; driver1="A2"; row1="V14(D)|Change in Inventory(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>`
-- Prepaid Expenses: `<CHANGE-S; negative="true"; driver1="A3"; row1="V15(D)|Change in Prepaid Expenses(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>`
+- Accounts Receivable: `<CHANGE-S; negative="true"; driver1="A1"; indent="1"; row1="V13(D)|Change in Accounts Receivable(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>`
+- Inventory: `<CHANGE-S; negative="true"; driver1="A2"; indent="1"; row1="V14(D)|Change in Inventory(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>`
+- Prepaid Expenses: `<CHANGE-S; negative="true"; driver1="A3"; indent="1"; row1="V15(D)|Change in Prepaid Expenses(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>`
 
 **Current Liabilities (negative="false")**:
-- Accounts Payable: `<CHANGE-S; negative="false"; driver1="L1"; row1="V16(D)|Change in Accounts Payable(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>`
-- Accrued Liabilities: `<CHANGE-S; negative="false"; driver1="L2"; row1="V17(D)|Change in Accrued Liabilities(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>`
+- Accounts Payable: `<CHANGE-S; negative="false"; driver1="L1"; indent="1"; row1="V16(D)|Change in Accounts Payable(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>`
+- Accrued Liabilities: `<CHANGE-S; negative="false"; driver1="L2"; indent="1"; row1="V17(D)|Change in Accrued Liabilities(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>`
 
 ## DECISION FRAMEWORK: WCDSO2-S vs WCOFFSET-S
 
@@ -146,41 +157,51 @@ Use when clients need to model working capital items on the balance sheet such a
 
 ### Scenario 1: Standard AR/AP Model
 ```
-<CONST-E; row1="V2(D)|Days Sales Outstanding(L)|(F)|30(Y1)|30(Y2)|30(Y3)|";>
-<WCDSO2-S; driver1="V1"; driver2="V2"; row1="A1(D)|Accounts Receivable(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
-<CHANGE-S; negative="true"; driver1="A1"; row1="V20(D)|Change in Accounts Receivable(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
-<CONST-E; row1="V3(D)|Days Payable Outstanding(L)|(F)|45(Y1)|45(Y2)|45(Y3)|";>
-<WCDSO2-S; driver1="V4"; driver2="V3"; row1="L1(D)|Accounts Payable(L)|BS: current liabilities(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
-<CHANGE-S; negative="false"; driver1="L1"; row1="V21(D)|Change in Accounts Payable(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CONST-E; indent="2"; row1="V2(D)|~Days Sales Outstanding(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~30(Y1)|~30(Y2)|~30(Y3)|~30(Y4)|~30(Y5)|~30(Y6)|";>
+<WCDSO2-S; driver1="V1"; driver2="V2"; topborder="true"; indent="1"; row1="A1(D)|Accounts Receivable(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<CHANGE-S; negative="true"; driver1="A1"; indent="1"; row1="V20(D)|Change in Accounts Receivable(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<CONST-E; indent="2"; row1="V3(D)|~Days Payable Outstanding(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~45(Y1)|~45(Y2)|~45(Y3)|~45(Y4)|~45(Y5)|~45(Y6)|";>
+<WCDSO2-S; driver1="V4"; driver2="V3"; topborder="true"; indent="1"; row1="L1(D)|Accounts Payable(L)|BS: current liabilities(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<CHANGE-S; negative="false"; driver1="L1"; indent="1"; row1="V21(D)|Change in Accounts Payable(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 ```
 
 ### Scenario 2: Manufacturing Inventory with Lead Times
 ```
-<CONST-E; row1="V5(D)|Raw Materials Lead Time(L)|(F)|60(Y1)|60(Y2)|60(Y3)|";>
-<WCOFFSET-S; driver1="V6"; driver2="V5"; row1="A2(D)|Raw Materials(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
-<CHANGE-S; negative="true"; driver1="A2"; row1="V22(D)|Change in Raw Materials(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
-<CONST-E; row1="V7(D)|Finished Goods DIO(L)|(F)|30(Y1)|30(Y2)|30(Y3)|";>
-<WCDSO2-S; driver1="V8"; driver2="V7"; row1="A3(D)|Finished Goods(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
-<CHANGE-S; negative="true"; driver1="A3"; row1="V23(D)|Change in Finished Goods(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CONST-E; indent="2"; row1="V5(D)|~Raw Materials Lead Time(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~60(Y1)|~60(Y2)|~60(Y3)|~60(Y4)|~60(Y5)|~60(Y6)|";>
+<WCOFFSET-S; driver1="V6"; driver2="V5"; topborder="true"; indent="1"; row1="A2(D)|Raw Materials(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<CHANGE-S; negative="true"; driver1="A2"; indent="1"; row1="V22(D)|Change in Raw Materials(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<CONST-E; indent="2"; row1="V7(D)|~Finished Goods DIO(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~30(Y1)|~30(Y2)|~30(Y3)|~30(Y4)|~30(Y5)|~30(Y6)|";>
+<WCDSO2-S; driver1="V8"; driver2="V7"; topborder="true"; indent="1"; row1="A3(D)|Finished Goods(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<CHANGE-S; negative="true"; driver1="A3"; indent="1"; row1="V23(D)|Change in Finished Goods(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 ```
 
 ### Scenario 3: Service Business with Prepaid Expenses
 ```
-<CONST-E; row1="V9(D)|Prepaid Insurance Months(L)|(F)|3(Y1)|3(Y2)|3(Y3)|";>
-<WCOFFSET-S; driver1="V10"; driver2="V9"; row1="A4(D)|Prepaid Insurance(L)|BS: current assets(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
-<CHANGE-S; negative="true"; driver1="A4"; row1="V24(D)|Change in Prepaid Insurance(L)|CF: wc(F)|$F(Y1)|$F(Y2)|$F(Y3)|";>
+<CONST-E; indent="2"; row1="V9(D)|~Prepaid Insurance Months(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~3(Y1)|~3(Y2)|~3(Y3)|~3(Y4)|~3(Y5)|~3(Y6)|";>
+<WCOFFSET-S; driver1="V10"; driver2="V9"; topborder="true"; indent="1"; row1="A4(D)|Prepaid Insurance(L)|BS: current assets(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
+<BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<CHANGE-S; negative="true"; driver1="A4"; indent="1"; row1="V24(D)|Change in Prepaid Insurance(L)|CF: wc(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 ```
 
 ## BEST PRACTICES
 
 1. **Choose the right method**: Use WCDSO2-S for standard terms, WCOFFSET-S for lead times
 2. **ALWAYS include CHANGE-S codes**: REQUIRED for every WCDSO2-S and WCOFFSET-S code
-3. **Correct fincode**: Always use "CF: wc" for working capital cash flow items
-4. **Proper negative attributes**: negative="true" for current assets, negative="false" for current liabilities
-5. **Use realistic assumptions**: Base days outstanding on industry standards or client data
-6. **Consider seasonality**: Adjust assumptions if working capital varies by season
-7. **Balance sheet integrity**: Ensure working capital changes tie to cash flow statement
-8. **Sign conventions**: Current assets reduce cash flow when they increase, current liabilities improve cash flow when they increase
+3. **ALWAYS include BR codes**: REQUIRED between working capital codes and CHANGE-S codes for proper formatting
+4. **ALWAYS include topborder="true"**: REQUIRED for all working capital codes (WCDSO2-S and WCOFFSET-S)
+5. **Correct fincode**: Always use "CF: wc" for working capital cash flow items
+6. **Proper negative attributes**: negative="true" for current assets, negative="false" for current liabilities
+7. **Use full column structure**: Include (C1)-(C6) and (Y1)-(Y6) columns with proper indentation
+8. **Proper indentation**: Use indent="2" for assumption drivers, indent="1" for balance sheet and cash flow items
+9. **Tilde formatting**: Use ~value for assumption drivers to indicate they are input assumptions
+10. **Use realistic assumptions**: Base days outstanding on industry standards or client data
+11. **Consider seasonality**: Adjust assumptions if working capital varies by season
+12. **Balance sheet integrity**: Ensure working capital changes tie to cash flow statement
+13. **Sign conventions**: Current assets reduce cash flow when they increase, current liabilities improve cash flow when they increase
 
 ## INTEGRATION WITH OTHER MODULES
 

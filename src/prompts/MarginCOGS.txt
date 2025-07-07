@@ -1,23 +1,51 @@
 Whenever you are given % margin as an assumption. Ex. "I have a business that has 20% gross profit margins", special things need to be checked:
 
-1) The % margin assumption should be at the end of the calculation chain (see "% gross margin" row at the end of exmample)
+## CRITICAL RULE - DISPLAY ORDER
+**ALWAYS display codes in this exact order, regardless of calculation flow:**
+1. **Revenue** (first)
+2. **COGS** (second - immediately after revenue)
+3. **Gross Profit** (third - after COGS)
+4. **% Margin** (fourth - last in the sequence)
+
+**The calculation logic flows differently than display order:**
+- Revenue and % margin assumptions → calculate Gross Profit
+- Gross Profit and Revenue → calculate COGS (subtract gross profit from revenue)
+- But DISPLAY order must be: Revenue → COGS → Gross Profit → % Margin
+
+## DETAILED REQUIREMENTS:
+1) The % margin assumption should be at the end of the calculation chain (see "% gross margin" row at the end of example)
 2) Gross Profit should not have a fincode. Make sure to check column 3 and delete any fincode if there is one. 
 3) COGS should be in between Revenue and Gross Profit rows. It is common for encoder to put COGS at the end. This is wrong. Move it so that it sits between revenue and gross profit. 
-4) COGS input driver1 should be the gross profit row (in example, R1) and driver2 should be revenue (V3). That way, COGS is backed into given gross profit and revenue by deducting revenue from gross profit and ending up with a negative value equal to COGS.  
+4) COGS input driver1 should be the gross profit row and driver2 should be revenue. That way, COGS is backed into given gross profit and revenue by deducting revenue from gross profit and ending up with a negative value equal to COGS.  
 5) THIS STRUCTURE IS INCORRECT: <REVENUE><% MARGIN><GROSSPROFIT><BR><COGS>!!!!! It needs to be reordered.
 
-Example of correct chain:
-<LABELH1; row1 = "|Pizza Sales:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
-<SPREAD-E; format="Volume"; indent="1"; bold="true"; topborder="false"; row1 = "V1(D)|# of Pizza Slices Sold(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|1000(Y1)|1000(Y2)|1000(Y3)|1000(Y4)|1000(Y5)|1000(Y6)|">
-<CONST-E; format="DollarItalic"; indent="2"; bold="false"; topborder="false"; row1 = "V2(D)|Price per Slice(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|10(Y1)|10(Y2)|10(Y3)|10(Y4)|10(Y5)|10(Y6)|">
-<MULT2-S; driver1="V1"; driver2="V2"; indent="1"; bold="True"; topborder="True"; format="Dollar"; sumif="Year"; row1 = "R1(D)|Revenue - Pizza(L)|IS: revenue(F)|(C1)|(C2)|(C3)|(C4)|(C5)|F(Y1)|F(Y2)|F(Y3)|F(Y4)|F(Y5)|F(Y6)|">
-<SUBTRACT2-S; driver1="R2"; driver2="R1"; indent="2"; bold="false"; topborder="false"; format="Dollar"; sumif="Year"; row1 = "R3(D)|COGS - Pizza(L)|IS: direct costs(F)|(C1)|(C2)|(C3)|(C4)|(C5)|F(Y1)|F(Y2)|F(Y3)|F(Y4)|F(Y5)|F(Y6)|">
-<MULT2-S; driver1="R1"; driver2="V3"; indent="1"; bold="True"; topborder="true"; format="Dollar"; sumif="Year"; row1 = "R2(D)|Gross Profit(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|F(Y1)|F(Y2)|F(Y3)|F(Y4)|F(Y5)|F(Y6)|">
-<CONST-E; format="Percent"; indent="2"; bold="false"; topborder="false"; row1 = "V3(D)|% Gross Margin(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|.2(Y1)|.2(Y2)|.2(Y3)|.2(Y4)|.2(Y5)|.2(Y6)|">
-<BR; row1 = "|(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+## CORRECT EXAMPLE - PROPER DISPLAY ORDER:
+```
+<BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<LABELH1; row1="(D)|~Pizza Sales:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<SPREAD-E; indent="1"; bold="true"; row1="V1(D)|Revenue - Pizza Sales(L)|IS: revenue(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$100000(Y1)|$100000(Y2)|$100000(Y3)|$100000(Y4)|$100000(Y5)|$100000(Y6)|">
+<SUBTRACT2-S; driver1="V3"; driver2="V1"; indent="2"; row1="V4(D)|COGS - Pizza(L)|IS: direct costs(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+<MULT2-S; driver1="V1"; driver2="V2"; indent="1"; bold="true"; topborder="true"; row1="V3(D)|Gross Profit(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+<CONST-E; indent="2"; row1="V2(D)|~% Gross Margin(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~50%(Y1)|~50%(Y2)|~50%(Y3)|~50%(Y4)|~50%(Y5)|~50%(Y6)|">
+```
+
+**Note the correct flow:**
+1. **Revenue** (V1) - first in display order
+2. **COGS** (V4) - second in display order, calculated by subtracting Gross Profit (V3) from Revenue (V1)
+3. **Gross Profit** (V3) - third in display order, calculated by multiplying Revenue (V1) by % Margin (V2)
+4. **% Margin** (V2) - fourth/last in display order, the assumption input
 
 
-Validation:
-1) Is the last code in the chain that calculates COGS and Gross Profit the % margin assumption? If not, it is not correct. Move the % margin row to the end.
-2) Does the codestring that calculates COGS come after Gross Profit? If so, this is not correct. Reorder so that the COGS calculation comes before the Gross Profit calculation. 
-3) Does Gross Profit come after % Gross Margin? If so, this is incorrect. Reorder so that Gross Profit comes after % gross margin.
+## VALIDATION CHECKLIST:
+1) **DISPLAY ORDER CHECK**: Are the codes in this exact order? Revenue → COGS → Gross Profit → % Margin
+   - If not, REORDER to match this sequence regardless of calculation dependencies
+2) **COGS POSITION**: Does the COGS calculation come immediately after Revenue and before Gross Profit? 
+   - If COGS is at the end after Gross Profit, this is WRONG - move it to position 2
+3) **% MARGIN POSITION**: Is the % margin assumption the very last code in the sequence?
+   - If not, move it to the end position
+4) **GROSS PROFIT FINCODE**: Does Gross Profit have a fincode in column 3? 
+   - If yes, DELETE the fincode - Gross Profit should not have a fincode
+5) **CALCULATION LOGIC**: Does COGS subtract Gross Profit from Revenue (driver1=gross profit, driver2=revenue)?
+   - This ensures COGS = Revenue - Gross Profit, resulting in the correct negative COGS value
+
+**REMEMBER**: Display order (what user sees) is different from calculation order (how formulas work)

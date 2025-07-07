@@ -92,16 +92,11 @@ Client: "I need to set up beginning balances for my model"
 ## BEST PRACTICES
 
 1. **One ACTUALS code per data set**: Don't mix different time periods or statement types unnecessarily
-2. **Consistent categorization**: Ensure categories align with your model's financial structure
-3. **Complete data sets**: Include all relevant line items for the period
-4. **Proper sign conventions**: Follow standard accounting conventions (expenses negative, revenues positive)
+2.. **Proper sign conventions**: Follow standard accounting conventions (expenses negative, revenues positive)
 5. **Date consistency**: Use consistent date formats within each ACTUALS code
 6. **Beginning Balance Sheet Timing**: For beginning balance sheet items (Cash, Accounts Receivable, Debt, etc.), use a date of one month before projections begin. Default assumption: projections start January 2025, so beginning balances should be dated 12/31/2024.
 
 ## RECONCILIATION NOTES
 
-- For Income Statements: Include "Net Income PLUG" entries if line items don't reconcile perfectly
-- For Balance Sheets: Ensure assets equal liabilities plus equity
-- For Cash Flow: Ensure operating, investing, and financing activities reconcile to net change in cash
-
+- 
 The ACTUALS code automatically creates or updates an "Actuals" worksheet in your Excel model, properly formatting the data with borders, currency formatting, and date formatting for easy analysis alongside your projections. 
