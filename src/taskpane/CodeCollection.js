@@ -3135,6 +3135,39 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                     }
                 }
 
+                // Apply customformula parameter to column I for row1 (COLUMNFORMULA-S codes only)
+                if (g === 1 && yy === 0 && code.type === "COLUMNFORMULA-S" && code.params.customformula && code.params.customformula !== "0") {
+                    try {
+                        console.log(`  Applying customformula to I${currentRowNum} for COLUMNFORMULA-S: ${code.params.customformula}`);
+                        
+                        // Parse comments from square brackets in customformula
+                        const customFormulaParsed = parseCommentFromBrackets(code.params.customformula);
+                        const cleanCustomFormula = customFormulaParsed.cleanValue;
+                        
+                        // For COLUMNFORMULA-S, set it as a value that will be converted to formula later by processColumnFormulaSRows
+                        const customFormulaCell = currentWorksheet.getRange(`I${currentRowNum}`);
+                        customFormulaCell.values = [[cleanCustomFormula]];
+                        console.log(`  Set customformula as value for COLUMNFORMULA-S processing (cleaned of comments)`);
+                        
+                        // Apply comment to I cell if one was extracted
+                        if (customFormulaParsed.comment) {
+                            console.log(`  Adding customformula comment "${customFormulaParsed.comment}" to I${currentRowNum}`);
+                            try {
+                                currentWorksheet.comments.add(`I${currentRowNum}`, customFormulaParsed.comment);
+                                await context.sync(); // Sync the comment addition
+                                console.log(`  Successfully applied customformula comment to I${currentRowNum}`);
+                            } catch (commentError) {
+                                console.error(`  Error applying customformula comment: ${commentError.message}`);
+                            }
+                        }
+                        
+                        // Track this row for processColumnFormulaSRows since column D will be overwritten
+                        addColumnFormulaSRow(worksheetName, currentRowNum);
+                    } catch (customFormulaError) {
+                        console.error(`  Error applying customformula: ${customFormulaError.message}`);
+                    }
+                }
+
                     // Apply symbol-based formatting for each cell in the row
                     try {
                         // Create a cleaned split array without square bracket comments for formatting
@@ -4340,7 +4373,17 @@ export async function processAssumptionTabs(assumptionTabNames) {
                      // Clear the tracked FORMULA-S rows for this worksheet (cleanup)
                      clearFormulaSRows(worksheetName);
                      
-                     // 10. Delete rows with green background (#CCFFCC) - AFTER FORMULA-S processing
+                     // 9.5. Process COLUMNFORMULA-S rows - Convert driver references to cell references BEFORE deleting green rows
+                     console.log(`Processing COLUMNFORMULA-S rows in ${worksheetName} (before green row deletion)...`);
+                     startTimer(`processColumnFormulaSRows-${worksheetName}`);
+                     await processColumnFormulaSRows(currentWorksheet, START_ROW, postIndexLastRow);
+                     endTimer(`processColumnFormulaSRows-${worksheetName}`);
+                     console.log(`Finished processing COLUMNFORMULA-S rows`);
+                     
+                     // Clear the tracked COLUMNFORMULA-S rows for this worksheet (cleanup)
+                     clearColumnFormulaSRows(worksheetName);
+                     
+                     // 10. Delete rows with green background (#CCFFCC) - AFTER FORMULA-S and COLUMNFORMULA-S processing
                      console.log(`Deleting green rows in ${worksheetName}...`);
                      startTimer(`deleteGreenRows-${worksheetName}`);
                      // Changed START_ROW to START_ROW - 1 to include row 9
@@ -5617,14 +5660,14 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                 return newFormula;
             });
             
-                    // Process AMORT function: AMORT(driver1,driver2,driver3,driver4) -> IFERROR(PPMT(driver1/U$7,1,driver2-U$8+1,SUM(driver3,OFFSET(driver4,-1,0),0,0),0),0)
+                    // Process AMORT function: AMORT(driver1,driver2,driver3,driver4) -> IFERROR(PPMT(driver1/U$7,1,driver2-U$8+1,SUM(driver3,OFFSET(driver4,-1,0),0,0),0)
         formula = formula.replace(/AMORT\(([^,]+),([^,]+),([^,]+),([^)]+)\)/gi, (match, driver1, driver2, driver3, driver4) => {
             // Trim whitespace from drivers
             driver1 = driver1.trim();
             driver2 = driver2.trim();
             driver3 = driver3.trim();
             driver4 = driver4.trim();
-            const newFormula = `IFERROR(PPMT(${driver1}/U$7,1,${driver2}-U$8+1,SUM(${driver3},OFFSET(${driver4},-1,0),0,0),0),0)`;
+            const newFormula = `IFERROR(PPMT(${driver1}/U$7,1,${driver2}-U$8+1,SUM(${driver3},OFFSET(${driver4},-1,0),0,0),0)`;
             console.log(`    Converting AMORT(${driver1},${driver2},${driver3},${driver4}) to ${newFormula}`);
             return newFormula;
         });
@@ -5758,6 +5801,185 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
         throw error;
     }
 }
+
+/**
+ * Processes COLUMNFORMULA-S rows by converting driver references in column I to Excel formulas
+ * @param {Excel.Worksheet} worksheet - The worksheet to process
+ * @param {number} startRow - The starting row to search from
+ * @param {number} lastRow - The last row to search to
+ * @returns {Promise<void>}
+ */
+async function processColumnFormulaSRows(worksheet, startRow, lastRow) {
+    console.log(`Processing COLUMNFORMULA-S rows in ${worksheet.name} from row ${startRow} to ${lastRow}`);
+    
+    try {
+        // Get stored COLUMNFORMULA-S row positions (since column D may have been overwritten)
+        const columnFormulaSRows = getColumnFormulaSRows(worksheet.name);
+        
+        if (columnFormulaSRows.length === 0) {
+            console.log("No COLUMNFORMULA-S rows found in tracker");
+            return;
+        }
+        
+        console.log(`Found ${columnFormulaSRows.length} COLUMNFORMULA-S rows at: ${columnFormulaSRows.join(", ")}`);
+        
+        // Load column A values to create a driver lookup map
+        const colARangeAddress = `A${startRow}:A${lastRow}`;
+        const colARange = worksheet.getRange(colARangeAddress);
+        colARange.load("values");
+        await worksheet.context.sync();
+        
+        const colAValues = colARange.values;
+        const driverMap = new Map();
+        
+        // Check each row individually for green background color to filter driver map
+        const greenRows = new Set();
+        for (let i = 0; i < colAValues.length; i++) {
+            const rowNum = startRow + i;
+            try {
+                const cellB = worksheet.getRange(`B${rowNum}`);
+                cellB.load('format/fill/color');
+                await worksheet.context.sync();
+                
+                if (cellB.format && cellB.format.fill && cellB.format.fill.color === '#CCFFCC') {
+                    greenRows.add(rowNum);
+                }
+            } catch (colorError) {
+                // If we can't check color, assume it's not green
+                console.warn(`  Could not check color for row ${rowNum}, assuming not green`);
+            }
+        }
+        
+        // Build driver map: driver name -> row number (excluding green rows)
+        for (let i = 0; i < colAValues.length; i++) {
+            const value = colAValues[i][0];
+            const rowNum = startRow + i;
+            
+            if (value !== null && value !== "" && !greenRows.has(rowNum)) {
+                driverMap.set(String(value), rowNum);
+                console.log(`  Driver map: ${value} -> row ${rowNum} (non-green)`);
+            } else if (value !== null && value !== "" && greenRows.has(rowNum)) {
+                console.log(`  Skipping green row driver: ${value} at row ${rowNum} (will be deleted)`);
+            }
+        }
+        
+        // Define column mapping for cd: 1=D, 2=E, 3=F, etc. (excluding A, B, C)
+        const columnMapping = {
+            '1': 'D', '2': 'E', '3': 'F', '4': 'G', '5': 'H', '6': 'I', '7': 'J', '8': 'K', '9': 'L',
+            '10': 'M', '11': 'N', '12': 'O', '13': 'P', '14': 'Q', '15': 'R', '16': 'S'
+        };
+        
+        // Process each COLUMNFORMULA-S row
+        for (const rowNum of columnFormulaSRows) {
+            // Get the current value in column I
+            const iCell = worksheet.getRange(`I${rowNum}`);
+            iCell.load("values");
+            await worksheet.context.sync();
+            
+            const originalValue = iCell.values[0][0];
+            if (!originalValue || originalValue === "") {
+                console.log(`  Row ${rowNum}: No value in I, skipping`);
+                continue;
+            }
+            
+            console.log(`  Row ${rowNum}: Processing formula string: "${originalValue}"`);
+            
+            // Convert the string to a formula
+            let formula = String(originalValue);
+            
+            // Replace all rd{driverName} patterns with cell references
+            const rdPattern = /rd\{([^}]+)\}/g;
+            formula = formula.replace(rdPattern, (match, driverName) => {
+                const driverRow = driverMap.get(driverName);
+                if (driverRow) {
+                    const replacement = `U$${driverRow}`;
+                    console.log(`    Replacing rd{${driverName}} with ${replacement}`);
+                    return replacement;
+                } else {
+                    console.warn(`    Driver '${driverName}' not found in column A, keeping as is`);
+                    return match; // Keep the original if driver not found
+                }
+            });
+            
+            // Replace all cd{number} or cd{number-driverName} or cd{driverName-number} patterns with column references
+            const cdPattern = /cd\{([^}]+)\}/g;
+            formula = formula.replace(cdPattern, (match, content) => {
+                // Check if content contains a dash
+                const dashIndex = content.indexOf('-');
+                let columnNum, driverName;
+                
+                if (dashIndex !== -1) {
+                    const firstPart = content.substring(0, dashIndex).trim();
+                    const secondPart = content.substring(dashIndex + 1).trim();
+                    
+                    // Check if first part is a number to determine syntax format
+                    if (/^\d+$/.test(firstPart)) {
+                        // Format: {columnNumber-driverName} (existing syntax)
+                        columnNum = firstPart;
+                        driverName = secondPart;
+                        console.log(`    Parsing cd{${content}} as columnNumber-driverName format`);
+                    } else {
+                        // Format: {driverName-columnNumber} (new syntax)
+                        driverName = firstPart;
+                        columnNum = secondPart;
+                        console.log(`    Parsing cd{${content}} as driverName-columnNumber format`);
+                    }
+                } else {
+                    // Just column number, no driver name
+                    columnNum = content.trim();
+                    driverName = null;
+                    console.log(`    Parsing cd{${content}} as columnNumber only format`);
+                }
+                
+                const column = columnMapping[columnNum];
+                if (!column) {
+                    console.warn(`    Column number '${columnNum}' not valid (must be 1-16), keeping as is`);
+                    return match; // Keep the original if column number not valid
+                }
+                
+                // Determine which row to use
+                let rowToUse = rowNum;
+                if (driverName) {
+                    const driverRow = driverMap.get(driverName);
+                    if (driverRow) {
+                        rowToUse = driverRow;
+                        console.log(`    Replacing cd{${content}} with $${column}${rowToUse} (driver '${driverName}' found at row ${driverRow})`);
+                    } else {
+                        console.warn(`    Driver '${driverName}' not found in column A, using current row ${rowNum}`);
+                    }
+                } else {
+                    console.log(`    Replacing cd{${columnNum}} with $${column}${rowToUse}`);
+                }
+                
+                const replacement = `$${column}${rowToUse}`;
+                return replacement;
+            });
+            
+            // Apply the same function replacements as FORMULA-S
+            formula = await parseFormulaSCustomFormula(formula, rowNum, worksheet, worksheet.context);
+            
+            // Ensure the formula starts with '='
+            if (!formula.startsWith('=')) {
+                formula = '=' + formula;
+            }
+            
+            console.log(`  Row ${rowNum}: Final formula: ${formula}`);
+            
+            // Set the formula in the cell
+            iCell.formulas = [[formula]];
+        }
+        
+        // Sync all formula changes
+        await worksheet.context.sync();
+        console.log(`Successfully processed ${columnFormulaSRows.length} COLUMNFORMULA-S rows`);
+        
+    } catch (error) {
+        console.error(`Error in processColumnFormulaSRows: ${error.message}`, error);
+        throw error;
+    }
+}
+
+
 
 /**
  * Hides Columns C-I, Rows 2-8, and specific Actuals columns on specified sheets,
@@ -6119,6 +6341,9 @@ export async function hideColumnsAndNavigate(assumptionTabNames, originalModelCo
 // Global storage for FORMULA-S row positions per worksheet
 const formulaSRowTracker = new Map(); // Map<worksheetName, Set<rowNumber>>
 
+// Global storage for COLUMNFORMULA-S row positions per worksheet
+const columnFormulaSRowTracker = new Map(); // Map<worksheetName, Set<rowNumber>>
+
 // Global storage for INDEXBEGIN special rows per worksheet
 const indexBeginRowTracker = new Map(); // Map<worksheetName, {timeSeriesRow, yearRow, yearEndRow}>
 
@@ -6136,6 +6361,19 @@ function addFormulaSRow(worksheetName, rowNumber) {
 }
 
 /**
+ * Stores a COLUMNFORMULA-S row position for later processing
+ * @param {string} worksheetName - Name of the worksheet
+ * @param {number} rowNumber - Row number containing customformula
+ */
+function addColumnFormulaSRow(worksheetName, rowNumber) {
+    if (!columnFormulaSRowTracker.has(worksheetName)) {
+        columnFormulaSRowTracker.set(worksheetName, new Set());
+    }
+    columnFormulaSRowTracker.get(worksheetName).add(rowNumber);
+    console.log(`  Tracked COLUMNFORMULA-S row ${rowNumber} for worksheet ${worksheetName}`);
+}
+
+/**
  * Gets stored FORMULA-S row positions for a worksheet
  * @param {string} worksheetName - Name of the worksheet
  * @returns {number[]} Array of row numbers
@@ -6146,11 +6384,29 @@ function getFormulaSRows(worksheetName) {
 }
 
 /**
+ * Gets stored COLUMNFORMULA-S row positions for a worksheet
+ * @param {string} worksheetName - Name of the worksheet
+ * @returns {number[]} Array of row numbers
+ */
+function getColumnFormulaSRows(worksheetName) {
+    const rows = columnFormulaSRowTracker.get(worksheetName);
+    return rows ? Array.from(rows) : [];
+}
+
+/**
  * Clears stored FORMULA-S row positions for a worksheet (cleanup)
  * @param {string} worksheetName - Name of the worksheet
  */
 function clearFormulaSRows(worksheetName) {
     formulaSRowTracker.delete(worksheetName);
+}
+
+/**
+ * Clears stored COLUMNFORMULA-S row positions for a worksheet (cleanup)
+ * @param {string} worksheetName - Name of the worksheet
+ */
+function clearColumnFormulaSRows(worksheetName) {
+    columnFormulaSRowTracker.delete(worksheetName);
 }
 
 /**
@@ -7072,7 +7328,7 @@ export async function insertModelCodesIntoFinancials(modelCodes) {
  * @param {string} originalModelCodes - The original model codes string used to build the model
  * @returns {Promise<void>}
  */
-export async function hideColumnsNavigateAndInsertCodes(assumptionTabNames, originalModelCodes) {
+export async function hideColumnsAndNavigateAndInsertCodes(assumptionTabNames, originalModelCodes) {
     try {
         console.log("🎯 [MODEL COMPLETION] Starting final model completion steps...");
         
@@ -7195,4 +7451,65 @@ export async function testTableminConversion() {
     }
     
     console.log("✅ TABLEMIN and SUMTABLE conversion test complete");
+}
+
+/**
+ * Test function to demonstrate COLUMNFORMULA-S functionality  
+ * @returns {Promise<void>}
+ */
+export async function testColumnFormulaSConversion() {
+    console.log("=".repeat(80));
+    console.log("🧪 TESTING COLUMNFORMULA-S FUNCTIONALITY");
+    console.log("=".repeat(80));
+    
+    try {
+        const testInput = `<COLUMNFORMULA-S; customformula="rd{V1}*cd{6-V2}/cd{6-V3}"; row1="A1(D)|Test Formula(L)|is: revenue(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">`;
+        
+        console.log("📋 Test Input:");
+        console.log(testInput);
+        
+        // Parse the code string
+        const codeCollection = populateCodeCollection(testInput);
+        console.log("✅ Parsed code collection:");
+        console.log(JSON.stringify(codeCollection, null, 2));
+        
+        // Verify the code type and customformula parameter
+        if (codeCollection.length > 0) {
+            const code = codeCollection[0];
+            console.log(`📊 Code type: ${code.type}`);
+            console.log(`📊 Custom formula: ${code.params.customformula}`);
+            
+            if (code.type === "COLUMNFORMULA-S" && code.params.customformula) {
+                console.log("✅ COLUMNFORMULA-S code parsed correctly");
+                console.log("✅ Custom formula parameter extracted successfully");
+                
+                // Test formula processing (simulate what would happen in column I)
+                const testFormula = code.params.customformula;
+                console.log(`🔧 Testing formula processing on: "${testFormula}"`);
+                
+                // Test the formula parsing with parseFormulaSCustomFormula
+                const processedFormula = await parseFormulaSCustomFormula(testFormula, 10);
+                console.log(`🎯 Processed formula result: "${processedFormula}"`);
+                console.log("🎯 This formula would be placed in column I during code execution");
+                console.log("🎯 processColumnFormulaSRows would convert it to Excel formula");
+                
+                // Show comparison
+                console.log("\n📊 COLUMNFORMULA-S vs FORMULA-S Comparison:");
+                console.log("   FORMULA-S: customformula -> column U");
+                console.log("   COLUMNFORMULA-S: customformula -> column I");
+                console.log("   Both use the same cd{} and rd{} syntax");
+                console.log("   Both are processed by parseFormulaSCustomFormula");
+            } else {
+                console.log("❌ COLUMNFORMULA-S parsing failed");
+            }
+        }
+        
+        console.log("=".repeat(80));
+        console.log("🎉 COLUMNFORMULA-S test completed successfully");
+        console.log("=".repeat(80));
+        
+    } catch (error) {
+        console.error("❌ Error in testColumnFormulaSConversion:", error.message);
+        console.log("=".repeat(80));
+    }
 }

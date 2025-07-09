@@ -3,6 +3,21 @@
 ## PURPOSE
 Use when clients need to model working capital items on the balance sheet such as Accounts Receivable, Inventory, Accounts Payable, Prepaid Expenses, or Accrued Liabilities. Working capital items represent the short-term assets and liabilities that fluctuate based on business operations.
 
+## 🚨 CRITICAL: CASH IS NOT A WORKING CAPITAL ITEM 🚨
+
+**CASH EXCLUSION RULES**:
+- **NEVER model cash with working capital codes** (BSCONST-E, WCDSO2-S, WCOFFSET-S)
+- **Cash is modeled internally** within the financials tab
+- **Cash only needs ACTUALS code** for beginning balance: `<ACTUALS; values="Cash|100000|12/31/2024|Cash">`
+- **Cash is NOT a working capital item** - it's the result of cash flow calculations
+
+**WRONG - Do NOT do this**:
+```
+<BSCONST-E; row1="V1(D)|Cash(L)|BS: current assets(F)|...">  ❌ NEVER
+<WCDSO2-S; driver1="V1"; driver2="V2"; row1="A1(D)|Cash(L)|...">  ❌ NEVER
+<WCOFFSET-S; driver1="V1"; driver2="V2"; row1="A1(D)|Cash(L)|...">  ❌ NEVER
+```
+
 ## WHEN TO USE WORKING CAPITAL
 - Client mentions accounts receivable, inventory, accounts payable, or other current assets/liabilities
 - Client discusses payment terms, collection periods, or supplier payment schedules
@@ -212,6 +227,8 @@ Use when clients need to model working capital items on the balance sheet such a
 
 ## DECISION FRAMEWORK: BSCONST-E vs WCDSO2-S vs WCOFFSET-S
 
+**🚨 NEVER use for CASH**: Cash is modeled internally - only use ACTUALS code for beginning cash balance.
+
 **Use BSCONST-E when**:
 - Client mentions static deposits or balances that don't change
 - Working capital item exists but doesn't fluctuate with operations
@@ -287,6 +304,11 @@ Use when clients need to model working capital items on the balance sheet such a
 
 ## BEST PRACTICES
 
+### 🚨 CRITICAL CASH EXCLUSION:
+- **NEVER model cash with working capital codes** - cash is modeled internally
+- **Cash only needs ACTUALS code** for beginning balance
+- **Cash is NOT a working capital item** - it's the result of cash flow calculations
+
 ### For Dynamic Working Capital (WCDSO2-S/WCOFFSET-S):
 1. **ALWAYS start with LABELH3**: Begin each working capital section with LABELH3 using exact balance sheet item name + ":"
 2. **Exact naming only**: Use precise balance sheet item names - no extra words like "Working Capital" or "Management"
@@ -302,12 +324,13 @@ Use when clients need to model working capital items on the balance sheet such a
 12. **Tilde formatting**: Use ~value for assumption drivers to indicate they are input assumptions
 
 ### For Static Working Capital (BSCONST-E):
-1. **ALWAYS start with LABELH1**: Begin static working capital sections with LABELH1 using exact balance sheet item name + ":"
-2. **No CHANGE-S codes**: Static items don't require CHANGE-S codes since balance doesn't change
-3. **BSCONST-E attributes**: Always include bold="true", indent="1", sumif="yearend"
-4. **ACTUALS required**: Static items must have ACTUALS codes for beginning balance
-5. **Exact label matching**: ACTUALS value must match BSCONST-E label exactly
-6. **Same amount in all periods**: Set identical dollar amounts across all projection periods
+1. **CASH EXCLUSION**: **NEVER use BSCONST-E for cash** - cash is modeled internally
+2. **ALWAYS start with LABELH1**: Begin static working capital sections with LABELH1 using exact balance sheet item name + ":"
+3. **No CHANGE-S codes**: Static items don't require CHANGE-S codes since balance doesn't change
+4. **BSCONST-E attributes**: Always include bold="true", indent="1", sumif="yearend"
+5. **ACTUALS required**: Static items must have ACTUALS codes for beginning balance
+6. **Exact label matching**: ACTUALS value must match BSCONST-E label exactly
+7. **Same amount in all periods**: Set identical dollar amounts across all projection periods
 
 ### General Best Practices:
 1. **Use realistic assumptions**: Base days outstanding on industry standards or client data

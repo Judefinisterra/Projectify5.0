@@ -132,6 +132,8 @@ Sub Populate_Code_DB_V3()
                     codeString = codeString & " bold=""false""; format=""DollarItalic""; topborder=""false""; negative=""false"";"
                 ElseIf CodeItem.codeName = "FORMULA-S" Then
                     codeString = codeString & " customformula="""";"
+                ElseIf CodeItem.codeName = "COLUMNFORMULA-S" Then
+                    codeString = codeString & " customformula="""";"
                 Else
                     ' Check other codes for standard formatting
                     Dim formatCodes As Variant

@@ -101,13 +101,67 @@ Client: "I need to include our actual balance sheet as of year-end"
 Client: "I need to set up beginning balances for my model"
 → Use ACTUALS code with beginning balance sheet items dated one month before projections begin
 
+## 🚨 CRITICAL: ACTUALS CODE EXECUTION 🚨
+
+**ACTUALS CODES RUN IN BACKGROUND**: ACTUALS codes are executed in the background and do NOT appear in the tab like other codes.
+
+**ORGANIZATIONAL CODE RULES**:
+- **NEVER add LABELH1, LABELH2, LABELH3, or BR codes around ACTUALS codes**
+- **ACTUALS codes are standalone** - they process automatically without visual representation
+- **No organizational structure needed** - ACTUALS codes don't need headers or formatting
+
+**CORRECT ACTUALS Usage**:
+```
+<ACTUALS; values="Cash|100000|12/31/2024|Cash">
+<ACTUALS; values="Accounts Receivable|50000|12/31/2024|Accounts Receivable*Inventory|25000|12/31/2024|Inventory">
+```
+
+**WRONG - Do NOT do this**:
+```
+<LABELH1; row1="(D)|~Beginning Balances:(L)|...">  ❌ NEVER DO THIS
+<ACTUALS; values="Cash|100000|12/31/2024|Cash">
+
+<LABELH3; row1="(D)|~Cash:(L)|...">  ❌ NEVER DO THIS  
+<ACTUALS; values="Cash|100000|12/31/2024|Cash">
+
+<BR; row1="...">  ❌ NEVER DO THIS
+<ACTUALS; values="Cash|100000|12/31/2024|Cash">
+```
+
+**Why**: ACTUALS codes execute in the background and don't need organizational structure since they don't appear in the worksheet.
+
+## 🚨 CRITICAL: CASH HANDLING 🚨
+
+**CASH IS MODELED INTERNALLY**: Cash is automatically modeled within the financials tab and does NOT need any additional projection codes.
+
+**CASH HANDLING RULES**:
+- When user mentions "beginning cash of $100k" or similar → ONLY add to ACTUALS code with label "Cash"
+- **NEVER use BSCONST-E, WCDSO2-S, WCOFFSET-S, or any other codes for cash**
+- **Cash does NOT need projection codes** - it's calculated internally by the model
+- **Cash is NOT a working capital item** - it's the result of cash flow calculations
+
+**CORRECT Cash Example**:
+```
+<ACTUALS; values="Cash|100000|12/31/2024|Cash">
+```
+
+**WRONG - Do NOT do this**:
+```
+<BSCONST-E; row1="V1(D)|Cash(L)|BS: current assets(F)|...">  ❌ NEVER DO THIS
+<WCDSO2-S; driver1="V1"; driver2="V2"; row1="A1(D)|Cash(L)|...">  ❌ NEVER DO THIS
+```
+
+**Why**: Cash is the balancing item on the balance sheet that results from all other financial activities. Modeling it separately would create circular references and double-counting.
+
 ## BEST PRACTICES
 
 1. **Category name matching**: **MOST IMPORTANT** - The 4th column (Category) must match exactly with the forecast item name. If the forecast model uses "Ending Debt Balance", use "Ending Debt Balance" in ACTUALS, not "Current Debt Balance" or any variation.
-2. **One ACTUALS code per data set**: Don't mix different time periods or statement types unnecessarily
-3. **Proper sign conventions**: Follow standard accounting conventions (expenses negative, revenues positive)
-4. **Date consistency**: Use consistent date formats within each ACTUALS code
-5. **Beginning Balance Sheet Timing**: For beginning balance sheet items (Cash, Accounts Receivable, Debt, etc.), use a date of one month before projections begin. Default assumption: projections start January 2025, so beginning balances should be dated 12/31/2024.
+2. **No organizational codes**: **CRITICAL** - NEVER add LABELH1/H2/H3, BR, or any organizational codes around ACTUALS codes - they execute in background
+3. **Cash handling**: **CRITICAL** - Cash only needs ACTUALS code, never any projection codes
+4. **One ACTUALS code per data set**: Don't mix different time periods or statement types unnecessarily
+5. **Proper sign conventions**: Follow standard accounting conventions (expenses negative, revenues positive)
+6. **Date consistency**: Use consistent date formats within each ACTUALS code
+7. **Beginning Balance Sheet Timing**: For beginning balance sheet items (Cash, Accounts Receivable, Debt, etc.), use a date of one month before projections begin. Default assumption: projections start January 2025, so beginning balances should be dated 12/31/2024.
 
 ## RECONCILIATION NOTES
 

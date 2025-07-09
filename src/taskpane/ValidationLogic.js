@@ -453,7 +453,7 @@ export async function validateLogicErrors(inputText) {
                 'MULT3-S', 'DIVIDE2-S', 'SUBTRACT2-S', 'SUBTOTAL2-S', 'SUBTOTAL3-S', 
                 'AVGMULT3-S', 'ANNUALIZE-S', 'DEANNUALIZE-S', 'AVGDEANNUALIZE2-S', 
                 'DIRECT-S', 'CHANGE-S', 'INCREASE-S', 'DECREASE-S', 'GROWTH-S', 
-                'OFFSETCOLUMN-S', 'OFFSET2-S', 'SUM2-S', 'DISCOUNT2-S', 'FORMULA-S'
+                'OFFSETCOLUMN-S', 'OFFSET2-S', 'SUM2-S', 'DISCOUNT2-S', 'FORMULA-S', 'COLUMNFORMULA-S'
             ];
             
             if (mathOperatorCodes.includes(codeType)) {
@@ -472,6 +472,9 @@ export async function validateLogicErrors(inputText) {
                 
                 if (codeType === 'FORMULA-S') {
                     // FORMULA-S should have no driver parameters
+                    expectedDrivers = [];
+                } else if (codeType === 'COLUMNFORMULA-S') {
+                    // COLUMNFORMULA-S should have no driver parameters
                     expectedDrivers = [];
                 } else if (codeType.match(/\d+3-S$/)) {
                     // Codes ending with "3-S" should have driver1, driver2, driver3

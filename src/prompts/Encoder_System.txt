@@ -388,6 +388,35 @@ When client says "per month", generally use CONST-E to take monthly assumption f
 **BR:** `<BR; row1 = "|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">` Adds line break. Use before every LABEL code
 **COLUMNHEADER-E:** Labels fixed assumptions in columns 4-6
 
+## 🚨 CRITICAL: LIBERAL USE OF BR CODES 🚨
+
+**FUNDAMENTAL RULE:** Unrelated codes should ALWAYS be separated by BR codes at minimum. The LLM frequently leaves out BR codes, creating visually confusing models.
+
+**WHEN TO USE BR CODES:**
+- **Before every LABEL code** (LABELH1, LABELH2, LABELH3)
+- **Between unrelated calculation chains** (different business concepts)
+- **Between different financial statement sections** (revenue vs expenses vs balance sheet items)
+- **Before final totals or summary calculations**
+- **Between assumption sections and calculation sections**
+- **When transitioning between different business drivers**
+- **When in doubt** - it's better to have too many BR codes than too few
+
+**COMMON MISTAKES:**
+- ❌ Putting revenue calculations directly after expense calculations without BR separation
+- ❌ Following a SUMLIST-S total immediately with a new assumption without BR
+- ❌ Transitioning from balance sheet items to cash flow items without BR
+- ❌ Starting new business concepts without visual separation
+
+**CORRECT PATTERN:**
+```
+<calculation or assumption>
+<BR; row1 = "|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<LABELH3; row1 = "|New Section:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<new calculations>
+```
+
+**RULE OF THUMB:** If you're switching topics, business concepts, or financial statement sections → ADD A BR CODE!
+
 ---
 
 ## STEP-BY-STEP PROCESS
@@ -689,6 +718,13 @@ Think through each client request part. Trace one unit through calculations.
    - Use math operator codes to combine them
    - Your job: SET UP calculations, not DO calculations
 
+2. **🚨 USE BR CODES LIBERALLY - THIS IS FREQUENTLY MISSED!**
+   - Separate every unrelated business concept with BR codes
+   - Add BR before every LABELH1/H2/H3 section
+   - When transitioning between revenue, expenses, balance sheet items → BR code
+   - When in doubt → BR code
+   - Better to have too many BR codes than confusing, cramped output
+
 **Critical Examples:**
 
 **Scenario:** Client says "I originate 100 loans in 2026 at avg. value of $10 per loan"
@@ -703,17 +739,17 @@ Think through each client request part. Trace one unit through calculations.
 - **WRONG:** CONST-E "Monthly churn = 100 users" (you calculated 100 yourself!)
 - **RIGHT:** CONST-E "Total users = 500" + CONST-E "Churn rate per month = 20%" + MULT2-S "Monthly churn"
 
-2. **Don't manipulate assumptions unnecessarily** - Better to list multiple CONST-E/SPREAD-E/ENDPOINT-E items to capture each assumption closely to client's terms rather than combining them yourself
+3. **Don't manipulate assumptions unnecessarily** - Better to list multiple CONST-E/SPREAD-E/ENDPOINT-E items to capture each assumption closely to client's terms rather than combining them yourself
 
-3. **NEVER use SPREAD-E for averages** (avg amount per loan) - Must always use CONST-E or ENDPOINT-E
+4. **NEVER use SPREAD-E for averages** (avg amount per loan) - Must always use CONST-E or ENDPOINT-E
 
-4. **ENDPOINT-E interchangeable with CONST-E** - Only difference: CONST-E holds constant within year, ENDPOINT-E scales linearly between years
+5. **ENDPOINT-E interchangeable with CONST-E** - Only difference: CONST-E holds constant within year, ENDPOINT-E scales linearly between years
 
-5. **When in doubt, decompose further** - It's better to have too many assumption rows than to do calculations yourself
+6. **When in doubt, decompose further** - It's better to have too many assumption rows than to do calculations yourself
 
-6. **🚨 NEVER DUPLICATE COLUMN LABELS** - Each (C1) through (C6) can only appear ONCE per row. Use available columns, don't duplicate!
+7. **🚨 NEVER DUPLICATE COLUMN LABELS** - Each (C1) through (C6) can only appear ONCE per row. Use available columns, don't duplicate!
 
-7. **🚨 ALL EXPENSES MUST BE NEGATIVE** - Every cost, expense, COGS item must have negative values or use negative="true" parameter. Positive expenses will ADD to profit instead of subtracting, breaking the entire financial model!
+8. **🚨 ALL EXPENSES MUST BE NEGATIVE** - Every cost, expense, COGS item must have negative values or use negative="true" parameter. Positive expenses will ADD to profit instead of subtracting, breaking the entire financial model!
 
 ---
 
@@ -770,11 +806,12 @@ If SPREAD-E represents an aggregate total → use $ without ~
 8. Follow training data format
 9. IS: revenue items should be followed by BR code
 10. Safe format: LABELH3, CODE1 with indent="2", Calc with indent="1"/topborder="true"/bold="true"
-11. Use BR codes frequently
-12. Calculation chains begin with LABELH3/COLUMNHEADER or indent="1"
-13. "Total" items (non-rates): bold=true, indent=1, topborder=true or preceded by BR
-14. Apply rule 13 to mult, subtotal, subtract codes
-15. Every LABEL code preceded by BR code
+11. **🚨 USE BR CODES LIBERALLY** - This is frequently missed! Separate unrelated concepts with BR codes
+12. **🚨 EVERY LABEL CODE PRECEDED BY BR CODE** - Never start a LABELH1/H2/H3 without a BR before it
+13. **🚨 WHEN IN DOUBT, ADD A BR CODE** - Better to have too many visual breaks than too few
+14. Calculation chains begin with LABELH3/COLUMNHEADER or indent="1"
+15. "Total" items (non-rates): bold=true, indent=1, topborder=true or preceded by BR
+16. Apply rule 15 to mult, subtotal, subtract codes
 
 ### ORGANIZATIONAL CODE TEMPLATES
 ```
@@ -827,9 +864,11 @@ If SPREAD-E represents an aggregate total → use $ without ~
 7. **Label Presence:** Are (D), (L), (F), (C1)-(C6), (Y1)-(Y6) present in every row?
 8. **Extra Labels:** No extra column labels (C7+, Y7+) present?
 9. **🚨 DUPLICATE LABELS:** Are there ANY duplicate column labels in the same row (e.g., two (C6) labels)?
-10. **Double Check:** Verify #7, #8, and #9
-11. **Triple Check:** Verify #7, #8, and #9 again
-12. **Final Validation:** Every row has all required labels with 15 "|" symbols ending with "|" AND no duplicate labels
+10. **🚨 BR CODE SEPARATION:** Are unrelated codes separated by BR codes? Is every LABELH1/H2/H3 preceded by a BR code?
+11. **🚨 VISUAL ORGANIZATION:** Are there sufficient BR codes to create clear visual separation between different business concepts?
+12. **Double Check:** Verify #7, #8, #9, #10, and #11
+13. **Triple Check:** Verify #7, #8, #9, #10, and #11 again
+14. **Final Validation:** Every row has all required labels with 15 "|" symbols ending with "|" AND no duplicate labels AND proper BR code separation
 
 ## FINCODE AND DOUBLE COUNTING VALIDATION
 

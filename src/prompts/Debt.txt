@@ -5,6 +5,28 @@
 ### **🚨 INTEREST PLACEMENT RULE:**
 **INTEREST EXPENSE/INCOME MUST NEVER BE CALCULATED INSIDE DEBT RECONCILIATION TABLES (BEGIN/END).** Interest calculations must ALWAYS be placed AFTER the debt reconciliation table but WITHIN the INDEX block when using INDEX approach. Only PIK interest can be fed into reconciliation tables using DIRECT-S.
 
+### **🚨 CRITICAL: NO HARDCODED ASSUMPTIONS IN CUSTOMFORMULA:**
+**NEVER hardcode interest rates, percentages, divisors, or any assumptions directly into customformula parameters. ALL assumptions must be separate codes using COLUMN-E, SPREAD-E, or CONST-E, then referenced via cd{} syntax.**
+
+**❌ WRONG - Hardcoded assumptions:**
+```
+<FORMULA-S; customformula="-rd{V7}*0.07/12"; row1="V10(D)|Interest Expense(L)|IS: interest expense(F)|...">
+```
+*Problems: 0.07 (7% rate) and /12 (monthly) are hardcoded*
+
+**✅ CORRECT - Separate assumption codes:**
+```
+<CONST-E; row1="V8(D)|Annual Interest Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|7%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; row1="V9(D)|Months per Year(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|12(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<FORMULA-S; customformula="-rd{V7}*cd{6-V8}/cd{6-V9}"; row1="V10(D)|Interest Expense(L)|IS: interest expense(F)|...">
+```
+
+**WHY THIS MATTERS:**
+- **Transparency**: All assumptions visible and adjustable
+- **Flexibility**: Easy to modify rates without breaking formulas
+- **Compliance**: Follows financial modeling best practices
+- **Maintainability**: Clear separation of assumptions and calculations
+
 ### **🚨 LENDING SIGN CHECK:**
 **IF THIS IS A LENDING SCENARIO:** Every single cash flow item you create MUST have `negative="true"` or there is absolutely no point in creating it. The entire purpose of creating separate cash flow rows for lending is to flip the signs. Without `negative="true"`, you're just duplicating incorrect cash flows.
 
@@ -29,8 +51,12 @@
 <FORMULA-S; row1="A1(D)|Principal Repayment(L)|is: liability(F)|CF: CFF(F)|...">
 <END-S; driver1="V2"; row1="V4(D)|Debt(L)|is: liability(F)|...">
 
+<!-- Interest assumptions (separate codes) -->
+<CONST-E; row1="A3(D)|Annual Interest Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|5%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; row1="A4(D)|Months per Year(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|12(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+
 <!-- Interest calculations OUTSIDE reconciliation table -->
-<FORMULA-S; row1="A2(D)|Interest Expense(L)|is: interest expense(F)|-rd{V2}*0.05/12">  <!-- NEGATIVE for borrowing -->
+<FORMULA-S; customformula="-rd{V2}*cd{6-A3}/cd{6-A4}"; row1="A2(D)|Interest Expense(L)|is: interest expense(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">  <!-- NEGATIVE for borrowing -->
 ```
 
 #### **For LENDING (Company Making Loans - Assets):**
@@ -46,8 +72,12 @@
 <DIRECT-S; driver1="V3"; negative="true"; row1="CF1(D)|Lending Cash Outflow(L)|CF: CFI(F)|...">
 <DIRECT-S; driver1="A1"; negative="true"; row1="CF2(D)|Repayment Cash Inflow(L)|CF: CFI(F)|...">
 
+<!-- Interest assumptions (separate codes) -->
+<CONST-E; row1="A3(D)|Annual Interest Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|5%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; row1="A4(D)|Months per Year(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|12(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+
 <!-- Interest calculations OUTSIDE reconciliation table -->
-<FORMULA-S; row1="A2(D)|Interest Income(L)|is: interest income(F)|rd{V2}*0.05/12">  <!-- POSITIVE for lending -->
+<FORMULA-S; customformula="rd{V2}*cd{6-A3}/cd{6-A4}"; row1="A2(D)|Interest Income(L)|is: interest income(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">  <!-- POSITIVE for lending -->
 ```
 
 #### **Interest Sign Rules:**
@@ -209,8 +239,12 @@ Are loan repayments relative to individual loan origination dates?
   <FORMULA-S; row1="A2(D)|Principal Payment Month 24(L)|is: liability(F)|CF: CFF(F)|cd{6-V2}*onetimeindex(24)">  <!-- CF: CFF fincode included -->
   <END-S; driver1="V3"; row1="V4(D)|Loans(L)|is: liability(F)|...">
   
+  <!-- Interest assumptions WITHIN INDEX -->
+  <CONST-E; row1="A5(D)|Annual Interest Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|5%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+  <CONST-E; row1="A6(D)|Months per Year(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|12(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+  
   <!-- Interest calculations WITHIN INDEX but OUTSIDE debt reconciliation table -->
-  <FORMULA-S; row1="A3(D)|Interest Expense(L)|is: interest expense(F)|-cd{6-V3}*0.05/12">  <!-- NEGATIVE for borrowing -->
+  <FORMULA-S; customformula="-cd{6-V3}*cd{6-A5}/cd{6-A6}"; row1="A3(D)|Interest Expense(L)|is: interest expense(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">  <!-- NEGATIVE for borrowing -->
 <INDEXEND>
 ```
 
@@ -259,8 +293,12 @@ Are loan repayments relative to individual loan origination dates?
   <FORMULA-S; row1="A2(D)|Repayment Month 24 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(24)*0.5">
   <END-S; driver1="V3"; row1="V4(D)|Lending Portfolio(L)|is: asset(F)|...">
   
+  <!-- Interest assumptions WITHIN INDEX -->
+  <CONST-E; row1="A5(D)|Annual Interest Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|5%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+  <CONST-E; row1="A6(D)|Months per Year(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|12(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+  
   <!-- Interest calculations WITHIN INDEX but OUTSIDE debt reconciliation table -->
-  <FORMULA-S; row1="A3(D)|Interest per $1(L)|is: interest income(F)|cd{6-V3}*0.05/12">
+  <FORMULA-S; customformula="cd{6-V3}*cd{6-A5}/cd{6-A6}"; row1="A3(D)|Interest per $1(L)|is: interest income(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
 <INDEXEND>
 ```
 
@@ -296,8 +334,12 @@ Are loan repayments relative to individual loan origination dates?
   <FORMULA-S; row1="A2(D)|Repayment Month 24 per $1(L)|is: asset(F)|-cd{6-V2}*onetimeindex(24)*0.5">  <!-- NO fincode -->
   <END-S; driver1="V3"; row1="V4(D)|Lending Portfolio(L)|is: asset(F)|...">
   
+  <!-- Interest assumptions WITHIN INDEX -->
+  <CONST-E; row1="A5(D)|Annual Interest Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|5%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+  <CONST-E; row1="A6(D)|Months per Year(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|12(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+  
   <!-- Interest calculations WITHIN INDEX but OUTSIDE debt reconciliation table -->
-  <FORMULA-S; row1="A3(D)|Monthly Interest per $1(L)|is: interest income(F)|cd{6-V3}*0.05/12">  <!-- POSITIVE for lending -->
+  <FORMULA-S; customformula="cd{6-V3}*cd{6-A5}/cd{6-A6}"; row1="A3(D)|Monthly Interest per $1(L)|is: interest income(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">  <!-- POSITIVE for lending -->
 <INDEXEND>
 
 <!-- Cash flow handling OUTSIDE reconciliation table using DIRECT-S with negative="true" -->
@@ -466,8 +508,12 @@ customformula="TABLEMIN(driver1, driver2)"
 <FORMULA-S; row1="A1(D)|Monthly Payment(L)|is: liability(F)|customformula='TABLEMIN(V1,100)'">
 <END-S; driver1="V1"; row1="V3(D)|Loan(L)|is: liability(F)|...">
 
+<!-- Interest assumptions (separate codes) -->
+<CONST-E; row1="A3(D)|Annual Interest Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|5%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; row1="A4(D)|Months per Year(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|12(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+
 <!-- Interest calculation OUTSIDE the reconciliation table -->
-<FORMULA-S; row1="A2(D)|Interest Expense(L)|is: interest expense(F)|V1*0.05/12">
+<FORMULA-S; customformula="rd{V1}*cd{6-A3}/cd{6-A4}"; row1="A2(D)|Interest Expense(L)|is: interest expense(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
 ```
 
 **TABLEMIN vs Other Payment Methods:**
@@ -502,9 +548,14 @@ customformula="SUMTABLE(rd{driver of BEG row})"
 **Example Implementation - Loan Repaid in Full Month 24:**
 ```
 <LABELH3; row1="(D)|~Loan:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+
+<!-- PIK Interest assumptions -->
+<CONST-E; row1="A5(D)|PIK Interest Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|8%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; row1="A6(D)|Months per Year(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|12(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+
 <BEGIN-S; driver1="V3"; row1="V1(D)|Beginning Balance(L)|is: liability(F)|...">
 <FORMULA-S; row1="V2(D)|New Borrowing(L)|is: liability(F)|5000">
-<FORMULA-S; row1="A1(D)|PIK Interest Added to Balance(L)|is: liability(F)|rd{V1}*0.08/12">
+<FORMULA-S; customformula="rd{V1}*cd{6-A5}/cd{6-A6}"; row1="A1(D)|PIK Interest Added to Balance(L)|is: liability(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
 <FORMULA-S; row1="A2(D)|Full Repayment Month 24(L)|is: liability(F)|customformula='SUMTABLE(rd{V1})*onetimeindex(24)'">
 <END-S; driver1="V1"; row1="V3(D)|Loan(L)|is: liability(F)|...">
 ```
@@ -577,8 +628,12 @@ customformula="SUMTABLE(rd{driver of BEG row})"
   <FORMULA-S; row1="A1(D)|Principal Repayment(L)|is: liability(F)|-cd{6-V3}*onetimeindex(24)">
   <END-S; row1="V4(D)|Ending Balance(L)|is: liability(F)|...">
   
+  <!-- Interest assumptions -->
+  <CONST-E; row1="A3(D)|Annual Interest Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|5%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+  <CONST-E; row1="A4(D)|Months per Year(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|12(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+  
   <!-- Interest calculations OUTSIDE debt reconciliation table -->
-  <FORMULA-S; row1="A2(D)|Interest Expense(L)|is: interest expense(F)|rd{V2}*0.05/12">
+  <FORMULA-S; customformula="rd{V2}*cd{6-A3}/cd{6-A4}"; row1="A2(D)|Interest Expense(L)|is: interest expense(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
 <INDEXEND>
 
 <!-- Origination fee assumption (outside INDEX) -->
@@ -744,8 +799,12 @@ The entire purpose of creating separate cash flow rows for lending is to flip th
   <FORMULA-S; row1="A2(D)|Repayment Month 24(L)|is: asset(F)|-5000*onetimeindex(24)">  <!-- NO fincode in reconciliation table -->
   <END-S; driver1="V2"; row1="V4(D)|Loan Portfolio(L)|is: asset(F)|...">
   
+  <!-- Interest assumptions WITHIN INDEX -->
+  <CONST-E; row1="A5(D)|Annual Interest Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|5%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+  <CONST-E; row1="A6(D)|Months per Year(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|12(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+  
   <!-- Interest calculations OUTSIDE debt reconciliation table but WITHIN INDEX -->
-  <FORMULA-S; row1="A3(D)|Interest Income(L)|is: interest income(F)|rd{V2}*0.05/12">  <!-- POSITIVE for lending -->
+  <FORMULA-S; customformula="rd{V2}*cd{6-A5}/cd{6-A6}"; row1="A3(D)|Interest Income(L)|is: interest income(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">  <!-- POSITIVE for lending -->
 <INDEXEND>
 
 <!-- Cash flow handling OUTSIDE reconciliation table using DIRECT-S with negative="true" -->
@@ -773,8 +832,12 @@ The entire purpose of creating separate cash flow rows for lending is to flip th
   <FORMULA-S; row1="A2(D)|Repayment Month 24(L)|is: liability(F)|CF: CFF(F)|-5000*onetimeindex(24)">  <!-- CF: CFF fincode included -->
   <END-S; driver1="V2"; row1="V4(D)|Debt(L)|is: liability(F)|...">
   
+  <!-- Interest assumptions WITHIN INDEX -->
+  <CONST-E; row1="A5(D)|Annual Interest Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|5%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+  <CONST-E; row1="A6(D)|Months per Year(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|12(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+  
   <!-- Interest calculations OUTSIDE debt reconciliation table but WITHIN INDEX -->
-  <FORMULA-S; row1="A3(D)|Interest Expense(L)|is: interest expense(F)|-rd{V2}*0.05/12">  <!-- NEGATIVE for borrowing -->
+  <FORMULA-S; customformula="-rd{V2}*cd{6-A5}/cd{6-A6}"; row1="A3(D)|Interest Expense(L)|is: interest expense(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">  <!-- NEGATIVE for borrowing -->
 <INDEXEND>
 ```
 
@@ -900,8 +963,12 @@ Must manually add rows to reverse signs before passing to CF: CFI:
 <DIRECT-S; driver1="A1"; negative="true"; row1="CF2(D)|Lending - Principal Inflow Month 12(L)|CF: CFI(F)|...">
 <DIRECT-S; driver1="A2"; negative="true"; row1="CF3(D)|Lending - Principal Inflow Month 24(L)|CF: CFI(F)|...">
 
+<!-- Interest assumptions (separate codes) -->
+<CONST-E; row1="A7(D)|Annual Interest Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|5%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; row1="A8(D)|Months per Year(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|12(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+
 <!-- Interest and interest cash flows placed AFTER INDEX block -->
-<FORMULA-S; row1="A3(D)|Interest Income(L)|is: interest income(F)|cd{6-V2}*0.05/12">  <!-- POSITIVE for lending -->
+<FORMULA-S; customformula="cd{6-V2}*cd{6-A7}/cd{6-A8}"; row1="A3(D)|Interest Income(L)|is: interest income(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">  <!-- POSITIVE for lending -->
 <DIRECT-S; driver1="A3"; negative="true"; row1="CF4(D)|Lending - Interest Inflow(L)|CF: CFI(F)|...">
 ```
 
@@ -950,6 +1017,13 @@ For a $1000 loan originated in Month 1, repaid $500 in Month 12, $500 in Month 2
 ❌ **Wrong**: Including interest in debt balance movements (except PIK interest)
 ❌ **Wrong**: Forgetting that interest affects P&L, not debt balance reconciliation
 ❌ **Wrong**: Placing interest calculations outside INDEX block when using INDEX approach
+
+### **🚨 CRITICAL HARDCODED ASSUMPTION ERRORS:**
+❌ **FATAL**: Hardcoding interest rates directly in customformula (e.g., *0.07/12)
+❌ **FATAL**: Hardcoding monthly divisors directly in customformula (e.g., /12)
+❌ **FATAL**: Hardcoding percentages directly in customformula (e.g., *0.5 for 50%)
+❌ **Wrong**: Embedding any assumption values in formulas instead of separate codes
+❌ **Wrong**: Using fixed numbers in calculations without corresponding assumption codes
 
 ### **General Debt Modeling Errors:**
 ❌ **Wrong**: Using simple codes for custom repayment schedules
@@ -1023,6 +1097,12 @@ Before submitting any debt model, ask these questions:
 10. **Are income/expense items properly signed?**
     - **Income**: Always POSITIVE (+) for revenue recognition
     - **Expenses**: Always POSITIVE (+) for expense recognition
+
+11. **Are ALL assumptions properly externalized from customformula parameters?**
+    - **NO hardcoded interest rates**: Use separate CONST-E/COLUMN-E/SPREAD-E codes
+    - **NO hardcoded divisors**: Use separate assumption codes for /12, /365, etc.
+    - **NO hardcoded percentages**: Use separate assumption codes for 0.5, 0.25, etc.
+    - **Reference assumptions**: Use cd{6-AssumptionCode} syntax in customformula
 
 If ANY answer is NO, review and fix the implementation before proceeding.
 
@@ -1209,6 +1289,8 @@ Before finalizing any refinancing model:
 6. **✅ Interest Formulas**: Use rd{} or cd{} with proper timing references
 7. **✅ Cash Flow Classifications**: CFF for borrowing, CFI for lending
 8. **✅ Fincode Requirements**: Use absolute value + negative attribute, NOT negative formulas
+9. **✅ Hardcoded Assumptions**: NEVER hardcode rates, percentages, or divisors in customformula
+10. **✅ Assumption Externalization**: All assumptions in separate CONST-E/COLUMN-E/SPREAD-E codes
 
 ### **Fincode Handling Verification:**
 ✅ **BORROWING (Liabilities)**:
