@@ -1625,6 +1625,32 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         return newFormula;
     });
     
+    // Process RANGE function: RANGE(driver1) -> U{row}:CN{row} where {row} is the row number from driver1
+    console.log(`    Checking for RANGE function in: "${result}"`);
+    const rangeMatches = result.match(/RANGE\(([^)]+)\)/gi);
+    if (rangeMatches) {
+        console.log(`    Found RANGE matches: ${rangeMatches.join(', ')}`);
+    } else {
+        console.log(`    No RANGE matches found`);
+    }
+    
+    result = result.replace(/RANGE\(([^)]+)\)/gi, (match, driver1) => {
+        // Trim whitespace from driver
+        driver1 = driver1.trim();
+        
+        // Extract row number from driver1 (e.g., U$15 -> 15, U15 -> 15)
+        const rowMatch = driver1.match(/[A-Z]+\$?(\d+)/);
+        if (rowMatch) {
+            const rowNumber = rowMatch[1];
+            const newFormula = `U${rowNumber}:CN${rowNumber}`;
+            console.log(`    Converting RANGE(${driver1}) to ${newFormula}`);
+            return newFormula;
+        } else {
+            console.warn(`    Could not extract row number from ${driver1}, keeping as is`);
+            return match; // Keep original if we can't parse
+        }
+    });
+
     // Process TABLEMIN function: TABLEMIN(driver1,driver2) -> MIN(SUM(driver1:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0)),driver2)
     console.log(`    Checking for TABLEMIN function in: "${result}"`);
     const tableminMatches = result.match(/TABLEMIN\(([^,]+),([^)]+)\)/gi);
@@ -5729,6 +5755,32 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
             return newFormula;
         });
         
+            // Process RANGE function: RANGE(driver1) -> U{row}:CN{row} where {row} is the row number from driver1
+    console.log(`    Checking for RANGE function in: "${formula}"`);
+    const rangeMatchesParser = formula.match(/RANGE\(([^)]+)\)/gi);
+    if (rangeMatchesParser) {
+        console.log(`    Found RANGE matches: ${rangeMatchesParser.join(', ')}`);
+    } else {
+        console.log(`    No RANGE matches found`);
+    }
+    
+    formula = formula.replace(/RANGE\(([^)]+)\)/gi, (match, driver1) => {
+        // Trim whitespace from driver
+        driver1 = driver1.trim();
+        
+        // Extract row number from driver1 (e.g., U$15 -> 15, U15 -> 15)
+        const rowMatch = driver1.match(/[A-Z]+\$?(\d+)/);
+        if (rowMatch) {
+            const rowNumber = rowMatch[1];
+            const newFormula = `U${rowNumber}:CN${rowNumber}`;
+            console.log(`    Converting RANGE(${driver1}) to ${newFormula}`);
+            return newFormula;
+        } else {
+            console.warn(`    Could not extract row number from ${driver1}, keeping as is`);
+            return match; // Keep original if we can't parse
+        }
+    });
+
             // Process SUMTABLE function: SUMTABLE(driver1) -> SUM(driver1:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0))
     console.log(`    Checking for SUMTABLE function in: "${formula}"`);
     const sumtableMatchesParser = formula.match(/SUMTABLE\(([^)]+)\)/gi);
@@ -5746,7 +5798,33 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
         return newFormula;
     });
     
-                // Process SUMTABLE function: SUMTABLE(driver1) -> SUM(driver1:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0))
+                // Process RANGE function: RANGE(driver1) -> U{row}:CN{row} where {row} is the row number from driver1
+            console.log(`    Checking for RANGE function in: "${formula}"`);
+            const rangeMatchesColumnFormula = formula.match(/RANGE\(([^)]+)\)/gi);
+            if (rangeMatchesColumnFormula) {
+                console.log(`    Found RANGE matches: ${rangeMatchesColumnFormula.join(', ')}`);
+            } else {
+                console.log(`    No RANGE matches found`);
+            }
+            
+            formula = formula.replace(/RANGE\(([^)]+)\)/gi, (match, driver1) => {
+                // Trim whitespace from driver
+                driver1 = driver1.trim();
+                
+                // Extract row number from driver1 (e.g., U$15 -> 15, U15 -> 15)
+                const rowMatch = driver1.match(/[A-Z]+\$?(\d+)/);
+                if (rowMatch) {
+                    const rowNumber = rowMatch[1];
+                    const newFormula = `U${rowNumber}:CN${rowNumber}`;
+                    console.log(`    Converting RANGE(${driver1}) to ${newFormula}`);
+                    return newFormula;
+                } else {
+                    console.warn(`    Could not extract row number from ${driver1}, keeping as is`);
+                    return match; // Keep original if we can't parse
+                }
+            });
+
+            // Process SUMTABLE function: SUMTABLE(driver1) -> SUM(driver1:OFFSET(INDIRECT(ADDRESS(ROW(),COLUMN())),-1,0))
             console.log(`    Checking for SUMTABLE function in: "${formula}"`);
             const sumtableMatchesFormulaSRows = formula.match(/SUMTABLE\(([^)]+)\)/gi);
             if (sumtableMatchesFormulaSRows) {
@@ -7431,6 +7509,26 @@ export async function testTableminConversion() {
     const sumtableResult2 = await parseFormulaSCustomFormula(sumtableFormula2, 15);
     console.log(`Result with resolved references: ${sumtableResult2}`);
     
+    // Test RANGE function
+    console.log("\n🧪 Testing RANGE function:");
+    const rangeFormula1 = "RANGE(rd{V1})";
+    console.log(`Original RANGE formula: ${rangeFormula1}`);
+    
+    const rangeResult1 = await parseFormulaSCustomFormula(rangeFormula1, 15);
+    console.log(`Result without worksheet context: ${rangeResult1}`);
+    
+    const rangeFormula2 = "RANGE(U$3)";
+    console.log(`\nSimplified RANGE formula: ${rangeFormula2}`);
+    
+    const rangeResult2 = await parseFormulaSCustomFormula(rangeFormula2, 15);
+    console.log(`Result with resolved references: ${rangeResult2}`);
+    
+    const rangeFormula3 = "RANGE(V4)";
+    console.log(`\nAnother RANGE formula: ${rangeFormula3}`);
+    
+    const rangeResult3 = await parseFormulaSCustomFormula(rangeFormula3, 15);
+    console.log(`Result: ${rangeResult3}`);
+    
     // Test edge cases
     const testCases = [
         "TABLEMIN(A1,B1)",
@@ -7440,7 +7538,13 @@ export async function testTableminConversion() {
         "SUMTABLE(A1)",
         "SUMTABLE(rd{Driver1})",
         "=SUMTABLE(U$15)",
-        "SUMTABLE(A1)+TABLEMIN(B1,C1)"
+        "SUMTABLE(A1)+TABLEMIN(B1,C1)",
+        "RANGE(U$5)",
+        "RANGE(V3)",
+        "SUM(RANGE(U$10))",
+        "=RANGE(rd{V1})",
+        "RANGE(U15)",
+        "RANGE(A$7)"
     ];
     
     console.log("\n🧪 Testing additional cases:");
@@ -7450,7 +7554,7 @@ export async function testTableminConversion() {
         console.log(`Output: ${result}\n`);
     }
     
-    console.log("✅ TABLEMIN and SUMTABLE conversion test complete");
+    console.log("✅ TABLEMIN, SUMTABLE, and RANGE conversion test complete");
 }
 
 /**
@@ -7510,6 +7614,98 @@ export async function testColumnFormulaSConversion() {
         
     } catch (error) {
         console.error("❌ Error in testColumnFormulaSConversion:", error.message);
+        console.log("=".repeat(80));
+    }
+}
+
+/**
+ * Test function to demonstrate RANGE custom function functionality
+ * @returns {Promise<void>}
+ */
+export async function testRangeFunction() {
+    console.log("=".repeat(80));
+    console.log("🧪 TESTING RANGE CUSTOM FUNCTION");
+    console.log("=".repeat(80));
+    
+    try {
+        console.log("📋 RANGE Function Purpose:");
+        console.log("   Converts RANGE(driver1) to U{row}:CN{row}");
+        console.log("   Where {row} is extracted from the driver1 cell reference");
+        console.log("   Examples: RANGE(rd{V1}) where V1 is row 3 → U3:CN3");
+        console.log("");
+        
+        // Test cases for RANGE function
+        const testCases = [
+            {
+                name: "Basic cell reference",
+                formula: "RANGE(U$3)",
+                expected: "U3:CN3"
+            },
+            {
+                name: "Cell reference without dollar sign",
+                formula: "RANGE(V4)",
+                expected: "U4:CN4"
+            },
+            {
+                name: "Mixed reference",
+                formula: "RANGE(A$15)",
+                expected: "U15:CN15"
+            },
+            {
+                name: "Within SUM function",
+                formula: "SUM(RANGE(U$10))",
+                expected: "SUM(U10:CN10)"
+            },
+            {
+                name: "With rd{} syntax (won't resolve without worksheet context)",
+                formula: "RANGE(rd{V1})",
+                expected: "RANGE(rd{V1})" // Will remain unchanged without worksheet context
+            },
+            {
+                name: "Multiple RANGE functions",
+                formula: "RANGE(U$5)+RANGE(V6)",
+                expected: "U5:CN5+U6:CN6"
+            },
+            {
+                name: "As Excel formula",
+                formula: "=RANGE(U$12)",
+                expected: "=U12:CN12"
+            }
+        ];
+        
+        console.log("🧪 Testing RANGE function conversions:");
+        console.log("-".repeat(60));
+        
+        for (const testCase of testCases) {
+            console.log(`\n📝 Test: ${testCase.name}`);
+            console.log(`   Input:    "${testCase.formula}"`);
+            console.log(`   Expected: "${testCase.expected}"`);
+            
+            const result = await parseFormulaSCustomFormula(testCase.formula, 15);
+            console.log(`   Actual:   "${result}"`);
+            
+            const success = result === testCase.expected;
+            console.log(`   ${success ? '✅ PASS' : '❌ FAIL'}`);
+            
+            if (!success) {
+                console.log(`   ⚠️  Expected "${testCase.expected}" but got "${result}"`);
+            }
+        }
+        
+        console.log("\n" + "=".repeat(80));
+        console.log("📊 RANGE Function Usage Examples:");
+        console.log("   • RANGE(U$3) → U3:CN3 (columns U through CN of row 3)");
+        console.log("   • SUM(RANGE(U$5)) → SUM(U5:CN5) (sum all values in row 5 from U to CN)");
+        console.log("   • AVERAGE(RANGE(V10)) → AVERAGE(U10:CN10) (average of row 10)");
+        console.log("   • RANGE(rd{V1}) → Depends on what row V1 refers to");
+        console.log("");
+        console.log("✅ Useful for operations across entire time series (columns U:CN)");
+        console.log("✅ Works with any Excel function that accepts ranges");
+        console.log("✅ Supports both absolute ($) and relative references");
+        console.log("=".repeat(80));
+        
+    } catch (error) {
+        console.error("❌ Error in testRangeFunction:", error.message);
         console.log("=".repeat(80));
     }
 }
