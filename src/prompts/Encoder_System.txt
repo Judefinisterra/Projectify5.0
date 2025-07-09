@@ -341,9 +341,9 @@ When client says "per month", generally use CONST-E to take monthly assumption f
 **When to Use:** Only as last resort if no math operator code accomplishes same thing. Generally only for stacking custom functions related to column drivers.
 
 ### COLUMNFORMULA-S: COLUMN I FORMULAS
-**Purpose:** Identical to FORMULA-S but places the customformula in column I instead of column U.
+**Purpose:** Identical to FORMULA-S but places the customformula in column I instead of column U. This allows dynamic calculation of assumption values rather than static inputs.
 
-**When to Use:** When you need custom formulas in the assumptions column (column I) rather than the calculation column (column U).
+**When to Use:** When you need custom formulas in the assumptions column (column I / C6) rather than the calculation column (column U).
 
 **Key Differences from FORMULA-S:**
 - **Target Column:** COLUMNFORMULA-S → Column I, FORMULA-S → Column U
@@ -351,11 +351,34 @@ When client says "per month", generally use CONST-E to take monthly assumption f
 - **Same Functions:** Supports all the same custom functions (BEG, END, RANGE, etc.)
 - **Same Processing:** Processed by the same formula parsing system
 
-**Example:**
+**COLUMN MAPPING EXPLANATION:**
+- **Column I (COLUMNFORMULA-S):** The "assumptions" column where users typically input static values
+- **Column U (FORMULA-S):** The "calculations" column where time series formulas are processed
+- **Model Flow:** Column I feeds into Column U, which flows to monthly columns (AE onwards)
+
+**DETAILED USE CASES FOR COLUMNFORMULA-S:**
+
+**1. Dynamic Assumption Scaling:**
 ```
-<COLUMNFORMULA-S; customformula="rd{V1}*cd{6-V2}/cd{6-V3}"; row1="A1(D)|Test Formula(L)|is: revenue(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; row1="V1(D)|Base Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|2%(C6)|~2%(Y1)|~2%(Y2)|~2%(Y3)|~2%(Y4)|~2%(Y5)|~2%(Y6)|">
+<COLUMNFORMULA-S; customformula="cd{6-V1}*1.5"; row1="V2(D)|Scaled Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
 ```
-*This places the custom formula in column I instead of column U*
+*Column I of V2 will calculate 2% × 1.5 = 3% dynamically based on V1's assumption*
+
+**2. Conditional Assumption Logic:**
+```
+<CONST-E; row1="V1(D)|Revenue Threshold(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|$1000000(C6)|$1000000(Y1)|$1500000(Y2)|...">
+<COLUMNFORMULA-S; customformula="IF(cd{6-V1}>1200000,0.15,0.10)"; row1="V2(D)|Commission Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+```
+*Commission rate in column I changes based on revenue threshold - 15% if over $1.2M, 10% otherwise*
+
+**3. Cross-Reference Assumption Calculations:**
+```
+<SPREAD-E; row1="V1(D)|Market Size(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$100000000(Y1)|$120000000(Y2)|...">
+<CONST-E; row1="V2(D)|Market Share Target(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|5%(C6)|~5%(Y1)|~7%(Y2)|...">
+<COLUMNFORMULA-S; customformula="cd{6-V1}*cd{6-V2}"; row1="V3(D)|Target Revenue(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+```
+*Target Revenue assumption calculated as Market Size × Market Share Target in column I*
 
 ### WHEN TO USE FORMULA-S VS COLUMNFORMULA-S
 
@@ -363,19 +386,59 @@ When client says "per month", generally use CONST-E to take monthly assumption f
 - Creating standard calculation rows that feed into financial statements
 - Building time series calculations that need to be in the main calculation column (U)
 - Following typical model structure where calculations flow left to right
+- Performing calculations that use monthly time series data
+- Final revenue/expense calculations with FinCodes
 
 **Use COLUMNFORMULA-S when:**
 - Need custom formulas in the assumptions column (I) for specialized input handling
 - Creating assumption rows that require complex formula logic rather than simple values
 - Building models where column I needs dynamic calculations instead of static assumptions
+- Calculating assumptions based on other assumptions before they flow to time series
+- Setting up conditional assumption logic
+- Cross-referencing assumption values between different drivers
 
-**Common Pattern:**
+**TYPICAL INTEGRATION PATTERNS:**
+
+**Pattern 1 - Assumption Calculation Chain:**
 ```
 <SPREAD-E; row1="V1(D)|Base Revenue(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$120000(Y1)|$150000(Y2)|...">
 <COLUMNFORMULA-S; customformula="cd{6-V1}*1.1"; row1="V2(D)|Adjusted Revenue(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|...">
 <FORMULA-S; customformula="rd{V2}*cd{6-V3}"; row1="V4(D)|Final Revenue(L)|is: revenue(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|...">
 ```
 *Column I gets formula from COLUMNFORMULA-S, Column U gets formula from FORMULA-S*
+
+**Pattern 2 - Conditional Pricing:**
+```
+<CONST-E; row1="V1(D)|Customer Tier(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|Premium(C6)|Premium(Y1)|Standard(Y2)|...">
+<COLUMNFORMULA-S; customformula="IF(cd{6-V1}=\"Premium\",100,50)"; row1="V2(D)|Price per Unit(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|...">
+<MULT2-S; driver1="V3"; driver2="V2"; row1="V4(D)|Total Revenue(L)|is: revenue(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|...">
+```
+*Price calculated in assumption column based on customer tier, then used in revenue calculation*
+
+**Pattern 3 - Date-Based Assumptions:**
+```
+<CONST-E; row1="V1(D)|Launch Date(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|1/1/2026(C6)|1/1/2026(Y1)|6/1/2026(Y2)|...">
+<COLUMNFORMULA-S; customformula="IF(cd{6-V1}<DATE(2026,6,1),1000,5000)"; row1="V2(D)|Marketing Budget(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|...">
+```
+*Marketing budget assumption changes based on launch date*
+
+**CRITICAL DISTINCTIONS:**
+
+**Static vs Dynamic Assumptions:**
+- **CONST-E/SPREAD-E:** Static assumption values entered manually
+- **COLUMNFORMULA-S:** Dynamic assumption values calculated from other inputs
+
+**Column Flow Logic:**
+- **Assumptions (Column I)** → **Time Series Calculation (Column U)** → **Monthly Results (AE+)**
+- **COLUMNFORMULA-S affects Column I** (the assumption inputs)
+- **FORMULA-S affects Column U** (the time series calculations)
+
+**When Both Are Used Together:**
+```
+<COLUMNFORMULA-S; customformula="cd{6-V1}*cd{6-V2}"; row1="V3(D)|Calculated Assumption(L)|(F)|...|(C6)|$F(Y1)|...">
+<FORMULA-S; customformula="rd{V3}*BEG(cd{6-V4})"; row1="V5(D)|Time Series Result(L)|is: revenue(F)|...|(C6)|$F(Y1)|...">
+```
+*V3 uses COLUMNFORMULA-S to calculate assumption in column I, then V5 uses FORMULA-S to process that assumption in column U with time series functions*
 
 ### FORMULA-S Custom Functions
 

@@ -14,6 +14,42 @@ Use when clients request business valuations, enterprise value calculations, equ
 
 ## DEFAULT DCF VALUATION STRUCTURE
 
+## FINANCIAL STATEMENT INTEGRATION FOR VALUATIONS
+
+**CRITICAL RULE**: Use FINANCIALS-S to pull financial statement items for valuation multiples. The label (L) should ALWAYS be the subtotal line from the financial statements.
+
+### FINANCIALS-S LABELING REQUIREMENTS
+
+**Required Format**: "Driver: [Exact Financial Statement Line]"
+
+**Common Valuation Drivers:**
+- **Revenue Multiples**: `"Driver: Total Revenue"` in (L)
+- **EBITDA Multiples**: `"Driver: EBITDA"` in (L) 
+- **Net Income Multiples**: `"Driver: Net Income"` in (L)
+- **Gross Profit Multiples**: `"Driver: Gross Profit"` in (L)
+
+**Examples:**
+
+**Revenue-Based Valuation (5x Revenue Multiple):**
+```
+<FINANCIALS-S; indent="1"; row1="V5(D)|Driver: Total Revenue(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+<CONST-E; indent="2"; row1="V8(D)|~Exit Multiple of Revenue(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|~5x(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+```
+
+**EBITDA-Based Valuation (10x EBITDA Multiple):**
+```
+<FINANCIALS-S; indent="1"; row1="V5(D)|Driver: EBITDA(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+<CONST-E; indent="2"; row1="V8(D)|~Exit Multiple of EBITDA(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|~10x(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+```
+
+**Net Income-Based Valuation (15x Earnings Multiple):**
+```
+<FINANCIALS-S; indent="1"; row1="V5(D)|Driver: Net Income(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+<CONST-E; indent="2"; row1="V8(D)|~Exit Multiple of Net Income(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|~15x(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+```
+
+**IMPORTANT**: The word after "Driver:" must match EXACTLY with the subtotal line in column B of the financial statements tab.
+
 **🚨 USE THIS STRUCTURE BY DEFAULT**: When client asks for valuation, use this structure unless they specifically request deviations.
 
 ```
@@ -21,11 +57,11 @@ Use when clients request business valuations, enterprise value calculations, equ
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
 <LABELH1; row1="(D)|~DCF Valuation:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
 <LABELH3; row1="(D)|~Assumptions:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
-<COLUMN-E; indent="2"; row1="V7(D)|~Exit Date(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|June 2029(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
-<COLUMN-E; indent="2"; row1="V8(D)|~Exit Multiple of EBITDA(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|~10x(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; indent="2"; row1="V7(D)|~Exit Date(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|June 2029(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; indent="2"; row1="V8(D)|~Exit Multiple of EBITDA(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|~10x(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
 <LABELH3; row1="(D)|~Drivers:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
-<FINANCIALS-S; indent="1"; row1="V5(D)|EBITDA(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+<FINANCIALS-S; indent="1"; row1="V5(D)|Driver: EBITDA(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
 <LABELH3; row1="(D)|~Net Cash Flow:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
 <FORMULA-S; indent="2"; customformula="rd{V5}*END(cd{6-V7})"; row1="X2(D)|Free Cash Flow(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
@@ -33,6 +69,6 @@ Use when clients request business valuations, enterprise value calculations, equ
 <SUMLIST-S; driver1="X2"; bold="true"; indent="1"; topborder="true"; row1="V9(D)|Net Cash Flow(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
 <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
 <LABELH3; row1 = "(D)|~Valuation:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
-<COLUMN-E; indent="2"; row1 = "V10(D)|~% Discount Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|~10%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<CONST-E; indent="2"; row1 = "V10(D)|~% Discount Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|~10%(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
 <COLUMNFORMULA-S; bold="true"; customformula="npv(cd{6-V10}/timeseriesdivisor,RANGE(rd{V9}))"; row1 = "A1(D)|Present Value(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|$F(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|";>
 
