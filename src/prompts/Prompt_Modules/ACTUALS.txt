@@ -101,6 +101,54 @@ Client: "I need to include our actual balance sheet as of year-end"
 Client: "I need to set up beginning balances for my model"
 → Use ACTUALS code with beginning balance sheet items dated one month before projections begin
 
+### Scenario 6: Beginning Volume/Count Data (ANY VOLUME METRIC)
+Client mentions ANY beginning volume or count data: "I currently have 1000 subscribers", "We start with 500 customers", "I have 50 employees", "We own 25 vehicles", "Current inventory is 1500 units", "I have 100 active licenses", "We manage 75 properties"
+→ Use ACTUALS code for beginning volume counts AND add fincode "V: volume" to END-S in reconciliation table:
+
+**Examples of Volume Data Types:**
+- **Subscribers/Customers**: "# of Subscribers", "# of Customers", "# of Active Users"
+- **Employees/Staff**: "# of Employees", "# of Sales Staff", "# of Contractors"  
+- **Assets/Equipment**: "# of Vehicles", "# of Machines", "# of Properties"
+- **Inventory/Units**: "# of Units in Stock", "Inventory Count", "Product Units"
+- **Licenses/Accounts**: "# of Software Licenses", "# of Active Accounts", "# of Memberships"
+- **Any countable business metric**: "# of Locations", "# of Projects", "# of Contracts"
+
+**Standard Volume Reconciliation Structure:**
+```
+<ACTUALS; values="[Volume Label]|[Count]|12/31/2024|[Volume Label]">
+<LABELH3; row1="(D)|~[Volume Label]:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|";>
+<BEGIN-S; driver1="R2"; indent="2"; bold="false"; italic="true"; sumif="Yearend"; row1="V4(D)|~Beginning(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~F(Y1)|~F(Y2)|~F(Y3)|~F(Y4)|~F(Y5)|~F(Y6)|";>
+<DIRECT-S; driver1="V2"; indent="2"; bold="false"; italic="true"; row1="V5(D)|~New/Added(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~F(Y1)|~F(Y2)|~F(Y3)|~F(Y4)|~F(Y5)|~F(Y6)|";>
+<MULT2-S; driver1="V4"; driver2="V3"; indent="2"; bold="false"; negative="true"; italic="true"; row1="R1(D)|~Lost/Removed(L)|0(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~F(Y1)|~F(Y2)|~F(Y3)|~F(Y4)|~F(Y5)|~F(Y6)|";>
+<END-S; driver1="V4"; bold="true"; italic="true"; sumif="Yearend"; topborder="true"; row1="R2(D)|~[Volume Label](L)|V: volume(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~F(Y1)|~F(Y2)|~F(Y3)|~F(Y4)|~F(Y5)|~F(Y6)|";>
+```
+
+**Specific Examples:**
+
+**Employee Count:**
+```
+<ACTUALS; values="# of Employees|50|12/31/2024|# of Employees">
+<END-S; driver1="V4"; bold="true"; italic="true"; sumif="Yearend"; topborder="true"; row1="R2(D)|~# of Employees(L)|V: volume(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~F(Y1)|~F(Y2)|~F(Y3)|~F(Y4)|~F(Y5)|~F(Y6)|";>
+```
+
+**Vehicle Fleet:**
+```
+<ACTUALS; values="# of Vehicles|25|12/31/2024|# of Vehicles">
+<END-S; driver1="V4"; bold="true"; italic="true"; sumif="Yearend"; topborder="true"; row1="R2(D)|~# of Vehicles(L)|V: volume(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~F(Y1)|~F(Y2)|~F(Y3)|~F(Y4)|~F(Y5)|~F(Y6)|";>
+```
+
+**Inventory Units:**
+```
+<ACTUALS; values="Inventory Units|1500|12/31/2024|Inventory Units">
+<END-S; driver1="V4"; bold="true"; italic="true"; sumif="Yearend"; topborder="true"; row1="R2(D)|~Inventory Units(L)|V: volume(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~F(Y1)|~F(Y2)|~F(Y3)|~F(Y4)|~F(Y5)|~F(Y6)|";>
+```
+
+**🚨 CRITICAL VOLUME RULES:**
+1. **Category Matching**: Category in ACTUALS must match exactly with END-S label
+2. **V: volume FinCode**: ALWAYS use "V: volume" fincode in END-S for ALL volume-based reconciliation tables
+3. **Universal Application**: Apply this pattern to ANY countable business metric the client mentions
+4. **Label Consistency**: Use the exact same label in ACTUALS and END-S (e.g., "# of Employees" in both)
+
 ## 🚨 CRITICAL: ACTUALS CODE EXECUTION 🚨
 
 **ACTUALS CODES RUN IN BACKGROUND**: ACTUALS codes are executed in the background and do NOT appear in the tab like other codes.
