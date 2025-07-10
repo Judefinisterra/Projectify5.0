@@ -333,7 +333,7 @@ When client says "per month", generally use CONST-E to take monthly assumption f
 
 ---
 
-## FORMULA-S AND COLUMNFORMULA-S: ADVANCED CUSTOM FORMULAS
+## FORMULA-S, COLUMNFORMULA-S, AND ANNUALFORMULA-S: ADVANCED CUSTOM FORMULAS
 
 ### FORMULA-S: COLUMN U FORMULAS
 **Purpose:** Direct manipulation of Excel formulas via customformula parameter. Defines formula used in monthly time series in column U.
@@ -345,11 +345,37 @@ When client says "per month", generally use CONST-E to take monthly assumption f
 
 **When to Use:** When you need custom formulas in the assumptions column (column I / C6) rather than the calculation column (column U).
 
-**Key Differences from FORMULA-S:**
-- **Target Column:** COLUMNFORMULA-S → Column I, FORMULA-S → Column U
-- **Same Syntax:** Uses identical customformula parameter with rd{} and cd{} syntax
-- **Same Functions:** Supports all the same custom functions (BEG, END, RANGE, etc.)
-- **Same Processing:** Processed by the same formula parsing system
+### ANNUALFORMULA-S: ANNUAL COLUMNS (Y1-Y6) FORMULAS
+**Purpose:** Places the customformula in annual columns J through P (Y1-Y6), allowing dynamic calculation of annual assumption values across multiple years.
+
+**When to Use:** When you need custom formulas that calculate different values for each annual period (Y1, Y2, Y3, Y4, Y5, Y6) rather than a single assumption value.
+
+**CRITICAL IMPLEMENTATION:** The customformula parameter must be applied to each annual column (J, K, L, M, N, P) individually, with the formula processing the specific year context for each column.
+
+**Column Mapping:** 
+- **Column J = Y1** (customformula applied here)
+- **Column K = Y2** (customformula applied here)
+- **Column L = Y3** (customformula applied here)
+- **Column M = Y4** (customformula applied here)
+- **Column N = Y5** (customformula applied here)
+- **Column P = Y6** (customformula applied here)
+
+**Technical Requirement:** Unlike FORMULA-S (single column U) or COLUMNFORMULA-S (single column I), ANNUALFORMULA-S must populate the customformula across ALL annual columns J-P, with each column evaluating the formula in its year-specific context.
+
+**IMPLEMENTATION SPECIFICS:**
+- **Row Structure:** Y1-Y6 columns should show `$F` to indicate formula placement
+- **Formula Application:** The customformula gets applied to columns J, K, L, M, N, P individually  
+- **Year Context:** Each column (J=Y1, K=Y2, etc.) evaluates the formula with its specific year context
+- **No Single Column:** Unlike other formula types, there's no single target column - all 6 annual columns get the formula
+- **Processing:** The system must iterate through each annual column and apply the customformula to that specific column position
+
+**Key Differences Between Formula Types:**
+- **FORMULA-S:** Target Column U (monthly time series calculations)
+- **COLUMNFORMULA-S:** Target Column I (single assumption value)
+- **ANNUALFORMULA-S:** Target Columns J-P (annual assumption values Y1-Y6)
+- **Syntax:** All three use identical customformula parameter with rd{} and cd{} syntax
+- **Functions:** All support the same custom functions (BEG, END, RANGE, etc.)
+- **Processing:** All processed by the same formula parsing system
 
 **COLUMN MAPPING EXPLANATION:**
 - **Column I (COLUMNFORMULA-S):** The "assumptions" column where users typically input static values
@@ -380,7 +406,49 @@ When client says "per month", generally use CONST-E to take monthly assumption f
 ```
 *Target Revenue assumption calculated as Market Size × Market Share Target in column I*
 
-### WHEN TO USE FORMULA-S VS COLUMNFORMULA-S
+### ANNUALFORMULA-S USE CASES
+
+**1. Year-Specific Growth Calculations:**
+```
+<CONST-E; row1="V1(D)|Base Growth Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|5%(C6)|~5%(Y1)|~5%(Y2)|~5%(Y3)|~5%(Y4)|~5%(Y5)|~5%(Y6)|">
+<ANNUALFORMULA-S; customformula="cd{6-V1}*COLUMN()"; row1="V2(D)|Accelerating Growth Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+```
+*Growth rate increases each year: Y1=5%, Y2=10%, Y3=15%, etc.*
+*Technical: Formula "cd{6-V1}*COLUMN()" is applied to each column J, K, L, M, N, P individually*
+
+**2. Time-Based Pricing:**
+```
+<CONST-E; row1="V1(D)|Launch Date(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|1/1/2026(C6)|1/1/2026(Y1)|1/1/2027(Y2)|...">
+<ANNUALFORMULA-S; customformula="IF(YEAR(cd{6-V1})>=2027,100,75)"; row1="V2(D)|Price per Unit(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+```
+*Price is $75 before 2027, then $100 afterward - calculated per year*
+
+**3. Conditional Annual Assumptions:**
+```
+<SPREAD-E; row1="V1(D)|Annual Revenue(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$1000000(Y1)|$2000000(Y2)|$5000000(Y3)|...">
+<ANNUALFORMULA-S; customformula="IF(cd{6-V1}>3000000,0.15,0.10)"; row1="V2(D)|Commission Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+```
+*Commission rate changes based on each year's revenue target: 10% if under $3M, 15% if over $3M*
+
+### ANNUALFORMULA-S TROUBLESHOOTING
+
+**If the customformula is not being applied to columns J-P:**
+1. **Verify Row Structure:** Check that Y1-Y6 columns show `$F` not static values
+2. **Check Formula Syntax:** Ensure customformula uses valid rd{} and cd{} references
+3. **Confirm Column Targeting:** System should apply formula to ALL columns J, K, L, M, N, P
+4. **Test Formula Logic:** Verify the formula makes sense when evaluated in each year context
+
+**Expected Behavior:**
+- **Column J (Y1):** Shows result of customformula evaluated in Y1 context
+- **Column K (Y2):** Shows result of customformula evaluated in Y2 context  
+- **Column L (Y3):** Shows result of customformula evaluated in Y3 context
+- **Column M (Y4):** Shows result of customformula evaluated in Y4 context
+- **Column N (Y5):** Shows result of customformula evaluated in Y5 context
+- **Column P (Y6):** Shows result of customformula evaluated in Y6 context
+
+**Debugging:** If only one column gets the formula or no columns get the formula, there's likely an implementation issue with how ANNUALFORMULA-S processes the customformula parameter across multiple target columns.
+
+### WHEN TO USE FORMULA-S VS COLUMNFORMULA-S VS ANNUALFORMULA-S
 
 **Use FORMULA-S when:**
 - Creating standard calculation rows that feed into financial statements
@@ -396,6 +464,14 @@ When client says "per month", generally use CONST-E to take monthly assumption f
 - Calculating assumptions based on other assumptions before they flow to time series
 - Setting up conditional assumption logic
 - Cross-referencing assumption values between different drivers
+
+**Use ANNUALFORMULA-S when:**
+- Need different calculated values for each annual period (Y1, Y2, Y3, Y4, Y5, Y6)
+- Building year-specific assumption logic that changes based on time or other annual factors
+- Creating conditional assumptions that depend on each year's specific context
+- Implementing escalating rates, pricing, or percentages that vary by year
+- Need formulas that reference different annual assumptions for each year
+- Building models where annual columns need dynamic calculations instead of static annual values
 
 **TYPICAL INTEGRATION PATTERNS:**
 
@@ -422,23 +498,40 @@ When client says "per month", generally use CONST-E to take monthly assumption f
 ```
 *Marketing budget assumption changes based on launch date*
 
+**Pattern 4 - Multi-Formula Integration:**
+```
+<CONST-E; row1="V1(D)|Base Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|2%(C6)|~2%(Y1)|~2%(Y2)|~2%(Y3)|~2%(Y4)|~2%(Y5)|~2%(Y6)|">
+<ANNUALFORMULA-S; customformula="cd{6-V1}*(1+COLUMN()*0.01)"; row1="V2(D)|Escalating Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+<COLUMNFORMULA-S; customformula="AVERAGE(cd{6-V2}:cd{11-V2})"; row1="V3(D)|Average Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+<FORMULA-S; customformula="rd{V3}*BEG(cd{6-V4})"; row1="V5(D)|Time Series Result(L)|is: revenue(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+```
+*V1 provides base rate, V2 calculates year-specific escalating rates, V3 averages those rates in column I, V5 applies that average to time series*
+
 **CRITICAL DISTINCTIONS:**
 
 **Static vs Dynamic Assumptions:**
 - **CONST-E/SPREAD-E:** Static assumption values entered manually
-- **COLUMNFORMULA-S:** Dynamic assumption values calculated from other inputs
+- **COLUMNFORMULA-S:** Dynamic single assumption value calculated from other inputs
+- **ANNUALFORMULA-S:** Dynamic annual assumption values calculated individually for each year
 
 **Column Flow Logic:**
-- **Assumptions (Column I)** → **Time Series Calculation (Column U)** → **Monthly Results (AE+)**
-- **COLUMNFORMULA-S affects Column I** (the assumption inputs)
+- **Annual Assumptions (Columns J-P/Y1-Y6)** → **Assumptions (Column I)** → **Time Series Calculation (Column U)** → **Monthly Results (AE+)**
+- **ANNUALFORMULA-S affects Columns J-P** (the annual assumption inputs Y1-Y6)
+- **COLUMNFORMULA-S affects Column I** (the single assumption input)
 - **FORMULA-S affects Column U** (the time series calculations)
 
-**When Both Are Used Together:**
+**COLUMNFORMULA-S FORMATTING BEHAVIOR:**
+- **topborder="true":** Only applies to column I, not other columns
+- **Column Clearing:** When topborder is used, columns to the right of column I should have contents cleared
+- **Row Structure:** This means Y1-Y6 columns typically show blank or minimal content when topborder formatting is applied
+
+**When Multiple Formula Types Are Used Together:**
 ```
-<COLUMNFORMULA-S; customformula="cd{6-V1}*cd{6-V2}"; row1="V3(D)|Calculated Assumption(L)|(F)|...|(C6)|$F(Y1)|...">
+<ANNUALFORMULA-S; customformula="cd{6-V1}*COLUMN()"; row1="V2(D)|Year-Specific Values(L)|(F)|...|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+<COLUMNFORMULA-S; customformula="AVERAGE(cd{6-V2}:cd{11-V2})"; row1="V3(D)|Calculated Assumption(L)|(F)|...|(C6)|$F(Y1)|...">
 <FORMULA-S; customformula="rd{V3}*BEG(cd{6-V4})"; row1="V5(D)|Time Series Result(L)|is: revenue(F)|...|(C6)|$F(Y1)|...">
 ```
-*V3 uses COLUMNFORMULA-S to calculate assumption in column I, then V5 uses FORMULA-S to process that assumption in column U with time series functions*
+*V2 uses ANNUALFORMULA-S to calculate different values for each year, V3 uses COLUMNFORMULA-S to average those values in column I, then V5 uses FORMULA-S to process that assumption in column U with time series functions*
 
 ### FORMULA-S Custom Functions
 
@@ -900,7 +993,7 @@ CONST-E codes representing dollar rates or per-unit values MUST be italicized wi
 If SPREAD-E represents an aggregate total → use $ without ~
 
 ### FORMATTING PARAMETERS
-**Codes to Edit:** CONST-E, SPREAD-E, ENDPOINT-E, GROWTH-E, FINANCIALS-S, MULT3-S, DIVIDE2-S, SUBTRACT2-S, SUBTOTAL2-S, SUBTOTAL3-S, AVGMULT3-S, ANNUALIZE-S, DEANNUALIZE-S, AVGDEANNUALIZE2-S, DIRECT-S, CHANGE-S, INCREASE-S, DECREASE-S, GROWTH-S, OFFSETCOLUMN-S, OFFSET2-S, SUMLIST-S, DISCOUNT2-S, FORMULA-S, COLUMNFORMULA-S
+**Codes to Edit:** CONST-E, SPREAD-E, ENDPOINT-E, GROWTH-E, FINANCIALS-S, MULT3-S, DIVIDE2-S, SUBTRACT2-S, SUBTOTAL2-S, SUBTOTAL3-S, AVGMULT3-S, ANNUALIZE-S, DEANNUALIZE-S, AVGDEANNUALIZE2-S, DIRECT-S, CHANGE-S, INCREASE-S, DECREASE-S, GROWTH-S, OFFSETCOLUMN-S, OFFSET2-S, SUMLIST-S, DISCOUNT2-S, FORMULA-S, COLUMNFORMULA-S, ANNUALFORMULA-S
 
 **Bold:** Boolean - turns all cells bold/unbold
 **Topborder:** Boolean - adds topborder above code
@@ -969,6 +1062,11 @@ If SPREAD-E represents an aggregate total → use $ without ~
 **COLUMNFORMULA-S Codes:**
 ```
 <COLUMNFORMULA-S; sumif=""; customformula=""; row1 = "V1(D)|~# of units(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~F(Y1)|~F(Y2)|~F(Y3)|~F(Y4)|~F(Y5)|~F(Y6)|";>
+```
+
+**ANNUALFORMULA-S Codes:**
+```
+<ANNUALFORMULA-S; sumif=""; customformula=""; row1 = "V1(D)|~# of units(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~F(Y1)|~F(Y2)|~F(Y3)|~F(Y4)|~F(Y5)|~F(Y6)|";>
 ```
 
 ---
