@@ -1760,10 +1760,12 @@ Office.onReady((info) => {
     const startupMenu = document.getElementById('startup-menu');
     const developerModeButton = document.getElementById('developer-mode-button');
     const clientModeButton = document.getElementById('client-mode-button');
+    const modelPlannerModeButton = document.getElementById('model-planner-mode-button');
     const appBody = document.getElementById('app-body'); // Already exists, ensure it's captured
     const clientModeView = document.getElementById('client-mode-view');
+    const modelPlannerModeView = document.getElementById('model-planner-mode-view');
 
-    productionLog(`Elements found - startupMenu: ${!!startupMenu}, appBody: ${!!appBody}, clientModeView: ${!!clientModeView}`);
+    productionLog(`Elements found - startupMenu: ${!!startupMenu}, appBody: ${!!appBody}, clientModeView: ${!!clientModeView}, modelPlannerModeView: ${!!modelPlannerModeView}`);
 
     // >>> DYNAMIC MODE DETECTION: Show startup menu on localhost, skip in production
     const isLocalDevelopment = window.location.hostname === 'localhost' || 
@@ -1798,6 +1800,7 @@ Office.onReady((info) => {
       if (startupMenu) startupMenu.style.display = 'none';
       if (appBody) appBody.style.display = 'flex'; // Matches .ms-welcome__main display if it's flex
       if (clientModeView) clientModeView.style.display = 'none';
+      if (modelPlannerModeView) modelPlannerModeView.style.display = 'none';
       
       // Initialize developer mode voice input functionality
       if (typeof initializeVoiceInputDev === 'function') {
@@ -1831,12 +1834,113 @@ Office.onReady((info) => {
         productionLog('appBody element not found!');
       }
       
+      if (modelPlannerModeView) {
+        modelPlannerModeView.style.display = 'none';
+        productionLog('Set modelPlannerModeView to display: none');
+      } else {
+        productionLog('modelPlannerModeView element not found!');
+      }
+      
       if (clientModeView) {
         clientModeView.style.display = 'flex';
         productionLog('Set clientModeView to display: flex with row direction for sidebar layout');
       } else {
         productionLog('clientModeView element not found!');
       }
+      
+      productionLog(`After changes - startupMenu display: ${startupMenu ? startupMenu.style.display : 'null'}`);
+      productionLog(`After changes - clientModeView display: ${clientModeView ? clientModeView.style.display : 'null'}`);
+      
+      // Initialize file attachment functionality
+      if (typeof initializeFileAttachment === 'function') {
+        initializeFileAttachment();
+        productionLog('initializeFileAttachment called');
+      }
+      
+      // Initialize voice input functionality
+      if (typeof initializeVoiceInput === 'function') {
+        initializeVoiceInput();
+        productionLog('initializeVoiceInput called');
+      }
+      
+      // Initialize textarea auto-resize functionality
+      if (typeof initializeTextareaAutoResize === 'function') {
+        initializeTextareaAutoResize();
+        productionLog('initializeTextareaAutoResize called');
+      }
+      
+      // >>> ADDED: Initialize authentication UI for client mode
+      if (typeof msal !== 'undefined' && msalInstance) {
+        try {
+          checkAuthState(); // Check if user is already signed in
+          productionLog('Authentication state checked for client mode');
+        } catch (error) {
+          console.error('Error checking authentication state in client mode:', error);
+        }
+      } else {
+        productionLog('Authentication not available in client mode');
+      }
+      
+      // Show the sign-in button (always visible unless user is already authenticated)
+      const signInButton = document.getElementById('sign-in-button');
+      if (signInButton) {
+        if (isUserAuthenticated()) {
+          signInButton.style.display = 'none';
+          productionLog('Sign-in button hidden - user already authenticated');
+        } else {
+          signInButton.style.display = 'flex';
+          productionLog('Sign-in button shown for client mode');
+        }
+      }
+      // <<< END ADDED
+      
+      // Initialize sidebar navigation
+      initializeSidebarNavigation();
+      
+      productionLog("Client Mode activation completed");
+    }
+
+    function showModelPlannerMode() {
+      console.log('[DEBUG] showModelPlannerMode function called');
+      productionLog('showModelPlannerMode function called');
+      
+      if (startupMenu) {
+        startupMenu.style.display = 'none';
+        console.log('[DEBUG] Set startupMenu to display: none');
+        productionLog('Set startupMenu to display: none');
+      } else {
+        console.error('[DEBUG] startupMenu element not found!');
+      }
+      
+      if (appBody) {
+        appBody.style.display = 'none';
+        console.log('[DEBUG] Set appBody to display: none');
+        productionLog('Set appBody to display: none');
+      } else {
+        console.error('[DEBUG] appBody element not found!');
+      }
+      
+      if (clientModeView) {
+        clientModeView.style.display = 'none';
+        console.log('[DEBUG] Set clientModeView to display: none');
+        productionLog('Set clientModeView to display: none');
+      } else {
+        console.error('[DEBUG] clientModeView element not found!');
+      }
+      
+      if (modelPlannerModeView) {
+        modelPlannerModeView.style.display = 'flex';
+        console.log('[DEBUG] Set modelPlannerModeView to display: flex');
+        productionLog('Set modelPlannerModeView to display: flex with row direction for sidebar layout');
+      } else {
+        console.error('[DEBUG] modelPlannerModeView element not found!');
+        productionLog('modelPlannerModeView element not found!');
+      }
+      
+      // Initialize Model Planner mode specific functionality
+      console.log('[DEBUG] Model Planner Mode activated');
+      console.log("Model Planner Mode activated");
+    }
       
       productionLog(`After changes - startupMenu display: ${startupMenu ? startupMenu.style.display : 'null'}`);
       productionLog(`After changes - clientModeView display: ${clientModeView ? clientModeView.style.display : 'null'}`);
@@ -2154,17 +2258,83 @@ Office.onReady((info) => {
     }
     // <<< END ADDED
 
-    // Assign click handlers for startup menu buttons
+    // Simple direct click handlers - no function references needed
+    console.log('[DEBUG] Setting up startup menu button handlers...');
+    const developerModeButton = document.getElementById('developer-mode-button');
+    const clientModeButton = document.getElementById('client-mode-button');
+    const modelPlannerModeButton = document.getElementById('model-planner-mode-button');
+    
+    console.log('[DEBUG] Button elements found:', {
+        developerModeButton: !!developerModeButton,
+        clientModeButton: !!clientModeButton,
+        modelPlannerModeButton: !!modelPlannerModeButton
+    });
+    
     if (developerModeButton) {
-        developerModeButton.onclick = showDeveloperMode;
+        developerModeButton.onclick = () => {
+            console.log('[DEBUG] Developer mode button clicked!');
+            const startupMenu = document.getElementById('startup-menu');
+            const appBody = document.getElementById('app-body');
+            const clientModeView = document.getElementById('client-mode-view');
+            const modelPlannerModeView = document.getElementById('model-planner-mode-view');
+            
+            if (startupMenu) startupMenu.style.display = 'none';
+            if (appBody) appBody.style.display = 'flex';
+            if (clientModeView) clientModeView.style.display = 'none';
+            if (modelPlannerModeView) modelPlannerModeView.style.display = 'none';
+            console.log("Developer Mode activated");
+        };
+        console.log('[DEBUG] Developer mode click handler attached');
     } else {
         console.error("Could not find button with id='developer-mode-button'");
     }
+    
     if (clientModeButton) {
-        clientModeButton.onclick = showClientMode;
+        clientModeButton.onclick = () => {
+            console.log('[DEBUG] Client mode button clicked!');
+            const startupMenu = document.getElementById('startup-menu');
+            const appBody = document.getElementById('app-body');
+            const clientModeView = document.getElementById('client-mode-view');
+            const modelPlannerModeView = document.getElementById('model-planner-mode-view');
+            
+            if (startupMenu) startupMenu.style.display = 'none';
+            if (appBody) appBody.style.display = 'none';
+            if (clientModeView) clientModeView.style.display = 'flex';
+            if (modelPlannerModeView) modelPlannerModeView.style.display = 'none';
+            console.log("Client Mode activated");
+        };
+        console.log('[DEBUG] Client mode click handler attached');
     } else {
         console.error("Could not find button with id='client-mode-button'");
     }
+    
+    if (modelPlannerModeButton) {
+        modelPlannerModeButton.onclick = () => {
+            console.log('[DEBUG] Model Planner button clicked!');
+            const startupMenu = document.getElementById('startup-menu');
+            const appBody = document.getElementById('app-body');
+            const clientModeView = document.getElementById('client-mode-view');
+            const modelPlannerModeView = document.getElementById('model-planner-mode-view');
+            
+            console.log('[DEBUG] Found elements:', {
+                startupMenu: !!startupMenu,
+                appBody: !!appBody,
+                clientModeView: !!clientModeView,
+                modelPlannerModeView: !!modelPlannerModeView
+            });
+            
+            if (startupMenu) startupMenu.style.display = 'none';
+            if (appBody) appBody.style.display = 'none';
+            if (clientModeView) clientModeView.style.display = 'none';
+            if (modelPlannerModeView) modelPlannerModeView.style.display = 'flex';
+            console.log("Model Planner Mode activated");
+        };
+        console.log('[DEBUG] Model Planner click handler attached');
+    } else {
+        console.error("Could not find button with id='model-planner-mode-button'");
+    }
+
+    // NOTE: Button handlers will be set up after function definitions
 
 
 
@@ -3258,8 +3428,6 @@ Office.onReady((info) => {
     };
 
     // ... (rest of your Office.onReady, e.g., Promise.all)
-  }
-});
 
 // >>> ADDED: Function definition moved here
 async function insertResponseToEditor() {
@@ -4124,6 +4292,8 @@ function testAuthSetup() {
 // Make test function globally available for debugging
 window.testAuthSetup = testAuthSetup;
 // <<< END ADDED
+
+}); // End Office.onReady
 
 
 

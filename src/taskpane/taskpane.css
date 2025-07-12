@@ -2357,6 +2357,11 @@ body {
     background-color: var(--green-50);
 }
 
+.mode-button.model-planner-mode:hover {
+    border-color: var(--blue-500);
+    background-color: var(--blue-50);
+}
+
 .mode-button.client-mode:hover {
     border-color: var(--accent-red);
     background-color: #fef2f2;
