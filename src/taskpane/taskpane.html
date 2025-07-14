@@ -64,13 +64,6 @@
                             <p class="mode-description">Simplified interface for financial modeling</p>
                         </div>
                     </button>
-                    <button id="model-planner-mode-button" class="mode-button model-planner-mode">
-                        <div class="mode-icon">📊</div>
-                        <div class="mode-content">
-                            <h3 class="mode-name">Model Planner</h3>
-                            <p class="mode-description">Sequential planning with Claude for complex models</p>
-                        </div>
-                    </button>
                 </div>
             </div>
         </div>
@@ -352,11 +345,27 @@
                             EBITD<span class="brand-accent">AI</span>
                         </h1>
                         <p class="app-subtitle">Build Financial Models with AI</p>
+                        
+                        <!-- Assistant Selection Dropdown -->
+                        <div class="assistant-selector">
+                            <label for="assistant-dropdown" class="assistant-label">Assistant:</label>
+                            <select id="assistant-dropdown" class="assistant-dropdown">
+                                <option value="senior-analyst" selected>Senior Analyst</option>
+                                <option value="financial-planner">Financial Planner</option>
+                            </select>
+                        </div>
                     </div>
 
                     <!-- Welcome Message with Modern Design -->
                     <div class="welcome-section">
                         <h2 class="welcome-title">What do you want to model?</h2>
+                        <div class="assistant-info">
+                            <p class="assistant-description">Choose your assistant above and describe your business:</p>
+                            <ul class="assistant-options">
+                                <li><strong>Senior Analyst:</strong> General financial modeling assistance</li>
+                                <li><strong>Financial Planner:</strong> Sequential model planning with structured approach</li>
+                            </ul>
+                        </div>
                         <div class="welcome-steps">
                             <div class="step-item">
                                 <span class="step-number">1</span>
@@ -624,361 +633,6 @@
                                     <div class="api-key-section">
                                         <label for="claude-api-key" class="api-key-label">Claude API Key (Optional)</label>
                                         <input type="password" id="claude-api-key" class="api-key-input" placeholder="Enter your Claude API key...">
-                                        <p class="api-key-note">Use your own Claude API key for enhanced performance and unlimited usage</p>
-                                    </div>
-                                    
-                                    <button class="plan-button">Get Started</button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="subscription-footer">
-                            <p>All plans include a 14-day free trial. No credit card required.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Model Planner Mode View with Sidebar -->
-    <div id="model-planner-mode-view" class="ms-welcome__main" style="display: none;">
-        <div class="client-app-layout">
-            <!-- Sidebar -->
-            <div class="sidebar">
-                <!-- Logo -->
-                <div class="sidebar-logo">
-                    <div class="logo-icon">
-                        <span class="logo-text">
-                            <span class="logo-black">EBITD</span><span class="logo-red">AI</span>
-                        </span>
-                    </div>
-                </div>
-
-                <!-- Navigation Tabs -->
-                <div class="sidebar-nav">
-                    <button id="planner-chat-tab" class="sidebar-tab active" title="Chat" data-tab="chat">
-                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="tab-icon">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                        </svg>
-                    </button>
-                    <button id="planner-subscription-tab" class="sidebar-tab" title="Plans" data-tab="subscription">
-                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="tab-icon">
-                            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                            <path d="M18 8.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z" fill="currentColor"/>
-                        </svg>
-                    </button>
-                </div>
-
-                <!-- User Authentication Section -->
-                <div class="sidebar-auth">
-                    <!-- Sign In Button -->
-                    <button id="planner-sign-in-button" class="sidebar-auth-button" style="display: none;">
-                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="auth-icon">
-                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                            <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2" fill="none"/>
-                        </svg>
-                    </button>
-
-                    <!-- User Info -->
-                    <div id="planner-user-info" class="sidebar-user-info" style="display: none;">
-                        <div class="user-avatar-container">
-                            <img id="planner-user-avatar" class="user-avatar" alt="User Avatar">
-                            <div id="planner-user-initials" class="user-initials"></div>
-                        </div>
-                        <button id="planner-sign-out-button" class="sidebar-signout-button" title="Sign out">
-                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="signout-icon">
-                                <path d="M16 17l5-5-5-5M19.8 12H9M10 3H5a2 2 0 00-2 2v14a2 2 0 002 2h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Main Content Area -->
-            <div class="main-content">
-                <!-- Container for the whole conversation interface -->
-                <div id="planner-chat-container" class="container">
-                    <!-- Simple Centered Header -->
-                    <div class="simple-header">
-                        <h1 class="app-title">
-                            Model <span class="brand-accent">Planner</span>
-                        </h1>
-                        <p class="app-subtitle">Sequential AI Planning with Claude</p>
-                    </div>
-
-                    <!-- Welcome Message with Modern Design -->
-                    <div class="welcome-section">
-                        <h2 class="welcome-title">Let's plan your financial model step by step</h2>
-                        <div class="welcome-steps">
-                            <div class="step-item">
-                                <span class="step-number">1</span>
-                                <span class="step-text">Tell me about your business and we'll determine which sections to include</span>
-                            </div>
-                            <div class="step-item">
-                                <span class="step-number">2</span>
-                                <span class="step-text">We'll plan each section in detail with dedicated prompts</span>
-                            </div>
-                            <div class="step-item">
-                                <span class="step-number">3</span>
-                                <span class="step-text">Once approved, we'll build your complete Excel model</span>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Chat log starts hidden and will expand when conversation starts -->
-                    <div id="chat-log-planner" class="chat-log">
-                        <div id="welcome-message-planner" class="welcome-message" style="display: none;">
-                            <h1>Model Planner - Sequential Planning</h1>
-                        </div>
-                    </div>
-                    
-                    <!-- Input area wrapper that will be repositioned -->
-                    <div id="planner-input-wrapper" class="client-input-area-wrapper">
-                        <div class="chatgpt-input-bar" id="planner-input-bar">
-                            <!-- Normal Input Mode -->
-                            <div id="normal-input-mode-planner" class="input-mode">
-                                <div class="left-controls">
-                                    <input type="file" id="file-input-planner" accept=".xlsx,.xls,.xlsm,.csv,.doc,.docx,.pdf,.txt" multiple style="display: none;">
-                                    <button id="attach-file-planner" class="ms-Button ms-Button--icon attachment-button" title="Attach Excel, CSV, Word, PDF, or Text file">
-                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="plus-icon">
-                                            <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                                <textarea id="user-input-planner" placeholder="Tell me about your business..." rows="1"></textarea>
-                                <div class="right-controls">
-                                    <button id="voice-input-planner" class="ms-Button ms-Button--icon voice-button" title="Voice input">
-                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="microphone-icon">
-                                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill="currentColor"/>
-                                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                                            <path d="M12 19v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                            <path d="M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
-                                    </button>
-                                    <button id="send-planner" class="ms-Button ms-Button--icon send-button">
-                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="send-icon">
-                                            <path d="M12 4L12 20M12 4L18 10M12 4L6 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <!-- Voice Recording Mode -->
-                            <div id="voice-recording-mode-planner" class="input-mode" style="display: none;">
-                                <div class="left-controls">
-                                    <button class="ms-Button ms-Button--icon attachment-button">
-                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="plus-icon">
-                                            <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                                <div class="voice-waveform-container">
-                                    <canvas id="voice-waveform-planner" class="voice-waveform"></canvas>
-                                    <div id="voice-recording-timer-planner" class="voice-recording-timer">00:00</div>
-                                </div>
-                                <div class="voice-recording-controls">
-                                    <button id="cancel-voice-recording-planner" class="ms-Button ms-Button--icon voice-control-button" title="Cancel recording">
-                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="cancel-icon">
-                                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
-                                    </button>
-                                    <button id="accept-voice-recording-planner" class="ms-Button ms-Button--icon voice-control-button" title="Send for transcription">
-                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="check-icon">
-                                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <!-- Transcription Loading Mode -->
-                            <div id="transcription-loading-mode-planner" class="input-mode" style="display: none;">
-                                <div class="transcription-loading-content">
-                                    <div class="transcription-spinner"></div>
-                                    <span class="transcription-loading-text">Transcribing...</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="attached-files-container-planner" class="attached-files-container" style="display: none;">
-                            <div class="attached-files-header">
-                                <span class="attached-files-count-planner">0 files attached</span>
-                                <button id="clear-all-attachments-planner" class="clear-all-btn">Clear All</button>
-                            </div>
-                            <div id="attached-files-list-planner" class="attached-files-list">
-                                <!-- Individual attached files will be added here dynamically -->
-                            </div>
-                        </div>
-                        <div id="loading-animation-planner" class="loading-animation" style="display: none;"></div>
-                    </div>
-                </div>
-
-                <!-- Subscription Panel -->
-                <div id="planner-subscription-panel" style="display: none;">
-                    <div class="subscription-container">
-                        <div class="subscription-header">
-                            <h2 class="subscription-title">Choose Your Plan</h2>
-                            <p class="subscription-description">Select the perfect plan for your financial modeling needs</p>
-                        </div>
-
-                        <div class="subscription-plans">
-                            <!-- Same subscription plans as client mode -->
-                            <div class="plan-card">
-                                <div class="plan-header">
-                                    <h3 class="plan-name">Starter</h3>
-                                    <div class="plan-price">
-                                        <span class="price-amount">$29</span>
-                                        <span class="price-period">/month</span>
-                                    </div>
-                                    <p class="plan-description">Perfect for individual analysts and small teams</p>
-                                </div>
-                                <div class="plan-content">
-                                    <ul class="plan-features">
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>5 AI model generations per month</span>
-                                        </li>
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>Basic financial templates</span>
-                                        </li>
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>Excel integration</span>
-                                        </li>
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>Email support</span>
-                                        </li>
-                                    </ul>
-                                    <button class="plan-button">Get Started</button>
-                                </div>
-                            </div>
-
-                            <div class="plan-card popular">
-                                <div class="popular-badge">Most Popular</div>
-                                <div class="plan-header">
-                                    <h3 class="plan-name">Professional</h3>
-                                    <div class="plan-price">
-                                        <span class="price-amount">$79</span>
-                                        <span class="price-period">/month</span>
-                                    </div>
-                                    <p class="plan-description">For growing teams and complex models</p>
-                                </div>
-                                <div class="plan-content">
-                                    <ul class="plan-features">
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>25 AI model generations per month</span>
-                                        </li>
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>Advanced financial templates</span>
-                                        </li>
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>Excel & Google Sheets integration</span>
-                                        </li>
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>Priority support</span>
-                                        </li>
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>Custom model training</span>
-                                        </li>
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>Team collaboration</span>
-                                        </li>
-                                    </ul>
-                                    <button class="plan-button popular-button">Get Started</button>
-                                </div>
-                            </div>
-
-                            <div class="plan-card">
-                                <div class="plan-header">
-                                    <h3 class="plan-name">Unlimited</h3>
-                                    <div class="plan-price">
-                                        <span class="price-amount">$199</span>
-                                        <span class="price-period">/month</span>
-                                    </div>
-                                    <p class="plan-description">For large organizations with advanced needs</p>
-                                </div>
-                                <div class="plan-content">
-                                    <ul class="plan-features">
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>Unlimited AI model generations</span>
-                                        </li>
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>All financial templates</span>
-                                        </li>
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>Full platform integration</span>
-                                        </li>
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>24/7 dedicated support</span>
-                                        </li>
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>Custom model training</span>
-                                        </li>
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>Advanced team management</span>
-                                        </li>
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>API access</span>
-                                        </li>
-                                        <li class="feature-item">
-                                            <svg class="feature-check" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                            </svg>
-                                            <span>On-premise deployment</span>
-                                        </li>
-                                    </ul>
-                                    
-                                    <div class="api-key-section">
-                                        <label for="planner-claude-api-key" class="api-key-label">Claude API Key (Optional)</label>
-                                        <input type="password" id="planner-claude-api-key" class="api-key-input" placeholder="Enter your Claude API key...">
                                         <p class="api-key-note">Use your own Claude API key for enhanced performance and unlimited usage</p>
                                     </div>
                                     

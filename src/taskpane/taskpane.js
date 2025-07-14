@@ -949,37 +949,71 @@ async function handleSendClient() {
     let fullAssistantResponse = "";
 
     try {
-        // Prepare messages for OpenAI API
-        // Add current user input. For a more complete conversation, you'd include previous messages from conversationHistoryClient
-        const messages = [
-            // Example: Add system prompt if you have one
-            // { role: "system", content: "You are a helpful assistant." },
-            ...conversationHistoryClient.map(item => ({ role: "user", content: item.user })),
-            ...conversationHistoryClient.map(item => ({ role: "assistant", content: item.assistant })),
-            { role: "user", content: userInput }
-        ];
+        // Check which assistant is selected
+        const assistantDropdown = document.getElementById('assistant-dropdown');
+        const selectedAssistant = assistantDropdown ? assistantDropdown.value : 'senior-analyst';
         
-        console.log("[handleSendClient] Calling OpenAI with stream enabled. Messages:", messages);
-
-        // Call OpenAI API with streaming
-        // Assuming callOpenAI is available and handles API key internally,
-        // and returns an async iterable for stream.
-        // Adjust the model as needed, e.g., "gpt-3.5-turbo" or "gpt-4"
-        const stream = await callOpenAI(messages, { stream: true, model: "gpt-3.5-turbo" });
-
-        for await (const chunk of stream) {
-            const content = chunk.choices && chunk.choices[0]?.delta?.content;
-            if (content) {
-                fullAssistantResponse += content;
-                assistantMessageContent.textContent += content; // Append new content
-                chatLogClient.scrollTop = chatLogClient.scrollHeight; // Keep scrolling to bottom
+        console.log("[handleSendClient] Selected assistant:", selectedAssistant);
+        
+        if (selectedAssistant === 'financial-planner') {
+            // Use the AI Model Planner conversation handler
+            const { handleAIModelPlannerConversation } = await import('./AIModelPlanner.js');
+            const result = await handleAIModelPlannerConversation(userInput);
+            
+            // Remove the typing indicator
+            const typingIndicator = assistantMessageDiv.querySelector('.typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
             }
+
+            // Display the response
+            let responseText = '';
+            if (typeof result.response === 'string') {
+                responseText = result.response;
+            } else if (Array.isArray(result.response)) {
+                responseText = result.response.join(' ');
+            } else if (typeof result.response === 'object') {
+                responseText = JSON.stringify(result.response, null, 2);
+            }
+            
+            assistantMessageContent.textContent = responseText;
+            fullAssistantResponse = responseText;
+            lastResponseClient = fullAssistantResponse;
+            
+            // Store the conversation history using the planner's format but adapted for client mode
+            conversationHistoryClient.push({ user: userInput, assistant: fullAssistantResponse });
+            
+            console.log("[handleSendClient] Financial Planner response completed:", fullAssistantResponse);
+        } else {
+            // Use the regular Senior Analyst (OpenAI) approach
+            // Prepare messages for OpenAI API
+            const messages = [
+                // Example: Add system prompt if you have one
+                // { role: "system", content: "You are a helpful assistant." },
+                ...conversationHistoryClient.map(item => ({ role: "user", content: item.user })),
+                ...conversationHistoryClient.map(item => ({ role: "assistant", content: item.assistant })),
+                { role: "user", content: userInput }
+            ];
+            
+            console.log("[handleSendClient] Calling OpenAI with stream enabled. Messages:", messages);
+
+            // Call OpenAI API with streaming
+            const stream = await callOpenAI(messages, { stream: true, model: "gpt-3.5-turbo" });
+
+            for await (const chunk of stream) {
+                const content = chunk.choices && chunk.choices[0]?.delta?.content;
+                if (content) {
+                    fullAssistantResponse += content;
+                    assistantMessageContent.textContent += content; // Append new content
+                    chatLogClient.scrollTop = chatLogClient.scrollHeight; // Keep scrolling to bottom
+                }
+            }
+
+            lastResponseClient = fullAssistantResponse;
+            conversationHistoryClient.push({ user: userInput, assistant: fullAssistantResponse });
+
+            console.log("[handleSendClient] Senior Analyst streaming finished. Full response:", fullAssistantResponse);
         }
-
-        lastResponseClient = fullAssistantResponse;
-        conversationHistoryClient.push({ user: userInput, assistant: fullAssistantResponse });
-
-        console.log("[handleSendClient] Streaming finished. Full response:", fullAssistantResponse);
 
     } catch (error) {
         console.error("Error in handleSendClient during OpenAI call:", error);
@@ -992,6 +1026,8 @@ async function handleSendClient() {
     }
 }
 // <<< END ADDED
+
+// Model Planner mode functions removed - functionality now integrated into client mode with assistant dropdown
 
 // Add this function to reset the chat
 function resetChat() {
@@ -1900,53 +1936,117 @@ Office.onReady((info) => {
       productionLog("Client Mode activation completed");
     }
 
-    function showModelPlannerMode() {
-      console.log('[DEBUG] showModelPlannerMode function called');
-      productionLog('showModelPlannerMode function called');
+    // showModelPlannerMode function removed - functionality now integrated into client mode with assistant dropdown
+
+    let sidebarInitialized = false;
+
+    // >>> ADDED: Function to initialize sidebar navigation
+    function initializeSidebarNavigation() {
+      console.log('=== initializeSidebarNavigation called ===');
       
-      if (startupMenu) {
-        startupMenu.style.display = 'none';
-        console.log('[DEBUG] Set startupMenu to display: none');
-        productionLog('Set startupMenu to display: none');
-      } else {
-        console.error('[DEBUG] startupMenu element not found!');
+      if (sidebarInitialized) {
+        console.log('Sidebar already initialized, skipping...');
+        return;
       }
       
-      if (appBody) {
-        appBody.style.display = 'none';
-        console.log('[DEBUG] Set appBody to display: none');
-        productionLog('Set appBody to display: none');
-      } else {
-        console.error('[DEBUG] appBody element not found!');
-      }
+      const chatTab = document.getElementById('chat-tab');
+      const subscriptionTab = document.getElementById('subscription-tab');
+      const chatPanel = document.getElementById('client-chat-container');
+      const subscriptionPanel = document.getElementById('subscription-panel');
       
-      if (clientModeView) {
-        clientModeView.style.display = 'none';
-        console.log('[DEBUG] Set clientModeView to display: none');
-        productionLog('Set clientModeView to display: none');
-      } else {
-        console.error('[DEBUG] clientModeView element not found!');
-      }
-      
-      if (modelPlannerModeView) {
-        modelPlannerModeView.style.display = 'flex';
-        console.log('[DEBUG] Set modelPlannerModeView to display: flex');
-        productionLog('Set modelPlannerModeView to display: flex with row direction for sidebar layout');
-      } else {
-        console.error('[DEBUG] modelPlannerModeView element not found!');
-        productionLog('modelPlannerModeView element not found!');
-      }
-      
-      // Initialize Model Planner mode specific functionality
-      console.log('[DEBUG] Model Planner Mode activated');
-      console.log("Model Planner Mode activated");
+      console.log('Sidebar elements found:', {
+        chatTab: !!chatTab,
+        subscriptionTab: !!subscriptionTab,
+        chatPanel: !!chatPanel,
+        subscriptionPanel: !!subscriptionPanel
+      });
+
+      // Inner function to switch tabs
+      function switchToTab(activeTab, activePanel) {
+        console.log('=== switchToTab called ===');
+        console.log('Active tab:', activeTab ? activeTab.id : 'null');
+        console.log('Active panel:', activePanel ? activePanel.id : 'null');
+        
+        // Remove active class from all tabs
+        if (chatTab) chatTab.classList.remove('active');
+        if (subscriptionTab) subscriptionTab.classList.remove('active');
+        
+        // Hide all panels
+        console.log('=== BEFORE HIDING PANELS ===');
+        console.log('Chat panel display:', chatPanel ? chatPanel.style.display : 'null');
+        console.log('Subscription panel display:', subscriptionPanel ? subscriptionPanel.style.display : 'null');
+        
+        if (chatPanel) {
+            chatPanel.style.display = 'none';
+            console.log('Chat panel hidden');
+        }
+        if (subscriptionPanel) {
+            subscriptionPanel.style.display = 'none';
+            console.log('Subscription panel hidden');
+        }
+        
+        console.log('=== AFTER HIDING PANELS ===');
+        console.log('Chat panel display:', chatPanel ? chatPanel.style.display : 'null');
+        console.log('Subscription panel display:', subscriptionPanel ? subscriptionPanel.style.display : 'null');
+        
+        // Show the selected panel
+        if (activePanel === subscriptionPanel) {
+            subscriptionPanel.style.display = 'block'; // Use inline style since it's not a content-panel
+            subscriptionPanel.style.position = 'absolute'; // Position absolutely to occupy same space as chat
+            subscriptionPanel.style.top = '0'; // Start at top of parent
+            subscriptionPanel.style.left = '0'; // Start at left of parent  
+            subscriptionPanel.style.right = '0'; // Stretch to right edge
+            subscriptionPanel.style.bottom = '0'; // Stretch to bottom edge
+            subscriptionPanel.style.overflow = 'auto'; // Allow scrolling if needed
+            subscriptionPanel.style.zIndex = '10'; // Ensure it's on top
+            console.log('=== AFTER SHOWING SUBSCRIPTION PANEL ===');
+            console.log('Subscription panel display:', subscriptionPanel.style.display);
+            console.log('Subscription panel getBoundingClientRect():', subscriptionPanel.getBoundingClientRect());
+        } else if (activePanel === chatPanel) {
+            chatPanel.style.display = 'flex';
+            chatPanel.style.position = 'relative'; // Ensure chat panel uses normal positioning
+            console.log('=== AFTER SHOWING CHAT PANEL ===');
+            console.log('Chat panel display:', chatPanel.style.display);
+        }
+        
+        // Activate selected tab
+        activeTab.classList.add('active');
     }
-      
-      productionLog(`After changes - startupMenu display: ${startupMenu ? startupMenu.style.display : 'null'}`);
-      productionLog(`After changes - clientModeView display: ${clientModeView ? clientModeView.style.display : 'null'}`);
-      
-      // Initialize file attachment functionality
-      if (typeof initializeFileAttachment === 'function') {
+
+      // Chat tab click handler
+      if (chatTab && chatPanel) {
+        chatTab.addEventListener('click', () => {
+          console.log('Chat tab clicked');
+          switchToTab(chatTab, chatPanel);
+        });
+      } else {
+        console.error('Chat tab or panel not found:', {
+          chatTab: !!chatTab,
+          chatPanel: !!chatPanel
+        });
+      }
+
+      // Subscription tab click handler
+      if (subscriptionTab && subscriptionPanel) {
+        subscriptionTab.addEventListener('click', () => {
+          console.log('Subscription tab clicked');
+          switchToTab(subscriptionTab, subscriptionPanel);
+          // Initialize pricing buttons when subscription panel is shown
+          setTimeout(initializePricingButtons, 100);
+        });
+      } else {
+        console.error('Subscription tab or panel not found:', {
+          subscriptionTab: !!subscriptionTab,
+          subscriptionPanel: !!subscriptionPanel
+        });
+      }
+
+      sidebarInitialized = true;
+      console.log('Sidebar navigation initialized');
+    }
+
+    // Initialize file attachment functionality
+    if (typeof initializeFileAttachment === 'function') {
         initializeFileAttachment();
         productionLog('initializeFileAttachment called');
       }
@@ -2086,6 +2186,8 @@ Office.onReady((info) => {
       sidebarInitialized = true;
       console.log('Sidebar navigation initialized');
     }
+
+    // Planner-specific sidebar navigation functions removed - no longer needed
 
     // >>> ADDED: Function to initialize pricing plan buttons
     function initializePricingButtons() {
@@ -2262,12 +2364,10 @@ Office.onReady((info) => {
     console.log('[DEBUG] Setting up startup menu button handlers...');
     const developerModeButton = document.getElementById('developer-mode-button');
     const clientModeButton = document.getElementById('client-mode-button');
-    const modelPlannerModeButton = document.getElementById('model-planner-mode-button');
     
     console.log('[DEBUG] Button elements found:', {
         developerModeButton: !!developerModeButton,
-        clientModeButton: !!clientModeButton,
-        modelPlannerModeButton: !!modelPlannerModeButton
+        clientModeButton: !!clientModeButton
     });
     
     if (developerModeButton) {
@@ -2308,31 +2408,7 @@ Office.onReady((info) => {
         console.error("Could not find button with id='client-mode-button'");
     }
     
-    if (modelPlannerModeButton) {
-        modelPlannerModeButton.onclick = () => {
-            console.log('[DEBUG] Model Planner button clicked!');
-            const startupMenu = document.getElementById('startup-menu');
-            const appBody = document.getElementById('app-body');
-            const clientModeView = document.getElementById('client-mode-view');
-            const modelPlannerModeView = document.getElementById('model-planner-mode-view');
-            
-            console.log('[DEBUG] Found elements:', {
-                startupMenu: !!startupMenu,
-                appBody: !!appBody,
-                clientModeView: !!clientModeView,
-                modelPlannerModeView: !!modelPlannerModeView
-            });
-            
-            if (startupMenu) startupMenu.style.display = 'none';
-            if (appBody) appBody.style.display = 'none';
-            if (clientModeView) clientModeView.style.display = 'none';
-            if (modelPlannerModeView) modelPlannerModeView.style.display = 'flex';
-            console.log("Model Planner Mode activated");
-        };
-        console.log('[DEBUG] Model Planner click handler attached');
-    } else {
-        console.error("Could not find button with id='model-planner-mode-button'");
-    }
+
 
     // NOTE: Button handlers will be set up after function definitions
 
@@ -2423,6 +2499,8 @@ Office.onReady((info) => {
         // insertToEditorClientButton.onclick = () => alert('Client Mode "Insert to Editor" is not yet implemented.');
     }
     // <<< END ADDED
+
+    // Model Planner Mode Chat Buttons removed - functionality now integrated into client mode
 
     // >>> ADDED: Setup for Generate Tab String button
     const generateTabStringButton = document.getElementById('generate-tab-string-button');

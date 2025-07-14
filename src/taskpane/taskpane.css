@@ -4019,6 +4019,91 @@ html, body {
     line-height: 1.2;
 }
 
+/* Assistant Selector Dropdown Styles */
+.assistant-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.assistant-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--gray-700);
+    margin: 0;
+}
+
+.assistant-dropdown {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--gray-900);
+    background-color: white;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    cursor: pointer;
+    min-width: 140px;
+    transition: all 0.2s ease-in-out;
+}
+
+.assistant-dropdown:hover {
+    border-color: #6366f1;
+    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.assistant-dropdown:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+/* Assistant Info Section Styles */
+.assistant-info {
+    margin: 1rem 0;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #6366f1;
+}
+
+.assistant-description {
+    margin: 0 0 0.75rem 0;
+    font-size: 0.875rem;
+    color: var(--gray-700);
+    font-weight: 500;
+}
+
+.assistant-options {
+    margin: 0;
+    padding-left: 1rem;
+    list-style: none;
+}
+
+.assistant-options li {
+    margin: 0.5rem 0;
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    position: relative;
+}
+
+.assistant-options li:before {
+    content: "•";
+    color: #6366f1;
+    font-weight: bold;
+    position: absolute;
+    left: -0.75rem;
+}
+
+.assistant-options strong {
+    color: var(--gray-800);
+}
+
 /* Client mode specific sizing */
 #client-mode-view .app-title {
     font-size: 1.25rem;
