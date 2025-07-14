@@ -47,8 +47,6 @@ DEBT CHARACTERISTICS TO CONSIDER:
    - Custom: Specific payment schedule
 
 3. INTEREST CALCULATIONS:
-   - Monthly compounding
-   - Annual effective rates
    - Variable rate adjustments
    - Payment-in-kind (PIK) interest
 
@@ -62,10 +60,7 @@ CONVERSATION GOALS:
 QUESTIONS TO ASK:
 1. Does your business borrow money or lend money (or both)?
 2. What types of debt do you have or plan to have?
-3. Are your loans standard terms or custom repayment schedules?
 4. What are the interest rates and repayment terms?
-5. How do you expect debt levels to change over time?
-6. Are there seasonal patterns in your borrowing needs?
 7. Do you have existing debt that needs to be modeled?
 8. Are there debt covenants or restrictions to consider?
 

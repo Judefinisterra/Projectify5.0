@@ -1114,6 +1114,16 @@ function resetChatClient() {
     persistedTrainingUserInput = null;
     persistedTrainingAiResponse = null;
     
+    // >>> ADDED: Reset Financial Planner state if it's being used
+    const assistantDropdown = document.getElementById('assistant-dropdown');
+    if (assistantDropdown && assistantDropdown.value === 'financial-planner') {
+        // Import and reset the AI Model Planner conversation state
+        import('./AIModelPlanner.js').then(module => {
+            module.resetAIModelPlannerConversation();
+            console.log("Financial Planner state reset along with client chat.");
+        });
+    }
+    
     console.log("Client mode chat reset.");
 }
 // <<< END ADDED
@@ -1796,12 +1806,10 @@ Office.onReady((info) => {
     const startupMenu = document.getElementById('startup-menu');
     const developerModeButton = document.getElementById('developer-mode-button');
     const clientModeButton = document.getElementById('client-mode-button');
-    const modelPlannerModeButton = document.getElementById('model-planner-mode-button');
     const appBody = document.getElementById('app-body'); // Already exists, ensure it's captured
     const clientModeView = document.getElementById('client-mode-view');
-    const modelPlannerModeView = document.getElementById('model-planner-mode-view');
 
-    productionLog(`Elements found - startupMenu: ${!!startupMenu}, appBody: ${!!appBody}, clientModeView: ${!!clientModeView}, modelPlannerModeView: ${!!modelPlannerModeView}`);
+    productionLog(`Elements found - startupMenu: ${!!startupMenu}, appBody: ${!!appBody}, clientModeView: ${!!clientModeView}`);
 
     // >>> DYNAMIC MODE DETECTION: Show startup menu on localhost, skip in production
     const isLocalDevelopment = window.location.hostname === 'localhost' || 
@@ -1836,7 +1844,6 @@ Office.onReady((info) => {
       if (startupMenu) startupMenu.style.display = 'none';
       if (appBody) appBody.style.display = 'flex'; // Matches .ms-welcome__main display if it's flex
       if (clientModeView) clientModeView.style.display = 'none';
-      if (modelPlannerModeView) modelPlannerModeView.style.display = 'none';
       
       // Initialize developer mode voice input functionality
       if (typeof initializeVoiceInputDev === 'function') {
@@ -1870,12 +1877,7 @@ Office.onReady((info) => {
         productionLog('appBody element not found!');
       }
       
-      if (modelPlannerModeView) {
-        modelPlannerModeView.style.display = 'none';
-        productionLog('Set modelPlannerModeView to display: none');
-      } else {
-        productionLog('modelPlannerModeView element not found!');
-      }
+
       
       if (clientModeView) {
         clientModeView.style.display = 'flex';
@@ -2376,12 +2378,10 @@ Office.onReady((info) => {
             const startupMenu = document.getElementById('startup-menu');
             const appBody = document.getElementById('app-body');
             const clientModeView = document.getElementById('client-mode-view');
-            const modelPlannerModeView = document.getElementById('model-planner-mode-view');
             
             if (startupMenu) startupMenu.style.display = 'none';
             if (appBody) appBody.style.display = 'flex';
             if (clientModeView) clientModeView.style.display = 'none';
-            if (modelPlannerModeView) modelPlannerModeView.style.display = 'none';
             console.log("Developer Mode activated");
         };
         console.log('[DEBUG] Developer mode click handler attached');
@@ -2395,12 +2395,10 @@ Office.onReady((info) => {
             const startupMenu = document.getElementById('startup-menu');
             const appBody = document.getElementById('app-body');
             const clientModeView = document.getElementById('client-mode-view');
-            const modelPlannerModeView = document.getElementById('model-planner-mode-view');
             
             if (startupMenu) startupMenu.style.display = 'none';
             if (appBody) appBody.style.display = 'none';
             if (clientModeView) clientModeView.style.display = 'flex';
-            if (modelPlannerModeView) modelPlannerModeView.style.display = 'none';
             console.log("Client Mode activated");
         };
         console.log('[DEBUG] Client mode click handler attached');
