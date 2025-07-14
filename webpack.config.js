@@ -143,6 +143,10 @@ module.exports = async (env, options) => {
             to: "src/prompts/Prompt_Modules/[name][ext]"
           },
           {
+            from: "./src/prompts/Planning_Prompts/*",
+            to: "prompts/Planning_Prompts/[name][ext]"
+          },
+          {
             from: "assets/icon-32.png",
             to: "favicon.ico"
           },

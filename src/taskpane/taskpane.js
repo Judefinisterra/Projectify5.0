@@ -956,9 +956,9 @@ async function handleSendClient() {
         console.log("[handleSendClient] Selected assistant:", selectedAssistant);
         
         if (selectedAssistant === 'financial-planner') {
-            // Use the AI Model Planner conversation handler
-            const { handleAIModelPlannerConversation } = await import('./AIModelPlanner.js');
-            const result = await handleAIModelPlannerConversation(userInput);
+            // Use the Financial Planner conversation handler (Planning_Prompts Sequential Flow)
+            const { handleFinancialPlannerConversation } = await import('./AIModelPlanner.js');
+            const result = await handleFinancialPlannerConversation(userInput);
             
             // Remove the typing indicator
             const typingIndicator = assistantMessageDiv.querySelector('.typing-indicator');
@@ -985,34 +985,34 @@ async function handleSendClient() {
             
             console.log("[handleSendClient] Financial Planner response completed:", fullAssistantResponse);
         } else {
-            // Use the regular Senior Analyst (OpenAI) approach
-            // Prepare messages for OpenAI API
-            const messages = [
-                // Example: Add system prompt if you have one
-                // { role: "system", content: "You are a helpful assistant." },
-                ...conversationHistoryClient.map(item => ({ role: "user", content: item.user })),
-                ...conversationHistoryClient.map(item => ({ role: "assistant", content: item.assistant })),
-                { role: "user", content: userInput }
-            ];
+            // Use the Senior Analyst (AI Model Planner with AIModelPlanning_System.txt)
+            const { handleAIModelPlannerConversation } = await import('./AIModelPlanner.js');
+            const result = await handleAIModelPlannerConversation(userInput);
             
-            console.log("[handleSendClient] Calling OpenAI with stream enabled. Messages:", messages);
-
-            // Call OpenAI API with streaming
-            const stream = await callOpenAI(messages, { stream: true, model: "gpt-3.5-turbo" });
-
-            for await (const chunk of stream) {
-                const content = chunk.choices && chunk.choices[0]?.delta?.content;
-                if (content) {
-                    fullAssistantResponse += content;
-                    assistantMessageContent.textContent += content; // Append new content
-                    chatLogClient.scrollTop = chatLogClient.scrollHeight; // Keep scrolling to bottom
-                }
+            // Remove the typing indicator
+            const typingIndicator = assistantMessageDiv.querySelector('.typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
             }
 
+            // Display the response
+            let responseText = '';
+            if (typeof result.response === 'string') {
+                responseText = result.response;
+            } else if (Array.isArray(result.response)) {
+                responseText = result.response.join(' ');
+            } else if (typeof result.response === 'object') {
+                responseText = JSON.stringify(result.response, null, 2);
+            }
+            
+            assistantMessageContent.textContent = responseText;
+            fullAssistantResponse = responseText;
             lastResponseClient = fullAssistantResponse;
+            
+            // Store the conversation history using the planner's format but adapted for client mode
             conversationHistoryClient.push({ user: userInput, assistant: fullAssistantResponse });
-
-            console.log("[handleSendClient] Senior Analyst streaming finished. Full response:", fullAssistantResponse);
+            
+            console.log("[handleSendClient] Senior Analyst response completed:", fullAssistantResponse);
         }
 
     } catch (error) {
@@ -1114,14 +1114,22 @@ function resetChatClient() {
     persistedTrainingUserInput = null;
     persistedTrainingAiResponse = null;
     
-    // >>> ADDED: Reset Financial Planner state if it's being used
+    // >>> ADDED: Reset assistant-specific state based on dropdown selection
     const assistantDropdown = document.getElementById('assistant-dropdown');
-    if (assistantDropdown && assistantDropdown.value === 'financial-planner') {
-        // Import and reset the AI Model Planner conversation state
-        import('./AIModelPlanner.js').then(module => {
-            module.resetAIModelPlannerConversation();
-            console.log("Financial Planner state reset along with client chat.");
-        });
+    if (assistantDropdown) {
+        if (assistantDropdown.value === 'financial-planner') {
+            // Reset Financial Planner state (Planning_Prompts flow)
+            import('./AIModelPlanner.js').then(module => {
+                module.resetFinancialPlannerConversation();
+                console.log("Financial Planner state reset along with client chat.");
+            });
+        } else {
+            // Reset Senior Analyst state (AIModelPlanning_System.txt)
+            import('./AIModelPlanner.js').then(module => {
+                module.resetAIModelPlannerConversation();
+                console.log("Senior Analyst state reset along with client chat.");
+            });
+        }
     }
     
     console.log("Client mode chat reset.");

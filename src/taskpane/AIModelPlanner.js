@@ -23,11 +23,14 @@ let AI_MODEL_PLANNER_OPENAI_API_KEY = "";
 let lastPlannerResponseForClient = null; // To store the last response for client mode buttons
 let currentAttachedFiles = []; // To store multiple attached files data
 
+// Define the default planning flow (will be modified based on selected sections)
+const DEFAULT_PLANNING_FLOW = ['ClientGreeting', 'ModelStructure', 'RevenueAndDC', 'ModelSummary'];
+
 // >>> ADDED: Planning stage management
 let currentPlanningStage = 'ClientGreeting';
 let selectedSections = [];
 let planningStageData = {}; // Store data from each completed stage
-let planningFlow = []; // Dynamic flow based on selected sections
+let planningFlow = [...DEFAULT_PLANNING_FLOW]; // Dynamic flow based on selected sections, start with default
 
 const PLANNING_STAGES = {
     'ClientGreeting': 'ClientGreeting',
@@ -42,9 +45,6 @@ const PLANNING_STAGES = {
     'Valuation': 'Valuation',
     'ModelSummary': 'ModelSummary'
 };
-
-// Define the default planning flow (will be modified based on selected sections)
-const DEFAULT_PLANNING_FLOW = ['ClientGreeting', 'ModelStructure', 'RevenueAndDC', 'ModelSummary'];
 
 import { processModelCodesForPlanner } from './taskpane.js'; // <<< UPDATED IMPORT
 
@@ -92,21 +92,55 @@ async function loadPlanningPrompt(promptName) {
 
 // >>> ADDED: Function to check if response contains JSON (indicating stage completion)
 function detectStageCompletion(response) {
+    if (DEBUG_PLANNER) console.log("AIModelPlanner: Checking for stage completion in response:", response.substring(0, 200) + "...");
+    
     try {
-        // Look for JSON in the response
-        const jsonMatch = response.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            const jsonData = JSON.parse(jsonMatch[0]);
+        // First, try to find JSON within markdown code blocks
+        const markdownJsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/);
+        if (markdownJsonMatch) {
+            if (DEBUG_PLANNER) console.log("AIModelPlanner: Found JSON in markdown code block");
+            const jsonData = JSON.parse(markdownJsonMatch[1].trim());
+            if (DEBUG_PLANNER) console.log("AIModelPlanner: Parsed JSON data:", jsonData);
             return jsonData;
         }
+        
+        // If no markdown, look for plain JSON blocks
+        const jsonMatch = response.match(/\{[^}]*"sections"[^}]*\}|\{[^}]*"approved"[^}]*\}|\{[^}]*"startDate"[^}]*\}/);
+        if (jsonMatch) {
+            if (DEBUG_PLANNER) console.log("AIModelPlanner: Found JSON block");
+            const jsonData = JSON.parse(jsonMatch[0]);
+            if (DEBUG_PLANNER) console.log("AIModelPlanner: Parsed JSON data:", jsonData);
+            return jsonData;
+        }
+        
+        // As a last resort, try to find any JSON-like structure
+        const anyJsonMatch = response.match(/\{[\s\S]*?\}/);
+        if (anyJsonMatch) {
+            try {
+                const jsonData = JSON.parse(anyJsonMatch[0]);
+                // Only return if it looks like a valid stage completion object
+                if (jsonData.sections || jsonData.approved || jsonData.startDate) {
+                    if (DEBUG_PLANNER) console.log("AIModelPlanner: Found and validated general JSON:", jsonData);
+                    return jsonData;
+                }
+            } catch (parseError) {
+                if (DEBUG_PLANNER) console.log("AIModelPlanner: Failed to parse general JSON match");
+            }
+        }
+        
+        if (DEBUG_PLANNER) console.log("AIModelPlanner: No valid JSON found for stage completion");
         return null;
     } catch (error) {
+        if (DEBUG_PLANNER) console.error("AIModelPlanner: Error in detectStageCompletion:", error);
         return null;
     }
 }
 
 // >>> ADDED: Function to progress to next planning stage
 function progressToNextStage(stageData = null) {
+    if (DEBUG_PLANNER) console.log(`AIModelPlanner: progressToNextStage called with stageData:`, stageData);
+    if (DEBUG_PLANNER) console.log(`AIModelPlanner: Current stage: ${currentPlanningStage}, Current flow:`, planningFlow);
+    
     if (stageData) {
         planningStageData[currentPlanningStage] = stageData;
         
@@ -126,14 +160,24 @@ function progressToNextStage(stageData = null) {
             planningFlow.push('ModelSummary');
             
             if (DEBUG_PLANNER) console.log('AIModelPlanner: Planning flow established:', planningFlow);
+            if (DEBUG_PLANNER) console.log('AIModelPlanner: Selected sections:', selectedSections);
         }
+    }
+    
+    // Ensure we have a planning flow initialized
+    if (planningFlow.length === 0) {
+        planningFlow = [...DEFAULT_PLANNING_FLOW];
+        if (DEBUG_PLANNER) console.log('AIModelPlanner: Initialized default planning flow:', planningFlow);
     }
     
     // Find current stage index and move to next
     const currentIndex = planningFlow.indexOf(currentPlanningStage);
+    if (DEBUG_PLANNER) console.log(`AIModelPlanner: Current stage index: ${currentIndex}, Flow length: ${planningFlow.length}`);
+    
     if (currentIndex >= 0 && currentIndex < planningFlow.length - 1) {
+        const previousStage = currentPlanningStage;
         currentPlanningStage = planningFlow[currentIndex + 1];
-        if (DEBUG_PLANNER) console.log(`AIModelPlanner: Progressed to stage: ${currentPlanningStage}`);
+        if (DEBUG_PLANNER) console.log(`AIModelPlanner: Progressed from ${previousStage} to ${currentPlanningStage}`);
         return true;
     } else {
         if (DEBUG_PLANNER) console.log('AIModelPlanner: Planning process completed!');
@@ -152,13 +196,46 @@ export function resetPlanningState() {
     selectedSections = [];
     planningStageData = {};
     planningFlow = [...DEFAULT_PLANNING_FLOW];
-    if (DEBUG_PLANNER) console.log('AIModelPlanner: Planning state reset');
+    if (DEBUG_PLANNER) console.log('AIModelPlanner: Planning state reset to:', {
+        currentPlanningStage,
+        planningFlow,
+        selectedSections
+    });
 }
 
 // Updated to use the more robust fetching approach
 async function getAIModelPlanningSystemPrompt() {
-    // >>> MODIFIED: Use the current planning stage prompt instead of fixed system prompt
-    return await getCurrentStagePrompt();
+    const promptKey = "AIModelPlanning_System"; // Key for this specific prompt file
+    const paths = [
+        // Try path relative to root if /src/ is not working, assuming 'prompts' is then at root level of served dir
+        // THIS IS A GUESS - The original path `https://localhost:3002/src/prompts/...` should work if server is configured for it.
+        CONFIG.getPromptUrl(`${promptKey}.txt`), 
+        CONFIG.getAssetUrl(`src/prompts/${promptKey}.txt`) // Original path as a fallback
+    ];
+
+    if (DEBUG_PLANNER) console.log(`AIModelPlanner: Attempting to load prompt file: ${promptKey}.txt`);
+
+    let response = null;
+    for (const path of paths) {
+        if (DEBUG_PLANNER) console.log(`AIModelPlanner: Attempting to load prompt from: ${path}`);
+        try {
+            response = await fetch(path);
+            if (response.ok) {
+                if (DEBUG_PLANNER) console.log(`AIModelPlanner: Successfully loaded prompt from: ${path}`);
+                const text = await response.text();
+                return text;
+            } else {
+                if (DEBUG_PLANNER) console.warn(`AIModelPlanner: Failed to load from ${path} - Status: ${response.status} ${response.statusText}`);
+            }
+        } catch (err) {
+            if (DEBUG_PLANNER) console.error(`AIModelPlanner: Error fetching from ${path}: ${err.message}`);
+        }
+    }
+
+    // If all paths fail
+    console.error(`AIModelPlanner: Failed to load prompt ${promptKey}.txt from all attempted paths.`);
+    // Fallback prompt
+    return "You are a helpful assistant for financial model planning. [Error: System prompt AIModelPlanning_System.txt could not be loaded]"; 
 }
 
 // NEW HELPER FUNCTION FOR PER-TAB VALIDATION
@@ -447,7 +524,6 @@ async function* processAIModelPlannerPromptInternal({ userInput, systemPrompt, m
 // Handle initial conversation for AI Model Planner
 async function handleInitialAIModelPlannerConversation(userInput) {
     console.log("AIModelPlanner: Processing initial question:", userInput);
-    console.log(`AIModelPlanner: Current planning stage: ${currentPlanningStage}`);
     
     const systemPrompt = await getAIModelPlanningSystemPrompt();
     if (!systemPrompt) {
@@ -481,35 +557,13 @@ async function handleInitialAIModelPlannerConversation(userInput) {
         ["assistant", assistantResponseContent]
     ];
     
-    // >>> ADDED: Check for stage completion and progression
-    const stageData = detectStageCompletion(assistantResponseContent);
-    let stageProgressed = false;
-    let finalResponse = assistantResponseContent;
-    
-    if (stageData) {
-        console.log(`AIModelPlanner: Stage completion detected for ${currentPlanningStage}:`, stageData);
-        stageProgressed = progressToNextStage(stageData);
-        
-        if (stageProgressed) {
-            const nextStageMessage = `\n\n✅ **${PLANNING_STAGES[currentPlanningStage]} Planning Complete!**\n\nLet's continue with: **${currentPlanningStage}**\n\nPlease share any thoughts or ask questions to proceed.`;
-            finalResponse = assistantResponseContent + nextStageMessage;
-        } else {
-            const completionMessage = `\n\n🎉 **Financial Model Planning Complete!**\n\nAll planning stages have been completed. You can now proceed with building your financial model.`;
-            finalResponse = assistantResponseContent + completionMessage;
-        }
-        
-        // Update history with final response
-        modelPlannerConversationHistory[1][1] = finalResponse;
-    }
-    
     console.log("AIModelPlanner: Initial conversation processed.");
-    return { response: finalResponse, history: modelPlannerConversationHistory, stageProgressed, currentStage: currentPlanningStage };
+    return { response: response, history: modelPlannerConversationHistory };
 }
 
 // Handle follow-up conversation for AI Model Planner
 async function handleFollowUpAIModelPlannerConversation(userInput, currentHistory) {
     console.log("AIModelPlanner: Processing follow-up question:", userInput);
-    console.log(`AIModelPlanner: Current planning stage: ${currentPlanningStage}`);
     
     const systemPrompt = await getAIModelPlanningSystemPrompt();
     if (!systemPrompt) {
@@ -536,33 +590,15 @@ async function handleFollowUpAIModelPlannerConversation(userInput, currentHistor
         assistantResponseContent = String(response);
     }
 
-    // >>> ADDED: Check for stage completion and progression
-    const stageData = detectStageCompletion(assistantResponseContent);
-    let stageProgressed = false;
-    let finalResponse = assistantResponseContent;
-    
-    if (stageData) {
-        console.log(`AIModelPlanner: Stage completion detected for ${currentPlanningStage}:`, stageData);
-        stageProgressed = progressToNextStage(stageData);
-        
-        if (stageProgressed) {
-            const nextStageMessage = `\n\n✅ **${PLANNING_STAGES[currentPlanningStage]} Planning Complete!**\n\nLet's continue with: **${currentPlanningStage}**\n\nPlease share any thoughts or ask questions to proceed.`;
-            finalResponse = assistantResponseContent + nextStageMessage;
-        } else {
-            const completionMessage = `\n\n🎉 **Financial Model Planning Complete!**\n\nAll planning stages have been completed. You can now proceed with building your financial model.`;
-            finalResponse = assistantResponseContent + completionMessage;
-        }
-    }
-
     const updatedHistory = [
         ...currentHistory,
         ["human", userInput],
-        ["assistant", finalResponse]
+        ["assistant", assistantResponseContent]
     ];
     modelPlannerConversationHistory = updatedHistory;
     
     console.log("AIModelPlanner: Follow-up conversation processed.");
-    return { response: finalResponse, history: updatedHistory, stageProgressed, currentStage: currentPlanningStage };
+    return { response: response, history: updatedHistory };
 }
 
 // Main conversation handler for AI Model Planner
@@ -587,9 +623,157 @@ export async function handleAIModelPlannerConversation(userInput) {
 // Function to clear conversation history for the model planner
 export function resetAIModelPlannerConversation() {
     modelPlannerConversationHistory = [];
-    // >>> ADDED: Reset planning state when conversation is reset
+    console.log("AIModelPlanner: Conversation history reset.");
+}
+
+// >>> NEW: Financial Planner conversation handling (Planning_Prompts Sequential Flow)
+let financialPlannerConversationHistory = [];
+
+// Financial Planner - Get current stage prompt
+async function getFinancialPlannerStagePrompt() {
+    return await loadPlanningPrompt(currentPlanningStage);
+}
+
+// Handle initial Financial Planner conversation using Planning_Prompts
+async function handleInitialFinancialPlannerConversation(userInput) {
+    console.log("FinancialPlanner: Processing initial question:", userInput);
+    console.log(`FinancialPlanner: Current planning stage: ${currentPlanningStage}`);
+    
+    const systemPrompt = await getFinancialPlannerStagePrompt();
+    if (!systemPrompt) {
+        throw new Error("Failed to load the Financial Planner stage prompt.");
+    }
+
+    const model = "gpt-4.1"; // As specified
+    const temperature = 0.7; // A reasonable default
+
+    const response = await processAIModelPlannerPromptInternal({
+        userInput: userInput,
+        systemPrompt: systemPrompt,
+        model: model,
+        temperature: temperature,
+        history: [] 
+    });
+    
+    // Update history
+    let assistantResponseContent = "";
+    if (typeof response === 'object') {
+        assistantResponseContent = JSON.stringify(response);
+    } else if (Array.isArray(response)) {
+        assistantResponseContent = response.join("\n");
+    } else {
+        assistantResponseContent = String(response);
+    }
+    
+    financialPlannerConversationHistory = [
+        ["human", userInput],
+        ["assistant", assistantResponseContent]
+    ];
+    
+    // Check for stage completion and progression
+    const stageData = detectStageCompletion(assistantResponseContent);
+    let stageProgressed = false;
+    let finalResponse = assistantResponseContent;
+    
+    if (stageData) {
+        console.log(`FinancialPlanner: Stage completion detected for ${currentPlanningStage}:`, stageData);
+        stageProgressed = progressToNextStage(stageData);
+        
+        if (stageProgressed) {
+            const nextStageMessage = `\n\n✅ **${PLANNING_STAGES[currentPlanningStage]} Planning Complete!**\n\nLet's continue with: **${currentPlanningStage}**\n\nPlease share any thoughts or ask questions to proceed.`;
+            finalResponse = assistantResponseContent + nextStageMessage;
+        } else {
+            const completionMessage = `\n\n🎉 **Financial Model Planning Complete!**\n\nAll planning stages have been completed. You can now proceed with building your financial model.`;
+            finalResponse = assistantResponseContent + completionMessage;
+        }
+        
+        // Update history with final response
+        financialPlannerConversationHistory[1][1] = finalResponse;
+    }
+    
+    console.log("FinancialPlanner: Initial conversation processed.");
+    return { response: finalResponse, history: financialPlannerConversationHistory, stageProgressed, currentStage: currentPlanningStage };
+}
+
+// Handle follow-up Financial Planner conversation using Planning_Prompts
+async function handleFollowUpFinancialPlannerConversation(userInput, currentHistory) {
+    console.log("FinancialPlanner: Processing follow-up question:", userInput);
+    console.log(`FinancialPlanner: Current planning stage: ${currentPlanningStage}`);
+    
+    const systemPrompt = await getFinancialPlannerStagePrompt();
+    if (!systemPrompt) {
+        throw new Error("Failed to load the Financial Planner stage prompt.");
+    }
+
+    const model = "gpt-4.1"; // As specified
+    const temperature = 0.7; // A reasonable default
+
+    const response = await processAIModelPlannerPromptInternal({
+        userInput: userInput,
+        systemPrompt: systemPrompt,
+        model: model,
+        temperature: temperature,
+        history: currentHistory
+    });
+
+    let assistantResponseContent = "";
+    if (typeof response === 'object') {
+        assistantResponseContent = JSON.stringify(response);
+    } else if (Array.isArray(response)) {
+        assistantResponseContent = response.join("\n");
+    } else {
+        assistantResponseContent = String(response);
+    }
+
+    // Check for stage completion and progression
+    const stageData = detectStageCompletion(assistantResponseContent);
+    let stageProgressed = false;
+    let finalResponse = assistantResponseContent;
+    
+    if (stageData) {
+        console.log(`FinancialPlanner: Stage completion detected for ${currentPlanningStage}:`, stageData);
+        stageProgressed = progressToNextStage(stageData);
+        
+        if (stageProgressed) {
+            const nextStageMessage = `\n\n✅ **${PLANNING_STAGES[currentPlanningStage]} Planning Complete!**\n\nLet's continue with: **${currentPlanningStage}**\n\nPlease share any thoughts or ask questions to proceed.`;
+            finalResponse = assistantResponseContent + nextStageMessage;
+        } else {
+            const completionMessage = `\n\n🎉 **Financial Model Planning Complete!**\n\nAll planning stages have been completed. You can now proceed with building your financial model.`;
+            finalResponse = assistantResponseContent + completionMessage;
+        }
+    }
+
+    const updatedHistory = [
+        ...currentHistory,
+        ["human", userInput],
+        ["assistant", finalResponse]
+    ];
+    financialPlannerConversationHistory = updatedHistory;
+    
+    console.log("FinancialPlanner: Follow-up conversation processed.");
+    return { response: finalResponse, history: updatedHistory, stageProgressed, currentStage: currentPlanningStage };
+}
+
+// Main conversation handler for Financial Planner (Planning_Prompts Sequential Flow)
+export async function handleFinancialPlannerConversation(userInput) {
+    try {
+        const isFollowUp = financialPlannerConversationHistory.length > 0;
+        if (isFollowUp) {
+            return await handleFollowUpFinancialPlannerConversation(userInput, financialPlannerConversationHistory);
+        } else {
+            return await handleInitialFinancialPlannerConversation(userInput);
+        }
+    } catch (error) {
+        console.error("Error in handleFinancialPlannerConversation:", error);
+        throw error;
+    }
+}
+
+export function resetFinancialPlannerConversation() {
+    financialPlannerConversationHistory = [];
+    // Reset planning state when Financial Planner conversation is reset
     resetPlanningState();
-    console.log("AIModelPlanner: Conversation history and planning state reset.");
+    console.log("FinancialPlanner: Conversation history and planning state reset.");
 }
 
 // UI Helper functions specific to AIModelPlanner controlling client chat
