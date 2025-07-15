@@ -62,13 +62,6 @@ export function resetValidationPassCounter() {
     validationPassCounter = 0;
 }
 
-// >>> ADDED: Variables for search/replace state <<<
-// >>> REMOVED: Main search/replace state variables <<<
-// let lastSearchTerm = '';
-// let lastSearchIndex = -1; // Tracks the starting index of the last found match
-// let searchResultIndices = []; // Stores indices of all matches for Replace All
-// let currentHighlightIndex = -1; // Index within searchResultIndices for Find Next
-
 /*
  * OPENAI API ARCHITECTURE:
  * 
@@ -2659,73 +2652,11 @@ Office.onReady(async (info) => {
     // ... display developer chat history ...
 
     // Startup Menu Logic (assuming this is still part of AIcalls.js)
-    const startupMenu = document.getElementById('startup-menu');
-    const developerModeButton = document.getElementById('developer-mode-button');
-    const clientModeButton = document.getElementById('client-mode-button');
-    const appBody = document.getElementById('app-body');
-    const clientModeView = document.getElementById('client-mode-view');
-
-    function showDeveloperModeView() { // Renamed to avoid conflict if global
-      if (startupMenu) startupMenu.style.display = 'none';
-      if (appBody) appBody.style.display = 'flex'; 
-      if (clientModeView) clientModeView.style.display = 'none';
-      console.log("Developer Mode view activated");
-    }
-
-    function showClientModeView() { // Renamed
-      if (startupMenu) startupMenu.style.display = 'none';
-      if (appBody) appBody.style.display = 'none';
-      if (clientModeView) clientModeView.style.display = 'flex';
-      console.log("Client Mode view activated");
-    }
     
-    function showStartupMenuView() { // Renamed
-        // >>> DYNAMIC MODE CHECK: Use same detection as main logic
-        const isLocalDev = window.location.hostname === 'localhost' || 
-                          window.location.hostname === '127.0.0.1' ||
-                          window.location.href.includes('localhost:3002');
-        const FORCE_PRODUCTION_MODE = !isLocalDev;
-        
-        if (FORCE_PRODUCTION_MODE) {
-            console.log('[AIcalls.js] Production mode - redirecting to client mode instead of startup menu');
-            showClientModeView();
-        } else {
-            console.log('[AIcalls.js] Development mode - showing startup menu');
-            if (startupMenu) startupMenu.style.display = 'flex';
-            if (appBody) appBody.style.display = 'none';
-            if (clientModeView) clientModeView.style.display = 'none';
-        }
-    }
-
-    if (developerModeButton) developerModeButton.onclick = showDeveloperModeView;
-    if (clientModeButton) clientModeButton.onclick = showClientModeView;
-
-    const backToMenuDevButton = document.getElementById('back-to-menu-dev-button');
-    if (backToMenuDevButton) backToMenuDevButton.onclick = showStartupMenuView;
-    const backToMenuClientButton = document.getElementById('back-to-menu-client-button');
-    if (backToMenuClientButton) backToMenuClientButton.onclick = showStartupMenuView;
+    // >>> REMOVED entire block of conflicting UI logic.
+    // This is now handled correctly in taskpane.js to ensure
+    // proper initialization functions are called.
     
-    document.getElementById("sideload-msg").style.display = "none";
-    
-    // >>> DYNAMIC MODE CHECK: Use same detection as taskpane.js
-    const isLocalDevelopment = window.location.hostname === 'localhost' || 
-                              window.location.hostname === '127.0.0.1' ||
-                              window.location.href.includes('localhost:3002');
-    const FORCE_PRODUCTION_MODE = !isLocalDevelopment;
-    
-    if (FORCE_PRODUCTION_MODE) {
-      console.log('[AIcalls.js] Production mode - maintaining client mode');
-      if (startupMenu) startupMenu.style.display = "none"; // Keep startup menu hidden
-      if (appBody) appBody.style.display = "none";
-      if (clientModeView) clientModeView.style.display = "flex"; // Keep client mode active
-    } else {
-      console.log('[AIcalls.js] Development mode - showing startup menu');
-      if (startupMenu) startupMenu.style.display = "flex"; // Show startup menu first
-      if (appBody) appBody.style.display = "none";
-      if (clientModeView) clientModeView.style.display = "none";
-    }
-
-    // ... any other existing Office.onReady logic for developer mode ...
   }
 });
 

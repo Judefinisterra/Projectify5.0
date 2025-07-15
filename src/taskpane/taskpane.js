@@ -29,7 +29,7 @@ import { handleFollowUpConversation, handleInitialConversation, handleConversati
 // >>> ADDED: Import CONFIG for URL management
 import { CONFIG } from './config.js';
 // >>> ADDED: Import file attachment and voice input functionality from AIModelPlanner
-import { initializeFileAttachment, initializeVoiceInput, initializeVoiceInputDev, initializeTextareaAutoResize, initializeTextareaAutoResizeDev, setAIModelPlannerOpenApiKey } from './AIModelPlanner.js';
+import { initializeFileAttachment, initializeFileAttachmentDev, initializeVoiceInput, initializeVoiceInputDev, initializeTextareaAutoResize, initializeTextareaAutoResizeDev, setAIModelPlannerOpenApiKey } from './AIModelPlanner.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -758,7 +758,15 @@ function appendMessage(content, isUser = false, chatLogId = 'chat-log', welcomeM
 
 // Modify the handleSend function
 async function handleSend() {
-    const userInput = document.getElementById('user-input').value.trim();
+    let userInput = document.getElementById('user-input').value.trim();
+    
+    // >>> ADDED: Check if there are attached files and include them in the prompt
+    const { currentAttachedFilesDev, formatFileDataForAI } = await import('./AIModelPlanner.js');
+    if (currentAttachedFilesDev && currentAttachedFilesDev.length > 0) {
+        console.log("[handleSend] Including attached files data:", currentAttachedFilesDev.map(f => f.fileName).join(', '));
+        const filesDataForAI = formatFileDataForAI(currentAttachedFilesDev);
+        userInput = userInput + filesDataForAI;
+    }
     
     if (!userInput) {
         showError('Please enter a request');
@@ -953,9 +961,23 @@ async function handleSendClient() {
         const assistantDropdown = document.getElementById('assistant-dropdown');
         const selectedAssistant = assistantDropdown ? assistantDropdown.value : 'senior-analyst';
         
-        console.log("[handleSendClient] Selected assistant:", selectedAssistant);
+        console.log("[handleSendClient] ===========================================");
+        console.log("[handleSendClient] ASSISTANT SELECTION DEBUG");
+        console.log("[handleSendClient] ===========================================");
+        console.log("[handleSendClient] assistantDropdown element found:", !!assistantDropdown);
+        if (assistantDropdown) {
+            console.log("[handleSendClient] assistantDropdown.value:", assistantDropdown.value);
+            console.log("[handleSendClient] assistantDropdown.selectedIndex:", assistantDropdown.selectedIndex);
+            console.log("[handleSendClient] assistantDropdown.options.length:", assistantDropdown.options.length);
+            for (let i = 0; i < assistantDropdown.options.length; i++) {
+                console.log(`[handleSendClient] Option ${i}: value="${assistantDropdown.options[i].value}", text="${assistantDropdown.options[i].text}", selected=${assistantDropdown.options[i].selected}`);
+            }
+        }
+        console.log("[handleSendClient] selectedAssistant (final):", selectedAssistant);
+        console.log("[handleSendClient] ===========================================");
         
         if (selectedAssistant === 'financial-planner') {
+            console.log("[handleSendClient] *** ROUTING TO FINANCIAL PLANNER ***");
             // Use the Financial Planner conversation handler (Planning_Prompts Sequential Flow)
             const { handleFinancialPlannerConversation } = await import('./AIModelPlanner.js');
             const result = await handleFinancialPlannerConversation(userInput);
@@ -985,6 +1007,7 @@ async function handleSendClient() {
             
             console.log("[handleSendClient] Financial Planner response completed:", fullAssistantResponse);
         } else {
+            console.log("[handleSendClient] *** ROUTING TO SENIOR ANALYST ***");
             // Use the Senior Analyst (AI Model Planner with AIModelPlanning_System.txt)
             const { handleAIModelPlannerConversation } = await import('./AIModelPlanner.js');
             const result = await handleAIModelPlannerConversation(userInput);
@@ -1849,21 +1872,42 @@ Office.onReady((info) => {
 
     // Functions to switch views
     function showDeveloperMode() {
+      console.log('======= showDeveloperMode in taskpane.js has been EXECUTED! =======');
       if (startupMenu) startupMenu.style.display = 'none';
       if (appBody) appBody.style.display = 'flex'; // Matches .ms-welcome__main display if it's flex
       if (clientModeView) clientModeView.style.display = 'none';
       
-      // Initialize developer mode voice input functionality
-      if (typeof initializeVoiceInputDev === 'function') {
-        initializeVoiceInputDev();
-      }
+      // Initialize developer mode voice input functionality with delay to ensure DOM is ready
+      console.log('[showDeveloperMode] Scheduling dev mode voice input initialization...');
+      setTimeout(() => {
+        console.log('[showDeveloperMode] Initializing dev mode voice input...');
+        if (typeof initializeVoiceInputDev === 'function') {
+          initializeVoiceInputDev();
+          console.log('[showDeveloperMode] Dev mode voice input initialized successfully');
+        } else {
+          console.error('[showDeveloperMode] initializeVoiceInputDev function not available');
+        }
+      }, 500); // 500ms delay to ensure DOM is ready
       
       // Initialize developer mode textarea auto-resize functionality
+      console.log('[showDeveloperMode] Initializing dev mode textarea auto-resize...');
       if (typeof initializeTextareaAutoResizeDev === 'function') {
         initializeTextareaAutoResizeDev();
+        console.log('[showDeveloperMode] Dev mode textarea auto-resize initialized successfully');
+      } else {
+        console.error('[showDeveloperMode] initializeTextareaAutoResizeDev function not available');
       }
       
-      console.log("Developer Mode activated");
+      // Initialize developer mode file attachment functionality
+      console.log('[showDeveloperMode] Initializing dev mode file attachment...');
+      if (typeof initializeFileAttachmentDev === 'function') {
+        initializeFileAttachmentDev();
+        console.log('[showDeveloperMode] Dev mode file attachment initialized successfully');
+      } else {
+        console.error('[showDeveloperMode] initializeFileAttachmentDev function not available');
+      }
+      
+      console.log("Developer Mode activated with all dev-specific functionality");
     }
 
     function showClientMode() {
@@ -1897,22 +1941,31 @@ Office.onReady((info) => {
       productionLog(`After changes - startupMenu display: ${startupMenu ? startupMenu.style.display : 'null'}`);
       productionLog(`After changes - clientModeView display: ${clientModeView ? clientModeView.style.display : 'null'}`);
       
-      // Initialize file attachment functionality
+      // Initialize client mode file attachment functionality
+      console.log('[showClientMode] Initializing client mode file attachment...');
       if (typeof initializeFileAttachment === 'function') {
         initializeFileAttachment();
-        productionLog('initializeFileAttachment called');
+        console.log('[showClientMode] Client mode file attachment initialized successfully');
+      } else {
+        console.error('[showClientMode] initializeFileAttachment function not available');
       }
       
-      // Initialize voice input functionality
+      // Initialize client mode voice input functionality
+      console.log('[showClientMode] Initializing client mode voice input...');
       if (typeof initializeVoiceInput === 'function') {
         initializeVoiceInput();
-        productionLog('initializeVoiceInput called');
+        console.log('[showClientMode] Client mode voice input initialized successfully');
+      } else {
+        console.error('[showClientMode] initializeVoiceInput function not available');
       }
       
-      // Initialize textarea auto-resize functionality
+      // Initialize client mode textarea auto-resize functionality
+      console.log('[showClientMode] Initializing client mode textarea auto-resize...');
       if (typeof initializeTextareaAutoResize === 'function') {
         initializeTextareaAutoResize();
-        productionLog('initializeTextareaAutoResize called');
+        console.log('[showClientMode] Client mode textarea auto-resize initialized successfully');
+      } else {
+        console.error('[showClientMode] initializeTextareaAutoResize function not available');
       }
       
       // >>> ADDED: Initialize authentication UI for client mode
@@ -1945,6 +1998,28 @@ Office.onReady((info) => {
       
       productionLog("Client Mode activation completed");
     }
+
+    // >>> ADDED: Button assignments after function definitions (inside Office.onReady)
+    const devModeBtnMain = document.getElementById('developer-mode-button');
+    const clientModeBtnMain = document.getElementById('client-mode-button');
+
+    if (devModeBtnMain) {
+        devModeBtnMain.onclick = () => {
+          console.log('developer-mode-button CLICKED from taskpane.js! Calling showDeveloperMode...');
+          showDeveloperMode();
+        };
+        console.log("Developer mode button onclick assigned successfully (inside Office.onReady)");
+    } else {
+        console.error("Could not find button with id='developer-mode-button'");
+    }
+
+    if (clientModeBtnMain) {
+        clientModeBtnMain.onclick = showClientMode;
+        console.log("Client mode button onclick assigned successfully (inside Office.onReady)");
+    } else {
+        console.error("Could not find button with id='client-mode-button'");
+    }
+    // <<< END ADDED
 
     // showModelPlannerMode function removed - functionality now integrated into client mode with assistant dropdown
 
@@ -2055,23 +2130,9 @@ Office.onReady((info) => {
       console.log('Sidebar navigation initialized');
     }
 
-    // Initialize file attachment functionality
-    if (typeof initializeFileAttachment === 'function') {
-        initializeFileAttachment();
-        productionLog('initializeFileAttachment called');
-      }
-      
-      // Initialize voice input functionality
-      if (typeof initializeVoiceInput === 'function') {
-        initializeVoiceInput();
-        productionLog('initializeVoiceInput called');
-      }
-      
-      // Initialize textarea auto-resize functionality
-      if (typeof initializeTextareaAutoResize === 'function') {
-        initializeTextareaAutoResize();
-        productionLog('initializeTextareaAutoResize called');
-      }
+    // Note: Voice input and file attachment initialization is now handled 
+    // within the specific mode functions (showDeveloperMode/showClientMode)
+    // to prevent conflicts between dev and client mode voice systems
       
       // >>> ADDED: Initialize authentication UI for client mode
       if (typeof msal !== 'undefined' && msalInstance) {
@@ -2103,6 +2164,8 @@ Office.onReady((info) => {
       
       productionLog("Client Mode activation completed");
     }
+
+
 
     let sidebarInitialized = false;
     // Sidebar navigation functionality
@@ -2370,49 +2433,7 @@ Office.onReady((info) => {
     }
     // <<< END ADDED
 
-    // Simple direct click handlers - no function references needed
-    console.log('[DEBUG] Setting up startup menu button handlers...');
-    const developerModeButton = document.getElementById('developer-mode-button');
-    const clientModeButton = document.getElementById('client-mode-button');
-    
-    console.log('[DEBUG] Button elements found:', {
-        developerModeButton: !!developerModeButton,
-        clientModeButton: !!clientModeButton
-    });
-    
-    if (developerModeButton) {
-        developerModeButton.onclick = () => {
-            console.log('[DEBUG] Developer mode button clicked!');
-            const startupMenu = document.getElementById('startup-menu');
-            const appBody = document.getElementById('app-body');
-            const clientModeView = document.getElementById('client-mode-view');
-            
-            if (startupMenu) startupMenu.style.display = 'none';
-            if (appBody) appBody.style.display = 'flex';
-            if (clientModeView) clientModeView.style.display = 'none';
-            console.log("Developer Mode activated");
-        };
-        console.log('[DEBUG] Developer mode click handler attached');
-    } else {
-        console.error("Could not find button with id='developer-mode-button'");
-    }
-    
-    if (clientModeButton) {
-        clientModeButton.onclick = () => {
-            console.log('[DEBUG] Client mode button clicked!');
-            const startupMenu = document.getElementById('startup-menu');
-            const appBody = document.getElementById('app-body');
-            const clientModeView = document.getElementById('client-mode-view');
-            
-            if (startupMenu) startupMenu.style.display = 'none';
-            if (appBody) appBody.style.display = 'none';
-            if (clientModeView) clientModeView.style.display = 'flex';
-            console.log("Client Mode activated");
-        };
-        console.log('[DEBUG] Client mode click handler attached');
-    } else {
-        console.error("Could not find button with id='client-mode-button'");
-    }
+    // Note: Button click handlers moved to later in initialization to avoid scope issues
     
 
 
@@ -2447,6 +2468,8 @@ Office.onReady((info) => {
     } else {
         console.error("Could not find button with id='add-to-training-queue'");
     }
+
+    // Note: Button assignments moved to immediately after function definitions
 
     // Training Data Modal buttons
     const trainingDataModal = document.getElementById('training-data-modal');
@@ -2972,16 +2995,7 @@ Office.onReady((info) => {
       // appBody and clientModeView will be fetched inside showDeveloperMode/showClientMode
       // or assume they are accessible if defined earlier in Office.onReady
 
-      if (developerModeButton) {
-          developerModeButton.onclick = showDeveloperMode; // Assumes showDeveloperMode is globally accessible
-      } else {
-          console.error("[Office.onReady] Could not find button with id='developer-mode-button'");
-      }
-      if (clientModeButton) {
-          clientModeButton.onclick = showClientMode; // Assumes showClientMode is globally accessible
-      } else {
-          console.error("[Office.onReady] Could not find button with id='client-mode-button'");
-      }
+      // Note: Function assignments moved to after function definitions to avoid reference errors
 
       // Get references and assign handlers for Back to Menu buttons
       const backToMenuDevButton = document.getElementById('back-to-menu-dev-button');
@@ -3035,6 +3049,11 @@ Office.onReady((info) => {
                        window.location.hostname === '127.0.0.1' ||
                        window.location.href.includes('localhost:3002');
     const forceProductionMode2 = !isLocalDev2;
+    
+    // Get elements that are in scope
+    const startupMenu = document.getElementById('startup-menu');
+    const appBody = document.getElementById('app-body');
+    const clientModeView = document.getElementById('client-mode-view');
     
     if (forceProductionMode2) {
       productionLog('Post-initialization - maintaining client mode (production)');

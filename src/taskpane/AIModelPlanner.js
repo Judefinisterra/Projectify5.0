@@ -629,6 +629,12 @@ export function resetAIModelPlannerConversation() {
 // >>> NEW: Financial Planner conversation handling (Planning_Prompts Sequential Flow)
 let financialPlannerConversationHistory = [];
 
+// >>> ADDED: Dev mode file attachment variables
+let currentAttachedFilesDev = []; // To store multiple attached files data for dev mode
+
+// Export for access from other modules
+export { currentAttachedFilesDev };
+
 // Financial Planner - Get current stage prompt
 async function getFinancialPlannerStagePrompt() {
     return await loadPlanningPrompt(currentPlanningStage);
@@ -2219,6 +2225,239 @@ export function initializeFileAttachment() {
     console.log('[initializeFileAttachment] Multiple file attachment listeners set up successfully');
 }
 
+// >>> ADDED: Dev mode file attachment functions
+// Function to handle file attachment for dev mode
+async function handleFileAttachmentDev(file) {
+    try {
+        console.log('[handleFileAttachmentDev] Processing file:', file.name);
+        console.log('[handleFileAttachmentDev] File type (MIME):', file.type);
+        console.log('[handleFileAttachmentDev] File size:', file.size);
+        
+        // Validate file type
+        const allowedTypes = [
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+            'application/vnd.ms-excel', // .xls
+            'application/vnd.ms-excel.sheet.macroEnabled.12', // .xlsm
+            'text/csv', // .csv
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+            'application/msword', // .doc
+            'application/pdf', // .pdf
+            'text/plain' // .txt
+        ];
+        
+        const fileExtension = file.name.toLowerCase().split('.').pop();
+        console.log('[handleFileAttachmentDev] File extension:', fileExtension);
+        
+        const mimeTypeAllowed = allowedTypes.includes(file.type);
+        const extensionAllowed = ['xlsx', 'xls', 'xlsm', 'csv', 'doc', 'docx', 'pdf', 'txt'].includes(fileExtension);
+        
+        console.log('[handleFileAttachmentDev] MIME type allowed:', mimeTypeAllowed);
+        console.log('[handleFileAttachmentDev] Extension allowed:', extensionAllowed);
+        
+        if (!mimeTypeAllowed && !extensionAllowed) {
+            console.log('[handleFileAttachmentDev] File validation failed - neither MIME type nor extension is allowed');
+            throw new Error('Please upload an Excel file (.xlsx, .xls, .xlsm), CSV file (.csv), Word document (.doc, .docx), PDF file (.pdf), or Text file (.txt)');
+        }
+        
+        // Validate file size (max 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            throw new Error('File size must be less than 10MB');
+        }
+        
+        // Process file based on type
+        let fileData;
+        if (fileExtension === 'csv' || file.type === 'text/csv') {
+            console.log('[handleFileAttachmentDev] Processing as CSV file');
+            fileData = await processCSVFile(file);
+        } else if (fileExtension === 'doc' || fileExtension === 'docx' || 
+                   file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                   file.type === 'application/msword') {
+            console.log('[handleFileAttachmentDev] Processing as Word document');
+            fileData = await processWordFile(file);
+        } else if (fileExtension === 'pdf' || file.type === 'application/pdf') {
+            console.log('[handleFileAttachmentDev] Processing as PDF file');
+            fileData = await processPDFFile(file);
+        } else if (fileExtension === 'txt' || file.type === 'text/plain') {
+            console.log('[handleFileAttachmentDev] Processing as Text file');
+            fileData = await processTXTFile(file);
+        } else {
+            console.log('[handleFileAttachmentDev] Processing as Excel file (.xlsx/.xls/.xlsm)');
+            fileData = await processXLSXFile(file);
+        }
+        
+        // Add the processed file data to the dev mode array
+        currentAttachedFilesDev.push(fileData);
+        
+        // Update UI to show attached files for dev mode
+        showAttachedFilesDev(currentAttachedFilesDev);
+        
+        console.log('[handleFileAttachmentDev] File processed successfully:', fileData.fileName);
+        console.log('[handleFileAttachmentDev] Total attached files:', currentAttachedFilesDev.length);
+        return fileData;
+        
+    } catch (error) {
+        console.error('[handleFileAttachmentDev] Error processing file:', error);
+        // Show error to user in dev mode
+        const chatLog = document.getElementById('chat-log');
+        if (chatLog) {
+            const errorElement = document.createElement('div');
+            errorElement.className = 'chat-message assistant-message';
+            errorElement.innerHTML = `<p class="message-content">Error processing file: ${error.message}</p>`;
+            chatLog.appendChild(errorElement);
+            chatLog.scrollTop = chatLog.scrollHeight;
+        }
+        throw error;
+    }
+}
+
+// Function to show attached files in dev mode UI
+function showAttachedFilesDev(filesData) {
+    const container = document.getElementById('attached-files-container-dev');
+    const countElement = document.getElementById('attached-files-count-dev');
+    const listElement = document.getElementById('attached-files-list-dev');
+    
+    if (!container || !countElement || !listElement) {
+        console.warn('[showAttachedFilesDev] Required elements not found');
+        return;
+    }
+    
+    // Update count
+    const fileCount = filesData.length;
+    countElement.textContent = `${fileCount} file${fileCount !== 1 ? 's' : ''} attached`;
+    
+    // Clear existing list
+    listElement.innerHTML = '';
+    
+    // Add each file to the list
+    filesData.forEach((fileData, index) => {
+        const fileElement = document.createElement('div');
+        fileElement.className = 'attached-file-item';
+        fileElement.innerHTML = `
+            <div class="file-info">
+                <span class="file-name">${fileData.fileName}</span>
+                <span class="file-details">${fileData.fileSize} • ${fileData.fileType}</span>
+            </div>
+            <button class="remove-file-btn" onclick="window.removeFileByIndexDev(${index})" title="Remove file">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="remove-icon">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+        `;
+        listElement.appendChild(fileElement);
+    });
+    
+    // Show/hide container based on file count
+    if (fileCount > 0) {
+        container.style.display = 'block';
+    } else {
+        container.style.display = 'none';
+    }
+}
+
+// Function to hide attached files container for dev mode
+function hideAttachedFilesDev() {
+    const container = document.getElementById('attached-files-container-dev');
+    if (container) {
+        container.style.display = 'none';
+    }
+}
+
+// Function to remove file by index for dev mode
+function removeFileByIndexDev(index) {
+    if (index >= 0 && index < currentAttachedFilesDev.length) {
+        const removedFile = currentAttachedFilesDev.splice(index, 1)[0];
+        console.log('[removeFileByIndexDev] Removed file:', removedFile.fileName);
+        showAttachedFilesDev(currentAttachedFilesDev);
+    }
+}
+
+// Make function available globally for HTML onclick
+window.removeFileByIndexDev = removeFileByIndexDev;
+
+// Function to remove all attachments for dev mode
+function removeAllAttachmentsDev() {
+    currentAttachedFilesDev = [];
+    hideAttachedFilesDev();
+    console.log('[removeAllAttachmentsDev] All attachments cleared');
+}
+
+// Function to initialize file attachment event listeners for dev mode
+export function initializeFileAttachmentDev() {
+    console.log('[initializeFileAttachmentDev] Setting up dev mode file attachment listeners - VERSION 2.0');
+    console.log('[initializeFileAttachmentDev] DOM ready state:', document.readyState);
+    
+    // Wait a bit and try to get elements
+    setTimeout(() => {
+        console.log('[initializeFileAttachmentDev] Delayed initialization attempt');
+        
+        // Get elements
+        const attachFileButton = document.getElementById('attach-file-dev');
+        const fileInput = document.getElementById('file-input-dev');
+        const clearAllButton = document.getElementById('clear-all-attachments-dev');
+        
+        console.log('[initializeFileAttachmentDev] Elements found:');
+        console.log('[initializeFileAttachmentDev] attachFileButton:', !!attachFileButton, attachFileButton);
+        console.log('[initializeFileAttachmentDev] fileInput:', !!fileInput, fileInput);
+        console.log('[initializeFileAttachmentDev] clearAllButton:', !!clearAllButton, clearAllButton);
+        
+        if (!attachFileButton || !fileInput) {
+            console.error('[initializeFileAttachmentDev] Required dev mode attachment elements not found after delay');
+            
+            // Try to find any elements with attach in the id
+            const allElements = document.querySelectorAll('[id*="attach"]');
+            console.log('[initializeFileAttachmentDev] All elements with attach in id:', allElements);
+            
+            // Try to find any elements with file in the id
+            const fileElements = document.querySelectorAll('[id*="file"]');
+            console.log('[initializeFileAttachmentDev] All elements with file in id:', fileElements);
+            
+            return;
+        }
+        
+        // Attach file button click - EXACT COPY FROM CLIENT MODE
+        console.log('[initializeFileAttachmentDev] Adding click listener to attach button');
+        attachFileButton.addEventListener('click', () => {
+            console.log('[initializeFileAttachmentDev] Dev mode attach file button clicked');
+            fileInput.click();
+        });
+        
+        // File input change - handle multiple files - EXACT COPY FROM CLIENT MODE
+        console.log('[initializeFileAttachmentDev] Adding change listener to file input');
+        fileInput.addEventListener('change', async (e) => {
+            console.log('[initializeFileAttachmentDev] File input changed');
+            const files = Array.from(e.target.files);
+            if (files.length > 0) {
+                console.log('[initializeFileAttachmentDev] Dev mode files selected:', files.length);
+                
+                // Process each file
+                for (const file of files) {
+                    console.log('[initializeFileAttachmentDev] Processing file:', file.name);
+                    try {
+                        await handleFileAttachmentDev(file);
+                    } catch (error) {
+                        // Error already handled in handleFileAttachmentDev
+                        console.warn('[initializeFileAttachmentDev] Failed to process file:', file.name);
+                    }
+                }
+            }
+            // Clear the input so the same files can be selected again
+            fileInput.value = '';
+        });
+        
+        // Clear all attachments button click - EXACT COPY FROM CLIENT MODE
+        if (clearAllButton) {
+            console.log('[initializeFileAttachmentDev] Adding click listener to clear all button');
+            clearAllButton.addEventListener('click', () => {
+                console.log('[initializeFileAttachmentDev] Dev mode clear all attachments button clicked');
+                removeAllAttachmentsDev();
+            });
+        }
+        
+        console.log('[initializeFileAttachmentDev] Dev mode file attachment functionality initialized successfully');
+    }, 100); // Wait 100ms for DOM to be ready
+}
+
 // ========== VOICE INPUT FUNCTIONALITY ==========
 
 let mediaRecorder = null;
@@ -2725,7 +2964,7 @@ export function initializeVoiceInput() {
     console.log('[Voice] ChatGPT-style voice input functionality initialized successfully');
 }
 
-// ========== DEVELOPER MODE VOICE INPUT FUNCTIONALITY ==========
+// ========== DEVELOPER MODE VOICE INPUT FUNCTIONALITY (COPIED FROM WORKING CLIENT MODE) ==========
 
 // Developer mode specific variables
 let mediaRecorderDev = null;
@@ -2736,6 +2975,13 @@ let audioContextDev = null;
 let analyserDev = null;
 let waveformCanvasDev = null;
 let waveformAnimationIdDev = null;
+
+// Function to format recording time (dev mode)
+function formatRecordingTimeDev(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
 
 // Function to switch to voice recording mode for developer mode
 function switchToVoiceModeDev() {
@@ -3040,7 +3286,7 @@ function startRecordingTimerDev() {
         recordingTimerDev = setInterval(() => {
             if (recordingStartTimeDev) {
                 const elapsed = Math.floor((Date.now() - recordingStartTimeDev) / 1000);
-                timer.textContent = formatRecordingTime(elapsed);
+                timer.textContent = formatRecordingTimeDev(elapsed);
             }
         }, 1000);
     }
@@ -3059,7 +3305,7 @@ async function processRecordedAudioDev() {
             throw new Error('No audio data recorded');
         }
         
-        // Send to OpenAI transcription API
+        // Send to OpenAI transcription API (use the same function as client mode)
         const transcription = await transcribeAudio(audioBlob);
         
         // Use the transcribed text immediately
@@ -3106,42 +3352,91 @@ function useTranscribedTextDev(text) {
     }, 50);
 }
 
-// Function to initialize developer mode voice input functionality
+// Function to initialize developer mode voice input functionality (DEBUGGING VERSION)
 export function initializeVoiceInputDev() {
-    console.log('[Voice-Dev] Initializing developer mode voice input functionality');
+    console.log('[Voice-Dev] ===== STARTING VOICE INITIALIZATION DEBUG =====');
+    console.log('[Voice-Dev] Current URL:', window.location.href);
+    console.log('[Voice-Dev] Document ready state:', document.readyState);
     
     // Check for browser support
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         console.warn('[Voice-Dev] MediaDevices API not supported in this browser');
-        // Hide voice button if not supported
-        const voiceButton = document.getElementById('voice-input-dev');
-        if (voiceButton) {
-            voiceButton.style.display = 'none';
-        }
         return;
     }
     
     if (!window.MediaRecorder) {
         console.warn('[Voice-Dev] MediaRecorder API not supported in this browser');
-        // Hide voice button if not supported
-        const voiceButton = document.getElementById('voice-input-dev');
-        if (voiceButton) {
-            voiceButton.style.display = 'none';
-        }
         return;
     }
     
-    // Get elements
+    console.log('[Voice-Dev] Browser support OK - searching for ALL voice buttons...');
+    
+    // Find ALL buttons in the DOM and identify voice-related ones
+    const allButtons = document.querySelectorAll('button');
+    console.log('[Voice-Dev] Total buttons found in DOM:', allButtons.length);
+    
+    const voiceRelatedButtons = [];
+    allButtons.forEach((btn, index) => {
+        const hasVoiceId = btn.id && btn.id.toLowerCase().includes('voice');
+        const hasVoiceClass = btn.className && btn.className.toLowerCase().includes('voice');
+        const hasVoiceTitle = btn.title && btn.title.toLowerCase().includes('voice');
+        const hasMicIcon = btn.innerHTML && btn.innerHTML.includes('🎤');
+        
+        if (hasVoiceId || hasVoiceClass || hasVoiceTitle || hasMicIcon) {
+            voiceRelatedButtons.push({
+                index,
+                id: btn.id || 'NO_ID',
+                className: btn.className || 'NO_CLASS',
+                title: btn.title || 'NO_TITLE',
+                innerHTML: btn.innerHTML.substring(0, 100) + '...',
+                element: btn
+            });
+        }
+    });
+    
+    console.log('[Voice-Dev] Voice-related buttons found:', voiceRelatedButtons);
+    
+    // Try to get elements by expected IDs
     const voiceButton = document.getElementById('voice-input-dev');
     const cancelVoiceBtn = document.getElementById('cancel-voice-recording-dev');
     const acceptVoiceBtn = document.getElementById('accept-voice-recording-dev');
     
-    // Voice button click - start recording immediately
+    console.log('[Voice-Dev] Expected dev mode elements:');
+    console.log('[Voice-Dev] - voice-input-dev:', !!voiceButton, voiceButton);
+    console.log('[Voice-Dev] - cancel-voice-recording-dev:', !!cancelVoiceBtn, cancelVoiceBtn);
+    console.log('[Voice-Dev] - accept-voice-recording-dev:', !!acceptVoiceBtn, acceptVoiceBtn);
+    
+    // ALSO try to find ANY voice input button and attach to ALL of them for testing
+    console.log('[Voice-Dev] Attaching test listeners to ALL voice-related buttons...');
+    voiceRelatedButtons.forEach((btnInfo, index) => {
+        const btn = btnInfo.element;
+        console.log(`[Voice-Dev] Adding test listener to button ${index}: ${btnInfo.id}`);
+        
+        btn.addEventListener('click', (e) => {
+            console.log(`[Voice-Dev] ===== BUTTON CLICKED! =====`);
+            console.log(`[Voice-Dev] Button index: ${index}`);
+            console.log(`[Voice-Dev] Button ID: ${btnInfo.id}`);
+            console.log(`[Voice-Dev] Button class: ${btnInfo.className}`);
+            console.log(`[Voice-Dev] Button title: ${btnInfo.title}`);
+            console.log(`[Voice-Dev] Event target:`, e.target);
+            
+            // If this is likely the voice input button, try to start recording
+            if (btnInfo.id.includes('voice-input') || btnInfo.title.toLowerCase().includes('voice input')) {
+                console.log('[Voice-Dev] This looks like a voice input button - attempting to start recording...');
+                switchToVoiceModeDev();
+            }
+        });
+    });
+    
+    // Original targeted approach
     if (voiceButton) {
+        console.log('[Voice-Dev] Found expected voice-input-dev button, adding specific listener');
         voiceButton.addEventListener('click', () => {
-            console.log('[Voice-Dev] Voice button clicked - switching to voice mode');
+            console.log('[Voice-Dev] EXPECTED voice button clicked - switching to voice mode');
             switchToVoiceModeDev();
         });
+    } else {
+        console.error('[Voice-Dev] ❌ Expected voice-input-dev button NOT FOUND!');
     }
     
     // Cancel recording button
@@ -3181,7 +3476,27 @@ export function initializeVoiceInputDev() {
         }
     });
     
-    console.log('[Voice-Dev] Developer mode voice input functionality initialized successfully');
+    console.log('[Voice-Dev] ===== VOICE INITIALIZATION DEBUG COMPLETE =====');
+    
+    // Add global debug functions
+    window.debugVoiceButtons = () => {
+        console.log('=== VOICE BUTTON DEBUG ===');
+        console.log('Voice-related buttons:', voiceRelatedButtons);
+        voiceRelatedButtons.forEach((btn, i) => {
+            console.log(`Button ${i}:`, btn.element);
+        });
+    };
+    
+    window.simulateVoiceClick = (buttonIndex = 0) => {
+        if (voiceRelatedButtons[buttonIndex]) {
+            console.log(`Simulating click on button ${buttonIndex}`);
+            voiceRelatedButtons[buttonIndex].element.click();
+        } else {
+            console.log('Button index not found');
+        }
+    };
+    
+    console.log('[Voice-Dev] Debug functions added: debugVoiceButtons() and simulateVoiceClick(index)');
 }
 
 // ========== TEXTAREA AUTO-RESIZE FUNCTIONALITY ==========

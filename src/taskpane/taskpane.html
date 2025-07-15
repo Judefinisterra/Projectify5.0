@@ -109,6 +109,14 @@
                 <div class="dev-input-bar" id="dev-input-bar">
                     <!-- Normal Input Mode -->
                     <div id="normal-input-mode-dev" class="input-mode">
+                        <div class="left-controls">
+                            <input type="file" id="file-input-dev" accept=".xlsx,.xls,.xlsm,.csv,.doc,.docx,.pdf,.txt" multiple style="display: none;">
+                            <button id="attach-file-dev" class="ms-Button ms-Button--icon attachment-button" title="Attach Excel, CSV, Word, PDF, or Text file">
+                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="plus-icon">
+                                    <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                </svg>
+                            </button>
+                        </div>
                         <textarea id="user-input" placeholder="Enter your request here..." rows="1"></textarea>
                         <div class="right-controls">
                             <button id="voice-input-dev" class="ms-Button ms-Button--icon voice-button" title="Voice input">
@@ -127,6 +135,13 @@
                     
                     <!-- Voice Recording Mode -->
                     <div id="voice-recording-mode-dev" class="input-mode" style="display: none;">
+                        <div class="left-controls">
+                            <button class="ms-Button ms-Button--icon attachment-button">
+                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="plus-icon">
+                                    <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                </svg>
+                            </button>
+                        </div>
                         <div class="voice-waveform-container">
                             <canvas id="voice-waveform-dev" class="voice-waveform"></canvas>
                             <div id="voice-recording-timer-dev" class="voice-recording-timer">00:00</div>
@@ -151,6 +166,15 @@
                             <div class="transcription-spinner"></div>
                             <span class="transcription-loading-text">Transcribing...</span>
                         </div>
+                    </div>
+                </div>
+                <div id="attached-files-container-dev" class="attached-files-container" style="display: none;">
+                    <div class="attached-files-header">
+                        <span class="attached-files-count" id="attached-files-count-dev">0 files attached</span>
+                        <button id="clear-all-attachments-dev" class="clear-all-btn">Clear All</button>
+                    </div>
+                    <div id="attached-files-list-dev" class="attached-files-list">
+                        <!-- Individual attached files will be added here dynamically -->
                     </div>
                 </div>
                 <div id="loading-animation" class="loading-animation"></div>
