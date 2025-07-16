@@ -748,26 +748,51 @@ async function* handleInitialFinancialPlannerConversation(userInput) {
     // Check for stage completion and progression
     const stageData = detectStageCompletion(assistantResponseContent);
     let stageProgressed = false;
-    let finalResponse = assistantResponseContent;
     
     if (stageData) {
         console.log(`FinancialPlanner: Stage completion detected for ${currentPlanningStage}:`, stageData);
         stageProgressed = progressToNextStage(stageData);
         
         if (stageProgressed) {
-            const nextStageMessage = `\n\n✅ **${PLANNING_STAGES[currentPlanningStage]} Planning Complete!**\n\nLet's continue with: **${currentPlanningStage}**\n\nPlease share any thoughts or ask questions to proceed.`;
-            finalResponse = assistantResponseContent + nextStageMessage;
+            // Automatically continue to next stage
+            console.log(`FinancialPlanner: Auto-continuing to next stage: ${currentPlanningStage}`);
+            
+            // Yield a transition message
+            const transitionMessage = `\n\n✅ **Planning Stage Complete!**\n\nNow let's continue with **${currentPlanningStage}** planning:\n\n`;
+            yield transitionMessage;
+            
+            // Get next stage prompt and continue streaming
+            const nextStagePrompt = await getFinancialPlannerStagePrompt();
+            if (nextStagePrompt) {
+                const nextStageGenerator = processAIModelPlannerPromptInternal({
+                    userInput: "Please provide guidance for this planning stage.",
+                    systemPrompt: nextStagePrompt,
+                    model: "gpt-4.1",
+                    temperature: 0.7,
+                    history: financialPlannerConversationHistory
+                });
+                
+                // Stream the next stage response
+                for await (const chunk of nextStageGenerator) {
+                    if (typeof chunk === 'string') {
+                        yield chunk;
+                    } else if (typeof chunk === 'object') {
+                        if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) {
+                            yield chunk.choices[0].delta.content;
+                        }
+                        if (chunk.choices && chunk.choices[0] && chunk.choices[0].finish_reason) {
+                            break;
+                        }
+                    }
+                }
+            }
         } else {
             const completionMessage = `\n\n🎉 **Financial Model Planning Complete!**\n\nAll planning stages have been completed. You can now proceed with building your financial model.`;
-            finalResponse = assistantResponseContent + completionMessage;
+            yield completionMessage;
         }
-        
-        // Update history with final response
-        financialPlannerConversationHistory[1][1] = finalResponse;
     }
     
     console.log("FinancialPlanner: Initial conversation processed.");
-    return { response: finalResponse, history: financialPlannerConversationHistory, stageProgressed, currentStage: currentPlanningStage };
 }
 
 // Handle follow-up Financial Planner conversation using Planning_Prompts
