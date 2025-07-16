@@ -522,7 +522,7 @@ async function* processAIModelPlannerPromptInternal({ userInput, systemPrompt, m
 }
 
 // Handle initial conversation for AI Model Planner
-async function handleInitialAIModelPlannerConversation(userInput) {
+async function* handleInitialAIModelPlannerConversation(userInput) {
     console.log("AIModelPlanner: Processing initial question:", userInput);
     
     const systemPrompt = await getAIModelPlanningSystemPrompt();
@@ -541,22 +541,27 @@ async function handleInitialAIModelPlannerConversation(userInput) {
         history: [] 
     });
     
-    // Properly iterate over the generator to get the response
+    // Stream chunks to UI in real-time
     let response = "";
     for await (const chunk of responseGenerator) {
         if (typeof chunk === 'string') {
             response += chunk;
+            yield chunk; // Stream to UI immediately
         } else if (typeof chunk === 'object') {
             // Handle OpenAI streaming chunks
             if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) {
-                response += chunk.choices[0].delta.content;
+                const content = chunk.choices[0].delta.content;
+                response += content;
+                yield content; // Stream to UI immediately
             }
             // Check if this is the final chunk
             if (chunk.choices && chunk.choices[0] && chunk.choices[0].finish_reason) {
                 break;
             }
         } else if (Array.isArray(chunk)) {
-            response = chunk.join('\n');
+            const content = chunk.join('\n');
+            response = content;
+            yield content; // Stream to UI immediately
             break;
         }
     }
@@ -581,7 +586,7 @@ async function handleInitialAIModelPlannerConversation(userInput) {
 }
 
 // Handle follow-up conversation for AI Model Planner
-async function handleFollowUpAIModelPlannerConversation(userInput, currentHistory) {
+async function* handleFollowUpAIModelPlannerConversation(userInput, currentHistory) {
     console.log("AIModelPlanner: Processing follow-up question:", userInput);
     
     const systemPrompt = await getAIModelPlanningSystemPrompt();
@@ -600,15 +605,18 @@ async function handleFollowUpAIModelPlannerConversation(userInput, currentHistor
         history: currentHistory
     });
     
-    // Properly iterate over the generator to get the response
+    // Stream chunks to UI in real-time
     let response = "";
     for await (const chunk of responseGenerator) {
         if (typeof chunk === 'string') {
             response += chunk;
+            yield chunk; // Stream to UI immediately
         } else if (typeof chunk === 'object') {
             // Handle OpenAI streaming chunks
             if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) {
-                response += chunk.choices[0].delta.content;
+                const content = chunk.choices[0].delta.content;
+                response += content;
+                yield content; // Stream to UI immediately
             }
             // Check if this is the final chunk
             if (chunk.choices && chunk.choices[0] && chunk.choices[0].finish_reason) {
@@ -638,21 +646,21 @@ async function handleFollowUpAIModelPlannerConversation(userInput, currentHistor
 }
 
 // Main conversation handler for AI Model Planner
-export async function handleAIModelPlannerConversation(userInput) {
+export async function* handleAIModelPlannerConversation(userInput) {
     try {
         const isFollowUp = modelPlannerConversationHistory.length > 0;
         if (isFollowUp) {
-            return await handleFollowUpAIModelPlannerConversation(userInput, modelPlannerConversationHistory);
+            for await (const chunk of handleFollowUpAIModelPlannerConversation(userInput, modelPlannerConversationHistory)) {
+                yield chunk;
+            }
         } else {
-            return await handleInitialAIModelPlannerConversation(userInput);
+            for await (const chunk of handleInitialAIModelPlannerConversation(userInput)) {
+                yield chunk;
+            }
         }
     } catch (error) {
         console.error("Error in AI Model Planner conversation handling:", error);
-        return {
-            // Return response as an array of strings for text, or object for JSON
-            response: (typeof error.message === 'string') ? [error.message] : error.message,
-            history: modelPlannerConversationHistory
-        };
+        yield error.message || 'An error occurred';
     }
 }
 
@@ -677,7 +685,7 @@ async function getFinancialPlannerStagePrompt() {
 }
 
 // Handle initial Financial Planner conversation using Planning_Prompts
-async function handleInitialFinancialPlannerConversation(userInput) {
+async function* handleInitialFinancialPlannerConversation(userInput) {
     console.log("FinancialPlanner: Processing initial question:", userInput);
     console.log(`FinancialPlanner: Current planning stage: ${currentPlanningStage}`);
     
@@ -689,13 +697,6 @@ async function handleInitialFinancialPlannerConversation(userInput) {
     const model = "gpt-4.1"; // As specified
     const temperature = 0.7; // A reasonable default
 
-    // console.log("FinancialPlanner: About to call processAIModelPlannerPromptInternal with:", {
-    //     userInput: userInput.substring(0, 100) + "...",
-    //     systemPromptLength: systemPrompt.length,
-    //     model,
-    //     temperature
-    // });
-
     const responseGenerator = processAIModelPlannerPromptInternal({
         userInput: userInput,
         systemPrompt: systemPrompt,
@@ -704,22 +705,27 @@ async function handleInitialFinancialPlannerConversation(userInput) {
         history: [] 
     });
     
-    // Properly iterate over the generator to get the response
+    // Stream chunks to UI in real-time
     let response = "";
     for await (const chunk of responseGenerator) {
         if (typeof chunk === 'string') {
             response += chunk;
+            yield chunk; // Stream to UI immediately
         } else if (typeof chunk === 'object') {
             // Handle OpenAI streaming chunks
             if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) {
-                response += chunk.choices[0].delta.content;
+                const content = chunk.choices[0].delta.content;
+                response += content;
+                yield content; // Stream to UI immediately
             }
             // Check if this is the final chunk
             if (chunk.choices && chunk.choices[0] && chunk.choices[0].finish_reason) {
                 break;
             }
         } else if (Array.isArray(chunk)) {
-            response = chunk.join('\n');
+            const content = chunk.join('\n');
+            response = content;
+            yield content; // Stream to UI immediately
             break;
         }
     }
@@ -765,7 +771,7 @@ async function handleInitialFinancialPlannerConversation(userInput) {
 }
 
 // Handle follow-up Financial Planner conversation using Planning_Prompts
-async function handleFollowUpFinancialPlannerConversation(userInput, currentHistory) {
+async function* handleFollowUpFinancialPlannerConversation(userInput, currentHistory) {
     console.log("FinancialPlanner: Processing follow-up question:", userInput);
     console.log(`FinancialPlanner: Current planning stage: ${currentPlanningStage}`);
     
@@ -785,15 +791,18 @@ async function handleFollowUpFinancialPlannerConversation(userInput, currentHist
         history: currentHistory
     });
     
-    // Properly iterate over the generator to get the response
+    // Stream chunks to UI in real-time
     let response = "";
     for await (const chunk of responseGenerator) {
         if (typeof chunk === 'string') {
             response += chunk;
+            yield chunk; // Stream to UI immediately
         } else if (typeof chunk === 'object') {
             // Handle OpenAI streaming chunks
             if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) {
-                response += chunk.choices[0].delta.content;
+                const content = chunk.choices[0].delta.content;
+                response += content;
+                yield content; // Stream to UI immediately
             }
             // Check if this is the final chunk
             if (chunk.choices && chunk.choices[0] && chunk.choices[0].finish_reason) {
@@ -832,13 +841,17 @@ async function handleFollowUpFinancialPlannerConversation(userInput, currentHist
 }
 
 // Main conversation handler for Financial Planner (Planning_Prompts Sequential Flow)
-export async function handleFinancialPlannerConversation(userInput) {
+export async function* handleFinancialPlannerConversation(userInput) {
     try {
         const isFollowUp = financialPlannerConversationHistory.length > 0;
         if (isFollowUp) {
-            return await handleFollowUpFinancialPlannerConversation(userInput, financialPlannerConversationHistory);
+            for await (const chunk of handleFollowUpFinancialPlannerConversation(userInput, financialPlannerConversationHistory)) {
+                yield chunk;
+            }
         } else {
-            return await handleInitialFinancialPlannerConversation(userInput);
+            for await (const chunk of handleInitialFinancialPlannerConversation(userInput)) {
+                yield chunk;
+            }
         }
     } catch (error) {
         console.error("Error in handleFinancialPlannerConversation:", error);

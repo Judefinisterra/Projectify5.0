@@ -980,7 +980,6 @@ async function handleSendClient() {
             console.log("[handleSendClient] *** ROUTING TO FINANCIAL PLANNER ***");
             // Use the Financial Planner conversation handler (Planning_Prompts Sequential Flow)
             const { handleFinancialPlannerConversation } = await import('./AIModelPlanner.js');
-            const result = await handleFinancialPlannerConversation(userInput);
             
             // Remove the typing indicator
             const typingIndicator = assistantMessageDiv.querySelector('.typing-indicator');
@@ -988,18 +987,13 @@ async function handleSendClient() {
                 typingIndicator.remove();
             }
 
-            // Display the response
-            let responseText = '';
-            if (typeof result.response === 'string') {
-                responseText = result.response;
-            } else if (Array.isArray(result.response)) {
-                responseText = result.response.join(' ');
-            } else if (typeof result.response === 'object') {
-                responseText = JSON.stringify(result.response, null, 2);
+            // Stream the response in real-time
+            let fullAssistantResponse = '';
+            for await (const chunk of handleFinancialPlannerConversation(userInput)) {
+                fullAssistantResponse += chunk;
+                assistantMessageContent.textContent = fullAssistantResponse;
             }
             
-            assistantMessageContent.textContent = responseText;
-            fullAssistantResponse = responseText;
             lastResponseClient = fullAssistantResponse;
             
             // Store the conversation history using the planner's format but adapted for client mode
@@ -1010,7 +1004,6 @@ async function handleSendClient() {
             console.log("[handleSendClient] *** ROUTING TO SENIOR ANALYST ***");
             // Use the Senior Analyst (AI Model Planner with AIModelPlanning_System.txt)
             const { handleAIModelPlannerConversation } = await import('./AIModelPlanner.js');
-            const result = await handleAIModelPlannerConversation(userInput);
             
             // Remove the typing indicator
             const typingIndicator = assistantMessageDiv.querySelector('.typing-indicator');
@@ -1018,18 +1011,13 @@ async function handleSendClient() {
                 typingIndicator.remove();
             }
 
-            // Display the response
-            let responseText = '';
-            if (typeof result.response === 'string') {
-                responseText = result.response;
-            } else if (Array.isArray(result.response)) {
-                responseText = result.response.join(' ');
-            } else if (typeof result.response === 'object') {
-                responseText = JSON.stringify(result.response, null, 2);
+            // Stream the response in real-time
+            let fullAssistantResponse = '';
+            for await (const chunk of handleAIModelPlannerConversation(userInput)) {
+                fullAssistantResponse += chunk;
+                assistantMessageContent.textContent = fullAssistantResponse;
             }
             
-            assistantMessageContent.textContent = responseText;
-            fullAssistantResponse = responseText;
             lastResponseClient = fullAssistantResponse;
             
             // Store the conversation history using the planner's format but adapted for client mode
