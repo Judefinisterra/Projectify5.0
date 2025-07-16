@@ -2625,7 +2625,8 @@ Office.onReady(async (info) => {
     // --- SETUP FOR CLIENT MODE UI ---
     // Assign event handlers from AIModelPlanner.js to client mode buttons
     const sendClientButton = document.getElementById('send-client');
-    if (sendClientButton) sendClientButton.onclick = plannerHandleSend;
+    // >>> COMMENTED OUT: This overrides the correct assignment in taskpane.js
+    // if (sendClientButton) sendClientButton.onclick = plannerHandleSend;
 
     const resetClientChatButton = document.getElementById('reset-chat-client');
     if (resetClientChatButton) resetClientChatButton.onclick = plannerHandleReset;
@@ -2638,12 +2639,15 @@ Office.onReady(async (info) => {
     
     const userInputClient = document.getElementById('user-input-client');
     if (userInputClient) {
+        // >>> COMMENTED OUT: This also overrides the correct handler from taskpane.js
+        /*
         userInputClient.addEventListener('keypress', function(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault(); 
                 if (plannerHandleSend) plannerHandleSend(); // Call the imported handler
             }
         });
+        */
     }
     // --- END CLIENT MODE UI SETUP ---
 

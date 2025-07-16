@@ -446,7 +446,7 @@ async function* callOpenAIForModelPlanner(messages, options = {}) {
 
 
 // Function to process a prompt for the AI Model Planner
-async function* processAIModelPlannerPromptInternal({ userInput, systemPrompt, model, temperature, history = [], stream = false }) {
+async function* processAIModelPlannerPromptInternal({ userInput, systemPrompt, model, temperature, history = [], stream = true }) {
     // >>> ADDED: Log the function call details
     console.log("\n╔══════════════════════════════════════════════════════════════╗");
     console.log("║        processAIModelPlannerPromptInternal CALLED              ║");
@@ -533,7 +533,7 @@ async function handleInitialAIModelPlannerConversation(userInput) {
     const model = "gpt-4.1"; // As specified
     const temperature = 0.7; // A reasonable default
 
-    const response = await processAIModelPlannerPromptInternal({
+    const responseGenerator = processAIModelPlannerPromptInternal({
         userInput: userInput,
         systemPrompt: systemPrompt,
         model: model,
@@ -541,11 +541,30 @@ async function handleInitialAIModelPlannerConversation(userInput) {
         history: [] 
     });
     
+    // Properly iterate over the generator to get the response
+    let response = "";
+    for await (const chunk of responseGenerator) {
+        if (typeof chunk === 'string') {
+            response += chunk;
+        } else if (typeof chunk === 'object') {
+            // Handle OpenAI streaming chunks
+            if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) {
+                response += chunk.choices[0].delta.content;
+            }
+            // Check if this is the final chunk
+            if (chunk.choices && chunk.choices[0] && chunk.choices[0].finish_reason) {
+                break;
+            }
+        } else if (Array.isArray(chunk)) {
+            response = chunk.join('\n');
+            break;
+        }
+    }
+    
     // Update history
-    // The prompt implies the final output is JSON, but intermediate steps are text.
     let assistantResponseContent = "";
     if (typeof response === 'object') {
-        assistantResponseContent = JSON.stringify(response); // Store JSON as string in history
+        assistantResponseContent = JSON.stringify(response);
     } else if (Array.isArray(response)) {
         assistantResponseContent = response.join("\n");
     } else {
@@ -573,13 +592,30 @@ async function handleFollowUpAIModelPlannerConversation(userInput, currentHistor
     const model = "gpt-4.1"; // As specified
     const temperature = 0.7; // A reasonable default
 
-    const response = await processAIModelPlannerPromptInternal({
+    const responseGenerator = processAIModelPlannerPromptInternal({
         userInput: userInput,
         systemPrompt: systemPrompt,
         model: model,
         temperature: temperature,
         history: currentHistory
     });
+    
+    // Properly iterate over the generator to get the response
+    let response = "";
+    for await (const chunk of responseGenerator) {
+        if (typeof chunk === 'string') {
+            response += chunk;
+        } else if (typeof chunk === 'object') {
+            // Handle OpenAI streaming chunks
+            if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) {
+                response += chunk.choices[0].delta.content;
+            }
+            // Check if this is the final chunk
+            if (chunk.choices && chunk.choices[0] && chunk.choices[0].finish_reason) {
+                break;
+            }
+        }
+    }
 
     let assistantResponseContent = "";
     if (typeof response === 'object') {
@@ -653,13 +689,40 @@ async function handleInitialFinancialPlannerConversation(userInput) {
     const model = "gpt-4.1"; // As specified
     const temperature = 0.7; // A reasonable default
 
-    const response = await processAIModelPlannerPromptInternal({
+    // console.log("FinancialPlanner: About to call processAIModelPlannerPromptInternal with:", {
+    //     userInput: userInput.substring(0, 100) + "...",
+    //     systemPromptLength: systemPrompt.length,
+    //     model,
+    //     temperature
+    // });
+
+    const responseGenerator = processAIModelPlannerPromptInternal({
         userInput: userInput,
         systemPrompt: systemPrompt,
         model: model,
         temperature: temperature,
         history: [] 
     });
+    
+    // Properly iterate over the generator to get the response
+    let response = "";
+    for await (const chunk of responseGenerator) {
+        if (typeof chunk === 'string') {
+            response += chunk;
+        } else if (typeof chunk === 'object') {
+            // Handle OpenAI streaming chunks
+            if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) {
+                response += chunk.choices[0].delta.content;
+            }
+            // Check if this is the final chunk
+            if (chunk.choices && chunk.choices[0] && chunk.choices[0].finish_reason) {
+                break;
+            }
+        } else if (Array.isArray(chunk)) {
+            response = chunk.join('\n');
+            break;
+        }
+    }
     
     // Update history
     let assistantResponseContent = "";
@@ -714,27 +777,35 @@ async function handleFollowUpFinancialPlannerConversation(userInput, currentHist
     const model = "gpt-4.1"; // As specified
     const temperature = 0.7; // A reasonable default
 
-    const response = await processAIModelPlannerPromptInternal({
+    const responseGenerator = processAIModelPlannerPromptInternal({
         userInput: userInput,
         systemPrompt: systemPrompt,
         model: model,
         temperature: temperature,
         history: currentHistory
     });
-
-    let assistantResponseContent = "";
-    if (typeof response === 'object') {
-        assistantResponseContent = JSON.stringify(response);
-    } else if (Array.isArray(response)) {
-        assistantResponseContent = response.join("\n");
-    } else {
-        assistantResponseContent = String(response);
+    
+    // Properly iterate over the generator to get the response
+    let response = "";
+    for await (const chunk of responseGenerator) {
+        if (typeof chunk === 'string') {
+            response += chunk;
+        } else if (typeof chunk === 'object') {
+            // Handle OpenAI streaming chunks
+            if (chunk.choices && chunk.choices[0] && chunk.choices[0].delta && chunk.choices[0].delta.content) {
+                response += chunk.choices[0].delta.content;
+            }
+            // Check if this is the final chunk
+            if (chunk.choices && chunk.choices[0] && chunk.choices[0].finish_reason) {
+                break;
+            }
+        }
     }
 
     // Check for stage completion and progression
-    const stageData = detectStageCompletion(assistantResponseContent);
+    const stageData = detectStageCompletion(response);
     let stageProgressed = false;
-    let finalResponse = assistantResponseContent;
+    let finalResponse = response;
     
     if (stageData) {
         console.log(`FinancialPlanner: Stage completion detected for ${currentPlanningStage}:`, stageData);
@@ -742,10 +813,10 @@ async function handleFollowUpFinancialPlannerConversation(userInput, currentHist
         
         if (stageProgressed) {
             const nextStageMessage = `\n\n✅ **${PLANNING_STAGES[currentPlanningStage]} Planning Complete!**\n\nLet's continue with: **${currentPlanningStage}**\n\nPlease share any thoughts or ask questions to proceed.`;
-            finalResponse = assistantResponseContent + nextStageMessage;
+            finalResponse = response + nextStageMessage;
         } else {
             const completionMessage = `\n\n🎉 **Financial Model Planning Complete!**\n\nAll planning stages have been completed. You can now proceed with building your financial model.`;
-            finalResponse = assistantResponseContent + completionMessage;
+            finalResponse = response + completionMessage;
         }
     }
 
