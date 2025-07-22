@@ -936,6 +936,18 @@ Think through each client request part. Trace one unit through calculations.
    - When in doubt → BR code
    - Better to have too many BR codes than confusing, cramped output
 
+3. **🚨 NEVER CONSECUTIVE BOLD OR INDENT=1 ROWS - THIS IS FREQUENTLY MISSED!**
+   - Only ONE bold="true"/indent="1" row per section (the main total/result)
+   - ALL adjacent rows must use indent="2"/bold="false" (supporting calculations)
+   - Use BR codes to separate sections, then you can have another bold/indent=1 row
+   - Before submitting: scan for consecutive bold/indent=1 rows and fix them
+
+4. **🚨 NEVER USE TOPBORDER WITHOUT CONTENT ABOVE - THIS IS FREQUENTLY MISSED!**
+   - topborder="true" requires a non-BR code directly above it
+   - NEVER use topborder after BR codes (redundant visual separation)
+   - NEVER use topborder as first row in a section (nothing to separate from)
+   - Before submitting: scan for improper topborder placement and fix them
+
 **Critical Examples:**
 
 **Scenario:** Client says "I originate 100 loans in 2026 at avg. value of $10 per loan"
@@ -950,17 +962,17 @@ Think through each client request part. Trace one unit through calculations.
 - **WRONG:** CONST-E "Monthly churn = 100 users" (you calculated 100 yourself!)
 - **RIGHT:** CONST-E "Total users = 500" + CONST-E "Churn rate per month = 20%" + MULT2-S "Monthly churn"
 
-3. **Don't manipulate assumptions unnecessarily** - Better to list multiple CONST-E/SPREAD-E/ENDPOINT-E items to capture each assumption closely to client's terms rather than combining them yourself
+5. **Don't manipulate assumptions unnecessarily** - Better to list multiple CONST-E/SPREAD-E/ENDPOINT-E items to capture each assumption closely to client's terms rather than combining them yourself
 
-4. **NEVER use SPREAD-E for averages** (avg amount per loan) - Must always use CONST-E or ENDPOINT-E
+6. **NEVER use SPREAD-E for averages** (avg amount per loan) - Must always use CONST-E or ENDPOINT-E
 
-5. **ENDPOINT-E interchangeable with CONST-E** - Only difference: CONST-E holds constant within year, ENDPOINT-E scales linearly between years
+7. **ENDPOINT-E interchangeable with CONST-E** - Only difference: CONST-E holds constant within year, ENDPOINT-E scales linearly between years
 
-6. **When in doubt, decompose further** - It's better to have too many assumption rows than to do calculations yourself
+8. **When in doubt, decompose further** - It's better to have too many assumption rows than to do calculations yourself
 
-7. **🚨 NEVER DUPLICATE COLUMN LABELS** - Each (C1) through (C6) can only appear ONCE per row. Use available columns, don't duplicate!
+9. **🚨 NEVER DUPLICATE COLUMN LABELS** - Each (C1) through (C6) can only appear ONCE per row. Use available columns, don't duplicate!
 
-8. **🚨 ALL EXPENSES MUST BE NEGATIVE** - Every cost, expense, COGS item must have negative values or use negative="true" parameter. Positive expenses will ADD to profit instead of subtracting, breaking the entire financial model!
+10. **🚨 ALL EXPENSES MUST BE NEGATIVE** - Every cost, expense, COGS item must have negative values or use negative="true" parameter. Positive expenses will ADD to profit instead of subtracting, breaking the entire financial model!
 
 ---
 
@@ -1004,15 +1016,79 @@ If SPREAD-E represents an aggregate total → use $ without ~
 
 ### LABELING, INDENT, TOPBORDER, AND BOLD RULES
 
+## 🚨 CRITICAL: NEVER MULTIPLE CONSECUTIVE BOLD OR INDENT=1 ROWS 🚨
+
+**ABSOLUTELY FORBIDDEN:** Creating multiple adjacent rows with bold="true" or indent="1"
+
+**❌ WRONG EXAMPLES:**
+```
+<MULT2-S; bold="true"; indent="1"; driver1="V1"; driver2="V2"; row1="V3(D)|Revenue(L)|IS: revenue(F)|...">
+<MULT2-S; bold="true"; indent="1"; driver1="V4"; driver2="V5"; row1="V6(D)|Expenses(L)|IS: corporate overhead(F)|...">
+```
+*Problem: Two consecutive rows with bold="true" and indent="1" - BREAKS FORMATTING!*
+
+**✅ CORRECT APPROACH:**
+```
+<MULT2-S; bold="true"; indent="1"; driver1="V1"; driver2="V2"; row1="V3(D)|Revenue(L)|IS: revenue(F)|...">
+<MULT2-S; bold="false"; indent="2"; driver1="V4"; driver2="V5"; row1="V6(D)|Expenses(L)|IS: corporate overhead(F)|...">
+```
+*Solution: Only ONE bold/indent=1 row, adjacent rows use indent="2" and bold="false"*
+
+**FORMATTING HIERARCHY RULES:**
+1. **ONE bold="true"/indent="1" per section** - This is the main total/result
+2. **All adjacent rows: indent="2"/bold="false"** - These are supporting calculations  
+3. **Use BR codes to separate sections** - Then you can have another bold/indent=1 row
+4. **Visual principle:** Bold/indent=1 rows are visual anchors - too many destroy hierarchy
+
+**CORRECT SECTION PATTERN:**
+```
+<LABELH3; row1="|Section Header:(L)|...">
+<SPREAD-E; indent="2"; bold="false"; row1="V1(D)|Component 1(L)|...">
+<SPREAD-E; indent="2"; bold="false"; row1="V2(D)|Component 2(L)|...">
+<SUBTOTAL2-S; indent="1"; bold="true"; topborder="true"; row1="V3(D)|Section Total(L)|IS: revenue(F)|...">
+<BR; row1="|BR(L)|...">
+<LABELH3; row1="|Next Section:(L)|...">
+<SPREAD-E; indent="2"; bold="false"; row1="V4(D)|Component 3(L)|...">
+<MULT2-S; indent="1"; bold="true"; topborder="true"; row1="V5(D)|Next Section Total(L)|IS: corporate overhead(F)|...">
+```
+
+**VALIDATION CHECK:** Before submitting, scan for ANY consecutive rows with bold="true" or indent="1" - if found, change adjacent rows to indent="2"/bold="false"
+
+### STANDARD FORMATTING RULES
+
 1. Aggregate items: indent="1" most times, sometimes indent="2"
 2. Financial statement items: indent="1" most times (exceptions like COGS with indent="2")
 3. Items after LABELH3: indent="2" most times
 4. Final calculations: bold="true", indent="1", topborder="true"
-5. **TOPBORDER USAGE RULES:**
-   - **No topborder="true" directly after bold="true" codes or BR codes** - These already provide visual separation
+5. **🚨 CRITICAL TOPBORDER USAGE RULES:**
+   - **NEVER use topborder="true" without a non-BR code directly above it** - There MUST be a calculation/assumption row immediately preceding any topborder row
+   - **No topborder="true" directly after BR codes** - BR codes already provide visual separation, making topborder redundant
+   - **No topborder="true" as the first row in a section** - There must be content above to separate from
    - **If topborder="true", then bold must also be "true"** - Topborders are reserved for emphasized totals/final calculations
-   - **Purpose:** Topborders create visual breaks to highlight important calculations, but become redundant when placed after existing visual separators (bold rows or line breaks)
-6. No two consecutive codes with topborder and bold = true
+   - **Purpose:** Topborders create visual breaks to highlight important calculations, but only make sense when there's actual content above to separate from
+
+**❌ WRONG TOPBORDER EXAMPLES:**
+```
+<BR; row1="|BR(L)|...">
+<SUBTOTAL2-S; topborder="true"; bold="true"; indent="1"; row1="V3(D)|Total Revenue(L)|IS: revenue(F)|...">
+```
+*Problem: topborder directly after BR code - redundant visual separation!*
+
+```
+<LABELH3; row1="|Revenue:(L)|...">
+<SUBTOTAL2-S; topborder="true"; bold="true"; indent="1"; row1="V1(D)|Total Revenue(L)|IS: revenue(F)|...">
+```
+*Problem: topborder as first row in section - nothing to separate from!*
+
+**✅ CORRECT TOPBORDER EXAMPLES:**
+```
+<LABELH3; row1="|Revenue:(L)|...">
+<SPREAD-E; indent="2"; row1="V1(D)|Product Sales(L)|...">
+<SPREAD-E; indent="2"; row1="V2(D)|Service Sales(L)|...">
+<SUBTOTAL2-S; topborder="true"; bold="true"; indent="1"; row1="V3(D)|Total Revenue(L)|IS: revenue(F)|...">
+```
+*Correct: topborder follows actual content rows, creating proper visual separation*
+6. **🚨 CRITICAL: No two consecutive codes with bold="true" or indent="1"** - Adjacent rows must use indent="2"/bold="false"
 7. Avoid multiple consecutive codes with same indent
 8. Follow training data format
 9. IS: revenue items should be followed by BR code
@@ -1087,9 +1163,11 @@ If SPREAD-E represents an aggregate total → use $ without ~
 9. **🚨 DUPLICATE LABELS:** Are there ANY duplicate column labels in the same row (e.g., two (C6) labels)?
 10. **🚨 BR CODE SEPARATION:** Are unrelated codes separated by BR codes? Is every LABELH1/H2/H3 preceded by a BR code?
 11. **🚨 VISUAL ORGANIZATION:** Are there sufficient BR codes to create clear visual separation between different business concepts?
-12. **Double Check:** Verify #7, #8, #9, #10, and #11
-13. **Triple Check:** Verify #7, #8, #9, #10, and #11 again
-14. **Final Validation:** Every row has all required labels with 15 "|" symbols ending with "|" AND no duplicate labels AND proper BR code separation
+12. **🚨 CONSECUTIVE FORMATTING:** Are there ANY consecutive rows with bold="true" or indent="1"? If yes, change adjacent rows to indent="2"/bold="false"
+13. **🚨 TOPBORDER PLACEMENT:** Does every topborder="true" have a non-BR code directly above it? If not, remove topborder="true" or add content above
+14. **Double Check:** Verify #7, #8, #9, #10, #11, #12, and #13
+15. **Triple Check:** Verify #7, #8, #9, #10, #11, #12, and #13 again
+16. **Final Validation:** Every row has all required labels with 15 "|" symbols ending with "|" AND no duplicate labels AND proper BR code separation AND no consecutive bold/indent=1 rows AND proper topborder placement
 
 ## FINCODE AND DOUBLE COUNTING VALIDATION
 
