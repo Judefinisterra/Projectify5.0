@@ -109,6 +109,14 @@
                 <div class="dev-input-bar" id="dev-input-bar">
                     <!-- Normal Input Mode -->
                     <div id="normal-input-mode-dev" class="input-mode">
+                        <div class="left-controls">
+                            <input type="file" id="file-input-dev" accept=".xlsx,.xls,.xlsm,.csv,.doc,.docx,.pdf,.txt" multiple style="display: none;">
+                            <button id="attach-file-dev" class="ms-Button ms-Button--icon attachment-button" title="Attach Excel, CSV, Word, PDF, or Text file">
+                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="plus-icon">
+                                    <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                </svg>
+                            </button>
+                        </div>
                         <textarea id="user-input" placeholder="Enter your request here..." rows="1"></textarea>
                         <div class="right-controls">
                             <button id="voice-input-dev" class="ms-Button ms-Button--icon voice-button" title="Voice input">
@@ -153,6 +161,18 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Attached Files Container for Developer Mode -->
+                <div id="attached-files-container-dev" class="attached-files-container" style="display: none;">
+                    <div class="attached-files-header">
+                        <span class="attached-files-count-dev">0 files attached</span>
+                        <button id="clear-all-attachments-dev" class="clear-all-button" title="Clear all attachments">Clear all</button>
+                    </div>
+                    <div id="attached-files-list-dev" class="attached-files-list">
+                        <!-- File items will be dynamically added here -->
+                    </div>
+                </div>
+                
                 <div id="loading-animation" class="loading-animation"></div>
                 <button id="write-to-excel" class="ms-Button">
                     <span class="ms-Button-label">Write Response to Excel</span>

@@ -29,7 +29,7 @@ import { handleFollowUpConversation, handleInitialConversation, handleConversati
 // >>> ADDED: Import CONFIG for URL management
 import { CONFIG } from './config.js';
 // >>> ADDED: Import file attachment and voice input functionality from AIModelPlanner
-import { initializeFileAttachment, initializeVoiceInput, initializeVoiceInputDev, initializeTextareaAutoResize, initializeTextareaAutoResizeDev, setAIModelPlannerOpenApiKey } from './AIModelPlanner.js';
+import { initializeFileAttachment, initializeFileAttachmentDev, initializeVoiceInput, initializeVoiceInputDev, initializeTextareaAutoResize, initializeTextareaAutoResizeDev, setAIModelPlannerOpenApiKey, currentAttachedFilesDev, formatFileDataForAIDev, removeAllAttachmentsDev } from './AIModelPlanner.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -758,7 +758,14 @@ function appendMessage(content, isUser = false, chatLogId = 'chat-log', welcomeM
 
 // Modify the handleSend function
 async function handleSend() {
-    const userInput = document.getElementById('user-input').value.trim();
+    let userInput = document.getElementById('user-input').value.trim();
+    
+    // Check if there are attached files and include them in the prompt
+    if (currentAttachedFilesDev.length > 0) {
+        console.log('[handleSend] Including attached files data:', currentAttachedFilesDev.map(f => f.fileName).join(', '));
+        const filesDataForAI = formatFileDataForAIDev(currentAttachedFilesDev);
+        userInput = userInput + filesDataForAI;
+    }
     
     if (!userInput) {
         showError('Please enter a request');
@@ -779,14 +786,22 @@ async function handleSend() {
     isFirstMessageInSession = existingMessages.length === 0;
     console.log(`[handleSend] Found ${existingMessages.length} existing chat messages. isFirstMessageInSession: ${isFirstMessageInSession}`);
 
-    // Add user message to chat
-    appendMessage(userInput, true);
+    // Add user message to chat (include file attachment info in display)
+    let displayMessage = document.getElementById('user-input').value.trim();
+    if (currentAttachedFilesDev.length > 0) {
+        const fileNames = currentAttachedFilesDev.map(f => f.fileName).join(', ');
+        displayMessage += ` 📎 (${currentAttachedFilesDev.length} file${currentAttachedFilesDev.length !== 1 ? 's' : ''}: ${fileNames})`;
+    }
+    appendMessage(displayMessage, true);
     
     // Clear input and reset textarea height
     const userInputElement = document.getElementById('user-input');
     userInputElement.value = '';
     userInputElement.style.height = '24px';
     userInputElement.classList.remove('scrollable');
+    
+    // Clear attachments after sending
+    removeAllAttachmentsDev();
 
     setButtonLoading(true);
     const progressMessageDiv = document.createElement('div');
@@ -1798,6 +1813,11 @@ Office.onReady((info) => {
       if (startupMenu) startupMenu.style.display = 'none';
       if (appBody) appBody.style.display = 'flex'; // Matches .ms-welcome__main display if it's flex
       if (clientModeView) clientModeView.style.display = 'none';
+      
+      // Initialize developer mode file attachment functionality
+      if (typeof initializeFileAttachmentDev === 'function') {
+        initializeFileAttachmentDev();
+      }
       
       // Initialize developer mode voice input functionality
       if (typeof initializeVoiceInputDev === 'function') {

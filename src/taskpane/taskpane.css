@@ -1836,6 +1836,38 @@ body {
     transition: all 0.2s ease-in-out;
 }
 
+/* Developer mode left controls styling */
+.dev-input-bar .left-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+/* Developer mode attachment button styling */
+.dev-input-bar .attachment-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background-color: transparent;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+    color: var(--gray-600);
+}
+
+.dev-input-bar .attachment-button:hover {
+    background-color: var(--gray-100);
+    color: var(--gray-800);
+}
+
+.dev-input-bar .attachment-button .plus-icon {
+    width: 20px;
+    height: 20px;
+}
+
 .dev-input-bar:focus-within {
     border-color: var(--gray-300);
     box-shadow: var(--shadow-md);
