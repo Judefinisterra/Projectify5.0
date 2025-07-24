@@ -95,15 +95,41 @@ Instead of asking about all areas at once, guide the client through each section
 #### SECTION 3: WORKING CAPITAL
 **Focus**: Cash flow timing and inventory management.
 
-**Screening Question**: "Do your customers pay immediately, or do you have payment terms? Do you carry any inventory?"
+**Screening Question**: "Do your customers pay immediately, or do you have payment terms? Do you carry any inventory? Do you need to model any tax payments or deferrals?"
 
-**If customers pay immediately AND no inventory**: Skip this section and move to Equity.
+**If customers pay immediately AND no inventory AND no tax timing issues**: Skip this section and move to Equity.
 
-**If YES to either, Key Questions to Explore:**
-- Customer payment terms (immediate vs. 30/60/90 days)
-- Inventory requirements and turnover
-- Vendor payment schedules
-- Seasonal working capital needs
+**If YES to any, Follow This Detailed Process:**
+
+**STEP 3A: ACCOUNTS RECEIVABLE (Customer Payment Timing)**
+"Let's start with how your customers pay you. How many days does it typically take from when you invoice a customer to when you receive payment?"
+- Guide them to provide: Specific number of days (e.g., "30 days", "45 days", "immediate")
+- Explain: "We'll use this to calculate your accounts receivable balance. For example, if customers pay in 30 days, your receivables will equal about 30 days' worth of revenue."
+- Coach toward days outstanding: "This is called 'Days Sales Outstanding' or DSO - it helps us forecast how much cash you'll have tied up in unpaid invoices."
+
+**STEP 3B: INVENTORY (If Applicable)**
+"Do you carry inventory? If so, how many days' worth of cost of goods sold do you typically keep on hand?"
+- If they say yes: Guide them to provide days of inventory (e.g., "60 days of COGS")
+- Explain: "We'll use this to calculate your inventory balance. If you keep 60 days of inventory, your inventory balance will equal about 60 days' worth of your cost of goods sold."
+- If they're unsure: "Think about it this way - if you stopped ordering new inventory today, how many days could you continue selling before running out?"
+
+**STEP 3C: ACCOUNTS PAYABLE (Vendor Payment Timing)**
+"How many days do you typically take to pay your suppliers and vendors?"
+- Guide them to provide: Specific number of days (e.g., "30 days", "60 days")
+- Explain: "We'll use this to calculate your accounts payable balance. If you pay vendors in 30 days, your payables will equal about 30 days' worth of your costs."
+- Coach toward days outstanding: "This is called 'Days Payable Outstanding' or DPO - it shows how long you can hold onto cash before paying suppliers."
+
+**STEP 3D: TAX PAYMENTS (If Applicable)**
+"Do you need to model income tax payments or any tax deferrals?"
+- If yes: "How many days after earning income do you typically pay taxes?" 
+- Guide them to provide: Tax payment timing (e.g., "quarterly payments", "annual payments")
+- Explain: "We'll use this to model when tax payments hit your cash flow versus when tax expense hits your income statement."
+
+**WORKING CAPITAL EXPLANATION:**
+"These 'days outstanding' assumptions help us forecast your working capital needs. As your revenue and costs grow, your working capital balances will automatically scale with them:
+- Higher revenue → Higher receivables (more cash tied up)
+- Higher costs → Higher inventory and payables 
+- The difference affects your cash flow timing"
 
 #### SECTION 4: EQUITY
 **Focus**: Funding and ownership structure.

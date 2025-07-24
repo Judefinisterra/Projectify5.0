@@ -48,6 +48,96 @@ function getSelectedSystemPromptMode() {
   return dropdown ? dropdown.value : 'one-shot'; // Default to one-shot
 }
 
+// Function to load the Encoder Summary system prompt
+async function getEncoderSummarySystemPrompt() {
+  const promptKey = "Encoder_Summary_System";
+  const paths = [
+    CONFIG.getPromptUrl(`${promptKey}.txt`), 
+    CONFIG.getAssetUrl(`src/prompts/${promptKey}.txt`)
+  ];
+
+  if (DEBUG_PLANNER) console.log(`AIModelPlanner: Attempting to load prompt file: ${promptKey}.txt`);
+
+  let response = null;
+  for (const path of paths) {
+    if (DEBUG_PLANNER) console.log(`AIModelPlanner: Attempting to load prompt from: ${path}`);
+    try {
+      response = await fetch(path);
+      if (response.ok) {
+        if (DEBUG_PLANNER) console.log(`AIModelPlanner: Successfully loaded prompt from: ${path}`);
+        const text = await response.text();
+        return text;
+      } else {
+        if (DEBUG_PLANNER) console.warn(`AIModelPlanner: Failed to load from ${path} - Status: ${response.status} ${response.statusText}`);
+      }
+    } catch (err) {
+      if (DEBUG_PLANNER) console.error(`AIModelPlanner: Error fetching from ${path}: ${err.message}`);
+    }
+  }
+
+  console.error(`AIModelPlanner: Failed to load prompt ${promptKey}.txt from all attempted paths.`);
+  return "You are an expert financial analyst who translates technical financial model codes into clear, plain English explanations for business clients. [Error: Encoder Summary system prompt could not be loaded]"; 
+}
+
+// Function to generate model summary after successful model execution
+async function generateModelSummary(modelCodesString) {
+  if (!modelCodesString || modelCodesString.trim().length === 0) {
+    console.log("[generateModelSummary] No model codes to summarize.");
+    return;
+  }
+
+  if (!AI_MODEL_PLANNER_OPENAI_API_KEY) {
+    console.error("[generateModelSummary] OpenAI API key not set.");
+    displayInClientChatLogPlanner("Cannot generate model explanation - API key not configured.", false);
+    return;
+  }
+
+  try {
+    console.log("[generateModelSummary] Loading Encoder Summary system prompt...");
+    const systemPrompt = await getEncoderSummarySystemPrompt();
+    
+    console.log("[generateModelSummary] Calling OpenAI to generate model summary...");
+    const userPrompt = `Please analyze these model codes and provide a clear, business-friendly explanation of how the model works:\n\n${modelCodesString}`;
+    
+    const messages = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt }
+    ];
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${AI_MODEL_PLANNER_OPENAI_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: messages,
+        temperature: 0.3,
+        max_tokens: 4000
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API call failed: ${response.status} ${response.statusText}`);
+    }
+
+    const result = await response.json();
+    const summaryContent = result.choices[0]?.message?.content;
+
+    if (summaryContent) {
+      console.log("[generateModelSummary] Model summary generated successfully");
+      displayInClientChatLogPlanner("## 📊 Your Model Explanation\n\n" + summaryContent, false);
+    } else {
+      throw new Error("No summary content received from OpenAI");
+    }
+
+  } catch (error) {
+    console.error("[generateModelSummary] Error generating model summary:", error);
+    displayInClientChatLogPlanner("Model built successfully, but encountered an error generating the explanation. You can still use your model in Excel.", false);
+  }
+}
+
 // Updated to use the more robust fetching approach with dynamic prompt selection
 async function getAIModelPlanningSystemPrompt() {
   const selectedMode = getSelectedSystemPromptMode();
@@ -794,6 +884,16 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
 
         displayInClientChatLogPlanner("Workbook updated with the generated model structure.", false);
         console.log("[AIModelPlanner._executePlannerCodes] Successfully completed.");
+
+        // >>> ADDED: Generate model summary after successful execution
+        console.log("[AIModelPlanner._executePlannerCodes] Generating model summary...");
+        try {
+            await generateModelSummary(modelCodesString);
+        } catch (summaryError) {
+            console.error("[AIModelPlanner._executePlannerCodes] Error generating model summary:", summaryError);
+            displayInClientChatLogPlanner("Model built successfully, but could not generate summary explanation.", false);
+        }
+        // <<< END ADDED
 
     } catch (error) {
         console.error("[AIModelPlanner._executePlannerCodes] Error during processing:", error);
