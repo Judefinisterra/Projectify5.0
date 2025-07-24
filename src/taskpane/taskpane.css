@@ -4615,3 +4615,41 @@ body,
         font-size: 1rem !important; /* Override mobile screen size */
     }
 }
+
+/* System Prompt Selector Styles */
+.system-prompt-selector {
+    margin-top: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.dropdown-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: #333;
+    margin: 0;
+}
+
+.system-prompt-dropdown {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background-color: white;
+    font-size: 14px;
+    color: #333;
+    cursor: pointer;
+    transition: border-color 0.2s ease;
+    min-width: 120px;
+}
+
+.system-prompt-dropdown:hover {
+    border-color: #007ACC;
+}
+
+.system-prompt-dropdown:focus {
+    outline: none;
+    border-color: #007ACC;
+    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}

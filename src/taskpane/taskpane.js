@@ -2652,6 +2652,18 @@ Office.onReady((info) => {
 
     // ... (rest of your Office.onReady, including suggestion logic, initializations)
 
+    // Initialize system prompt dropdown functionality
+    function initializeSystemPromptDropdown() {
+        const dropdown = document.getElementById('system-prompt-dropdown');
+        if (dropdown) {
+            dropdown.addEventListener('change', function() {
+                console.log(`System prompt mode changed to: ${this.value}`);
+                // Optionally reset conversation when mode changes
+                // resetChatClient();
+            });
+        }
+    }
+
     // Make sure initialization runs after setting up modal logic
     Promise.all([
         initializeAPIKeys(),
@@ -2668,6 +2680,9 @@ Office.onReady((info) => {
           setAIModelPlannerOpenApiKey(keys.OPENAI_API_KEY);
         }
       }
+      
+      // >>> ADDED: Initialize system prompt dropdown
+      initializeSystemPromptDropdown();
       
       // >>> ADDED: Clear conversation history on startup to ensure fresh start
       console.log("Clearing conversation history on startup...");

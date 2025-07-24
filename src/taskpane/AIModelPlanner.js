@@ -42,9 +42,24 @@ export function setAIModelPlannerOpenApiKey(key) {
 }
 
 
-// Updated to use the more robust fetching approach
+// Function to get the currently selected system prompt mode
+function getSelectedSystemPromptMode() {
+  const dropdown = document.getElementById('system-prompt-dropdown');
+  return dropdown ? dropdown.value : 'one-shot'; // Default to one-shot
+}
+
+// Updated to use the more robust fetching approach with dynamic prompt selection
 async function getAIModelPlanningSystemPrompt() {
-  const promptKey = "AIModelPlanning_System"; // Key for this specific prompt file
+  const selectedMode = getSelectedSystemPromptMode();
+  
+  // Map the dropdown values to prompt file names
+  const promptMap = {
+    'one-shot': 'AIModelPlanning_System',
+    'planner': 'ModelPLannerGuided_System'
+  };
+  
+  const promptKey = promptMap[selectedMode] || 'AIModelPlanning_System'; // Fallback to one-shot
+  
   const paths = [
     // Try path relative to root if /src/ is not working, assuming 'prompts' is then at root level of served dir
     // THIS IS A GUESS - The original path `https://localhost:3002/src/prompts/...` should work if server is configured for it.
@@ -52,7 +67,7 @@ async function getAIModelPlanningSystemPrompt() {
     CONFIG.getAssetUrl(`src/prompts/${promptKey}.txt`) // Original path as a fallback
   ];
 
-  if (DEBUG_PLANNER) console.log(`AIModelPlanner: Attempting to load prompt file: ${promptKey}.txt`);
+  if (DEBUG_PLANNER) console.log(`AIModelPlanner: Attempting to load prompt file: ${promptKey}.txt (Mode: ${selectedMode})`);
 
   let response = null;
   for (const path of paths) {
@@ -74,7 +89,7 @@ async function getAIModelPlanningSystemPrompt() {
   // If all paths fail
   console.error(`AIModelPlanner: Failed to load prompt ${promptKey}.txt from all attempted paths.`);
   // Fallback prompt
-  return "You are a helpful assistant for financial model planning. [Error: System prompt AIModelPlanning_System.txt could not be loaded]"; 
+  return "You are a helpful assistant for financial model planning. [Error: System prompt could not be loaded]"; 
 }
 
 // NEW HELPER FUNCTION FOR PER-TAB VALIDATION
