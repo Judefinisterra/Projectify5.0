@@ -567,12 +567,15 @@ export async function runCodes(codeCollection) {
                             // Check if worksheet exists
                             const existingSheet = sheets.items.find(sheet => sheet.name === tabName);
                             console.log("existingSheet", existingSheet);
-                            // if (existingSheet) {
-                            //     // Delete the worksheet if it exists
-                            //     existingSheet.delete();
-                            //     await context.sync();
-                            // }
-                            // console.log("existingSheet deleted");
+                            if (existingSheet) {
+                                // Clean up any references to this tab in the Financials sheet BEFORE deleting
+                                await cleanupFinancialsReferences(tabName, context);
+                                
+                                // Delete the worksheet if it exists
+                                existingSheet.delete();
+                                await context.sync();
+                            }
+                            console.log("existingSheet deleted");
                             
                             // Get the Financials worksheet (needed for position and as fallback template)
                             const financialsSheet = context.workbook.worksheets.getItem("Financials");
@@ -580,8 +583,8 @@ export async function runCodes(codeCollection) {
                             await context.sync(); // Sync to get Financials position
                             console.log(`Financials sheet is at position ${financialsSheet.position}`);
                             
-                            // Check if the target tab already exists
-                            if (!existingSheet) {
+                            // Always create new sheet since we deleted any existing one
+                            {
                                 let newSheet;
                                 let sourceSheetName;
 
@@ -696,17 +699,6 @@ export async function runCodes(codeCollection) {
                                 console.log("Tab created successfully:", tabName);
                             // }); <-- Removed this closing parenthesis, it belongs to Excel.run below
 
-                            }
-
-                            else {
-                                console.log("Worksheet already exists:", tabName);
-                                console.log(`[SHEET OPERATION] No sheet creation needed - tab '${tabName}' already exists`);
-                                assumptionTabs.push({
-                                    name: tabName,
-                                    worksheet: existingSheet
-                                });
-                                // Need to set currentWorksheetName here too if the sheet exists
-                                currentWorksheetName = tabName; 
                             }
                       
        
@@ -1296,6 +1288,75 @@ export async function runCodes(codeCollection) {
         // Consider how to return errors. Throwing stops execution.
         // Returning them in the result allows the caller to decide.
         throw error; // Or return { errors: [error.message], assumptionTabs: [] }
+    }
+}
+
+/**
+ * Helper function to delete rows in Financials sheet that reference a deleted tab
+ * @param {string} deletedTabName - The name of the tab that was deleted
+ * @param {Excel.RequestContext} context - The Excel request context
+ */
+async function cleanupFinancialsReferences(deletedTabName, context) {
+    try {
+        console.log(`[CLEANUP] Starting cleanup of Financials references to deleted tab: ${deletedTabName}`);
+        
+        // Get the Financials worksheet
+        const financialsSheet = context.workbook.worksheets.getItem("Financials");
+        
+        // Get used range to determine how many rows to check
+        const usedRange = financialsSheet.getUsedRange(true);
+        if (!usedRange) {
+            console.log("[CLEANUP] No used range found in Financials sheet");
+            return;
+        }
+        
+        usedRange.load("rowCount");
+        await context.sync();
+        
+        const lastRow = usedRange.rowCount;
+        console.log(`[CLEANUP] Checking ${lastRow} rows in Financials sheet`);
+        
+        // Get column U formulas for all rows
+        const columnURange = financialsSheet.getRange(`U1:U${lastRow}`);
+        columnURange.load("formulas");
+        await context.sync();
+        
+        const formulas = columnURange.formulas;
+        const rowsToDelete = [];
+        
+        // Check each formula in column U
+        for (let i = 0; i < formulas.length; i++) {
+            const formula = formulas[i][0]; // Get the formula from the 2D array
+            if (typeof formula === 'string' && formula.startsWith('=')) {
+                // Check if formula references the deleted tab
+                const tabReference = `${deletedTabName}!`;
+                if (formula.includes(tabReference)) {
+                    const rowNumber = i + 1; // Convert 0-based index to 1-based row number
+                    rowsToDelete.push(rowNumber);
+                    console.log(`[CLEANUP] Found reference to ${deletedTabName} in row ${rowNumber}: ${formula}`);
+                }
+            }
+        }
+        
+        // Delete rows in reverse order (highest row number first) to avoid shifting issues
+        rowsToDelete.reverse();
+        
+        for (const rowNumber of rowsToDelete) {
+            console.log(`[CLEANUP] Deleting row ${rowNumber} from Financials sheet`);
+            const rowRange = financialsSheet.getRangeByIndexes(rowNumber - 1, 0, 1, 1000); // Get entire row
+            rowRange.delete(Excel.DeleteShiftDirection.up);
+        }
+        
+        if (rowsToDelete.length > 0) {
+            await context.sync();
+            console.log(`[CLEANUP] Successfully deleted ${rowsToDelete.length} rows from Financials sheet that referenced ${deletedTabName}`);
+        } else {
+            console.log(`[CLEANUP] No rows found in Financials sheet that reference ${deletedTabName}`);
+        }
+        
+    } catch (error) {
+        console.error(`[CLEANUP] Error cleaning up Financials references for ${deletedTabName}:`, error);
+        // Don't throw the error to avoid breaking the main flow
     }
 }
 
@@ -3428,7 +3489,7 @@ export async function driverAndAssumptionInputs(worksheet, calcsPasteRow, code) 
                                 
                                 // Get the cell to verify it exists and has content
                                 const targetCell = currentWorksheet.getRange(cellAddress);
-                                targetCell.load(["values"]);
+                                targetCell.load("values");
                                 await context.sync();
                                 
                                 const currentValue = targetCell.values[0][0];
@@ -4771,7 +4832,7 @@ export async function testExcelInsertion() {
 export function createMinimalExcelBase64() {
     // This is a minimal valid XLSX file (empty workbook) encoded as base64
     // Generated from a real Excel file with just one empty worksheet
-    return "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";
+    return "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";
 }
 
 export async function handleInsertWorksheetsFromBase64(base64String, sheetNames = null) {

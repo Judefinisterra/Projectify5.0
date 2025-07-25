@@ -1097,33 +1097,7 @@ function resetChatClient() {
 }
 // <<< END ADDED
 
-// *** Define Helper Function Globally (BEFORE Office.onReady) ***
-function getTabBlocks(codeString) {
-    if (!codeString) return [];
-    const tabBlocks = [];
-    const tabRegex = /(<TAB;[^>]*>)/g;
-    let match;
-    const indices = [];
-    while ((match = tabRegex.exec(codeString)) !== null) {
-        indices.push({ index: match.index, tag: match[1] });
-    }
-    if (indices.length === 0) {
-        if (codeString.trim().length > 0) {
-            console.warn("Code string provided but no <TAB;...> tags found. Processing cannot proceed based on Tabs.");
-        }
-        return []; 
-    } 
-    for (let i = 0; i < indices.length; i++) {
-        const start = indices[i].index;
-        const tag = indices[i].tag;
-        const end = (i + 1 < indices.length) ? indices[i + 1].index : codeString.length;
-        const blockText = codeString.substring(start, end).trim();
-        if (blockText) {
-            tabBlocks.push({ tag: tag, text: blockText });
-        }
-    }
-    return tabBlocks;
-}
+
 
 // Helper function to find max driver numbers in existing text
 function getMaxDriverNumbers(text) {
@@ -1478,7 +1452,6 @@ async function insertSheetsAndRunCodes() {
     }
 
     let codesToRun = loadedCodeStrings;
-    let previousCodes = null;
     let allCodeContentToProcess = ""; 
     let runResult = null; 
 
@@ -1571,82 +1544,37 @@ async function insertSheetsAndRunCodes() {
             console.log("Base sheets inserted.");
         } else {
             console.log("[Run Codes] SUBSEQUENT PASS: Financials sheet found.");
-            try {
-                previousCodes = localStorage.getItem('previousRunCodeStrings');
-            } catch (error) {
-                 console.error("[Run Codes] Error loading previous codes for comparison:", error);
-                 console.warn("[Run Codes] Could not load previous codes. Processing ALL current codes as fallback.");
-                 previousCodes = null;
-            }
-            if (previousCodes !== null && previousCodes === codesToRun) {
-                 console.log("[Run Codes] No change in code strings since last run. Nothing to process.");
-                 try { localStorage.setItem('previousRunCodeStrings', codesToRun); } catch(e) { console.error("Err updating prev codes:", e); }
-                 showMessage("No code changes to run.");
-                 setButtonLoading(false);
-                 return;
-            }
-            const currentTabs = getTabBlocks(codesToRun);
-            const previousTabs = getTabBlocks(previousCodes || "");
-            const previousTabMap = new Map(previousTabs.map(block => [block.tag, block.text]));
-            let hasAnyChanges = false;
-            const codeRegex = /<[^>]+>/g;
-            for (const currentTab of currentTabs) {
-                const currentTag = currentTab.tag;
-                const currentText = currentTab.text;
-                const previousText = previousTabMap.get(currentTag);
-                if (previousText === undefined) {
-                    const newTabCodes = currentText.match(codeRegex) || [];
-                    if (newTabCodes.length > 0) {
-                        allCodeContentToProcess += newTabCodes.join("\n") + "\n\n";
-                        hasAnyChanges = true;
+            
+            // Process ALL codes (no change detection)
+            allCodeContentToProcess = codesToRun;
+            
+            if (allCodeContentToProcess.trim().length > 0) {
+                const validationErrors = await validateCodeStringsForRun(allCodeContentToProcess);
+                if (validationErrors && validationErrors.length > 0) {
+                    // Separate logic errors (LERR) from format errors (FERR)
+                    const logicErrors = validationErrors.filter(err => err.includes('[LERR'));
+                    const formatErrors = validationErrors.filter(err => err.includes('[FERR'));
+                    
+                    if (logicErrors.length > 0) {
+                        // Logic errors are critical - stop the process
+                        const errorMsg = "Logic validation failed. Please fix these errors before running:\n" + logicErrors.join("\n");
+                        console.error("Logic validation failed:", logicErrors);
+                        showError("Logic validation failed. See chat for details.");
+                        appendMessage(errorMsg);
+                        setButtonLoading(false);
+                        return;
                     }
-                } else {
-                    const currentCodes = currentText.match(codeRegex) || [];
-                    const previousCodesSet = new Set((previousText || "").match(codeRegex) || []);
-                    let tabHasChanges = false;
-                    let codesToAddForThisTab = "";
-                    for (const currentCode of currentCodes) {
-                        if (!previousCodesSet.has(currentCode)) {
-                            codesToAddForThisTab += currentCode + "\n";
-                            hasAnyChanges = true;
-                            tabHasChanges = true;
-                        }
-                    }
-                    if (tabHasChanges) {
-                        allCodeContentToProcess += currentTag + "\n" + codesToAddForThisTab + "\n";
+                    
+                    if (formatErrors.length > 0) {
+                        // Format errors are warnings - show them but continue
+                        const warningMsg = "Format validation warnings:\n" + formatErrors.join("\n");
+                        console.warn("Format validation warnings:", formatErrors);
+                        showMessage("Format validation warnings detected. See chat for details.");
+                        appendMessage(warningMsg);
                     }
                 }
-            }
-            if (hasAnyChanges) {
-                if (allCodeContentToProcess.trim().length > 0) {
-                    const validationErrors = await validateCodeStringsForRun(allCodeContentToProcess);
-                    if (validationErrors && validationErrors.length > 0) {
-                        // Separate logic errors (LERR) from format errors (FERR)
-                        const logicErrors = validationErrors.filter(err => err.includes('[LERR'));
-                        const formatErrors = validationErrors.filter(err => err.includes('[FERR'));
-                        
-                        if (logicErrors.length > 0) {
-                            // Logic errors are critical - stop the process
-                            const errorMsg = "Logic validation failed. Please fix these errors before running:\n" + logicErrors.join("\n");
-                            console.error("Logic validation failed:", logicErrors);
-                            showError("Logic validation failed. See chat for details.");
-                            appendMessage(errorMsg);
-                            setButtonLoading(false);
-                            return;
-                        }
-                        
-                        if (formatErrors.length > 0) {
-                            // Format errors are warnings - show them but continue
-                            const warningMsg = "Format validation warnings:\n" + formatErrors.join("\n");
-                            console.warn("Format validation warnings:", formatErrors);
-                            showMessage("Format validation warnings detected. See chat for details.");
-                            appendMessage(warningMsg);
-                        }
-                    }
-                    console.log("Code validation completed for new/modified tabs.");
-                } else {
-                    console.log("[Run Codes] Changes detected, but no code content found for validation in new/modified tabs.");
-                }
+                console.log("Code validation completed.");
+                
                 try {
                     const codesResponse = await fetch(CONFIG.getAssetUrl('assets/Codes.xlsx'));
                     if (!codesResponse.ok) throw new Error(`Codes.xlsx load failed: ${codesResponse.statusText}`);
@@ -1681,12 +1609,6 @@ async function insertSheetsAndRunCodes() {
                     setButtonLoading(false);
                     return;
                 }
-            } else {
-                 console.log("[Run Codes] No changes identified in tabs compared to previous run. Nothing to insert or process.");
-                 try { localStorage.setItem('previousRunCodeStrings', codesToRun); } catch(e) { console.error("Err updating prev codes:", e); }
-                 showMessage("No code changes identified to run.");
-                 setButtonLoading(false);
-                 return;
             }
         }
 
@@ -1717,11 +1639,7 @@ async function insertSheetsAndRunCodes() {
             }
             await context.sync();
         }).catch(error => { console.error("Error during sheet cleanup:", error); });
-        try {
-            localStorage.setItem('previousRunCodeStrings', codesToRun);
-        } catch (error) {
-             console.error("[Run Codes] Failed to update previous run state:", error);
-        }
+
         showMessage("Code processing finished successfully!");
     } catch (error) {
         console.error("An error occurred during the build process:", error);
@@ -2709,11 +2627,7 @@ Office.onReady((info) => {
               console.log("No code strings found in localStorage, initializing global variable as empty.");
               loadedCodeStrings = "";
           }
-          // Also load the previous run codes if available
-           const storedPreviousCodes = localStorage.getItem('previousRunCodeStrings');
-           if (storedPreviousCodes) {
-               console.log("Previous run code strings loaded from localStorage.");
-           }
+
 
       } catch (error) {
           console.error("Error loading code strings from localStorage:", error);
