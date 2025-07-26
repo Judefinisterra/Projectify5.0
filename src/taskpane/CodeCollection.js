@@ -548,6 +548,51 @@ export async function runCodes(codeCollection) {
                     result.processedCodes++;
                     continue;
                 }
+
+                // Handle ADDCODES code type - set target tab for subsequent codes
+                if (codeType === "ADDCODES") {
+                    console.log("ADDCODES code type encountered - setting target tab for subsequent codes");
+                    startTimer(`ADDCODES-processing-${codeType}-${i}`);
+                    
+                    const targetTabName = code.params.label1;
+                    if (!targetTabName) {
+                        console.error("ADDCODES requires label1 parameter with target tab name");
+                        result.errors.push({
+                            code: code,
+                            error: "ADDCODES requires label1 parameter with target tab name"
+                        });
+                        endTimer(`ADDCODES-processing-${codeType}-${i}`);
+                        continue;
+                    }
+
+                    // Verify the target worksheet exists
+                    try {
+                        await Excel.run(async (context) => {
+                            try {
+                                const targetSheet = context.workbook.worksheets.getItem(targetTabName);
+                                targetSheet.load("name");
+                                await context.sync();
+                                console.log(`ADDCODES: Found existing worksheet '${targetTabName}', setting as current target`);
+                                
+                                // Set the current worksheet name so subsequent codes go to this tab
+                                currentWorksheetName = targetTabName;
+                                
+                            } catch (error) {
+                                throw new Error(`Target worksheet '${targetTabName}' not found for ADDCODES operation`);
+                            }
+                        });
+                        result.processedCodes++;
+                    } catch (error) {
+                        console.error(`Error processing ADDCODES for tab ${targetTabName}:`, error);
+                        result.errors.push({
+                            code: code,
+                            error: error.message || error.toString()
+                        });
+                    }
+                    
+                    endTimer(`ADDCODES-processing-${codeType}-${i}`);
+                    continue;
+                }
                 
                 // Handle TAB code type
                 if (codeType === "TAB") {
