@@ -565,7 +565,7 @@ export async function runCodes(codeCollection) {
                         continue;
                     }
 
-                    // Verify the target worksheet exists
+                    // Verify the target worksheet exists and add to assumption tabs for processing
                     try {
                         await Excel.run(async (context) => {
                             try {
@@ -576,6 +576,19 @@ export async function runCodes(codeCollection) {
                                 
                                 // Set the current worksheet name so subsequent codes go to this tab
                                 currentWorksheetName = targetTabName;
+                                
+                                // Add to assumption tabs collection so it gets proper post-processing
+                                // Check if it's not already in the array to avoid duplicates
+                                const existingTab = assumptionTabs.find(tab => tab.name === targetTabName);
+                                if (!existingTab) {
+                                    assumptionTabs.push({
+                                        name: targetTabName,
+                                        worksheet: targetSheet
+                                    });
+                                    console.log(`ADDCODES: Added '${targetTabName}' to assumption tabs for post-processing`);
+                                } else {
+                                    console.log(`ADDCODES: '${targetTabName}' already in assumption tabs array`);
+                                }
                                 
                             } catch (error) {
                                 throw new Error(`Target worksheet '${targetTabName}' not found for ADDCODES operation`);
