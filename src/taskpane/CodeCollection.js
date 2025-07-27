@@ -806,7 +806,7 @@ export async function runCodes(codeCollection) {
                             const lastUsedRow = currentWS.getUsedRange().getLastRow();
                             lastUsedRow.load("rowIndex");
                             await context.sync();
-                            const pasteRow = Math.max(lastUsedRow.rowIndex + 2, 10); // Ensure paste starts at row 10 or later
+                            const pasteRow = Math.max(lastUsedRow.rowIndex + 2, 11); // Ensure paste starts at row 11 or later
                             console.log("Paste row:", pasteRow);
                             
                             // Search for the code type in column D (index 3)
