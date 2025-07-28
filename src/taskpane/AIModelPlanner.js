@@ -138,6 +138,35 @@ async function generateModelSummary(modelCodesString) {
   }
 }
 
+// Function to detect if a model has been built (JSON output in conversation history)
+function hasModelBeenBuilt() {
+  // Check if there's any assistant message in the history that contains JSON with model tabs
+  for (const [role, content] of modelPlannerConversationHistory) {
+    if (role === 'assistant' && typeof content === 'string') {
+      try {
+        // Try to parse as JSON
+        const parsed = JSON.parse(content);
+        // Check if it looks like a model structure (has tab names as keys)
+        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+          // Check if any key contains typical model tab indicators
+          const keys = Object.keys(parsed);
+          const modelTabIndicators = ['Revenue', 'Direct Costs', 'Corporate Overhead', 'Working Capital', 'Debt', 'Equity', 'PP&E', 'Fixed Assets'];
+          const hasModelTabs = keys.some(key => 
+            modelTabIndicators.some(indicator => key.includes(indicator))
+          );
+          if (hasModelTabs) {
+            console.log('AIModelPlanner: Model detected in conversation history');
+            return true;
+          }
+        }
+      } catch (e) {
+        // Not JSON, continue checking
+      }
+    }
+  }
+  return false;
+}
+
 // Updated to use the more robust fetching approach with dynamic prompt selection
 async function getAIModelPlanningSystemPrompt() {
   const selectedMode = getSelectedSystemPromptMode();
@@ -145,10 +174,18 @@ async function getAIModelPlanningSystemPrompt() {
   // Map the dropdown values to prompt file names
   const promptMap = {
     'one-shot': 'AIModelPlanning_System',
-    'planner': 'ModelPLannerGuided_System'
+    'planner': 'ModelPLannerGuided_System',
+    'updater': 'Model Updater_System'
   };
   
-  const promptKey = promptMap[selectedMode] || 'AIModelPlanning_System'; // Fallback to one-shot
+  // Auto-switch to updater mode if model has been built and we're in follow-up conversation
+  let effectiveMode = selectedMode;
+  if (modelPlannerConversationHistory.length > 0 && hasModelBeenBuilt()) {
+    effectiveMode = 'updater';
+    console.log('AIModelPlanner: Auto-switching to Model Updater mode - model detected in conversation history');
+  }
+  
+  const promptKey = promptMap[effectiveMode] || 'AIModelPlanning_System'; // Fallback to one-shot
   
   const paths = [
     // Try path relative to root if /src/ is not working, assuming 'prompts' is then at root level of served dir
@@ -157,7 +194,7 @@ async function getAIModelPlanningSystemPrompt() {
     CONFIG.getAssetUrl(`src/prompts/${promptKey}.txt`) // Original path as a fallback
   ];
 
-  if (DEBUG_PLANNER) console.log(`AIModelPlanner: Attempting to load prompt file: ${promptKey}.txt (Mode: ${selectedMode})`);
+  if (DEBUG_PLANNER) console.log(`AIModelPlanner: Attempting to load prompt file: ${promptKey}.txt (Mode: ${effectiveMode} ${effectiveMode !== selectedMode ? `[auto-switched from ${selectedMode}]` : ''})`);
 
   let response = null;
   for (const path of paths) {
@@ -396,7 +433,7 @@ async function* processAIModelPlannerPromptInternal({ userInput, systemPrompt, m
     console.log("║        processAIModelPlannerPromptInternal CALLED              ║");
     console.log("╠════════════════════════════════════════════════════════════════╣");
     console.log("║ FILE: AIModelPlanner.js                                        ║");
-    console.log("║ PROMPT FILE: AIModelPlanning_System.txt                        ║");
+    console.log("║ PROMPT FILE: [Dynamically determined based on conversation state] ║");
     console.log("╚══════════════════════════════════════════════════════════════╝");
     console.log(`Model: ${model}`);
     console.log(`Temperature: ${temperature}`);
