@@ -174,6 +174,7 @@ async function getAIModelPlanningSystemPrompt() {
   // Map the dropdown values to prompt file names
   const promptMap = {
     'one-shot': 'AIModelPlanning_System',
+    'one-shot 2': 'OneShot_Planner_System',
     'planner': 'ModelPLannerGuided_System',
     'updater': 'Model Updater_System'
   };
