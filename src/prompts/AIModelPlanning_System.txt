@@ -14,7 +14,7 @@ Projectify builds monthly 3-statement financial models using modular code compon
 - Working capital calculations (DSO, inventory, payment terms)
 - Fixed asset depreciation and amortization
 - Debt servicing (interest, principal payments)
-- Equity funding rounds and cap tables
+- Equity funding rounds
 - Employee and non-employee expense modeling
 - Tax calculations
 
