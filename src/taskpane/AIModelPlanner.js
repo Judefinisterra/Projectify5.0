@@ -173,20 +173,22 @@ async function getAIModelPlanningSystemPrompt() {
   
   // Map the dropdown values to prompt file names
   const promptMap = {
-    'one-shot': 'AIModelPlanning_System',
-    'one-shot 2': 'OneShot_Planner_System',
-    'planner': 'ModelPLannerGuided_System',
-    'updater': 'Model Updater_System'
+    'one-shot': 'OneShot_Planner_System',
+    'limited-guidance': 'AIModelPlanning_System',
+    'full-guidance': 'ModelPLannerGuided_System',
+    'updater': 'Model Updater_System',
+    'one-shot-updater': 'OneShot_Model_Updater_System'
   };
   
   // Auto-switch to updater mode if model has been built and we're in follow-up conversation
   let effectiveMode = selectedMode;
   if (modelPlannerConversationHistory.length > 0 && hasModelBeenBuilt()) {
-    effectiveMode = 'updater';
-    console.log('AIModelPlanner: Auto-switching to Model Updater mode - model detected in conversation history');
+    // If original mode was one-shot, use one-shot updater; otherwise use regular updater
+    effectiveMode = (selectedMode === 'one-shot') ? 'one-shot-updater' : 'updater';
+    console.log(`AIModelPlanner: Auto-switching to ${effectiveMode} mode - model detected in conversation history`);
   }
   
-  const promptKey = promptMap[effectiveMode] || 'AIModelPlanning_System'; // Fallback to one-shot
+  const promptKey = promptMap[effectiveMode] || 'OneShot_Planner_System'; // Fallback to one-shot
   
   const paths = [
     // Try path relative to root if /src/ is not working, assuming 'prompts' is then at root level of served dir

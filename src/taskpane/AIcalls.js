@@ -2071,10 +2071,15 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
             throw new Error("OpenAI API key not initialized for follow-up conversation.");
         }
 
-        // Load the followup system prompt
-        const followupSystemPrompt = await getSystemPromptFromFile('Followup_System');
+        // Determine which followup system prompt to use based on current mode
+        const dropdown = document.getElementById('system-prompt-dropdown');
+        const currentMode = dropdown ? dropdown.value : 'one-shot';
+        const followupPromptName = (currentMode === 'one-shot') ? 'oneshotfollowup_system' : 'Followup_System';
+        
+        // Load the appropriate followup system prompt
+        const followupSystemPrompt = await getSystemPromptFromFile(followupPromptName);
         if (!followupSystemPrompt) {
-            throw new Error("Failed to load Followup_System prompt.");
+            throw new Error(`Failed to load ${followupPromptName} prompt.`);
         }
 
         // Extract current codestrings from the last assistant response in history
