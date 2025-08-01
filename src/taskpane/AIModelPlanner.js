@@ -16,6 +16,7 @@ import {
     handleInsertWorksheetsFromBase64 
 } from './CodeCollection.js';
 import { getAICallsProcessedResponse, validationCorrection } from './AIcalls.js';
+import { ModelUpdateHandler, stripCodeBlockMarkers } from './ModelUpdateHandler.js';
 // We don't import from taskpane.js to avoid cycles
 
 let modelPlannerConversationHistory = [];
@@ -144,8 +145,12 @@ function hasModelBeenBuilt() {
   for (const [role, content] of modelPlannerConversationHistory) {
     if (role === 'assistant' && typeof content === 'string') {
       try {
+        // >>> ADDED: Strip code block markers if present (for stored conversation history)
+        const cleanedContent = stripCodeBlockMarkers(content);
+        // <<< END ADDED
+        
         // Try to parse as JSON
-        const parsed = JSON.parse(content);
+        const parsed = JSON.parse(cleanedContent);
         // Check if it looks like a model structure (has tab names as keys)
         if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
           // Check if any key contains typical model tab indicators
@@ -480,7 +485,11 @@ async function* processAIModelPlannerPromptInternal({ userInput, systemPrompt, m
             // The prompt asks for JSON output in the final step.
             // For intermediate steps, it might be text. We need to handle both.
             try {
-                const parsedJson = JSON.parse(responseContent);
+                // >>> ADDED: Strip code block markers if present
+                const cleanedContent = stripCodeBlockMarkers(responseContent);
+                // <<< END ADDED
+                
+                const parsedJson = JSON.parse(cleanedContent);
                 if (typeof parsedJson === 'object' && parsedJson !== null) {
                     yield parsedJson; // Yield the single parsed object
                     return;
@@ -747,6 +756,22 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
     console.log(`[AIModelPlanner._executePlannerCodes] Called. Retry count: ${retryCount}`);
     const MAX_RETRIES = 3;
 
+    // >>> ADDED: Apply ModelUpdateHandler transformations if this is an update
+    if (window.currentUpdateHandler && !window.currentUpdateHandler.isNewBuild) {
+        console.log("[AIModelPlanner._executePlannerCodes] Applying update transformations...");
+        const modelCodesArray = modelCodesString.split('\n');
+        const transformedCodes = window.currentUpdateHandler.processModelCodes(modelCodesArray);
+        modelCodesString = transformedCodes.join('\n');
+        console.log("[AIModelPlanner._executePlannerCodes] Model codes transformed for update");
+        
+        // Handle calcs deletion if required
+        if (window.currentUpdateHandler.shouldDeleteCalcs()) {
+            console.log("[AIModelPlanner._executePlannerCodes] Calcs deletion required for this update type");
+            // Add logic to delete calcs sheet here if needed
+        }
+    }
+    // <<< END ADDED
+
     // Substitute <BR> with <BR; labelRow=""; row1 = "||||||||||||";>
     if (modelCodesString && typeof modelCodesString === 'string') {
         modelCodesString = modelCodesString.replace(/<BR>/g, '<BR; labelRow=""; row1 = "||||||||||||";>');
@@ -823,36 +848,45 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
         console.log(modelCodesString);
         console.log("[AIModelPlanner._executePlannerCodes] === END OF CODESTRINGS ===");
 
-        console.log("[AIModelPlanner._executePlannerCodes] Inserting base sheets from Worksheets_4.3.25 v1.xlsx...");
-        const worksheetsResponse = await fetch(CONFIG.getAssetUrl('assets/Worksheets_4.3.25 v1.xlsx'));
-        if (!worksheetsResponse.ok) throw new Error(`[AIModelPlanner._executePlannerCodes] Worksheets_4.3.25 v1.xlsx load failed: ${worksheetsResponse.statusText}`);
-        const wsArrayBuffer = await worksheetsResponse.arrayBuffer();
-        console.log(`[AIModelPlanner._executePlannerCodes] Worksheets ArrayBuffer size: ${wsArrayBuffer.byteLength} bytes`);
-        
-        // Improved base64 conversion using modern method
-        let wsBase64String;
-        try {
-            const blob = new Blob([wsArrayBuffer]);
-            wsBase64String = await new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    const dataUrl = reader.result;
-                    const base64 = dataUrl.split(',')[1]; // Remove data:application/octet-stream;base64, prefix
-                    resolve(base64);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(blob);
-            });
-            console.log(`[AIModelPlanner._executePlannerCodes] Worksheets base64 length: ${wsBase64String.length} characters`);
-        } catch (conversionError) {
-            console.error(`[AIModelPlanner._executePlannerCodes] Worksheets base64 conversion failed:`, conversionError);
-            throw new Error(`Failed to convert worksheets to base64: ${conversionError.message}`);
+        // >>> ADDED: Only insert base worksheets for new builds
+        if (!window.currentUpdateHandler || window.currentUpdateHandler.isNewBuild) {
+            console.log("[AIModelPlanner._executePlannerCodes] NEW BUILD: Inserting base sheets from Worksheets_4.3.25 v1.xlsx...");
+            const worksheetsResponse = await fetch(CONFIG.getAssetUrl('assets/Worksheets_4.3.25 v1.xlsx'));
+            if (!worksheetsResponse.ok) throw new Error(`[AIModelPlanner._executePlannerCodes] Worksheets_4.3.25 v1.xlsx load failed: ${worksheetsResponse.statusText}`);
+            const wsArrayBuffer = await worksheetsResponse.arrayBuffer();
+            console.log(`[AIModelPlanner._executePlannerCodes] Worksheets ArrayBuffer size: ${wsArrayBuffer.byteLength} bytes`);
+            
+            // Improved base64 conversion using modern method
+            let wsBase64String;
+            try {
+                const blob = new Blob([wsArrayBuffer]);
+                wsBase64String = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const dataUrl = reader.result;
+                        const base64 = dataUrl.split(',')[1]; // Remove data:application/octet-stream;base64, prefix
+                        resolve(base64);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+                console.log(`[AIModelPlanner._executePlannerCodes] Worksheets base64 length: ${wsBase64String.length} characters`);
+            } catch (conversionError) {
+                console.error(`[AIModelPlanner._executePlannerCodes] Worksheets base64 conversion failed:`, conversionError);
+                throw new Error(`Failed to convert worksheets to base64: ${conversionError.message}`);
+            }
+            
+            await handleInsertWorksheetsFromBase64(wsBase64String);
+            console.log("[AIModelPlanner._executePlannerCodes] Base sheets (Worksheets_4.3.25 v1.xlsx) inserted.");
+        } else {
+            console.log("[AIModelPlanner._executePlannerCodes] UPDATE MODE: Skipping base worksheets insertion");
         }
-        
-        await handleInsertWorksheetsFromBase64(wsBase64String);
-        console.log("[AIModelPlanner._executePlannerCodes] Base sheets (Worksheets_4.3.25 v1.xlsx) inserted.");
+        // <<< END ADDED
 
-        console.log("[AIModelPlanner._executePlannerCodes] Inserting Codes.xlsx...");
+        // >>> ADDED: Determine which sheets to insert based on update type
+        const sheetsToInsert = window.currentUpdateHandler ? window.currentUpdateHandler.getSheetsToMove() : ['Codes'];
+        console.log(`[AIModelPlanner._executePlannerCodes] Inserting Codes.xlsx sheets: ${sheetsToInsert.join(', ')}...`);
+        
         const codesResponse = await fetch(CONFIG.getAssetUrl('assets/Codes.xlsx'));
         if (!codesResponse.ok) throw new Error(`[AIModelPlanner._executePlannerCodes] Codes.xlsx load failed: ${codesResponse.statusText}`);
         const codesArrayBuffer = await codesResponse.arrayBuffer();
@@ -878,8 +912,9 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
             throw new Error(`Failed to convert codes to base64: ${conversionError.message}`);
         }
         
-        await handleInsertWorksheetsFromBase64(codesBase64String, ["Codes"]); 
-        console.log("[AIModelPlanner._executePlannerCodes] Codes.xlsx sheets inserted/updated.");
+        await handleInsertWorksheetsFromBase64(codesBase64String, sheetsToInsert); 
+        console.log(`[AIModelPlanner._executePlannerCodes] Codes.xlsx sheets (${sheetsToInsert.join(', ')}) inserted/updated.`);
+        // <<< END ADDED
     
         console.log("[AIModelPlanner._executePlannerCodes] Populating collection...");
         const collection = populateCodeCollection(modelCodesString);
@@ -1090,7 +1125,14 @@ export async function plannerHandleSend() {
         let jsonObjectToProcess = null;
         if (fullAssistantTextResponse) {
             try {
-                const parsedResponse = JSON.parse(fullAssistantTextResponse);
+                // >>> ADDED: Strip code block markers if present
+                const cleanedResponse = stripCodeBlockMarkers(fullAssistantTextResponse);
+                if (cleanedResponse !== fullAssistantTextResponse.trim()) {
+                    console.log("AIModelPlanner: Stripped code block markers from response");
+                }
+                // <<< END ADDED
+                
+                const parsedResponse = JSON.parse(cleanedResponse);
                 if (typeof parsedResponse === 'object' && parsedResponse !== null && !Array.isArray(parsedResponse)) {
                     jsonObjectToProcess = parsedResponse;
                     lastPlannerResponseForClient = parsedResponse; // Update to store parsed object
@@ -1111,6 +1153,17 @@ export async function plannerHandleSend() {
 
         if (jsonObjectToProcess) {
             console.log("AIModelPlanner: Starting to process JSON object for ModelCodes generation.");
+            
+            // >>> ADDED: Initialize ModelUpdateHandler to determine update type
+            const updateHandler = new ModelUpdateHandler();
+            const isNewBuild = updateHandler.determineUpdateType(jsonObjectToProcess);
+            const updateSummary = updateHandler.getUpdateSummary();
+            
+            console.log("AIModelPlanner: Update analysis:", updateSummary);
+            
+            // Store update handler for later use in _executePlannerCodes
+            window.currentUpdateHandler = updateHandler;
+            // <<< END ADDED
             
             // Prepare all tabs for parallel processing
             const tabsToProcess = [];

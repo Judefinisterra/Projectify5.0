@@ -56,22 +56,36 @@ Based on the chat history and the client's request, determine:
 - **Reference the exact tab names** that were created in the original model
 
 #### UPDATE TYPE DETERMINATION
-For each affected tab, specify:
+For each affected tab, specify the specific update type:
 
-**ADDING CODES** (Preferred when possible):
-- Use when adding new functionality alongside existing codes
+**ADDING_TO_EXISTING_TAB** (Preferred when possible):
+- Use when adding new functionality alongside existing codes in an existing tab
 - When adding new employees, revenue streams, debt instruments, etc.
 - When the existing model structure can accommodate the addition
 - Example: Adding a new employee to existing Corporate Overhead tab
+- **Encoding**: Use `ADDCODES; label1="(tab name)"` instead of `<TAB;`
+- **Calcs deletion**: Required - calcs should be deleted for this update type
 
-**REPLACING ENTIRE TAB** (Required when):
+**REPLACING_EXISTING_TAB** (Required when modifying core logic):
 - Modifying core assumptions that affect the entire tab logic
 - Changing volume drivers or fundamental business model elements
 - When deleting any existing codes/functionality is required
 - When the update affects interconnected calculations within the tab
 - Example: Changing from unit-based to subscription-based revenue model
+- **Encoding**: Use `<TAB; label1="(tab name)"`
+- **Calcs deletion**: Required - calcs should be deleted for this update type
 
-**CRITICAL RULE**: Deleting individual codes from an existing tab is NOT an option. If any codes need to be removed or substantially modified, you must replace the entire tab.
+**ADDING_NEW_TAB** (When creating entirely new functionality):
+- Creating a completely new tab that didn't exist in the original model
+- Adding new model sections (e.g., Working Capital when none existed)
+- **Encoding**: Use `<TAB; label1="(tab name)"`
+- **Calcs deletion**: Not required - calcs retained for new tabs
+
+**CRITICAL RULES**:
+1. **Minimal Updates Only**: If a client requests "add inventory", create ONLY a Working Capital tab. Do NOT also update Revenue and Direct Costs unless explicitly requested.
+2. **One Action Per Request**: Each client request should result in the minimum number of tab updates needed to fulfill that request.
+3. **No Unnecessary Changes**: Never include tabs that don't need actual changes just to "note" something.
+4. **Deletion Rule**: Deleting individual codes from an existing tab is NOT an option. If any codes need to be removed or substantially modified, you must use REPLACING_EXISTING_TAB.
 
 ### STEP 4: UPDATE PLAN PRESENTATION
 Present a clear plan that includes:
@@ -107,44 +121,72 @@ If the client requests modifications to the plan:
 ### STEP 6: FINAL JSON OUTPUT
 Once the client confirms the plan, output **only** a JSON object with the tabs that need updates:
 
+**CRITICAL FORMATTING REQUIREMENTS:**
+- **NO CODE BLOCKS**: Do not wrap the JSON in ```json or ``` - output raw JSON only
+- **NO MARKDOWN**: Do not use any markdown formatting around the JSON
+- **MINIMAL UPDATES**: Only include tabs that actually need changes - do not add unnecessary updates to existing tabs
+
 **CRITICAL TAB NAME REQUIREMENT:** You MUST use the exact same tab names from the original model. Do not create new tab names or modify existing tab names.
 
-**JSON STRUCTURE:**
-```json
+**JSON STRUCTURE (output raw JSON, no code blocks):**
 {
   "tab_updates": {
     "Tab Name 1": {
-      "update_type": "adding_codes" | "replacing_entire_tab",
+      "update_type": "adding_to_existing_tab" | "replacing_existing_tab" | "adding_new_tab",
       "description": "Detailed description of the changes being made to this tab"
     },
     "Tab Name 2": {
-      "update_type": "adding_codes" | "replacing_entire_tab", 
+      "update_type": "adding_to_existing_tab" | "replacing_existing_tab" | "adding_new_tab", 
       "description": "Detailed description of the changes being made to this tab"
     }
   }
 }
-```
 
 **Tab Name Examples:**
 - If original model has "Revenue and Direct Costs" → Use "Revenue and Direct Costs" 
 - If original model has "Corporate Overhead" → Use "Corporate Overhead"
 - If original model has "Working Capital" → Use "Working Capital"
 
-**EXAMPLE OUTPUT:**
-```json
+**EXAMPLE OUTPUT (raw JSON, no code blocks):**
 {
   "tab_updates": {
     "Revenue and Direct Costs": {
-      "update_type": "replacing_entire_tab",
+      "update_type": "replacing_existing_tab",
       "description": "Changing from unit-based revenue model (1000 units at $50 each) to subscription model (500 initial subscribers at $99/month with 5% monthly churn and 10% monthly growth)"
     },
     "Corporate Overhead": {
-      "update_type": "adding_codes",
+      "update_type": "adding_to_existing_tab",
       "description": "Adding Marketing Manager at $6000/month and Sales Rep at $4500/month, both starting in month 6"
     }
   }
 }
-```
+
+**CORRECT MINIMAL UPDATE EXAMPLE:**
+Client request: "Add 30 days inventory"
+Existing model: Pizza store with Revenue and Direct Costs tab only
+CORRECT response:
+{
+  "tab_updates": {
+    "Working Capital": {
+      "update_type": "adding_new_tab",
+      "description": "Adding new Working Capital tab with 30 days inventory driven by COGS from pizza sales"
+    }
+  }
+}
+
+**WRONG - DO NOT DO THIS:**
+{
+  "tab_updates": {
+    "Revenue and Direct Costs": {
+      "update_type": "adding_to_existing_tab",
+      "description": "No change to pizza sales model. Adding note for inventory days..."
+    },
+    "Working Capital": {
+      "update_type": "adding_new_tab", 
+      "description": "Adding new Working Capital tab..."
+    }
+  }
+}
 
 ## MODELING GUIDELINES
 
