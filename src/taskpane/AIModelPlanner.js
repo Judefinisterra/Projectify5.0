@@ -80,7 +80,7 @@ async function getEncoderSummarySystemPrompt() {
   return "You are an expert financial analyst who translates technical financial model codes into clear, plain English explanations for business clients. [Error: Encoder Summary system prompt could not be loaded]"; 
 }
 
-// Function to generate model summary after successful model execution
+// Function to generate model summary after successful model execution with streaming
 async function generateModelSummary(modelCodesString) {
   if (!modelCodesString || modelCodesString.trim().length === 0) {
     console.log("[generateModelSummary] No model codes to summarize.");
@@ -97,13 +97,50 @@ async function generateModelSummary(modelCodesString) {
     console.log("[generateModelSummary] Loading Encoder Summary system prompt...");
     const systemPrompt = await getEncoderSummarySystemPrompt();
     
-    console.log("[generateModelSummary] Calling OpenAI to generate model summary...");
+    console.log("[generateModelSummary] Calling OpenAI to generate model summary with streaming...");
     const userPrompt = `Please analyze these model codes and provide a clear, business-friendly explanation of how the model works:\n\n${modelCodesString}`;
     
     const messages = [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt }
     ];
+
+    // >>> ADDED: Create DOM elements for streaming response
+    let chatLogClient = document.getElementById('chat-log-client');
+    
+    // If chat log doesn't exist, try to create it (consistent with displayInClientChatLogPlanner)
+    if (!chatLogClient) {
+        console.error("[generateModelSummary] Client chat log element not found. Attempting to create it...");
+        const container = document.getElementById('client-chat-container');
+        if (container) {
+            chatLogClient = document.createElement('div');
+            chatLogClient.id = 'chat-log-client';
+            chatLogClient.className = 'chat-log';
+            chatLogClient.style.display = 'block';
+            chatLogClient.style.flexGrow = '1';
+            chatLogClient.style.overflowY = 'auto';
+            container.appendChild(chatLogClient);
+            console.log("[generateModelSummary] Created chat log element");
+        } else {
+            console.error("[generateModelSummary] Could not find container to create chat log");
+            return;
+        }
+    }
+
+    // Hide welcome message if it exists
+    const welcomeMessage = document.getElementById('welcome-message-client');
+    if (welcomeMessage) welcomeMessage.style.display = 'none';
+
+    const assistantMessageDiv = document.createElement('div');
+    assistantMessageDiv.className = 'chat-message assistant-message';
+    const assistantMessageContent = document.createElement('p');
+    assistantMessageContent.className = 'message-content';
+    assistantMessageContent.textContent = '## 📊 Your Model Explanation\n\n'; // Start with header
+    assistantMessageDiv.appendChild(assistantMessageContent);
+    
+    chatLogClient.appendChild(assistantMessageDiv);
+    chatLogClient.scrollTop = chatLogClient.scrollHeight;
+    // <<< END ADDED
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -115,7 +152,8 @@ async function generateModelSummary(modelCodesString) {
         model: "gpt-4o",
         messages: messages,
         temperature: 0.3,
-        max_tokens: 4000
+        max_tokens: 4000,
+        stream: true // >>> ADDED: Enable streaming
       })
     });
 
@@ -123,14 +161,79 @@ async function generateModelSummary(modelCodesString) {
       throw new Error(`OpenAI API call failed: ${response.status} ${response.statusText}`);
     }
 
-    const result = await response.json();
-    const summaryContent = result.choices[0]?.message?.content;
+    // >>> ADDED: Handle streaming response
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let fullSummaryContent = "";
 
-    if (summaryContent) {
-      console.log("[generateModelSummary] Model summary generated successfully");
-      displayInClientChatLogPlanner("## 📊 Your Model Explanation\n\n" + summaryContent, false);
+    while (true) {
+      const { done, value } = await reader.read();
+      
+      if (done) {
+        // Process any remaining buffer content
+        if (buffer.trim()) {
+          const finalLines = buffer.split("\n");
+          for (const line of finalLines) {
+            const cleanedLine = line.replace(/^data: /, "").trim();
+            if (cleanedLine && cleanedLine !== "[DONE]") {
+              try {
+                const parsedLine = JSON.parse(cleanedLine);
+                if (parsedLine.choices && parsedLine.choices[0]?.delta?.content) {
+                  const content = parsedLine.choices[0].delta.content;
+                  fullSummaryContent += content;
+                  assistantMessageContent.textContent += content;
+                  if (chatLogClient) chatLogClient.scrollTop = chatLogClient.scrollHeight;
+                }
+              } catch (e) {
+                console.warn("[generateModelSummary] Could not parse final JSON line from stream:", cleanedLine, e);
+              }
+            }
+          }
+        }
+        break;
+      }
+      
+      const chunk = decoder.decode(value, { stream: true });
+      buffer += chunk;
+      
+      // Split by double newlines to get complete SSE events
+      const events = buffer.split("\n\n");
+      
+      // Keep the last potentially incomplete event in the buffer
+      buffer = events.pop() || "";
+      
+      // Process complete events
+      for (const event of events) {
+        if (!event.trim()) continue;
+        
+        const lines = event.split("\n");
+        for (const line of lines) {
+          const cleanedLine = line.replace(/^data: /, "").trim();
+          if (cleanedLine && cleanedLine !== "[DONE]") {
+            try {
+              const parsedLine = JSON.parse(cleanedLine);
+              if (parsedLine.choices && parsedLine.choices[0]?.delta?.content) {
+                const content = parsedLine.choices[0].delta.content;
+                fullSummaryContent += content;
+                assistantMessageContent.textContent += content;
+                if (chatLogClient) chatLogClient.scrollTop = chatLogClient.scrollHeight;
+              }
+            } catch (e) {
+              console.warn("[generateModelSummary] Could not parse JSON line from stream:", cleanedLine, e);
+            }
+          }
+        }
+      }
+    }
+    // <<< END ADDED
+
+    if (fullSummaryContent) {
+      console.log("[generateModelSummary] Model summary generated successfully with streaming");
+      // Update conversation history with the complete summary
+      modelPlannerConversationHistory.push(['assistant', "## 📊 Your Model Explanation\n\n" + fullSummaryContent]);
     } else {
-      throw new Error("No summary content received from OpenAI");
+      throw new Error("No summary content received from OpenAI streaming response");
     }
 
   } catch (error) {
