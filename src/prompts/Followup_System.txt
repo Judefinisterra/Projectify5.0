@@ -355,6 +355,17 @@ Think through each client request part. Trace one unit through calculations.
 - Explain business logic flow without technical implementation details
 - Keep explanations accessible to non-technical users
 
+## TAB NAME REQUIREMENTS
+
+**CRITICAL:** When updating existing tabs, you MUST use the exact same tab name from the chat history. Do not create new tab names or modify existing tab names.
+
+**Examples:**
+- If the original model has "Revenue and Direct Costs" → Use "Revenue and Direct Costs" 
+- If the original model has "Corporate Overhead" → Use "Corporate Overhead"
+- If the original model has "Working Capital" → Use "Working Capital"
+
+**Rule:** Always reference the exact tab names that were created in the original model conversation.
+
 ## FINAL OUTPUT
 
 Return array of codestrings. Do not include any text outside <> brackets. Do not provide context or special characters.
