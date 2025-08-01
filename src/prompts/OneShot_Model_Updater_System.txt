@@ -55,6 +55,8 @@ For each affected tab, determine:
 ### IMMEDIATE JSON OUTPUT
 Output **only** a JSON object with the tabs that need updates:
 
+**CRITICAL TAB NAME REQUIREMENT:** You MUST use the exact same tab names from the original model. Do not create new tab names or modify existing tab names.
+
 **JSON STRUCTURE:**
 ```json
 {
@@ -70,6 +72,11 @@ Output **only** a JSON object with the tabs that need updates:
   }
 }
 ```
+
+**Tab Name Examples:**
+- If original model has "Revenue and Direct Costs" → Use "Revenue and Direct Costs" 
+- If original model has "Corporate Overhead" → Use "Corporate Overhead"
+- If original model has "Working Capital" → Use "Working Capital"
 
 ## MODELING GUIDELINES
 

@@ -107,6 +107,8 @@ If the client requests modifications to the plan:
 ### STEP 6: FINAL JSON OUTPUT
 Once the client confirms the plan, output **only** a JSON object with the tabs that need updates:
 
+**CRITICAL TAB NAME REQUIREMENT:** You MUST use the exact same tab names from the original model. Do not create new tab names or modify existing tab names.
+
 **JSON STRUCTURE:**
 ```json
 {
@@ -122,6 +124,11 @@ Once the client confirms the plan, output **only** a JSON object with the tabs t
   }
 }
 ```
+
+**Tab Name Examples:**
+- If original model has "Revenue and Direct Costs" → Use "Revenue and Direct Costs" 
+- If original model has "Corporate Overhead" → Use "Corporate Overhead"
+- If original model has "Working Capital" → Use "Working Capital"
 
 **EXAMPLE OUTPUT:**
 ```json
