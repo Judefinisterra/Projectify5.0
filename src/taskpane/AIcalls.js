@@ -2092,6 +2092,29 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
                 currentCodestrings = codestrings.length > 0 ? codestrings.join('\n') : assistantResponse;
             }
         }
+        
+        // Also try to get existing model codes from localStorage as backup
+        let existingModelCodes = "";
+        try {
+            // Try to use the enhanced storage system first
+            try {
+                const { getStoredModelCodes } = await import('./ModelCodeStorage.js');
+                const storedCodes = getStoredModelCodes(false); // Get raw codes without timestamp
+                if (storedCodes && storedCodes.trim()) {
+                    existingModelCodes = storedCodes;
+                    console.log("[handleFollowUpConversation] Retrieved existing model codes from enhanced storage");
+                }
+            } catch (importError) {
+                // Fallback to direct localStorage access
+                const savedModelCodes = localStorage.getItem('rawModelCodes') || localStorage.getItem('lastModelCodes');
+                if (savedModelCodes && savedModelCodes.trim()) {
+                    existingModelCodes = savedModelCodes;
+                    console.log("[handleFollowUpConversation] Retrieved existing model codes from localStorage (fallback)");
+                }
+            }
+        } catch (error) {
+            console.warn("[handleFollowUpConversation] Could not retrieve model codes from localStorage:", error);
+        }
 
         // Build conversation history string for the prompt
         let conversationHistoryString = "";
@@ -2116,8 +2139,9 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
             }
         }
 
-        // Create the complete prompt for the followup
-        const followupPrompt = `CONVERSATION HISTORY:\n${conversationHistoryString}CURRENT CODESTRINGS:\n${currentCodestrings}\n\nNEW USER MESSAGE:\n${clientprompt}`;
+        // Create the complete prompt for the followup with existing encoding context
+        const existingEncodingSection = existingModelCodes ? `\n\nEXISTING ENCODING (preserve unless specifically told to change):\n${existingModelCodes}` : "";
+        const followupPrompt = `CONVERSATION HISTORY:\n${conversationHistoryString}CURRENT CODESTRINGS:\n${currentCodestrings}${existingEncodingSection}\n\nNEW USER MESSAGE:\n${clientprompt}`;
 
         if (DEBUG) {
             console.log("[handleFollowUpConversation] Followup prompt created:");

@@ -1487,6 +1487,15 @@ export async function plannerHandleSend() {
                 await _executePlannerCodes(ModelCodes);
                 // Save the ModelCodes to Last Model.txt file after successful execution
                 await saveModelCodesToLastModelFile(ModelCodes);
+                
+                // Also use enhanced storage system for better tab management
+                try {
+                    const { storeModelCodes } = await import('./ModelCodeStorage.js');
+                    storeModelCodes(ModelCodes);
+                    console.log("[plannerHandleSend] Model codes stored in enhanced storage system");
+                } catch (importError) {
+                    console.warn("[plannerHandleSend] Could not import ModelCodeStorage:", importError);
+                }
             } else {
                 console.log("AIModelPlanner: ModelCodes string is empty. Skipping _executePlannerCodes call.");
                 displayInClientChatLogPlanner("No code content generated to apply to workbook.", false);
@@ -1603,6 +1612,8 @@ async function saveModelCodesToLastModelFile(modelCodesString) {
         // Store in localStorage as a backup
         try {
             localStorage.setItem('lastModelCodes', contentToSave);
+            // Also store just the raw codes without timestamp for easier processing
+            localStorage.setItem('rawModelCodes', modelCodesString);
             console.log("[saveModelCodesToLastModelFile] ModelCodes stored in localStorage as backup");
         } catch (storageError) {
             console.warn("[saveModelCodesToLastModelFile] Failed to store in localStorage:", storageError);
