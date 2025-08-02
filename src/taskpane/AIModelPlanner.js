@@ -946,6 +946,28 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
         }
         console.log("[AIModelPlanner._executePlannerCodes] Code validation successful.");
 
+        // >>> ADDED: Clean up Financials references for replaced tabs BEFORE processing codes
+        console.log("[AIModelPlanner._executePlannerCodes] CLEANUP DEBUG - window.currentUpdateHandler exists:", !!window.currentUpdateHandler);
+        if (window.currentUpdateHandler) {
+            console.log("[AIModelPlanner._executePlannerCodes] CLEANUP DEBUG - isNewBuild:", window.currentUpdateHandler.isNewBuild);
+            console.log("[AIModelPlanner._executePlannerCodes] CLEANUP DEBUG - updateData:", window.currentUpdateHandler.updateData);
+        }
+        
+        if (window.currentUpdateHandler && !window.currentUpdateHandler.isNewBuild) {
+            console.log("[AIModelPlanner._executePlannerCodes] Cleaning up Financials references for replaced tabs...");
+            try {
+                await window.currentUpdateHandler.cleanupReplacedTabs();
+                console.log("[AIModelPlanner._executePlannerCodes] Financials cleanup completed");
+            } catch (cleanupError) {
+                console.error("[AIModelPlanner._executePlannerCodes] Error during Financials cleanup:", cleanupError);
+                // Continue execution - cleanup failure shouldn't stop model building
+            }
+        } else {
+            console.log("[AIModelPlanner._executePlannerCodes] CLEANUP SKIPPED - Reason:", 
+                !window.currentUpdateHandler ? "No updateHandler" : "isNewBuild=true");
+        }
+        // <<< END ADDED
+
         // LOG THE ENTIRE VALIDATED CODESTRINGS BEFORE BUILDING THE MODEL
         console.log("[AIModelPlanner._executePlannerCodes] === COMPLETE VALIDATED CODESTRINGS ===");
         console.log(modelCodesString);
@@ -1063,7 +1085,21 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
         displayInClientChatLogPlanner("Workbook updated with the generated model structure.", false);
         console.log("[AIModelPlanner._executePlannerCodes] Successfully completed.");
 
-        // >>> ADDED: Generate model summary after successful execution
+        // >>> ADDED: Set calculation mode to automatic BEFORE model summary generation
+        displayInClientChatLogPlanner("🔄 Activating Excel calculations - your model is now live!", false);
+        console.log("[AIModelPlanner._executePlannerCodes] Setting calculation mode to automatic...");
+        try {
+            await Excel.run(async (context) => {
+                context.application.calculationMode = Excel.CalculationMode.automatic;
+                await context.sync();
+                console.log("[AIModelPlanner._executePlannerCodes] Calculation mode set to automatic - Excel will now recalculate.");
+            });
+        } catch (calcError) {
+            console.error("[AIModelPlanner._executePlannerCodes] Error setting calculation mode to automatic:", calcError);
+        }
+        // <<< END ADDED
+
+        // >>> ADDED: Generate model summary after recalculation
         console.log("[AIModelPlanner._executePlannerCodes] Generating model summary...");
         try {
             await generateModelSummary(modelCodesString);
@@ -1083,15 +1119,17 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
         }
         // For non-validation errors, don't re-throw (maintain existing behavior)
     } finally {
+        // >>> MODIFIED: Ensure calculation mode is always set to automatic as final safety measure
         try {
             await Excel.run(async (context) => {
                 context.application.calculationMode = Excel.CalculationMode.automatic;
                 await context.sync();
-                console.log("[AIModelPlanner._executePlannerCodes] Calculation mode set to automatic.");
+                console.log("[AIModelPlanner._executePlannerCodes] Calculation mode ensured automatic in finally block.");
             });
         } catch (finalError) {
-            console.error("[AIModelPlanner._executePlannerCodes] Error setting calculation mode to automatic:", finalError);
+            console.error("[AIModelPlanner._executePlannerCodes] Error ensuring calculation mode in finally block:", finalError);
         }
+        // <<< END MODIFIED
     }
 }
 
@@ -1263,30 +1301,55 @@ export async function plannerHandleSend() {
             const updateSummary = updateHandler.getUpdateSummary();
             
             console.log("AIModelPlanner: Update analysis:", updateSummary);
+            console.log("AIModelPlanner: JSON Object keys:", Object.keys(jsonObjectToProcess));
+            console.log("AIModelPlanner: isNewBuild determined as:", isNewBuild);
+            console.log("AIModelPlanner: updateHandler.isNewBuild:", updateHandler.isNewBuild);
+            console.log("AIModelPlanner: updateHandler.updateData:", updateHandler.updateData);
             
             // Store update handler for later use in _executePlannerCodes
             window.currentUpdateHandler = updateHandler;
+            console.log("AIModelPlanner: window.currentUpdateHandler stored with isNewBuild:", window.currentUpdateHandler.isNewBuild);
             // <<< END ADDED
             
             // Prepare all tabs for parallel processing
             const tabsToProcess = [];
-            for (const tabLabel in jsonObjectToProcess) {
-                if (Object.prototype.hasOwnProperty.call(jsonObjectToProcess, tabLabel)) {
+            
+            // >>> ADDED: Handle update vs new build JSON structures differently
+            let tabsToIterate;
+            if (!isNewBuild && jsonObjectToProcess.tab_updates) {
+                // For updates, iterate over the tabs inside tab_updates
+                tabsToIterate = jsonObjectToProcess.tab_updates;
+                console.log("AIModelPlanner: Processing UPDATE structure - iterating over tab_updates content");
+            } else {
+                // For new builds, iterate over top-level keys
+                tabsToIterate = jsonObjectToProcess;
+                console.log("AIModelPlanner: Processing NEW BUILD structure - iterating over top-level keys");
+            }
+            // <<< END ADDED
+            
+            for (const tabLabel in tabsToIterate) {
+                if (Object.prototype.hasOwnProperty.call(tabsToIterate, tabLabel)) {
                     const lowerCaseTabLabel = tabLabel.toLowerCase();
                     if (lowerCaseTabLabel === "financials" || lowerCaseTabLabel === "financials tab") {
                         console.log(`AIModelPlanner: Skipping excluded tab - "${tabLabel}"`);
                         continue; 
                     }
                     
-                    const tabDescription = jsonObjectToProcess[tabLabel];
+                    const tabData = tabsToIterate[tabLabel];
                     let tabDescriptionString = "";
-                    if (typeof tabDescription === 'string') {
-                        tabDescriptionString = tabDescription;
-                    } else if (typeof tabDescription === 'object' && tabDescription !== null) {
-                        tabDescriptionString = JSON.stringify(tabDescription);
+                    
+                    // >>> ADDED: Handle update structure (object with update_type and description)
+                    if (!isNewBuild && typeof tabData === 'object' && tabData !== null && tabData.description) {
+                        tabDescriptionString = tabData.description;
+                        console.log(`AIModelPlanner: Processing update for tab "${tabLabel}" with type "${tabData.update_type}"`);
+                    } else if (typeof tabData === 'string') {
+                        tabDescriptionString = tabData;
+                    } else if (typeof tabData === 'object' && tabData !== null) {
+                        tabDescriptionString = JSON.stringify(tabData);
                     } else {
-                        tabDescriptionString = String(tabDescription);
+                        tabDescriptionString = String(tabData);
                     }
+                    // <<< END ADDED
                     
                     tabsToProcess.push({
                         label: tabLabel,

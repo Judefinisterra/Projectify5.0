@@ -1,6 +1,9 @@
 // Model Update Handler - Handles different processing for new builds vs updates
 // Handles encoding changes based on update type
 
+// Import cleanup function for tab replacement
+import { cleanupFinancialsReferences } from './CodeCollection.js';
+
 const DEBUG_UPDATE_HANDLER = true;
 
 /**
@@ -47,6 +50,14 @@ class ModelUpdateHandler {
             if (DEBUG_UPDATE_HANDLER) {
                 console.log("[ModelUpdateHandler] Detected UPDATE mode");
                 console.log("[ModelUpdateHandler] Update data:", this.updateData);
+                console.log("[ModelUpdateHandler] Tab names to update:", Object.keys(this.updateData));
+                
+                // >>> ADDED: Validation to catch common mistakes
+                if (this.updateData.hasOwnProperty('tab_updates')) {
+                    console.error("[ModelUpdateHandler] ERROR: Found 'tab_updates' as a key inside tab_updates - this is incorrect JSON structure!");
+                    console.error("[ModelUpdateHandler] The AI may have nested tab_updates incorrectly. Expected tab names as keys.");
+                }
+                // <<< END ADDED
             }
             return false;
         } else {
@@ -116,9 +127,14 @@ class ModelUpdateHandler {
         const tabName = tabMatch[1];
         const updateInfo = this.updateData[tabName];
 
+        if (DEBUG_UPDATE_HANDLER) {
+            console.log(`[ModelUpdateHandler] Processing code for tab: "${tabName}"`);
+            console.log(`[ModelUpdateHandler] Available update data keys:`, Object.keys(this.updateData));
+        }
+
         if (!updateInfo) {
             if (DEBUG_UPDATE_HANDLER) {
-                console.log(`[ModelUpdateHandler] No update info found for tab: ${tabName}`);
+                console.log(`[ModelUpdateHandler] No update info found for tab: "${tabName}" - returning code unchanged`);
             }
             return code; // No update info, return unchanged
         }
@@ -126,18 +142,23 @@ class ModelUpdateHandler {
         const updateType = updateInfo.update_type;
 
         if (DEBUG_UPDATE_HANDLER) {
-            console.log(`[ModelUpdateHandler] Transforming code for tab: ${tabName}, type: ${updateType}`);
+            console.log(`[ModelUpdateHandler] Transforming code for tab: "${tabName}", type: "${updateType}"`);
         }
 
         // Transform based on update type
         switch (updateType) {
             case 'adding_to_existing_tab':
-                // Change <TAB; to <ADDCODES;
-                return code.replace(/<TAB;/, '<ADDCODES;');
+                const transformedCode = code.replace(/<TAB;/, '<ADDCODES;');
+                if (DEBUG_UPDATE_HANDLER) {
+                    console.log(`[ModelUpdateHandler] Transformed: "${code.substring(0, 50)}..." → "${transformedCode.substring(0, 50)}..."`);
+                }
+                return transformedCode;
                 
             case 'replacing_existing_tab':
             case 'adding_new_tab':
-                // Keep <TAB; unchanged
+                if (DEBUG_UPDATE_HANDLER) {
+                    console.log(`[ModelUpdateHandler] Keeping TAB unchanged for type: ${updateType}`);
+                }
                 return code;
                 
             default:
@@ -187,6 +208,57 @@ class ModelUpdateHandler {
     }
 
     /**
+     * Cleans up Financials references for tabs that are being replaced
+     * This should be called before processing the codes to ensure old references are removed
+     * @returns {Promise<void>}
+     */
+    async cleanupReplacedTabs() {
+        if (this.isNewBuild || !this.updateData) {
+            if (DEBUG_UPDATE_HANDLER) {
+                console.log("[ModelUpdateHandler] No cleanup needed - new build or no update data");
+            }
+            return;
+        }
+
+        const tabsToCleanup = [];
+        
+        // Find tabs that are being replaced
+        for (const [tabName, updateInfo] of Object.entries(this.updateData)) {
+            if (updateInfo.update_type === 'replacing_existing_tab') {
+                tabsToCleanup.push(tabName);
+            }
+        }
+
+        if (tabsToCleanup.length === 0) {
+            if (DEBUG_UPDATE_HANDLER) {
+                console.log("[ModelUpdateHandler] No tabs being replaced - no cleanup needed");
+            }
+            return;
+        }
+
+        if (DEBUG_UPDATE_HANDLER) {
+            console.log(`[ModelUpdateHandler] Cleaning up Financials references for replaced tabs: ${tabsToCleanup.join(', ')}`);
+        }
+
+        // Clean up each replaced tab
+        for (const tabName of tabsToCleanup) {
+            try {
+                await Excel.run(async (context) => {
+                    console.log(`[ModelUpdateHandler] Cleaning up Financials references for tab: ${tabName}`);
+                    await cleanupFinancialsReferences(tabName, context);
+                });
+            } catch (error) {
+                console.error(`[ModelUpdateHandler] Error cleaning up references for tab ${tabName}:`, error);
+                // Don't throw - continue with other cleanups
+            }
+        }
+
+        if (DEBUG_UPDATE_HANDLER) {
+            console.log(`[ModelUpdateHandler] Completed cleanup for ${tabsToCleanup.length} replaced tabs`);
+        }
+    }
+
+    /**
      * Gets summary of update actions
      * @returns {Object} - Summary of what will be processed
      */
@@ -202,9 +274,4 @@ class ModelUpdateHandler {
 }
 
 // Export for use in other modules
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { ModelUpdateHandler, stripCodeBlockMarkers };
-} else if (typeof window !== 'undefined') {
-    window.ModelUpdateHandler = ModelUpdateHandler;
-    window.stripCodeBlockMarkers = stripCodeBlockMarkers;
-}
+export { ModelUpdateHandler, stripCodeBlockMarkers };

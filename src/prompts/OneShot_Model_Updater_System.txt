@@ -76,6 +76,8 @@ Output **only** a JSON object with the tabs that need updates:
 
 **CRITICAL TAB NAME REQUIREMENT:** You MUST use the exact same tab names from the original model. Do not create new tab names or modify existing tab names.
 
+**IMPORTANT:** The "tab_updates" in the JSON structure is NOT a tab name - it's the container. Use the actual tab names as keys inside tab_updates (e.g., "Revenue and Direct Costs", "Corporate Overhead", etc.).
+
 **JSON STRUCTURE (output raw JSON, no code blocks):**
 {
   "tab_updates": {

@@ -1354,7 +1354,7 @@ export async function runCodes(codeCollection) {
  * @param {string} deletedTabName - The name of the tab that was deleted
  * @param {Excel.RequestContext} context - The Excel request context
  */
-async function cleanupFinancialsReferences(deletedTabName, context) {
+export async function cleanupFinancialsReferences(deletedTabName, context) {
     try {
         console.log(`[CLEANUP] Starting cleanup of Financials references to deleted tab: ${deletedTabName}`);
         
