@@ -1385,14 +1385,30 @@ export async function cleanupFinancialsReferences(deletedTabName, context) {
         // Check each formula in column U
         for (let i = 0; i < formulas.length; i++) {
             const formula = formulas[i][0]; // Get the formula from the 2D array
+            const rowNumber = i + 1;
+            
+            // Debug: Log what we're checking
+            if (formula && formula.toString().trim() !== "") {
+                console.log(`[CLEANUP] Row ${rowNumber} Column U content: "${formula}" (type: ${typeof formula})`);
+            }
+            
             if (typeof formula === 'string' && formula.startsWith('=')) {
-                // Check if formula references the deleted tab
-                const tabReference = `${deletedTabName}!`;
-                if (formula.includes(tabReference)) {
-                    const rowNumber = i + 1; // Convert 0-based index to 1-based row number
+                // Check if formula references the deleted tab in multiple possible formats
+                const tabReference1 = `${deletedTabName}!`;  // Standard format: TabName!
+                const tabReference2 = `'${deletedTabName}'!`; // Quoted format: 'Tab Name'!
+                const tabReference3 = `"${deletedTabName}"!`; // Double quoted format: "Tab Name"!
+                
+                console.log(`[CLEANUP] Checking formula in row ${rowNumber}: ${formula}`);
+                console.log(`[CLEANUP] Looking for tab references: "${tabReference1}", "${tabReference2}", "${tabReference3}"`);
+                
+                if (formula.includes(tabReference1) || formula.includes(tabReference2) || formula.includes(tabReference3)) {
                     rowsToDelete.push(rowNumber);
-                    console.log(`[CLEANUP] Found reference to ${deletedTabName} in row ${rowNumber}: ${formula}`);
+                    console.log(`[CLEANUP] ✅ Found reference to ${deletedTabName} in row ${rowNumber}: ${formula}`);
+                } else {
+                    console.log(`[CLEANUP] ❌ No reference to ${deletedTabName} found in row ${rowNumber}`);
                 }
+            } else if (formula && formula.toString().trim() !== "") {
+                console.log(`[CLEANUP] Row ${rowNumber} has non-formula content: ${formula}`);
             }
         }
         

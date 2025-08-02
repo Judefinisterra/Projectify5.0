@@ -58,20 +58,12 @@ Based on the chat history and the client's request, determine:
 #### UPDATE TYPE DETERMINATION
 For each affected tab, specify the specific update type:
 
-**ADDING_TO_EXISTING_TAB** (Preferred when possible):
-- Use when adding new functionality alongside existing codes in an existing tab
-- When adding new employees, revenue streams, debt instruments, etc.
-- When the existing model structure can accommodate the addition
-- Example: Adding a new employee to existing Corporate Overhead tab
-- **Encoding**: Use `ADDCODES; label1="(tab name)"` instead of `<TAB;`
-- **Calcs deletion**: Required - calcs should be deleted for this update type
-
-**REPLACING_EXISTING_TAB** (Required when modifying core logic):
-- Modifying core assumptions that affect the entire tab logic
-- Changing volume drivers or fundamental business model elements
-- When deleting any existing codes/functionality is required
-- When the update affects interconnected calculations within the tab
-- Example: Changing from unit-based to subscription-based revenue model
+**REPLACING_EXISTING_TAB** (Required for ANY change to existing tabs):
+- **ANY modification to an existing tab requires complete tab recreation**
+- This ensures reliable cleanup of old references and proper integration
+- Whether adding new functionality, modifying assumptions, or changing logic
+- Examples: Adding employees to Corporate Overhead, changing revenue assumptions, adding new revenue streams
+- **CRITICAL**: The model codes must include the COMPLETE tab content (all original codes + new additions/changes)
 - **Encoding**: Use `<TAB; label1="(tab name)"`
 - **Calcs deletion**: Required - calcs should be deleted for this update type
 
@@ -85,7 +77,8 @@ For each affected tab, specify the specific update type:
 1. **Minimal Updates Only**: If a client requests "add inventory", create ONLY a Working Capital tab. Do NOT also update Revenue and Direct Costs unless explicitly requested.
 2. **One Action Per Request**: Each client request should result in the minimum number of tab updates needed to fulfill that request.
 3. **No Unnecessary Changes**: Never include tabs that don't need actual changes just to "note" something.
-4. **Deletion Rule**: Deleting individual codes from an existing tab is NOT an option. If any codes need to be removed or substantially modified, you must use REPLACING_EXISTING_TAB.
+4. **Complete Tab Content**: When updating an existing tab, you MUST include ALL original codes plus the new additions/changes. Never provide only the new additions.
+5. **Full Tab Recreation**: Any change to an existing tab requires complete recreation of that tab's content.
 
 ### STEP 4: UPDATE PLAN PRESENTATION
 Present a clear plan that includes:
@@ -134,11 +127,11 @@ Once the client confirms the plan, output **only** a JSON object with the tabs t
 {
   "tab_updates": {
     "Tab Name 1": {
-      "update_type": "adding_to_existing_tab" | "replacing_existing_tab" | "adding_new_tab",
+      "update_type": "replacing_existing_tab" | "adding_new_tab",
       "description": "Detailed description of the changes being made to this tab"
     },
     "Tab Name 2": {
-      "update_type": "adding_to_existing_tab" | "replacing_existing_tab" | "adding_new_tab", 
+      "update_type": "replacing_existing_tab" | "adding_new_tab", 
       "description": "Detailed description of the changes being made to this tab"
     }
   }
@@ -157,8 +150,8 @@ Once the client confirms the plan, output **only** a JSON object with the tabs t
       "description": "Changing from unit-based revenue model (1000 units at $50 each) to subscription model (500 initial subscribers at $99/month with 5% monthly churn and 10% monthly growth)"
     },
     "Corporate Overhead": {
-      "update_type": "adding_to_existing_tab",
-      "description": "Adding Marketing Manager at $6000/month and Sales Rep at $4500/month, both starting in month 6"
+      "update_type": "replacing_existing_tab",
+      "description": "Adding Marketing Manager at $6000/month and Sales Rep at $4500/month to existing overhead structure, both starting in month 6. Model codes will include all existing overhead items plus the new additions."
     }
   }
 }
@@ -180,7 +173,7 @@ CORRECT response:
 {
   "tab_updates": {
     "Revenue and Direct Costs": {
-      "update_type": "adding_to_existing_tab",
+      "update_type": "replacing_existing_tab",
       "description": "No change to pizza sales model. Adding note for inventory days..."
     },
     "Working Capital": {
@@ -189,6 +182,7 @@ CORRECT response:
     }
   }
 }
+**WHY WRONG:** Don't update tabs that don't need changes. Only inventory is requested, so only create Working Capital tab.
 
 ## MODELING GUIDELINES
 

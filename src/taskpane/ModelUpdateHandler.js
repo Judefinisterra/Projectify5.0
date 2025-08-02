@@ -146,24 +146,18 @@ class ModelUpdateHandler {
         }
 
         // Transform based on update type
+        // Note: ADDCODES removed - all existing tab changes now use full tab recreation
         switch (updateType) {
-            case 'adding_to_existing_tab':
-                const transformedCode = code.replace(/<TAB;/, '<ADDCODES;');
-                if (DEBUG_UPDATE_HANDLER) {
-                    console.log(`[ModelUpdateHandler] Transformed: "${code.substring(0, 50)}..." → "${transformedCode.substring(0, 50)}..."`);
-                }
-                return transformedCode;
-                
             case 'replacing_existing_tab':
             case 'adding_new_tab':
                 if (DEBUG_UPDATE_HANDLER) {
-                    console.log(`[ModelUpdateHandler] Keeping TAB unchanged for type: ${updateType}`);
+                    console.log(`[ModelUpdateHandler] Using TAB encoding for type: ${updateType} (no transformation needed)`);
                 }
                 return code;
                 
             default:
                 if (DEBUG_UPDATE_HANDLER) {
-                    console.warn(`[ModelUpdateHandler] Unknown update type: ${updateType}`);
+                    console.warn(`[ModelUpdateHandler] Unknown update type: ${updateType}. Expected 'replacing_existing_tab' or 'adding_new_tab'`);
                 }
                 return code;
         }
@@ -192,10 +186,9 @@ class ModelUpdateHandler {
             return false; // Never delete calcs for new builds
         }
 
-        // For updates, check if any tabs are adding_to_existing_tab or replacing_existing_tab
+        // For updates, check if any tabs are replacing_existing_tab (requires calcs deletion)
         const updateTypes = Object.values(this.updateData).map(update => update.update_type);
         const shouldDelete = updateTypes.some(type => 
-            type === 'adding_to_existing_tab' || 
             type === 'replacing_existing_tab'
         );
 

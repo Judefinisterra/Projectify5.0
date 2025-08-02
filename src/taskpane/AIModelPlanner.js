@@ -857,6 +857,15 @@ async function* _handleAIModelPlannerConversation(userInput, options = {}) {
 
 async function _executePlannerCodes(modelCodesString, retryCount = 0) {
     console.log(`[AIModelPlanner._executePlannerCodes] Called. Retry count: ${retryCount}`);
+    
+    // >>> IMMEDIATE DEBUG: Check window.currentUpdateHandler status
+    console.log("🔍 [FUNCTION START] _executePlannerCodes - window.currentUpdateHandler exists:", !!window.currentUpdateHandler);
+    if (window.currentUpdateHandler) {
+        console.log("🔍 [FUNCTION START] _executePlannerCodes - isNewBuild:", window.currentUpdateHandler.isNewBuild);
+        console.log("🔍 [FUNCTION START] _executePlannerCodes - updateData keys:", window.currentUpdateHandler.updateData ? Object.keys(window.currentUpdateHandler.updateData) : 'null');
+    }
+    // <<< END IMMEDIATE DEBUG
+    
     const MAX_RETRIES = 3;
 
     // >>> ADDED: Apply ModelUpdateHandler transformations if this is an update
@@ -874,6 +883,8 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
         }
     }
     // <<< END ADDED
+    
+    console.log("🔍 [FLOW TRACE] After update transformations, continuing to validation section...");
 
     // Substitute <BR> with <BR; labelRow=""; row1 = "||||||||||||";>
     if (modelCodesString && typeof modelCodesString === 'string') {
@@ -887,6 +898,10 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
     }
 
     let runResult = null;
+
+    console.log("🔍 [PRE-VALIDATION] About to enter validation try block...");
+    console.log("🔍 [PRE-VALIDATION] modelCodesString length:", modelCodesString.length);
+    console.log("🔍 [PRE-VALIDATION] modelCodesString preview:", modelCodesString.substring(0, 200));
 
     try {
         await Excel.run(async (context) => {
@@ -947,24 +962,26 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
         console.log("[AIModelPlanner._executePlannerCodes] Code validation successful.");
 
         // >>> ADDED: Clean up Financials references for replaced tabs BEFORE processing codes
-        console.log("[AIModelPlanner._executePlannerCodes] CLEANUP DEBUG - window.currentUpdateHandler exists:", !!window.currentUpdateHandler);
+        console.log("🔍 [CLEANUP TRACE] Code validation complete - starting cleanup check...");
+        console.log("🔍 [CLEANUP TRACE] window.currentUpdateHandler exists:", !!window.currentUpdateHandler);
+        console.log("🔍 [CLEANUP TRACE] window object keys:", Object.keys(window).filter(k => k.includes('Update')));
         if (window.currentUpdateHandler) {
             console.log("[AIModelPlanner._executePlannerCodes] CLEANUP DEBUG - isNewBuild:", window.currentUpdateHandler.isNewBuild);
             console.log("[AIModelPlanner._executePlannerCodes] CLEANUP DEBUG - updateData:", window.currentUpdateHandler.updateData);
         }
         
         if (window.currentUpdateHandler && !window.currentUpdateHandler.isNewBuild) {
-            console.log("[AIModelPlanner._executePlannerCodes] Cleaning up Financials references for replaced tabs...");
+            console.log("🟢 [CLEANUP EXECUTING] Cleaning up Financials references for replaced tabs...");
             try {
                 await window.currentUpdateHandler.cleanupReplacedTabs();
-                console.log("[AIModelPlanner._executePlannerCodes] Financials cleanup completed");
+                console.log("✅ [CLEANUP SUCCESS] Financials cleanup completed");
             } catch (cleanupError) {
-                console.error("[AIModelPlanner._executePlannerCodes] Error during Financials cleanup:", cleanupError);
+                console.error("❌ [CLEANUP ERROR] Error during Financials cleanup:", cleanupError);
                 // Continue execution - cleanup failure shouldn't stop model building
             }
         } else {
-            console.log("[AIModelPlanner._executePlannerCodes] CLEANUP SKIPPED - Reason:", 
-                !window.currentUpdateHandler ? "No updateHandler" : "isNewBuild=true");
+            const reason = !window.currentUpdateHandler ? "No updateHandler" : `isNewBuild=${window.currentUpdateHandler.isNewBuild}`;
+            console.log("⏭️ [CLEANUP SKIPPED] Reason:", reason);
         }
         // <<< END ADDED
 
@@ -1308,7 +1325,9 @@ export async function plannerHandleSend() {
             
             // Store update handler for later use in _executePlannerCodes
             window.currentUpdateHandler = updateHandler;
-            console.log("AIModelPlanner: window.currentUpdateHandler stored with isNewBuild:", window.currentUpdateHandler.isNewBuild);
+            console.log("🔍 [UPDATE HANDLER] Stored window.currentUpdateHandler with isNewBuild:", window.currentUpdateHandler.isNewBuild);
+            console.log("🔍 [UPDATE HANDLER] updateData:", window.currentUpdateHandler.updateData);
+            console.log("🔍 [UPDATE HANDLER] Verification - window.currentUpdateHandler exists:", !!window.currentUpdateHandler);
             // <<< END ADDED
             
             // Prepare all tabs for parallel processing
