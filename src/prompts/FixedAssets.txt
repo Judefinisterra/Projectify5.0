@@ -270,6 +270,33 @@ When company has existing assets, plans new purchases, and has goodwill:
 - Capex (cash outflow in CFI)
 - Depreciation add-back (non-cash adjustment in CFO)
 
+### **🚨 CRITICAL BALANCE SHEET PRESENTATION RULE:**
+
+**NEVER pass both Net PP&E AND Gross PP&E/Accumulated Depreciation to the balance sheet simultaneously.**
+
+**Default Approach (unless specifically told otherwise):**
+- **ONLY pass Net PP&E** with FinCode `BS: fixed assets`
+- **DO NOT pass Gross PP&E** or **Accumulated Depreciation** to balance sheet
+- This prevents double-counting and provides clean balance sheet presentation
+
+**When to Include Gross/Accumulated Details:**
+- Only when client specifically requests detailed PP&E breakdown
+- Only when model requires separate tracking of gross vs net amounts
+- Never by default - always use Net PP&E only approach
+
+**Implementation:**
+```
+✅ CORRECT (Default):
+row10 = "A1(D)|Net PP&E - [ASSET_NAME](L)|BS: fixed assets(F)|...
+
+❌ WRONG (Double-counting):
+row8 = "(D)|Gross PP&E - [ASSET_NAME](L)|BS: fixed assets(F)|...
+row9 = "(D)|Accumulated depreciation - [ASSET_NAME](L)|BS: fixed assets(F)|...
+row10 = "A1(D)|Net PP&E - [ASSET_NAME](L)|BS: fixed assets(F)|...
+```
+
+**Result:** Balance sheet shows only Net PP&E line item, avoiding duplication and maintaining clean presentation.
+
 ## VALIDATION CHECKLIST
 
 ### **Pre-Implementation Checks for FAPPE-S (New Assets):**

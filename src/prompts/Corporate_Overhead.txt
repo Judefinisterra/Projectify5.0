@@ -12,6 +12,19 @@ Employee-related Expense best practices:
 - The row for each employee is an expense and should include $ signs in front of each of the 6 F's (or another currency) but it must include SOME currency. Do not use naked F's. Likewise, these are aggregate values and should not include the ~ which would make them italic. 
 - If you create multiple lists for hourly, salary, contractors, etc., each should include its own subtotal and they must be separated from eachother with a BR code.
 
+Income Statement Integration Requirements:
+- NEVER pass a "Total Employee-Related" costs line to the income statement
+- Instead, pass each individual subtotal line to the income statement with FinCode "IS: corporate overhead"
+- Use specific, descriptive labels WITHOUT the word "Total": "Payroll Expense - Salaries", "Payroll Expense - Salary Benefits", "Payroll Expense - Hourly", etc.
+- Each subtotal represents a different category of employee expense and should be separately visible on the income statement
+- This prevents double-counting and provides proper granularity for financial statement analysis
+- Example correct structure:
+  * Individual employee rows (no FinCode)
+  * "Payroll Expense - Salaries" subtotal (with FinCode "IS: corporate overhead")
+  * "Payroll Expense - Benefits" subtotal (with FinCode "IS: corporate overhead") 
+  * "Payroll Expense - Hourly" subtotal (with FinCode "IS: corporate overhead")
+  * NO "Total Employee-Related" line with FinCode
+
 Column Assumption Documentation Requirements:
 - All assumptions in columns C1-C6 must either have a COLUMNHEADER-E code above with a corresponding label in the same column, OR include a comment in square brackets explaining what the unit represents
 - Example: If monthly rent is $10,000, use |~$10000[Per month](C6)| - this adds "Per month" as a cell comment explaining the unit
