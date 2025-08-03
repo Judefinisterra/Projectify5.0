@@ -512,6 +512,37 @@ export async function runCodes(codeCollection) {
             throw new Error("Invalid code collection");
         }
         
+        // Log start of model building with full codestrings
+        const reconstructCodeString = (code) => {
+            let codeString = `<${code.type}`;
+            
+            // Add non-row parameters first
+            for (const [key, value] of Object.entries(code.params)) {
+                if (!key.startsWith('row')) {
+                    codeString += `;${key}="${value}"`;
+                }
+            }
+            
+            // Add row parameters in order
+            const rowParams = Object.entries(code.params)
+                .filter(([key]) => key.startsWith('row'))
+                .sort((a, b) => {
+                    const numA = parseInt(a[0].replace('row', ''));
+                    const numB = parseInt(b[0].replace('row', ''));
+                    return numA - numB;
+                });
+            
+            for (const [key, value] of rowParams) {
+                codeString += `;${key}="${value}"`;
+            }
+            
+            codeString += '>';
+            return codeString;
+        };
+        
+        const fullCodeStrings = codeCollection.map(reconstructCodeString).join('\n');
+        console.log(`Building model with codes:\n${fullCodeStrings}`);
+        
         // Initialize result object
         const result = {
             processedCodes: 0,
@@ -1336,6 +1367,8 @@ export async function runCodes(codeCollection) {
         
         // Print timing summary for runCodes only
         printTimingSummary();
+        
+        console.log("build model complete");
         
         return finalResult; // Return the modified result object
 
