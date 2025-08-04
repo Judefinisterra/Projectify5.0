@@ -2394,6 +2394,11 @@ body {
     background-color: #fef2f2;
 }
 
+.mode-button.authentication-mode:hover {
+    border-color: #4285F4;
+    background-color: #f0f7ff;
+}
+
 .mode-icon {
     font-size: 2.5rem;
     flex-shrink: 0;
@@ -2415,6 +2420,132 @@ body {
     color: var(--gray-600);
     margin: 0;
     line-height: 1.4;
+}
+
+/* Authentication View Styles */
+#authentication-view {
+    background: linear-gradient(135deg, #f8fafc 0%, #ffffff 100%);
+    padding: var(--spacing-xl);
+    min-height: 100vh;
+}
+
+.auth-container {
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
+    margin: 0 auto;
+    position: relative;
+}
+
+.auth-back-button {
+    position: absolute;
+    top: -20px;
+    left: 0;
+    background: transparent !important;
+    border: 1px solid var(--gray-300) !important;
+    color: var(--gray-600) !important;
+    padding: var(--spacing-sm) var(--spacing-md) !important;
+    border-radius: var(--radius-md) !important;
+    font-size: 0.875rem !important;
+    transition: all 0.2s ease !important;
+    cursor: pointer;
+}
+
+.auth-back-button:hover {
+    background-color: var(--gray-50) !important;
+    border-color: var(--gray-400) !important;
+    color: var(--gray-700) !important;
+}
+
+.auth-content {
+    padding-top: 60px;
+}
+
+.auth-brand {
+    margin-bottom: var(--spacing-2xl);
+}
+
+.auth-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--gray-900);
+    margin: 0 0 var(--spacing-md) 0;
+    letter-spacing: -0.02em;
+}
+
+.auth-subtitle {
+    font-size: 1.125rem;
+    color: var(--gray-600);
+    margin: 0 0 var(--spacing-2xl) 0;
+    font-weight: 400;
+    line-height: 1.6;
+}
+
+.auth-actions {
+    margin-bottom: var(--spacing-xl);
+}
+
+.google-signin-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-md);
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+    padding: 16px 24px;
+    background-color: #1f2937;
+    color: white;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.google-signin-btn:hover {
+    background-color: #111827;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.google-signin-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.google-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+.auth-terms {
+    max-width: 350px;
+    margin: 0 auto;
+}
+
+.auth-terms p {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.auth-link {
+    color: var(--gray-600);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.auth-link:hover {
+    color: var(--gray-800);
+    text-decoration: underline;
 }
 
  /* Back to Menu Button - Developer mode */

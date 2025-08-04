@@ -2691,8 +2691,10 @@ Office.onReady(async (info) => {
     const startupMenu = document.getElementById('startup-menu');
     const developerModeButton = document.getElementById('developer-mode-button');
     const clientModeButton = document.getElementById('client-mode-button');
+    const authenticationButton = document.getElementById('authentication-button');
     const appBody = document.getElementById('app-body');
     const clientModeView = document.getElementById('client-mode-view');
+    const authenticationView = document.getElementById('authentication-view');
 
     function showDeveloperModeView() { // Renamed to avoid conflict if global
       if (startupMenu) startupMenu.style.display = 'none';
@@ -2705,7 +2707,114 @@ Office.onReady(async (info) => {
       if (startupMenu) startupMenu.style.display = 'none';
       if (appBody) appBody.style.display = 'none';
       if (clientModeView) clientModeView.style.display = 'flex';
+      if (authenticationView) authenticationView.style.display = 'none';
       console.log("Client Mode view activated");
+    }
+
+    function showAuthenticationView() { // Added authentication view function
+      if (startupMenu) startupMenu.style.display = 'none';
+      if (appBody) appBody.style.display = 'none';
+      if (clientModeView) clientModeView.style.display = 'none';
+      if (authenticationView) authenticationView.style.display = 'flex';
+      
+      // Set up Google Sign-In button handler
+      const googleSignInButton = document.getElementById('google-signin-button');
+      if (googleSignInButton) {
+        googleSignInButton.onclick = handleGoogleSignInView;
+      }
+      
+      console.log("Authentication view activated");
+    }
+
+    function handleGoogleSignInView() {
+      console.log("Google Sign-In clicked (AIcalls.js)");
+      
+      // Initialize Google Sign-In with real credentials
+      if (typeof google !== 'undefined' && google.accounts) {
+        // Initialize Google OAuth
+        const GOOGLE_CLIENT_ID = "194102993575-6vkqrurasev2qr90nv82cbampqqq22hb.apps.googleusercontent.com";
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCallbackView,
+          auto_select: false,
+          cancel_on_tap_outside: true
+        });
+        
+        // Trigger the sign-in flow
+        google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            // Fallback to popup if prompt is not displayed
+            google.accounts.oauth2.initTokenClient({
+              client_id: GOOGLE_CLIENT_ID,
+              scope: 'email profile',
+              callback: handleGoogleTokenResponseView,
+            }).requestAccessToken();
+          }
+        });
+      } else {
+        console.error("Google Sign-In library not loaded");
+        alert("Google Sign-In is not available. Please check your internet connection and try again.");
+      }
+    }
+
+    function handleGoogleCallbackView(response) {
+      console.log("Google authentication successful (AIcalls.js)", response);
+      
+      // Decode the JWT token to get user info
+      const userInfo = parseJwtView(response.credential);
+      console.log("User info:", userInfo);
+      
+      // Store user session
+      sessionStorage.setItem('googleUser', JSON.stringify(userInfo));
+      sessionStorage.setItem('googleCredential', response.credential);
+      
+      // Show success message and redirect
+      alert(`Welcome ${userInfo.name}! Authentication successful.`);
+      showClientModeView();
+    }
+
+    function handleGoogleTokenResponseView(tokenResponse) {
+      console.log("Google token response (AIcalls.js):", tokenResponse);
+      
+      if (tokenResponse.access_token) {
+        // Fetch user info with the access token
+        fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: {
+            'Authorization': `Bearer ${tokenResponse.access_token}`
+          }
+        })
+        .then(response => response.json())
+        .then(userInfo => {
+          console.log("User info from token:", userInfo);
+          
+          // Store user session
+          sessionStorage.setItem('googleUser', JSON.stringify(userInfo));
+          sessionStorage.setItem('googleToken', tokenResponse.access_token);
+          
+          // Show success message and redirect
+          alert(`Welcome ${userInfo.name}! Authentication successful.`);
+          showClientModeView();
+        })
+        .catch(error => {
+          console.error("Error fetching user info:", error);
+          alert("Authentication successful but failed to get user information.");
+          showClientModeView();
+        });
+      }
+    }
+
+    function parseJwtView(token) {
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload);
+      } catch (error) {
+        console.error("Error parsing JWT:", error);
+        return null;
+      }
     }
     
     function showStartupMenuView() { // Renamed
@@ -2723,16 +2832,20 @@ Office.onReady(async (info) => {
             if (startupMenu) startupMenu.style.display = 'flex';
             if (appBody) appBody.style.display = 'none';
             if (clientModeView) clientModeView.style.display = 'none';
+            if (authenticationView) authenticationView.style.display = 'none';
         }
     }
 
     if (developerModeButton) developerModeButton.onclick = showDeveloperModeView;
     if (clientModeButton) clientModeButton.onclick = showClientModeView;
+    if (authenticationButton) authenticationButton.onclick = showAuthenticationView;
 
     const backToMenuDevButton = document.getElementById('back-to-menu-dev-button');
     if (backToMenuDevButton) backToMenuDevButton.onclick = showStartupMenuView;
     const backToMenuClientButton = document.getElementById('back-to-menu-client-button');
     if (backToMenuClientButton) backToMenuClientButton.onclick = showStartupMenuView;
+    const backToMenuAuthButton = document.getElementById('back-to-menu-auth-button');
+    if (backToMenuAuthButton) backToMenuAuthButton.onclick = showStartupMenuView;
     
     document.getElementById("sideload-msg").style.display = "none";
     

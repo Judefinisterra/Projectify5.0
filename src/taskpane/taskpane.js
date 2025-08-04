@@ -1134,6 +1134,8 @@ function getMaxDriverNumbers(text) {
     return maxNumbers;
 }
 
+
+
 // NEW FUNCTION SPECIFICALLY FOR AI MODEL PLANNER OUTPUT (ALWAYS FIRST PASS)
 export async function processModelCodesForPlanner(modelCodesString) {
     console.log(`[processModelCodesForPlanner] Called with ModelCodes.`);
@@ -1693,8 +1695,10 @@ Office.onReady((info) => {
     const startupMenu = document.getElementById('startup-menu');
     const developerModeButton = document.getElementById('developer-mode-button');
     const clientModeButton = document.getElementById('client-mode-button');
+    const authenticationButton = document.getElementById('authentication-button');
     const appBody = document.getElementById('app-body'); // Already exists, ensure it's captured
     const clientModeView = document.getElementById('client-mode-view');
+    const authenticationView = document.getElementById('authentication-view');
 
     productionLog(`Elements found - startupMenu: ${!!startupMenu}, appBody: ${!!appBody}, clientModeView: ${!!clientModeView}`);
 
@@ -1724,6 +1728,9 @@ Office.onReady((info) => {
         startupMenu.style.display = 'flex';
       }
     }
+    
+    // Check authentication state on load
+    updateAuthUI();
     // <<< END ADDED
 
     // Functions to switch views
@@ -2085,12 +2092,167 @@ Office.onReady((info) => {
         if (startupMenu) startupMenu.style.display = 'flex';
         if (appBody) appBody.style.display = 'none';
         if (clientModeView) clientModeView.style.display = 'none';
+        if (authenticationView) authenticationView.style.display = 'none';
         
         // Reset client mode state when going back to menu
         resetChatClient();
       }
     }
     // <<< END ADDED
+
+    function showAuthentication() {
+      // Check if user is already authenticated
+      if (isUserAuthenticated()) {
+        const user = getCurrentUser();
+        alert(`You are already signed in as ${user.name}. Redirecting to Client Mode.`);
+        showClientMode();
+        return;
+      }
+      
+      if (startupMenu) startupMenu.style.display = 'none';
+      if (appBody) appBody.style.display = 'none';
+      if (clientModeView) clientModeView.style.display = 'none';
+      if (authenticationView) authenticationView.style.display = 'flex';
+      
+      // Set up Google Sign-In button handler
+      const googleSignInButton = document.getElementById('google-signin-button');
+      if (googleSignInButton) {
+        googleSignInButton.onclick = handleGoogleSignIn;
+      }
+      
+      console.log("Authentication view activated");
+    }
+
+    function handleGoogleSignIn() {
+      console.log("Google Sign-In clicked");
+      
+      // Initialize Google Sign-In with real credentials
+      if (typeof google !== 'undefined' && google.accounts) {
+        // Initialize Google OAuth
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CONFIG.CLIENT_ID,
+          callback: handleGoogleCallback,
+          auto_select: false,
+          cancel_on_tap_outside: true
+        });
+        
+        // Trigger the sign-in flow
+        google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            // Fallback to popup if prompt is not displayed
+            google.accounts.oauth2.initTokenClient({
+              client_id: GOOGLE_CONFIG.CLIENT_ID,
+              scope: GOOGLE_CONFIG.SCOPES,
+              callback: handleGoogleTokenResponse,
+            }).requestAccessToken();
+          }
+        });
+      } else {
+        console.error("Google Sign-In library not loaded");
+        alert("Google Sign-In is not available. Please check your internet connection and try again.");
+      }
+    }
+
+    function handleGoogleCallback(response) {
+      console.log("Google authentication successful", response);
+      
+      // Decode the JWT token to get user info
+      const userInfo = parseJwt(response.credential);
+      console.log("User info:", userInfo);
+      
+      // Store user session
+      sessionStorage.setItem('googleUser', JSON.stringify(userInfo));
+      sessionStorage.setItem('googleCredential', response.credential);
+      
+      // Show success message and redirect
+      alert(`Welcome ${userInfo.name}! Authentication successful.`);
+      showClientMode();
+    }
+
+    function handleGoogleTokenResponse(tokenResponse) {
+      console.log("Google token response:", tokenResponse);
+      
+      if (tokenResponse.access_token) {
+        // Fetch user info with the access token
+        fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+          headers: {
+            'Authorization': `Bearer ${tokenResponse.access_token}`
+          }
+        })
+        .then(response => response.json())
+        .then(userInfo => {
+          console.log("User info from token:", userInfo);
+          
+          // Store user session
+          sessionStorage.setItem('googleUser', JSON.stringify(userInfo));
+          sessionStorage.setItem('googleToken', tokenResponse.access_token);
+          
+          // Show success message and redirect
+          alert(`Welcome ${userInfo.name}! Authentication successful.`);
+          showClientMode();
+        })
+        .catch(error => {
+          console.error("Error fetching user info:", error);
+          alert("Authentication successful but failed to get user information.");
+          showClientMode();
+        });
+      }
+    }
+
+    function parseJwt(token) {
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload);
+      } catch (error) {
+        console.error("Error parsing JWT:", error);
+        return null;
+      }
+    }
+
+    // Function to check if user is already authenticated
+    function isUserAuthenticated() {
+      const user = sessionStorage.getItem('googleUser');
+      const credential = sessionStorage.getItem('googleCredential') || sessionStorage.getItem('googleToken');
+      return user && credential;
+    }
+
+    // Function to get current user info
+    function getCurrentUser() {
+      const userStr = sessionStorage.getItem('googleUser');
+      return userStr ? JSON.parse(userStr) : null;
+    }
+
+    // Function to sign out user
+    function signOutUser() {
+      sessionStorage.removeItem('googleUser');
+      sessionStorage.removeItem('googleCredential');
+      sessionStorage.removeItem('googleToken');
+      
+      // Revoke Google token if available
+      if (typeof google !== 'undefined' && google.accounts) {
+        google.accounts.id.disableAutoSelect();
+      }
+      
+      console.log("User signed out");
+      showStartupMenu();
+    }
+
+    // Function to update UI based on authentication state
+    function updateAuthUI() {
+      const isAuthenticated = isUserAuthenticated();
+      const user = getCurrentUser();
+      
+      if (isAuthenticated && user) {
+        console.log(`User is authenticated: ${user.name} (${user.email})`);
+        // Could update UI to show user info, add sign-out button, etc.
+      } else {
+        console.log("User is not authenticated");
+      }
+    }
 
     // Assign click handlers for startup menu buttons
     if (developerModeButton) {
@@ -2102,6 +2264,11 @@ Office.onReady((info) => {
         clientModeButton.onclick = showClientMode;
     } else {
         console.error("Could not find button with id='client-mode-button'");
+    }
+    if (authenticationButton) {
+        authenticationButton.onclick = showAuthentication;
+    } else {
+        console.error("Could not find button with id='authentication-button'");
     }
 
 
@@ -2681,6 +2848,7 @@ Office.onReady((info) => {
       // Get references and assign handlers for Back to Menu buttons
       const backToMenuDevButton = document.getElementById('back-to-menu-dev-button');
       const backToMenuClientButton = document.getElementById('back-to-menu-client-button');
+      const backToMenuAuthButton = document.getElementById('back-to-menu-auth-button');
 
       if (backToMenuDevButton) {
           backToMenuDevButton.onclick = showStartupMenu; // Assumes showStartupMenu is globally accessible
@@ -2691,6 +2859,11 @@ Office.onReady((info) => {
           backToMenuClientButton.onclick = showStartupMenu; // Assumes showStartupMenu is globally accessible
       } else {
           console.error("[Office.onReady] Could not find button with id='back-to-menu-client-button'");
+      }
+      if (backToMenuAuthButton) {
+          backToMenuAuthButton.onclick = showStartupMenu; // Assumes showStartupMenu is globally accessible
+      } else {
+          console.error("[Office.onReady] Could not find button with id='back-to-menu-auth-button'");
       }
 
       document.getElementById("sideload-msg").style.display = "none";
