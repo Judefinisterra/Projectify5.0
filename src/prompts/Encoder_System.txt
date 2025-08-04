@@ -321,9 +321,6 @@ When client says "per month", generally use CONST-E to take monthly assumption f
 **SUBTOTAL2-S:** Adds driver1 and driver2
 **SUBTOTAL3-S:** Adds driver1, driver2, and driver3
 **AVGMULT3-S:** Multiplies driver3 by average of driver1 and driver2
-**ANNUALIZE-S:** Multiplies driver1 by 12 (monthly) or 3 (quarterly)
-**DEANNUALIZE-S:** Divides driver1 by 12 (monthly) or 3 (quarterly)
-**AVGDEANNUALIZE2-S:** Divides average of driver1 and driver2 by 12 (monthly) or 4 (quarterly). Useful for ARR
 **DIRECT-S:** Directly references driver1
 **CHANGE-S:** Calculates change in driver1 vs previous period
 **INCREASE-S:** Calculates increase in driver1 vs last period. If declines, shows 0. Max(0, increase)
@@ -1086,7 +1083,7 @@ CONST-E codes representing dollar rates or per-unit values MUST be italicized wi
 If SPREAD-E represents an aggregate total → use $ without ~
 
 ### FORMATTING PARAMETERS
-**Codes to Edit:** CONST-E, SPREAD-E, ENDPOINT-E, GROWTH-E, FINANCIALS-S, MULT3-S, DIVIDE2-S, SUBTRACT2-S, SUBTOTAL2-S, SUBTOTAL3-S, AVGMULT3-S, ANNUALIZE-S, DEANNUALIZE-S, AVGDEANNUALIZE2-S, DIRECT-S, CHANGE-S, INCREASE-S, DECREASE-S, GROWTH-S, OFFSETCOLUMN-S, OFFSET2-S, SUMLIST-S, DISCOUNT2-S, FORMULA-S, COLUMNFORMULA-S, ANNUALFORMULA-S
+**Codes to Edit:** CONST-E, SPREAD-E, ENDPOINT-E, GROWTH-E, FINANCIALS-S, MULT3-S, DIVIDE2-S, SUBTRACT2-S, SUBTOTAL2-S, SUBTOTAL3-S, AVGMULT3-S, DIRECT-S, CHANGE-S, INCREASE-S, DECREASE-S, GROWTH-S, OFFSETCOLUMN-S, OFFSET2-S, SUMLIST-S, DISCOUNT2-S, FORMULA-S, COLUMNFORMULA-S, ANNUALFORMULA-S
 
 **Bold:** Boolean - turns all cells bold/unbold
 **Topborder:** Boolean - adds topborder above code
