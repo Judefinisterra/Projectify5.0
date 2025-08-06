@@ -4086,10 +4086,18 @@ async function signIn() {
     try {
         console.log('Initiating sign-in...');
         
+        // Check if Google authentication is already active
+        const googleUser = sessionStorage.getItem('googleUser');
+        if (googleUser) {
+            console.log('User already authenticated with Google - skipping MSAL sign-in');
+            showMessage('You are already signed in with Google!');
+            return;
+        }
+        
         // Check if MSAL is initialized
         if (!msalInstance) {
             console.error('MSAL not initialized - cannot sign in');
-            showError('Authentication not initialized. Please set up Microsoft authentication first.');
+            showError('Microsoft authentication not available. Please use Google Sign-In from the Authentication menu.');
             return;
         }
         
@@ -4135,15 +4143,67 @@ async function signIn() {
 async function signOut() {
     try {
         console.log('Signing out...');
-        await msalInstance.logoutPopup();
+        
+        // Check if we're using Google authentication and call the proper logout function
+        if (typeof window.handleGoogleSignOutView === 'function') {
+            console.log('Using Google logout function');
+            const result = window.handleGoogleSignOutView();
+            if (result && result.success) {
+                console.log('Google logout completed successfully');
+            }
+        } else {
+            console.log('Google logout function not available, clearing local storage');
+            // Fallback: Clear Google authentication state from sessionStorage
+            sessionStorage.removeItem('googleUser');
+            sessionStorage.removeItem('googleToken');
+            sessionStorage.removeItem('googleCredential');
+            
+            // Clear any other auth-related session data
+            sessionStorage.removeItem('authToken');
+            sessionStorage.removeItem('userInfo');
+            
+            console.log('Google authentication state cleared from sessionStorage');
+        }
+        
+        // Only try MSAL logout if MSAL was actually initialized and used
+        try {
+            if (typeof msalInstance !== 'undefined' && msalInstance && currentUser) {
+                console.log('Attempting MSAL logout');
+                await msalInstance.logoutPopup();
+                console.log('MSAL logout completed');
+            }
+        } catch (msalError) {
+            console.log('MSAL logout not applicable or failed:', msalError.message);
+        }
+        
         currentUser = null;
         updateAuthUI(false);
+        
+        // Redirect back to authentication view
+        const authView = document.getElementById('authentication-view');
+        const clientView = document.getElementById('client-mode-view');
+        if (authView && clientView) {
+            authView.style.display = 'block';
+            clientView.style.display = 'none';
+            console.log('Redirected to authentication view');
+        }
+        
         console.log('Sign-out successful');
+        showMessage('Successfully signed out');
     } catch (error) {
         console.error('Sign-out failed:', error);
         // Even if logout fails, clear local state
         currentUser = null;
         updateAuthUI(false);
+        
+        // Force clear sessionStorage even on error
+        sessionStorage.removeItem('googleUser');
+        sessionStorage.removeItem('googleToken');
+        sessionStorage.removeItem('googleCredential');
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('userInfo');
+        
+        showError('Sign-out encountered an error but local session was cleared');
     }
 }
 
@@ -4356,11 +4416,11 @@ function testAuthSetup() {
 window.testAuthSetup = testAuthSetup;
 // <<< END ADDED
 
-fsdfsd
 
 
 
 
-fdsf
+
+
 
 
