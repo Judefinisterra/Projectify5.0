@@ -48,6 +48,47 @@ const DEBUG = CONFIG.isDevelopment;
 // Variable to store loaded code strings
 let loadedCodeStrings = "";
 
+// Office-compatible notification functions
+function showMessage(message) {
+    const messageDiv = document.createElement('div');
+    messageDiv.style.color = 'green';
+    messageDiv.style.padding = '10px';
+    messageDiv.style.margin = '10px';
+    messageDiv.style.border = '1px solid green';
+    messageDiv.style.borderRadius = '4px';
+    messageDiv.textContent = message;
+    
+    const appBody = document.getElementById('app-body');
+    if (appBody) {
+        appBody.insertBefore(messageDiv, appBody.firstChild);
+        
+        // Remove the message after 5 seconds
+        setTimeout(() => {
+            messageDiv.remove();
+        }, 5000);
+    }
+}
+
+function showError(message) {
+    const errorDiv = document.createElement('div');
+    errorDiv.style.color = 'red';
+    errorDiv.style.padding = '10px';
+    errorDiv.style.margin = '10px';
+    errorDiv.style.border = '1px solid red';
+    errorDiv.style.borderRadius = '4px';
+    errorDiv.textContent = `Error: ${message}`;
+    
+    const appBody = document.getElementById('app-body');
+    if (appBody) {
+        appBody.insertBefore(errorDiv, appBody.firstChild);
+        
+        // Remove the error message after 5 seconds
+        setTimeout(() => {
+            errorDiv.remove();
+        }, 5000);
+    }
+}
+
 // Variable to store the parsed code database
 let codeDatabase = [];
 
@@ -2729,32 +2770,133 @@ Office.onReady(async (info) => {
     function handleGoogleSignInView() {
       console.log("Google Sign-In clicked (AIcalls.js)");
       
-      // Initialize Google Sign-In with real credentials
-      if (typeof google !== 'undefined' && google.accounts) {
-        // Initialize Google OAuth
-        const GOOGLE_CLIENT_ID = "194102993575-6vkqrurasev2qr90nv82cbampqqq22hb.apps.googleusercontent.com";
-        google.accounts.id.initialize({
-          client_id: GOOGLE_CLIENT_ID,
-          callback: handleGoogleCallbackView,
-          auto_select: false,
-          cancel_on_tap_outside: true
-        });
+      // Use Office Dialog API for authentication within Excel environment
+      if (typeof Office !== 'undefined' && Office.context && Office.context.ui) {
+        const authUrl = buildGoogleAuthUrlView();
         
-        // Trigger the sign-in flow
-        google.accounts.id.prompt((notification) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            // Fallback to popup if prompt is not displayed
-            google.accounts.oauth2.initTokenClient({
-              client_id: GOOGLE_CLIENT_ID,
-              scope: 'email profile',
-              callback: handleGoogleTokenResponseView,
-            }).requestAccessToken();
+        Office.context.ui.displayDialogAsync(authUrl, {
+          height: 60,
+          width: 60,
+          requireHTTPS: true
+        }, function (result) {
+          if (result.status === Office.AsyncResultStatus.Succeeded) {
+            const dialog = result.value;
+            
+            // Listen for messages from the dialog
+            dialog.addEventHandler(Office.EventType.DialogMessageReceived, function (arg) {
+              try {
+                const authResult = JSON.parse(arg.message);
+                dialog.close();
+                
+                if (authResult.success) {
+                  handleGoogleAuthSuccessView(authResult);
+                } else {
+                  handleGoogleAuthErrorView(authResult.error);
+                }
+              } catch (error) {
+                console.error("Error parsing auth result:", error);
+                dialog.close();
+                showError("Authentication failed. Please try again.");
+              }
+            });
+            
+            // Handle dialog closed by user
+            dialog.addEventHandler(Office.EventType.DialogEventReceived, function (arg) {
+              if (arg.error === 12006) { // Dialog closed by user
+                console.log("Authentication canceled by user");
+              } else {
+                console.error("Dialog error:", arg.error);
+                showError("Authentication failed. Please try again.");
+              }
+            });
+          } else {
+            console.error("Failed to open authentication dialog:", result.error);
+            // Fallback to external window for development
+            handleGoogleSignInFallbackView();
           }
         });
       } else {
-        console.error("Google Sign-In library not loaded");
-        alert("Google Sign-In is not available. Please check your internet connection and try again.");
+        console.log("Office Dialog API not available, using fallback");
+        handleGoogleSignInFallbackView();
       }
+    }
+
+    function buildGoogleAuthUrlView() {
+      const GOOGLE_CLIENT_ID = "194102993575-6vkqrurasev2qr90nv82cbampqqq22hb.apps.googleusercontent.com";
+      const params = new URLSearchParams({
+        client_id: GOOGLE_CLIENT_ID,
+        redirect_uri: `${window.location.origin}/auth/google/callback.html`,
+        response_type: 'token id_token',
+        scope: 'email profile',
+        nonce: generateRandomStateView(),
+        state: generateRandomStateView()
+      });
+      
+      return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+    }
+
+    function generateRandomStateView() {
+      return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    }
+
+    function handleGoogleSignInFallbackView() {
+      // Fallback for development or when Office Dialog API is not available
+      const authUrl = buildGoogleAuthUrlView();
+      const popup = window.open(authUrl, 'googleAuth', 'width=500,height=600,scrollbars=yes,resizable=yes');
+      
+      // Poll for popup closure (not ideal but works for development)
+      const pollTimer = setInterval(() => {
+        try {
+          if (popup.closed) {
+            clearInterval(pollTimer);
+            console.log("Authentication popup closed");
+          }
+        } catch (error) {
+          // Cross-origin error when popup is open
+        }
+      }, 1000);
+      
+      // Clean up after 5 minutes
+      setTimeout(() => {
+        clearInterval(pollTimer);
+        if (!popup.closed) {
+          popup.close();
+        }
+      }, 300000);
+    }
+
+    function handleGoogleAuthSuccessView(authResult) {
+      console.log("Google authentication successful (AIcalls.js)", authResult);
+      
+      // Store user session
+      if (authResult.user) {
+        sessionStorage.setItem('googleUser', JSON.stringify(authResult.user));
+      }
+      if (authResult.access_token) {
+        sessionStorage.setItem('googleToken', authResult.access_token);
+      }
+      if (authResult.id_token) {
+        sessionStorage.setItem('googleCredential', authResult.id_token);
+      }
+      
+      // Show success message and redirect
+      const userName = authResult.user ? authResult.user.name : 'User';
+      showMessage(`Welcome ${userName}! Authentication successful.`);
+      showClientModeView();
+    }
+
+    function handleGoogleAuthErrorView(error) {
+      console.error("Google authentication error (AIcalls.js):", error);
+      console.error("Error details:", JSON.stringify(error, null, 2));
+      
+      let errorMessage = "Authentication failed: ";
+      if (error && typeof error === 'object') {
+        errorMessage += error.description || error.message || error.error || JSON.stringify(error);
+      } else {
+        errorMessage += error || 'Unknown error';
+      }
+      
+      showError(errorMessage);
     }
 
     function handleGoogleCallbackView(response) {
@@ -2769,7 +2911,7 @@ Office.onReady(async (info) => {
       sessionStorage.setItem('googleCredential', response.credential);
       
       // Show success message and redirect
-      alert(`Welcome ${userInfo.name}! Authentication successful.`);
+      showMessage(`Welcome ${userInfo.name}! Authentication successful.`);
       showClientModeView();
     }
 
@@ -2792,12 +2934,12 @@ Office.onReady(async (info) => {
           sessionStorage.setItem('googleToken', tokenResponse.access_token);
           
           // Show success message and redirect
-          alert(`Welcome ${userInfo.name}! Authentication successful.`);
+          showMessage(`Welcome ${userInfo.name}! Authentication successful.`);
           showClientModeView();
         })
         .catch(error => {
           console.error("Error fetching user info:", error);
-          alert("Authentication successful but failed to get user information.");
+          showMessage("Authentication successful but failed to get user information.");
           showClientModeView();
         });
       }

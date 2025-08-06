@@ -161,6 +161,10 @@ module.exports = async (env, options) => {
               }
             },
           },
+          {
+            from: "./src/auth/google/callback.html",
+            to: "auth/google/callback.html"
+          },
 
         ],
       }),
@@ -176,6 +180,11 @@ module.exports = async (env, options) => {
           directory: path.join(__dirname, "assets"),
           publicPath: "/assets",
           serveIndex: true
+        },
+        {
+          directory: path.join(__dirname, "src"),
+          publicPath: "/",
+          serveIndex: false
         }
       ],
       headers: {
