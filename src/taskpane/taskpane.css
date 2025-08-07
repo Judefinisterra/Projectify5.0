@@ -1168,7 +1168,7 @@ body {
     height: 100vh;
     text-align: center;
     position: relative;
-    background-color: #f3f2f1; /* Match body background */
+    background-color: var(--gray-50); /* Modern subtle background */
     overflow: hidden; /* Prevent scrollbar at this level */
 }
 
@@ -2706,24 +2706,13 @@ body {
 @media (max-width: 500px) and (min-width: 350px) {
     .client-app-layout {
         display: flex !important;
-        flex-direction: row !important; /* Keep sidebar on left for this width */
+        flex-direction: column !important; /* No sidebar - column layout */
         min-height: 100vh;
-        background-color: var(--primary-white);
+        background-color: var(--gray-50);
     }
     
     .sidebar {
-        display: flex !important;
-        width: 3rem !important; /* Compact but visible sidebar */
-        height: 100vh;
-        flex-direction: column;
-        justify-content: flex-start;
-        align-items: center;
-        padding: var(--spacing-sm) 0;
-        border-right: 1px solid var(--gray-200);
-        border-bottom: none;
-        min-height: auto;
-    flex-shrink: 0;
-        background-color: var(--primary-white);
+        display: none !important; /* Hide sidebar on all screen sizes */
     }
     
     .main-content {
@@ -3408,25 +3397,17 @@ body {
     }
 }
 
-/* ALWAYS VISIBLE SIDEBAR - NEVER HIDDEN */
+/* SIDEBAR COMPLETELY HIDDEN */
 .sidebar {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    width: 2rem !important; /* Much narrower like ChatGPT */
-    height: 100vh !important;
-    background-color: var(--primary-white) !important;
-    border-right: 1px solid var(--gray-200) !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    padding: 0.25rem 0 !important; /* Minimal padding */
-    box-shadow: var(--shadow-sm) !important;
-    z-index: 9999 !important;
-    min-width: 2rem !important;
+    display: none !important; /* Hide sidebar entirely */
 }
 
-/* Force ALL content to account for fixed sidebar with proper margins */
+/* Hide subscription panel since no sidebar navigation */
+#subscription-panel {
+    display: none !important;
+}
+
+/* Content takes full width with no sidebar */
 #client-mode-view .main-content,
 #client-mode-view .client-app-layout > *:not(.sidebar),
 #client-mode-view .content-header,
@@ -3440,9 +3421,9 @@ body {
 #client-mode-view .client-input-area-wrapper,
 #client-mode-view .content-panel,
 #client-mode-view #chat-log-client {
-    margin-left: 1.9rem !important;
-    width: calc(100% - 1.9rem) !important;
-    max-width: calc(100% - 1.9rem) !important;
+    margin-left: 0 !important; /* No sidebar to account for */
+    width: 100% !important; /* Full width */
+    max-width: 100% !important;
     padding-left: 0 !important;
     padding-right: 0 !important;
     box-sizing: border-box !important;
@@ -3450,11 +3431,11 @@ body {
 
 .client-app-layout {
     display: flex !important;
-    flex-direction: row !important;
+    flex-direction: column !important; /* Changed to column since no sidebar */
     height: 100vh;
     background-color: var(--gray-50);
     min-height: 100vh;
-        position: relative;
+    position: relative;
 }
 
 .sidebar-logo {
@@ -3583,18 +3564,20 @@ body {
     height: 1.25rem;
 }
 
-/* Main Content Area */
+/* Main Content Area - Full Width with no sidebar */
 .main-content {
     flex: 1;
     display: flex;
     flex-direction: column;
     overflow-y: auto;
     overflow-x: hidden;
-    width: 100%; /* Ensure main content takes full width */
+    width: 100% !important; /* Full width since no sidebar */
+    margin-left: 0 !important; /* No sidebar offset */
+    background-color: var(--gray-50); /* Add subtle background color */
 }
 
 .content-header {
-    background-color: var(--primary-white);
+    background-color: var(--gray-50);
     border-bottom: 1px solid var(--gray-200);
     padding: var(--spacing-md) var(--spacing-lg); /* Use consistent padding */
     box-shadow: var(--shadow-sm);
@@ -4149,12 +4132,12 @@ html, body {
 
 
 
-/* Simple Header - Clean and Centered */
+/* Simple Header - Clean and Centered - Full Width */
 .simple-header {
     width: 100%;
     text-align: center;
-    padding: 0.5rem 0;
-    background-color: var(--primary-white);
+    padding: 1rem 0; /* Increased padding since more space available */
+    background-color: var(--gray-50);
     border-bottom: 1px solid var(--gray-200);
     margin: 0;
     box-sizing: border-box;

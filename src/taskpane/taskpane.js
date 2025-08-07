@@ -1841,8 +1841,8 @@ Office.onReady((info) => {
         productionLog('initializeTextareaAutoResize called');
       }
       
-      // Initialize sidebar navigation
-      initializeSidebarNavigation();
+      // Sidebar navigation removed - no longer needed
+      // initializeSidebarNavigation();
       
       productionLog("Client Mode activation completed");
     }
