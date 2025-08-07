@@ -52,6 +52,24 @@ export const CONFIG = {
   },
 
   // Microsoft Authentication Configuration
+  // Subscription API Configuration
+  subscription: {
+    // Your backend API endpoint for checking subscription status
+    apiUrl: process.env.NODE_ENV === 'development' 
+      ? "https://your-dev-api.com/api/subscription/status" 
+      : "https://your-api-domain.com/api/subscription/status",
+    
+    // Enable mock mode for development (returns fake subscription data)
+    mockMode: false, // Disabled - no fake subscription data
+    
+    // Mock response for development/testing
+    mockResponse: {
+      status: 'active',
+      plan: 'Professional',
+      expires: '2024-12-31'
+    }
+  },
+
   authentication: {
     // To set up Microsoft authentication:
     // 1. Go to Azure Active Directory > App registrations > New registration

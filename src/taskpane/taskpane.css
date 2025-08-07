@@ -4177,6 +4177,66 @@ html, body {
     line-height: 1.2;
 }
 
+.signed-in-status {
+    margin: 0.5rem 0 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.signed-in-text {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    margin: 0;
+    font-weight: 400;
+    line-height: 1.2;
+}
+
+.subscription-status-text {
+    font-size: 0.65rem;
+    margin: 0;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+.subscription-status-text.active {
+    color: var(--green-600);
+}
+
+.subscription-status-text.inactive {
+    color: var(--orange-600);
+}
+
+.subscription-status-text.error {
+    color: var(--gray-400);
+}
+
+.sign-out-mini-button {
+    background: none;
+    border: 1px solid var(--gray-300);
+    color: var(--gray-600);
+    font-size: 0.625rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s ease-in-out;
+    line-height: 1;
+}
+
+.sign-out-mini-button:hover {
+    background-color: var(--gray-50);
+    border-color: var(--gray-400);
+    color: var(--gray-700);
+}
+
+.sign-out-mini-button:active {
+    background-color: var(--gray-100);
+    border-color: var(--gray-500);
+    transform: translateY(1px);
+}
+
 /* Client mode specific sizing */
 #client-mode-view .app-title {
     font-size: 1.25rem;
@@ -4783,4 +4843,22 @@ body,
     outline: none;
     border-color: #007ACC;
     box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+}
+
+/* Authentication button hover and active styles */
+.signup-signin-button {
+  transition: all 0.3s ease;
+}
+
+/* Google authentication button styles for the main input area replacement */
+.signup-signin-button:active {
+  transform: translateY(0) !important;
+  box-shadow: 0 2px 10px rgba(66, 133, 244, 0.3) !important;
+  background-color: #2d5aa0 !important;
+}
+
+/* Improved sign-in button prominence */
+.sidebar-auth-button:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
 }

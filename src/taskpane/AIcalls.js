@@ -2750,6 +2750,11 @@ Office.onReady(async (info) => {
       if (clientModeView) clientModeView.style.display = 'flex';
       if (authenticationView) authenticationView.style.display = 'none';
       console.log("Client Mode view activated");
+      
+      // Update signed-in status when showing client mode
+      if (typeof window.updateSignedInStatus === 'function') {
+        window.updateSignedInStatus();
+      }
     }
 
     function showAuthenticationView() { // Added authentication view function
@@ -2829,7 +2834,8 @@ Office.onReady(async (info) => {
         response_type: 'token id_token',
         scope: 'email profile',
         nonce: generateRandomStateView(),
-        state: generateRandomStateView()
+        state: generateRandomStateView(),
+        prompt: 'select_account' // Force account selection every time
       });
       
       return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;

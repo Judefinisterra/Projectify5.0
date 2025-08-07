@@ -1786,6 +1786,43 @@ Office.onReady((info) => {
       productionLog(`After changes - startupMenu display: ${startupMenu ? startupMenu.style.display : 'null'}`);
       productionLog(`After changes - clientModeView display: ${clientModeView ? clientModeView.style.display : 'null'}`);
       
+      // >>> PRIORITY: Initialize and check authentication FIRST before any other functionality
+      try {
+        // Initialize MSAL if not already done
+        if (typeof msal !== 'undefined' && !msalInstance) {
+          const msalInitialized = initializeMSAL();
+          productionLog(`MSAL initialization result: ${msalInitialized}`);
+        }
+        
+        // Check authentication state
+        if (typeof msal !== 'undefined' && msalInstance) {
+          checkAuthState(); // Check if user is already signed in
+          productionLog('Authentication state checked for client mode');
+        } else {
+          productionLog('MSAL not available - showing authentication prompt');
+        }
+        
+        // CRITICAL: Check if user is authenticated and show appropriate UI
+        const isAuthenticated = isUserAuthenticated();
+        productionLog(`User authentication status: ${isAuthenticated}`);
+        
+        if (!isAuthenticated) {
+          // User is NOT authenticated - prioritize sign-in
+          showAuthenticationFirst();
+          productionLog('Authentication required - showing sign-in first');
+        } else {
+          // User IS authenticated - show normal interface
+          showAuthenticatedInterface();
+          productionLog('User authenticated - showing normal interface');
+        }
+        
+      } catch (error) {
+        console.error('Error in authentication check during client mode:', error);
+        // Fallback to showing authentication prompt
+        showAuthenticationFirst();
+      }
+      // <<< END PRIORITY AUTHENTICATION CHECK
+      
       // Initialize file attachment functionality
       if (typeof initializeFileAttachment === 'function') {
         initializeFileAttachment();
@@ -1804,36 +1841,213 @@ Office.onReady((info) => {
         productionLog('initializeTextareaAutoResize called');
       }
       
-      // >>> ADDED: Initialize authentication UI for client mode
-      if (typeof msal !== 'undefined' && msalInstance) {
-        try {
-          checkAuthState(); // Check if user is already signed in
-          productionLog('Authentication state checked for client mode');
-        } catch (error) {
-          console.error('Error checking authentication state in client mode:', error);
-        }
-      } else {
-        productionLog('Authentication not available in client mode');
-      }
-      
-      // Show the sign-in button (always visible unless user is already authenticated)
-      const signInButton = document.getElementById('sign-in-button');
-      if (signInButton) {
-        if (isUserAuthenticated()) {
-          signInButton.style.display = 'none';
-          productionLog('Sign-in button hidden - user already authenticated');
-        } else {
-          signInButton.style.display = 'flex';
-          productionLog('Sign-in button shown for client mode');
-        }
-      }
-      // <<< END ADDED
-      
       // Initialize sidebar navigation
       initializeSidebarNavigation();
       
       productionLog("Client Mode activation completed");
     }
+
+    // >>> ADDED: Authentication-first helper functions
+    function showAuthenticationFirst() {
+      productionLog('showAuthenticationFirst called - prioritizing authentication');
+      
+      // Keep the interface normal but hide user info since not authenticated
+      const userInfo = document.getElementById('user-info');
+      if (userInfo) {
+        userInfo.style.display = 'none';
+        productionLog('User info hidden');
+      }
+      
+      // Show the sign-in button in sidebar
+      const signInButton = document.getElementById('sign-in-button');
+      if (signInButton) {
+        signInButton.style.display = 'flex';
+        productionLog('Sidebar sign-in button shown');
+      }
+      
+      // Replace the chat input area with a signup/signin button
+      replaceInputWithAuthButton();
+      
+      productionLog('Authentication-first UI setup completed');
+    }
+    
+    function showAuthenticatedInterface() {
+      productionLog('showAuthenticatedInterface called - user is authenticated');
+      
+      // Hide the sign-in button
+      const signInButton = document.getElementById('sign-in-button');
+      if (signInButton) {
+        signInButton.style.display = 'none';
+        productionLog('Sign-in button hidden');
+      }
+      
+      // Show user info
+      const userInfo = document.getElementById('user-info');
+      if (userInfo) {
+        userInfo.style.display = 'flex';
+        productionLog('User info shown');
+      }
+      
+      // Restore normal chat input interface
+      restoreNormalInputInterface();
+      
+      // Update UI with user information
+      updateSignedInStatus();
+      updateAuthUI(true);
+      
+      productionLog('Authenticated interface setup completed');
+    }
+    
+    function replaceInputWithAuthButton() {
+      productionLog('Replacing input area with authentication button');
+      
+      // Find the input area wrapper
+      const inputWrapper = document.getElementById('client-input-wrapper');
+      if (!inputWrapper) {
+        productionLog('Input wrapper not found');
+        return;
+      }
+      
+      // Hide the normal input elements
+      const inputBar = document.getElementById('chatgpt-input-bar');
+      const attachedFiles = document.getElementById('attached-files-container');
+      const loadingAnimation = document.getElementById('loading-animation-client');
+      
+      if (inputBar) {
+        inputBar.style.display = 'none';
+        productionLog('Input bar hidden');
+      }
+      if (attachedFiles) {
+        attachedFiles.style.display = 'none';
+        productionLog('Attached files hidden');
+      }
+      if (loadingAnimation) {
+        loadingAnimation.style.display = 'none';
+        productionLog('Loading animation hidden');
+      }
+      
+      // Create or show the auth button
+      let authButton = document.getElementById('main-auth-button');
+      if (!authButton) {
+        authButton = document.createElement('div');
+        authButton.id = 'main-auth-button';
+        authButton.style.cssText = `
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          padding: 16px;
+          margin: 20px auto;
+          max-width: 400px;
+        `;
+        
+        authButton.innerHTML = `
+          <button class="signup-signin-button" style="
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(66, 133, 244, 0.4);
+            min-width: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            <svg style="width: 20px; height: 20px; margin-right: 12px;" viewBox="0 0 24 24">
+              <path fill="#ffffff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#ffffff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#ffffff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#ffffff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Continue with Google
+          </button>
+        `;
+        
+        inputWrapper.appendChild(authButton);
+        productionLog('Auth button created and added');
+      } else {
+        authButton.style.display = 'flex';
+        productionLog('Auth button shown');
+      }
+      
+      // Add click handler to the button
+      const button = authButton.querySelector('.signup-signin-button');
+      if (button) {
+        button.onclick = handleSignInClick;
+        
+        // Add hover effects for Google button
+        button.onmouseenter = function() {
+          this.style.transform = 'translateY(-2px)';
+          this.style.boxShadow = '0 6px 20px rgba(66, 133, 244, 0.6)';
+          this.style.backgroundColor = '#3367d6';
+        };
+        button.onmouseleave = function() {
+          this.style.transform = 'translateY(0)';
+          this.style.boxShadow = '0 4px 15px rgba(66, 133, 244, 0.4)';
+          this.style.backgroundColor = '#4285f4';
+        };
+        
+        productionLog('Auth button handlers attached');
+      }
+    }
+    
+    function restoreNormalInputInterface() {
+      productionLog('Restoring normal input interface');
+      
+      // Hide the auth button
+      const authButton = document.getElementById('main-auth-button');
+      if (authButton) {
+        authButton.style.display = 'none';
+        productionLog('Auth button hidden');
+      }
+      
+      // Show the normal input elements
+      const inputBar = document.getElementById('chatgpt-input-bar');
+      const attachedFiles = document.getElementById('attached-files-container');
+      const loadingAnimation = document.getElementById('loading-animation-client');
+      
+      if (inputBar) {
+        inputBar.style.display = 'block';
+        productionLog('Input bar restored');
+      }
+      if (attachedFiles) {
+        attachedFiles.style.display = 'block';
+        productionLog('Attached files restored');
+      }
+      // Note: loadingAnimation should remain hidden until needed
+      
+      productionLog('Normal input interface restored');
+    }
+    
+    function handleSignInClick() {
+      productionLog('Google Sign-in button clicked');
+      
+      // Use Google authentication instead of Microsoft
+      handleGoogleSignIn();
+    }
+    
+    function simulateAuthentication() {
+      // This is a temporary function for development when Azure credentials aren't set up
+      productionLog('Simulating authentication for development');
+      
+      // Create a mock user
+      currentUser = {
+        name: 'Demo User',
+        username: 'demo@example.com',
+        localAccountId: 'demo-user-123'
+      };
+      
+      // Update UI to show authenticated state
+      showAuthenticatedInterface();
+      
+      showMessage('Demo authentication successful! (For production, please configure Azure authentication)');
+      productionLog('Demo authentication completed');
+    }
+    // <<< END ADDED AUTHENTICATION HELPERS
 
     let sidebarInitialized = false;
     // Sidebar navigation functionality
@@ -2194,7 +2408,8 @@ Office.onReady((info) => {
         response_type: 'token id_token',
         scope: GOOGLE_CONFIG.SCOPES,
         nonce: generateRandomState(),
-        state: generateRandomState()
+        state: generateRandomState(),
+        prompt: 'select_account' // Force account selection every time
       });
       
       return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
@@ -2251,10 +2466,12 @@ Office.onReady((info) => {
         sessionStorage.setItem('googleCredential', authResult.id_token);
       }
       
-      // Show success message and redirect
+      // Show success message and update interface
       const userName = authResult.user ? authResult.user.name : 'User';
       showMessage(`Welcome ${userName}! Authentication successful.`);
-      showClientMode();
+      
+      // Update interface to show authenticated state
+      showAuthenticatedInterface();
     }
 
     function handleGoogleAuthError(error) {
@@ -2273,9 +2490,11 @@ Office.onReady((info) => {
       sessionStorage.setItem('googleUser', JSON.stringify(userInfo));
       sessionStorage.setItem('googleCredential', response.credential);
       
-      // Show success message and redirect
+      // Show success message and update interface
       showMessage(`Welcome ${userInfo.name}! Authentication successful.`);
-      showClientMode();
+      
+      // Update interface to show authenticated state
+      showAuthenticatedInterface();
     }
 
     function handleGoogleTokenResponse(tokenResponse) {
@@ -2296,14 +2515,18 @@ Office.onReady((info) => {
           sessionStorage.setItem('googleUser', JSON.stringify(userInfo));
           sessionStorage.setItem('googleToken', tokenResponse.access_token);
           
-          // Show success message and redirect
+          // Show success message and update interface
           showMessage(`Welcome ${userInfo.name}! Authentication successful.`);
-          showClientMode();
+          
+          // Update interface to show authenticated state
+          showAuthenticatedInterface();
         })
         .catch(error => {
           console.error("Error fetching user info:", error);
           showMessage("Authentication successful but failed to get user information.");
-          showClientMode();
+          
+          // Still update interface since authentication was successful
+          showAuthenticatedInterface();
         });
       }
     }
@@ -2334,6 +2557,137 @@ Office.onReady((info) => {
       const userStr = sessionStorage.getItem('googleUser');
       return userStr ? JSON.parse(userStr) : null;
     }
+
+    // Function to get current user display name
+    function getCurrentUserDisplayName() {
+      const googleUser = getCurrentUser();
+      console.log('getCurrentUserDisplayName - googleUser:', googleUser);
+      console.log('getCurrentUserDisplayName - currentUser (Microsoft):', currentUser);
+      
+      if (googleUser) {
+        const displayName = googleUser.name || googleUser.email || 'Google User';
+        console.log('Using Google user display name:', displayName);
+        return displayName;
+      }
+      
+      // Check for Microsoft authentication
+      if (currentUser) {
+        const displayName = currentUser.name || currentUser.username || 'Microsoft User';
+        console.log('Using Microsoft user display name:', displayName);
+        return displayName;
+      }
+      
+      console.log('No authenticated user found');
+      return null;
+    }
+
+    // Function to update signed-in status display
+    function updateSignedInStatus() {
+      const signedInStatus = document.getElementById('signed-in-status');
+      const signedInUser = document.getElementById('signed-in-user');
+      
+      console.log('updateSignedInStatus called');
+      console.log('signedInStatus element:', signedInStatus);
+      console.log('signedInUser element:', signedInUser);
+      
+      if (signedInStatus && signedInUser) {
+        const userDisplayName = getCurrentUserDisplayName();
+        console.log('userDisplayName:', userDisplayName);
+        if (userDisplayName) {
+          signedInUser.textContent = userDisplayName;
+          signedInStatus.style.display = 'block';
+          console.log('Signed-in status shown for:', userDisplayName);
+          
+          // Check subscription status
+          checkSubscriptionStatus();
+        } else {
+          signedInStatus.style.display = 'none';
+          console.log('Signed-in status hidden - no user found');
+        }
+      } else {
+        console.log('Required elements not found for signed-in status');
+      }
+    }
+
+    // Function to check subscription status
+    async function checkSubscriptionStatus() {
+      const subscriptionStatusElement = document.getElementById('subscription-status');
+      if (!subscriptionStatusElement) return;
+
+      const googleUser = getCurrentUser();
+      if (!googleUser || !googleUser.email) {
+        console.log('No user email found for subscription check');
+        return;
+      }
+
+      try {
+        console.log('Checking subscription status for:', googleUser.email);
+        
+        // Check if mock mode is enabled (for development/testing)
+        if (CONFIG.subscription && CONFIG.subscription.mockMode) {
+          console.log('Using mock subscription data for development');
+          // Simulate API delay
+          await new Promise(resolve => setTimeout(resolve, 500));
+          updateSubscriptionDisplay(CONFIG.subscription.mockResponse);
+          return;
+        }
+        
+        const SUBSCRIPTION_API_URL = CONFIG.subscription?.apiUrl || 'https://your-api-domain.com/api/subscription/status';
+        
+        const response = await fetch(`${SUBSCRIPTION_API_URL}?email=${encodeURIComponent(googleUser.email)}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            // Add any required authentication headers here
+            // 'Authorization': `Bearer ${your_api_token}`
+          }
+        });
+
+        if (response.ok) {
+          const subscriptionData = await response.json();
+          updateSubscriptionDisplay(subscriptionData);
+        } else {
+          console.warn('Subscription API returned non-200 status:', response.status);
+          updateSubscriptionDisplay({ status: 'unknown', plan: null });
+        }
+      } catch (error) {
+        console.error('Error checking subscription status:', error);
+        // Don't show error status until real API is configured
+        updateSubscriptionDisplay({ status: 'hidden', plan: null });
+      }
+    }
+
+    // Function to update subscription status display
+    function updateSubscriptionDisplay(subscriptionData) {
+      const subscriptionStatusElement = document.getElementById('subscription-status');
+      if (!subscriptionStatusElement) return;
+
+      // Clear previous classes
+      subscriptionStatusElement.className = 'subscription-status-text';
+      
+      if (subscriptionData.status === 'active' && subscriptionData.plan) {
+        subscriptionStatusElement.textContent = `${subscriptionData.plan} Plan`;
+        subscriptionStatusElement.classList.add('active');
+        subscriptionStatusElement.style.display = 'block';
+      } else if (subscriptionData.status === 'inactive' || subscriptionData.status === 'cancelled') {
+        subscriptionStatusElement.textContent = 'No Active Subscription';
+        subscriptionStatusElement.classList.add('inactive');
+        subscriptionStatusElement.style.display = 'block';
+      } else if (subscriptionData.status === 'error') {
+        subscriptionStatusElement.textContent = 'Subscription status unavailable';
+        subscriptionStatusElement.classList.add('error');
+        subscriptionStatusElement.style.display = 'block';
+      } else {
+        // Unknown status, hidden, or no subscription info
+        subscriptionStatusElement.style.display = 'none';
+      }
+      
+      console.log('Subscription status updated:', subscriptionData);
+    }
+
+    // Make functions globally accessible for cross-file access
+    window.updateSignedInStatus = updateSignedInStatus;
+    window.getCurrentUserDisplayName = getCurrentUserDisplayName;
 
     // Function to sign out user
     function signOutUser() {
@@ -3419,6 +3773,22 @@ Office.onReady((info) => {
     } else {
         console.log('Sign-out button not found (may be in different mode)');
     }
+
+    // Add event listener for the mini sign-out button in client mode
+    const signOutMiniButton = document.getElementById('sign-out-mini-button');
+    if (signOutMiniButton) {
+        signOutMiniButton.onclick = async () => {
+            try {
+                await signOut();
+            } catch (error) {
+                console.error('Sign-out error:', error);
+                showError('Sign-out failed. Please try again.');
+            }
+        };
+        console.log('Sign-out mini button event handler attached');
+    } else {
+        console.log('Sign-out mini button not found');
+    }
     // <<< END ADDED
 
     // >>> ADDED: Fullscreen toggle functionality for code editor
@@ -4116,6 +4486,7 @@ async function signIn() {
             currentUser = response.account;
             updateAuthUI(true);
             getUserProfile();
+            updateSignedInStatus();
             showMessage('Successfully signed in to Microsoft!');
         } else {
             console.error('No account in sign-in response');
@@ -4178,6 +4549,7 @@ async function signOut() {
         
         currentUser = null;
         updateAuthUI(false);
+        updateSignedInStatus();
         
         // Redirect back to authentication view
         const authView = document.getElementById('authentication-view');
@@ -4357,16 +4729,35 @@ function updateAuthUI(isAuthenticated) {
 }
 
 /**
- * Get current authenticated user
+ * Get current authenticated user (prioritizes Google, then Microsoft)
  */
 function getCurrentUser() {
+    // Check Google authentication first
+    const googleUserStr = sessionStorage.getItem('googleUser');
+    if (googleUserStr) {
+        try {
+            return JSON.parse(googleUserStr);
+        } catch (e) {
+            console.error('Error parsing Google user data:', e);
+        }
+    }
+    
+    // Fallback to Microsoft authentication
     return currentUser;
 }
 
 /**
- * Check if user is authenticated
+ * Check if user is authenticated (checks Google first, then Microsoft)
  */
 function isUserAuthenticated() {
+    // Check Google authentication first
+    const googleUser = sessionStorage.getItem('googleUser');
+    const googleCredential = sessionStorage.getItem('googleCredential') || sessionStorage.getItem('googleToken');
+    if (googleUser && googleCredential) {
+        return true;
+    }
+    
+    // Fallback to Microsoft authentication
     return currentUser !== null;
 }
 
