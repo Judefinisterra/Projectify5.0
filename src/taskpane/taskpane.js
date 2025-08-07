@@ -1942,26 +1942,26 @@ Office.onReady((info) => {
         
         authButton.innerHTML = `
           <button class="signup-signin-button" style="
-            background: #4285f4;
+            background: #1f2937;
             color: white;
-            border: none;
-            padding: 16px 32px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
+            border: 1px solid #374151;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(66, 133, 244, 0.4);
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
             min-width: 250px;
             display: flex;
             align-items: center;
             justify-content: center;
           ">
-            <svg style="width: 20px; height: 20px; margin-right: 12px;" viewBox="0 0 24 24">
-              <path fill="#ffffff" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#ffffff" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#ffffff" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="#ffffff" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            <svg style="width: 18px; height: 18px; margin-right: 8px;" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
             Continue with Google
           </button>
@@ -1981,14 +1981,16 @@ Office.onReady((info) => {
         
         // Add hover effects for Google button
         button.onmouseenter = function() {
-          this.style.transform = 'translateY(-2px)';
-          this.style.boxShadow = '0 6px 20px rgba(66, 133, 244, 0.6)';
-          this.style.backgroundColor = '#3367d6';
+          this.style.transform = 'translateY(-1px)';
+          this.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.15)';
+          this.style.backgroundColor = '#374151';
+          this.style.borderColor = '#4b5563';
         };
         button.onmouseleave = function() {
           this.style.transform = 'translateY(0)';
-          this.style.boxShadow = '0 4px 15px rgba(66, 133, 244, 0.4)';
-          this.style.backgroundColor = '#4285f4';
+          this.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.05)';
+          this.style.backgroundColor = '#1f2937';
+          this.style.borderColor = '#374151';
         };
         
         productionLog('Auth button handlers attached');
