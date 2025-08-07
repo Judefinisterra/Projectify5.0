@@ -1,5 +1,14 @@
 /* global Office, msal */ // Global variables for Office.js and MSAL
 
+// Import backend API integration
+import backendAPI from './BackendAPI.js';
+// Import user profile management
+import { initializeUserData, refreshUserData, canUseFeatures, getUserCredits } from './UserProfile.js';
+// Import credit system management
+import { enforceFeatureAccess, useCreditForBuild, useCreditForUpdate, startSubscription } from './CreditSystem.js';
+// Import subscription management
+import { checkSubscriptionStatus } from './SubscriptionManager.js';
+
 import { populateCodeCollection, exportCodeCollectionToText, runCodes, processAssumptionTabs, collapseGroupingsAndNavigateToFinancials, hideColumnsAndNavigate, handleInsertWorksheetsFromBase64, parseFormulaSCustomFormula } from './CodeCollection.js';
 // >>> ADDED: Import the new validation function
 import { validateCodeStringsForRun } from './Validation.js';
@@ -1659,8 +1668,26 @@ async function insertSheetsAndRunCodes() {
     }
 }
 
-Office.onReady((info) => {
+Office.onReady(async (info) => {
   productionLog('Office.onReady started');
+  
+  // Initialize backend integration
+  try {
+    console.log("🚀 Initializing backend integration...");
+    
+    // Check backend health
+    const backendHealthy = await backendAPI.healthCheck();
+    console.log(`🌐 Backend health: ${backendHealthy ? 'OK' : 'DOWN'}`);
+    
+    // If user is already authenticated, initialize their data
+    if (backendAPI.isAuthenticated()) {
+      console.log("👤 User is authenticated, initializing data...");
+      await initializeUserData();
+    }
+    
+  } catch (error) {
+    console.warn("⚠️ Backend initialization failed:", error);
+  }
   
   // Try to set optimal task pane width for our sidebar layout
   try {
@@ -2342,79 +2369,136 @@ Office.onReady((info) => {
     function handleGoogleSignIn() {
       console.log("Google Sign-In clicked");
       
-      // Debug Office context
+      // Ensure Office.js is fully initialized before proceeding
+      if (typeof Office === 'undefined') {
+        console.error("Office.js is not loaded");
+        showError("Office Add-in environment not ready. Please refresh and try again.");
+        return;
+      }
+      
+      // Wait for Office to be ready if it's still initializing
+      Office.onReady(() => {
+        console.log("Office.onReady called - proceeding with authentication");
+        proceedWithGoogleAuth();
+      });
+    }
+    
+    function proceedWithGoogleAuth() {
+      // Debug Office context with more detail
+      console.log("=== Office Environment Debug ===");
       console.log("Office available:", typeof Office !== 'undefined');
       console.log("Office.context available:", typeof Office !== 'undefined' && Office.context);
       console.log("Office.context.ui available:", typeof Office !== 'undefined' && Office.context && Office.context.ui);
       console.log("Office.context.ui.displayDialogAsync available:", typeof Office !== 'undefined' && Office.context && Office.context.ui && typeof Office.context.ui.displayDialogAsync === 'function');
+      console.log("Office host:", Office.context?.host);
+      console.log("Office platform:", Office.context?.platform);
+      console.log("================================");
       
       // Use Office Dialog API for authentication within Excel environment
       if (typeof Office !== 'undefined' && Office.context && Office.context.ui && typeof Office.context.ui.displayDialogAsync === 'function') {
-        console.log("Using Office Dialog API");
+        console.log("✅ Using Office Dialog API for authentication");
         const authUrl = buildGoogleAuthUrl();
         console.log("Auth URL:", authUrl);
         
+        // Show loading message
+        showMessage("Opening authentication dialog...");
+        
         Office.context.ui.displayDialogAsync(authUrl, {
-          height: 60,
-          width: 60,
-          requireHTTPS: true
+          height: 70,
+          width: 70,
+          requireHTTPS: true,
+          displayInIframe: false // Ensure it opens in a proper dialog, not iframe
         }, function (result) {
+          console.log("Dialog creation result:", result);
+          
           if (result.status === Office.AsyncResultStatus.Succeeded) {
             const dialog = result.value;
+            console.log("✅ Authentication dialog opened successfully");
+            showMessage("Please complete authentication in the dialog window...");
             
             // Listen for messages from the dialog
             dialog.addEventHandler(Office.EventType.DialogMessageReceived, function (arg) {
+              console.log("✅ Received message from dialog:", arg.message);
               try {
                 const authResult = JSON.parse(arg.message);
+                console.log("Parsed auth result:", authResult);
                 dialog.close();
                 
                 if (authResult.success) {
+                  console.log("✅ Authentication successful, updating interface...");
                   handleGoogleAuthSuccess(authResult);
                 } else {
+                  console.error("❌ Authentication failed:", authResult.error);
                   handleGoogleAuthError(authResult.error);
                 }
               } catch (error) {
-                console.error("Error parsing auth result:", error);
+                console.error("❌ Error parsing auth result:", error);
+                console.error("Raw message received:", arg.message);
                 dialog.close();
-                showError("Authentication failed. Please try again.");
+                showError("Authentication response could not be processed. Please try again.");
               }
             });
             
             // Handle dialog closed by user
             dialog.addEventHandler(Office.EventType.DialogEventReceived, function (arg) {
+              console.log("Dialog event received:", arg);
               if (arg.error === 12006) { // Dialog closed by user
                 console.log("Authentication canceled by user");
+                showMessage("Authentication canceled");
               } else {
                 console.error("Dialog error:", arg.error);
-                showError("Authentication failed. Please try again.");
+                showError("Authentication dialog error. Please try again.");
               }
             });
           } else {
-            console.error("Failed to open authentication dialog:", result.error);
-            console.error("Result details:", result);
-            // Fallback to external window for development
+            console.error("❌ Failed to open authentication dialog:", result.error);
+            console.error("Error details:", result);
+            
+            // More specific error handling
+            if (result.error.code === 12007) {
+              showError("Cannot open authentication dialog - URL may be blocked. Please check your network settings.");
+            } else if (result.error.code === 12005) {
+              showError("Authentication dialog was canceled or blocked.");
+            } else {
+              showError(`Dialog failed to open: ${result.error.message || result.error.code}`);
+            }
+            
+            console.log("⚠️ Falling back to popup window (not recommended for production)");
             handleGoogleSignInFallback();
           }
         });
       } else {
-        console.log("Office Dialog API not available, using fallback");
+        console.log("❌ Office Dialog API not available");
+        if (typeof Office === 'undefined') {
+          showError("Office Add-in environment not detected. Please ensure you're running this in Excel.");
+        } else {
+          showError("Dialog API not available in this Office version.");
+        }
+        console.log("⚠️ Using fallback authentication (external browser)");
         handleGoogleSignInFallback();
       }
     }
 
     function buildGoogleAuthUrl() {
       // Use the current origin for better flexibility across environments
+      const redirectUri = `${window.location.origin}/auth/google/callback.html`;
+      console.log("Building Google Auth URL with redirect URI:", redirectUri);
+      
       const params = new URLSearchParams({
         client_id: GOOGLE_CONFIG.CLIENT_ID,
-        redirect_uri: `${window.location.origin}/auth/google/callback.html`,
-        response_type: 'token id_token',
+        redirect_uri: redirectUri,
+        response_type: 'token id_token', // Use implicit flow for Office Add-ins
         scope: GOOGLE_CONFIG.SCOPES,
         nonce: generateRandomState(),
         state: generateRandomState(),
         prompt: 'select_account' // Force account selection every time
       });
       
-      return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+      const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+      console.log("Generated auth URL:", authUrl);
+      console.log("URL length:", authUrl.length, "(should be under 2048 characters)");
+      
+      return authUrl;
     }
 
     function generateRandomState() {
@@ -2428,20 +2512,51 @@ Office.onReady((info) => {
     };
 
     function handleGoogleSignInFallback() {
+      console.log("⚠️ WARNING: Using external browser fallback - this is not recommended for Office Add-ins");
+      console.log("This should only be used for development/testing purposes");
+      
+      showMessage("Opening authentication in external browser (fallback mode)...");
+      
       // Fallback for development or when Office Dialog API is not available
       const authUrl = buildGoogleAuthUrl();
+      console.log("Opening popup with URL:", authUrl);
+      
       const popup = window.open(authUrl, 'googleAuth', 'width=500,height=600,scrollbars=yes,resizable=yes');
+      
+      if (!popup) {
+        showError("Popup blocked by browser. Please allow popups for this site and try again.");
+        return;
+      }
       
       // Poll for popup closure (not ideal but works for development)
       const pollTimer = setInterval(() => {
         try {
           if (popup.closed) {
             clearInterval(pollTimer);
-            console.log("Authentication popup closed");
-            // You might want to check for stored tokens here
+            console.log("Authentication popup closed - checking for stored authentication data");
+            
+            // Check if authentication was successful by looking for stored tokens
+            setTimeout(() => {
+              const googleUser = sessionStorage.getItem('googleUser');
+              const googleToken = sessionStorage.getItem('googleToken');
+              
+              if (googleUser && googleToken) {
+                console.log("Authentication appears successful - refreshing interface");
+                const userInfo = JSON.parse(googleUser);
+                handleGoogleAuthSuccess({
+                  success: true,
+                  user: userInfo,
+                  access_token: googleToken,
+                  id_token: sessionStorage.getItem('googleCredential')
+                });
+              } else {
+                console.log("No authentication data found - user may have canceled");
+                showMessage("Authentication was canceled or incomplete");
+              }
+            }, 1000);
           }
         } catch (error) {
-          // Cross-origin error when popup is open
+          // Cross-origin error when popup is open - this is expected
         }
       }, 1000);
       
@@ -2454,26 +2569,56 @@ Office.onReady((info) => {
       }, 300000);
     }
 
-    function handleGoogleAuthSuccess(authResult) {
-      console.log("Google authentication successful", authResult);
+    async function handleGoogleAuthSuccess(authResult) {
+      console.log("✅ Google authentication successful", authResult);
       
-      // Store user session
-      if (authResult.user) {
-        sessionStorage.setItem('googleUser', JSON.stringify(authResult.user));
+      try {
+        // Store Google user data locally (for display purposes)
+        if (authResult.user) {
+          sessionStorage.setItem('googleUser', JSON.stringify(authResult.user));
+        }
+        if (authResult.access_token) {
+          sessionStorage.setItem('googleToken', authResult.access_token);
+        }
+        if (authResult.id_token) {
+          sessionStorage.setItem('googleCredential', authResult.id_token);
+        }
+        
+        const userName = authResult.user ? authResult.user.name : 'User';
+        showMessage(`Welcome ${userName}! Connecting to backend...`);
+        
+        // Authenticate with backend using Google ID token
+        if (authResult.id_token) {
+          console.log("🔐 Authenticating with backend...");
+          
+          const backendAuthResult = await backendAPI.signInWithGoogle(authResult.id_token);
+          console.log("✅ Backend authentication successful");
+          
+          // Initialize user data from backend
+          await initializeUserData();
+          
+          showMessage(`Welcome ${userName}! You're all set!`);
+        } else {
+          console.warn("⚠️ No ID token received, skipping backend authentication");
+          showMessage(`Welcome ${userName}! (Google only)`);
+        }
+        
+        // Update interface to show authenticated state
+        showAuthenticatedInterface();
+        
+      } catch (error) {
+        console.error("❌ Backend authentication failed:", error);
+        
+        // Still show interface if Google auth worked, but warn about backend
+        const userName = authResult.user ? authResult.user.name : 'User';
+        showMessage(`Welcome ${userName}! (Limited features - backend unavailable)`);
+        showAuthenticatedInterface();
+        
+        // Show error notification
+        setTimeout(() => {
+          showError("Some features may be unavailable due to backend connection issues.");
+        }, 2000);
       }
-      if (authResult.access_token) {
-        sessionStorage.setItem('googleToken', authResult.access_token);
-      }
-      if (authResult.id_token) {
-        sessionStorage.setItem('googleCredential', authResult.id_token);
-      }
-      
-      // Show success message and update interface
-      const userName = authResult.user ? authResult.user.name : 'User';
-      showMessage(`Welcome ${userName}! Authentication successful.`);
-      
-      // Update interface to show authenticated state
-      showAuthenticatedInterface();
     }
 
     function handleGoogleAuthError(error) {
@@ -2741,7 +2886,15 @@ Office.onReady((info) => {
     // Assign the REVISED async function as the handler
     const button = document.getElementById("insert-and-run");
     if (button) {
-        button.onclick = insertSheetsAndRunCodes; // Use the revised function
+        button.onclick = async () => {
+          // Check credits before allowing model building
+          await enforceFeatureAccess('build', async () => {
+            // Use credit for building
+            await useCreditForBuild();
+            // Proceed with model building
+            await insertSheetsAndRunCodes();
+          });
+        };
     } else {
         console.error("Could not find button with id='insert-and-run'");
     }
@@ -2750,7 +2903,17 @@ Office.onReady((info) => {
 
     // Keep the setup for your other buttons (send-button, reset-button, etc.)
     const sendButton = document.getElementById('send');
-    if (sendButton) sendButton.onclick = handleSend;
+    if (sendButton) {
+      sendButton.onclick = async () => {
+        // Check credits before allowing AI conversation
+        await enforceFeatureAccess('update', async () => {
+          // Use credit for update/conversation
+          await useCreditForUpdate();
+          // Proceed with AI conversation
+          await handleSend();
+        });
+      };
+    }
 
     const writeButton = document.getElementById('write-to-excel');
     if (writeButton) writeButton.onclick = writeToExcel;
@@ -2801,10 +2964,29 @@ Office.onReady((info) => {
 
     // >>> ADDED: Setup for Client Mode Chat Buttons
     const sendClientButton = document.getElementById('send-client');
-    if (sendClientButton) sendClientButton.onclick = handleSendClient;
+    if (sendClientButton) {
+      sendClientButton.onclick = async () => {
+        // Check credits before allowing AI conversation
+        await enforceFeatureAccess('update', async () => {
+          // Use credit for update/conversation
+          await useCreditForUpdate();
+          // Proceed with AI conversation
+          await handleSendClient();
+        });
+      };
+    }
 
     const resetChatClientButton = document.getElementById('reset-chat-client');
     if (resetChatClientButton) resetChatClientButton.onclick = resetChatClient;
+
+    // Setup subscription upgrade buttons
+    const upgradeButtons = document.querySelectorAll('.upgrade-button');
+    upgradeButtons.forEach(button => {
+      button.onclick = async () => {
+        console.log("💰 Upgrade button clicked");
+        await startSubscription();
+      };
+    });
 
     // Add event listener for the new icon button
     const resetChatIconButton = document.getElementById('reset-chat-icon-button');

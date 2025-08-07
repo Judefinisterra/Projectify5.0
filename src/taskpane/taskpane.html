@@ -390,6 +390,17 @@
                             <img id="user-avatar" class="user-avatar" alt="User Avatar">
                             <div id="user-initials" class="user-initials"></div>
                         </div>
+                        <div class="user-details">
+                            <div class="user-name">User Name</div>
+                            <div class="user-email">user@example.com</div>
+                            <!-- Credits Display -->
+                            <div class="user-credits">
+                                <span class="credits-label">Credits:</span>
+                                <span id="credits-count" class="credits-count">--</span>
+                            </div>
+                            <!-- Subscription Badge -->
+                            <div class="subscription-badge subscription-free">Free</div>
+                        </div>
                         <button id="sign-out-button" class="sidebar-signout-button" title="Sign out">
                             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="signout-icon">
                                 <path d="M16 17l5-5-5-5M19.8 12H9M10 3H5a2 2 0 00-2 2v14a2 2 0 002 2h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
@@ -413,7 +424,19 @@
                         <!-- Signed-in Status -->
                         <div id="signed-in-status" class="signed-in-status" style="display: none;">
                             <p class="signed-in-text">Signed into <span id="signed-in-user"></span></p>
-                            <p id="subscription-status" class="subscription-status-text" style="display: none;"></p>
+                            <div class="status-row">
+                                <span class="credits-status">-- credits available</span>
+                                <div class="subscription-badge subscription-free">Free</div>
+                            </div>
+                            <button id="upgrade-button" class="upgrade-button" style="display: none;">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+                                    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+                                    <path d="M2 2l7.586 7.586"/>
+                                    <circle cx="11" cy="11" r="2"/>
+                                </svg>
+                                Upgrade to Pro
+                            </button>
                             <button id="sign-out-mini-button" class="sign-out-mini-button">Sign Out</button>
                         </div>
                         
@@ -430,6 +453,19 @@
 
                     <!-- Welcome Message with Modern Design -->
                     <div class="welcome-section">
+                        <!-- Low Credits Warning -->
+                        <div id="low-credits-warning" class="warning-banner" style="display: none;">
+                            <div class="warning-content">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                    <line x1="12" y1="9" x2="12" y2="13"/>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                                <span>You're running low on credits! Upgrade to Pro for unlimited usage.</span>
+                                <button class="upgrade-button-small upgrade-button">Upgrade</button>
+                            </div>
+                        </div>
+
                         <h2 class="welcome-title">What do you want to model?</h2>
                         <div class="welcome-steps">
                             <div class="step-item">

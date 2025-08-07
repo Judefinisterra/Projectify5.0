@@ -124,6 +124,31 @@ export const CONFIG = {
     isDevelopmentPlaceholder() {
       return this.msalConfig.auth.clientId.includes('your-azure-app-client-id-here');
     }
+  },
+
+  // Backend API Configuration
+  backend: {
+    baseUrl: 'https://backend-projectify-mpdqopqjv-judefinisterras-projects.vercel.app',
+    endpoints: {
+      auth: {
+        google: '/auth/google',
+        refresh: '/auth/refresh'
+      },
+      user: {
+        profile: '/me',
+        usage: '/usage'
+      },
+      credits: {
+        use: '/use-credit'
+      },
+      subscription: {
+        create: '/create-checkout-session',
+        status: '/subscription',
+        cancel: '/cancel-subscription'
+      },
+      health: '/health'
+    },
+    timeout: 10000
   }
 };
 //dfd
