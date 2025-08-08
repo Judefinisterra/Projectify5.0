@@ -3,9 +3,14 @@
 // Import backend API integration
 import backendAPI from './BackendAPI.js';
 // Import user profile management
-import { initializeUserData, refreshUserData, canUseFeatures, getUserCredits } from './UserProfile.js';
+import userProfileManager, { initializeUserData, refreshUserData, canUseFeatures, getUserCredits } from './UserProfile.js';
 // Import credit system management
 import { enforceFeatureAccess, useCreditForBuild, useCreditForUpdate, startSubscription } from './CreditSystem.js';
+
+// Ensure userProfileManager is available globally
+if (typeof window !== 'undefined') {
+  window.userProfileManager = userProfileManager;
+}
 // Import subscription management
 import { checkSubscriptionStatus } from './SubscriptionManager.js';
 

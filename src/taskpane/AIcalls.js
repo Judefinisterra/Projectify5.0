@@ -301,6 +301,7 @@ const GPT4_TURBO = "gpt-4-turbo"
 const GPTO3 = "gpt-o3"
 const GPT_O3 = "o3"  // Added for responses API
 const GPTFT1 =  "ft:gpt-4.1-2025-04-14:personal:jun25gpt4-1:BeyDTNt1"
+const GPT5 = "gpt-5" // Added GPT-5 model option
 
 // API Configuration - Encoder API Type Selection
 const ENCODER_API_TYPES = {
@@ -310,6 +311,18 @@ const ENCODER_API_TYPES = {
 };
 
 let ENCODER_API_TYPE = ENCODER_API_TYPES.CLAUDE; // Default to chat completions API
+
+// Global toggle to redirect any Claude API usage to GPT-5 via OpenAI Chat Completions
+let REDIRECT_CLAUDE_TO_GPT5 = false;
+
+export function setRedirectClaudeToGPT5(enabled) {
+  REDIRECT_CLAUDE_TO_GPT5 = !!enabled;
+  console.log(`[setRedirectClaudeToGPT5] Redirecting Claude calls to GPT-5: ${REDIRECT_CLAUDE_TO_GPT5}`);
+}
+
+export function getRedirectClaudeToGPT5() {
+  return REDIRECT_CLAUDE_TO_GPT5;
+}
 
 // Functions to control API configuration
 export function setEncoderAPIType(apiType) {
@@ -385,7 +398,7 @@ export async function testClaudeAPI(input, options = {}) {
   ];
   
   const testOptions = {
-    model: "claude-sonnet-4-20250514",
+    model: REDIRECT_CLAUDE_TO_GPT5 ? GPT5 : "claude-sonnet-4-20250514",
     temperature: 1,
     stream: false,
     caller: "testClaudeAPI",
@@ -739,6 +752,19 @@ export async function* callOpenAIResponses(input, options = {}) {
 export async function* callClaudeAPI(messages, options = {}) {
   const { model = "claude-sonnet-4-20250514", temperature = 1, stream = false, caller = "Unknown" } = options;
 
+  // If redirect toggle is on, transparently route this call through OpenAI Chat Completions with GPT-5
+  if (REDIRECT_CLAUDE_TO_GPT5) {
+    const redirectedOptions = {
+      ...options,
+      model: GPT5,
+      // keep temperature/stream/caller as-is
+    };
+    console.log(`[callClaudeAPI] Redirecting Claude call to GPT-5 via OpenAI Chat Completions. Caller: ${caller}`);
+    // Ensure messages format is compatible and reuse OpenAI function
+    yield* callOpenAIChatCompletions(messages, redirectedOptions);
+    return;
+  }
+
   try {
     console.log(`Calling Claude API with model: ${model}, stream: ${stream}`);
     
@@ -922,9 +948,15 @@ export async function* callOpenAI(messagesOrInput, options = {}) {
   }
   
   if (apiTypeToUse === ENCODER_API_TYPES.CLAUDE) {
-    // Use Claude API
-    console.log(`[callOpenAI] Using Claude API for ${caller} with model ${model}`);
-    yield* callClaudeAPI(messages, options);
+    // Use Claude API unless redirected to GPT-5
+    if (REDIRECT_CLAUDE_TO_GPT5) {
+      const redirectedOptions = { ...options, model: GPT5 };
+      console.log(`[callOpenAI] Claude selected but redirect enabled. Using GPT-5 via Chat Completions for ${caller}.`);
+      yield* callOpenAIChatCompletions(messages, redirectedOptions);
+    } else {
+      console.log(`[callOpenAI] Using Claude API for ${caller} with model ${model}`);
+      yield* callClaudeAPI(messages, options);
+    }
   } else if (apiTypeToUse === ENCODER_API_TYPES.RESPONSES && (model === GPT_O3 || model === GPTO3)) {
     // Use Responses API - convert messages to single input string
     let input = "";
@@ -1143,7 +1175,7 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
               const queryStrings = await processPrompt({
             userInput: clientprompt,
             systemPrompt: systemStructurePrompt,
-            model: "claude-sonnet-4-20250514",
+            model: REDIRECT_CLAUDE_TO_GPT5 ? GPT5 : "claude-sonnet-4-20250514",
             temperature: 1,
             history: [], // Explicitly empty
             promptFiles: { system: 'Structure_System' },
@@ -2197,7 +2229,7 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
         ];
 
         const claudeCallOptions = { 
-            model: "claude-sonnet-4-20250514", 
+            model: REDIRECT_CLAUDE_TO_GPT5 ? GPT5 : "claude-sonnet-4-20250514", 
             temperature: 1, 
             stream: false,
             useClaudeAPI: true,
@@ -2294,8 +2326,13 @@ export async function handleInitialConversation(clientprompt) {
         encoderModel = GPT_O3;
         apiType = "Responses API";
     } else if (ENCODER_API_TYPE === ENCODER_API_TYPES.CLAUDE) {
-        encoderModel = "claude-sonnet-4-20250514";
-        apiType = "Claude API";
+      if (REDIRECT_CLAUDE_TO_GPT5) {
+          encoderModel = GPT5;
+          apiType = "OpenAI Chat Completions (GPT-5 redirect)";
+      } else {
+          encoderModel = "claude-sonnet-4-20250514";
+          apiType = "Claude API";
+      }
     }
     
     console.log(`🔧 Initial conversation using ${apiType} with model: ${encoderModel}`);
@@ -2526,7 +2563,7 @@ export async function validationCorrection(clientprompt, initialResponse, valida
         const correctedResponseArray = await processPrompt({
             userInput: correctionPrompt,
             systemPrompt: validationSystemPrompt,
-            model: "claude-sonnet-4-20250514",
+            model: REDIRECT_CLAUDE_TO_GPT5 ? GPT5 : "claude-sonnet-4-20250514",
             temperature: 0.7, // Lower temperature for correction
             history: [],
             promptFiles: { system: `Validation_System|PASS_${validationPassCounter}|ERRORS:${validationResultsString}` },
@@ -3226,7 +3263,7 @@ export async function checkCodeStringsWithLogicCorrector(responseArray, logicErr
         const correctedResponseArray = await processPrompt({
             userInput: logicCorrectorInput,
             systemPrompt: logicCorrectorSystemPrompt,
-            model: "claude-sonnet-4-20250514", // Using Claude model
+            model: REDIRECT_CLAUDE_TO_GPT5 ? GPT5 : "claude-sonnet-4-20250514", // Using Claude model or GPT-5 redirect
             temperature: 0.3, // Lower temperature for logic correction consistency
             history: [], // No history needed for logic correction
             promptFiles: { system: 'LogicCorrectorGPT' },
@@ -3371,7 +3408,7 @@ export async function checkCodeStringsWithLogicChecker(responseArray) {
         const checkedResponseArray = await processPrompt({
             userInput: logicCheckerInput,
             systemPrompt: logicCheckerSystemPrompt,
-            model: "claude-sonnet-4-20250514", // Using Claude model
+            model: REDIRECT_CLAUDE_TO_GPT5 ? GPT5 : "claude-sonnet-4-20250514", // Using Claude model or GPT-5 redirect
             temperature: 0.3, // Lower temperature for logic checking consistency
             history: [], // No history needed for logic checking
             promptFiles: { system: 'LogicCheckerGPT' },
@@ -3499,7 +3536,7 @@ export async function formatCodeStringsWithGPT(responseArray) {
         const formattedResponseArray = await processPrompt({
             userInput: formatInput,
             systemPrompt: formatSystemPrompt,
-            model: "claude-sonnet-4-20250514", // Using Claude model
+            model: REDIRECT_CLAUDE_TO_GPT5 ? GPT5 : "claude-sonnet-4-20250514", // Using Claude model or GPT-5 redirect
             temperature: 0.3, // Lower temperature for formatting consistency
             history: [], // No history needed for formatting
             promptFiles: { system: 'FormatGPT' },
@@ -3573,7 +3610,7 @@ export async function checkLabelsWithGPT(responseArray) {
         const checkedResponseArray = await processPrompt({
             userInput: labelCheckerInput,
             systemPrompt: labelCheckerSystemPrompt,
-            model: "claude-sonnet-4-20250514", // Using Claude model
+            model: REDIRECT_CLAUDE_TO_GPT5 ? GPT5 : "claude-sonnet-4-20250514", // Using Claude model or GPT-5 redirect
             temperature: 0.3, // Lower temperature for label checking consistency
             history: [], // No history needed for label checking
             promptFiles: { system: 'LabelCheckerGPT' },
@@ -3630,7 +3667,7 @@ export async function determinePromptModules(clientRequest) {
         const moduleResponse = await processPrompt({
             userInput: clientRequest,
             systemPrompt: promptModulesSystemPrompt,
-            model: "claude-sonnet-4-20250514", // Using Claude model
+            model: REDIRECT_CLAUDE_TO_GPT5 ? GPT5 : "claude-sonnet-4-20250514", // Using Claude model or GPT-5 redirect
             temperature: 0.3, // Lower temperature for more consistent module selection
             history: [],
             promptFiles: { system: 'PromptModulesGPT' },

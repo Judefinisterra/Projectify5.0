@@ -314,6 +314,11 @@ class UserProfileManager {
 
 const userProfileManager = new UserProfileManager();
 
+// Expose globally for other modules to access
+if (typeof window !== 'undefined') {
+  window.userProfileManager = userProfileManager;
+}
+
 // ============================================================================
 // GLOBAL FUNCTIONS
 // ============================================================================

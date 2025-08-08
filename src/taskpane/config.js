@@ -128,7 +128,7 @@ export const CONFIG = {
 
   // Backend API Configuration
   backend: {
-    baseUrl: 'https://backend-projectify-mpdqopqjv-judefinisterras-projects.vercel.app',
+    baseUrl: 'https://backend-projectify-gdamse658-judefinisterras-projects.vercel.app',
     endpoints: {
       auth: {
         google: '/auth/google',
