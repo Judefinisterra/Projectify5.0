@@ -1,5 +1,19 @@
 /* global Office, msal */ // Global variables for Office.js and MSAL
 
+// Import backend API integration
+import backendAPI from './BackendAPI.js';
+// Import user profile management
+import userProfileManager, { initializeUserData, refreshUserData, canUseFeatures, getUserCredits } from './UserProfile.js';
+// Import credit system management
+import { enforceFeatureAccess, useCreditForBuild, useCreditForUpdate, startSubscription } from './CreditSystem.js';
+
+// Ensure userProfileManager is available globally
+if (typeof window !== 'undefined') {
+  window.userProfileManager = userProfileManager;
+}
+// Import subscription management
+import { checkSubscriptionStatus } from './SubscriptionManager.js';
+
 import { populateCodeCollection, exportCodeCollectionToText, runCodes, processAssumptionTabs, collapseGroupingsAndNavigateToFinancials, hideColumnsAndNavigate, handleInsertWorksheetsFromBase64, parseFormulaSCustomFormula } from './CodeCollection.js';
 // >>> ADDED: Import the new validation function
 import { validateCodeStringsForRun } from './Validation.js';
@@ -976,11 +990,9 @@ async function handleSendClient() {
         
         console.log("[handleSendClient] Calling OpenAI with stream enabled. Messages:", messages);
 
-        // Call OpenAI API with streaming
-        // Assuming callOpenAI is available and handles API key internally,
-        // and returns an async iterable for stream.
-        // Adjust the model as needed, e.g., "gpt-3.5-turbo" or "gpt-4"
-        const stream = await callOpenAI(messages, { stream: true, model: "gpt-3.5-turbo" });
+        // Call Claude API with streaming
+        // Using Claude 4 via callOpenAI (configured in AIcalls.js)
+        const stream = await callOpenAI(messages, { stream: true, model: "claude-sonnet-4-20250514", useClaudeAPI: true });
 
         for await (const chunk of stream) {
             const content = chunk.choices && chunk.choices[0]?.delta?.content;
@@ -1659,8 +1671,26 @@ async function insertSheetsAndRunCodes() {
     }
 }
 
-Office.onReady((info) => {
+Office.onReady(async (info) => {
   productionLog('Office.onReady started');
+  
+  // Initialize backend integration
+  try {
+    console.log("🚀 Initializing backend integration...");
+    
+    // Check backend health
+    const backendHealthy = await backendAPI.healthCheck();
+    console.log(`🌐 Backend health: ${backendHealthy ? 'OK' : 'DOWN'}`);
+    
+    // If user is already authenticated, initialize their data
+    if (backendAPI.isAuthenticated()) {
+      console.log("👤 User is authenticated, initializing data...");
+      await initializeUserData();
+    }
+    
+  } catch (error) {
+    console.warn("⚠️ Backend initialization failed:", error);
+  }
   
   // Try to set optimal task pane width for our sidebar layout
   try {
@@ -2342,23 +2372,47 @@ Office.onReady((info) => {
     function handleGoogleSignIn() {
       console.log("Google Sign-In clicked");
       
-      // Debug Office context
+      // Ensure Office.js is fully initialized before proceeding
+      if (typeof Office === 'undefined') {
+        console.error("Office.js is not loaded");
+        showError("Office Add-in environment not ready. Please refresh and try again.");
+        return;
+      }
+      
+      // Wait for Office to be ready if it's still initializing
+      Office.onReady(() => {
+        console.log("Office.onReady called - proceeding with authentication");
+        proceedWithGoogleAuth();
+      });
+    }
+    
+    function proceedWithGoogleAuth() {
+      // Debug Office context with more detail
+      console.log("=== Office Environment Debug ===");
       console.log("Office available:", typeof Office !== 'undefined');
       console.log("Office.context available:", typeof Office !== 'undefined' && Office.context);
       console.log("Office.context.ui available:", typeof Office !== 'undefined' && Office.context && Office.context.ui);
       console.log("Office.context.ui.displayDialogAsync available:", typeof Office !== 'undefined' && Office.context && Office.context.ui && typeof Office.context.ui.displayDialogAsync === 'function');
+      console.log("Office host:", Office.context?.host);
+      console.log("Office platform:", Office.context?.platform);
+      console.log("================================");
       
-      // Use Office Dialog API for authentication within Excel environment
-      if (typeof Office !== 'undefined' && Office.context && Office.context.ui && typeof Office.context.ui.displayDialogAsync === 'function') {
-        console.log("Using Office Dialog API");
-        const authUrl = buildGoogleAuthUrl();
-        console.log("Auth URL:", authUrl);
-        
-        Office.context.ui.displayDialogAsync(authUrl, {
-          height: 60,
-          width: 60,
-          requireHTTPS: true
-        }, function (result) {
+             // Use Office Dialog API for authentication within Excel environment
+       if (typeof Office !== 'undefined' && Office.context && Office.context.ui && typeof Office.context.ui.displayDialogAsync === 'function') {
+         console.log("✅ Using Office Dialog API for authentication");
+         const authUrl = buildGoogleAuthUrl();
+         console.log("Auth URL:", authUrl);
+         
+         // Show loading message
+         showMessage("Opening authentication dialog...");
+         
+         Office.context.ui.displayDialogAsync(authUrl, {
+           height: 70,
+           width: 70,
+           requireHTTPS: true,
+           displayInIframe: false // Ensure it opens in a proper dialog, not iframe
+         }, function (result) {
+           console.log("Dialog creation result:", result);
           if (result.status === Office.AsyncResultStatus.Succeeded) {
             const dialog = result.value;
             
@@ -2454,27 +2508,57 @@ Office.onReady((info) => {
       }, 300000);
     }
 
-    function handleGoogleAuthSuccess(authResult) {
-      console.log("Google authentication successful", authResult);
-      
-      // Store user session
-      if (authResult.user) {
-        sessionStorage.setItem('googleUser', JSON.stringify(authResult.user));
-      }
-      if (authResult.access_token) {
-        sessionStorage.setItem('googleToken', authResult.access_token);
-      }
-      if (authResult.id_token) {
-        sessionStorage.setItem('googleCredential', authResult.id_token);
-      }
-      
-      // Show success message and update interface
-      const userName = authResult.user ? authResult.user.name : 'User';
-      showMessage(`Welcome ${userName}! Authentication successful.`);
-      
-      // Update interface to show authenticated state
-      showAuthenticatedInterface();
-    }
+         async function handleGoogleAuthSuccess(authResult) {
+       console.log("✅ Google authentication successful", authResult);
+       
+       try {
+         // Store Google user data locally (for display purposes)
+         if (authResult.user) {
+           sessionStorage.setItem('googleUser', JSON.stringify(authResult.user));
+         }
+         if (authResult.access_token) {
+           sessionStorage.setItem('googleToken', authResult.access_token);
+         }
+         if (authResult.id_token) {
+           sessionStorage.setItem('googleCredential', authResult.id_token);
+         }
+         
+         const userName = authResult.user ? authResult.user.name : 'User';
+         showMessage(`Welcome ${userName}! Connecting to backend...`);
+         
+         // Authenticate with backend using Google ID token
+         if (authResult.id_token) {
+           console.log("🔐 Authenticating with backend...");
+           
+           const backendAuthResult = await backendAPI.signInWithGoogle(authResult.id_token);
+           console.log("✅ Backend authentication successful");
+           
+           // Initialize user data from backend
+           await initializeUserData();
+           
+           showMessage(`Welcome ${userName}! You're all set!`);
+         } else {
+           console.warn("⚠️ No ID token received, skipping backend authentication");
+           showMessage(`Welcome ${userName}! (Google only)`);
+         }
+         
+         // Update interface to show authenticated state
+         showAuthenticatedInterface();
+         
+       } catch (error) {
+         console.error("❌ Backend authentication failed:", error);
+         
+         // Still show interface if Google auth worked, but warn about backend
+         const userName = authResult.user ? authResult.user.name : 'User';
+         showMessage(`Welcome ${userName}! (Limited features - backend unavailable)`);
+         showAuthenticatedInterface();
+         
+         // Show error notification
+         setTimeout(() => {
+           showError("Some features may be unavailable due to backend connection issues.");
+         }, 2000);
+       }
+     }
 
     function handleGoogleAuthError(error) {
       console.error("Google authentication error:", error);
@@ -2741,7 +2825,15 @@ Office.onReady((info) => {
     // Assign the REVISED async function as the handler
     const button = document.getElementById("insert-and-run");
     if (button) {
-        button.onclick = insertSheetsAndRunCodes; // Use the revised function
+        button.onclick = async () => {
+          // Check credits before allowing model building
+          await enforceFeatureAccess('build', async () => {
+            // Use credit for building
+            await useCreditForBuild();
+            // Proceed with model building
+            await insertSheetsAndRunCodes();
+          });
+        };
     } else {
         console.error("Could not find button with id='insert-and-run'");
     }
@@ -2750,7 +2842,17 @@ Office.onReady((info) => {
 
     // Keep the setup for your other buttons (send-button, reset-button, etc.)
     const sendButton = document.getElementById('send');
-    if (sendButton) sendButton.onclick = handleSend;
+    if (sendButton) {
+      sendButton.onclick = async () => {
+        // Check credits before allowing AI conversation
+        await enforceFeatureAccess('update', async () => {
+          // Use credit for update/conversation
+          await useCreditForUpdate();
+          // Proceed with AI conversation
+          await handleSend();
+        });
+      };
+    }
 
     const writeButton = document.getElementById('write-to-excel');
     if (writeButton) writeButton.onclick = writeToExcel;
@@ -2801,10 +2903,29 @@ Office.onReady((info) => {
 
     // >>> ADDED: Setup for Client Mode Chat Buttons
     const sendClientButton = document.getElementById('send-client');
-    if (sendClientButton) sendClientButton.onclick = handleSendClient;
+    if (sendClientButton) {
+      sendClientButton.onclick = async () => {
+        // Check credits before allowing AI conversation
+        await enforceFeatureAccess('update', async () => {
+          // Use credit for update/conversation
+          await useCreditForUpdate();
+          // Proceed with AI conversation
+          await handleSendClient();
+        });
+      };
+    }
 
     const resetChatClientButton = document.getElementById('reset-chat-client');
     if (resetChatClientButton) resetChatClientButton.onclick = resetChatClient;
+
+    // Setup subscription upgrade buttons
+    const upgradeButtons = document.querySelectorAll('.upgrade-button');
+    upgradeButtons.forEach(button => {
+      button.onclick = async () => {
+        console.log("💰 Upgrade button clicked");
+        await startSubscription();
+      };
+    });
 
     // Add event listener for the new icon button
     const resetChatIconButton = document.getElementById('reset-chat-icon-button');
