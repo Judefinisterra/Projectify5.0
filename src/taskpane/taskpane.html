@@ -390,6 +390,29 @@
                             <img id="user-avatar" class="user-avatar" alt="User Avatar">
                             <div id="user-initials" class="user-initials"></div>
                         </div>
+                        
+                        <!-- User Details -->
+                        <div class="user-details">
+                            <div id="user-name" class="user-name">Loading...</div>
+                            <div id="user-email" class="user-email">Loading...</div>
+                        </div>
+
+                        <!-- Credits Display -->
+                        <div class="user-credits">
+                            <span class="credits-label">Credits:</span>
+                            <span id="credits-count" class="credits-count">--</span>
+                        </div>
+
+                        <!-- Subscription Status -->
+                        <div class="user-subscription">
+                            <span class="subscription-badge subscription-none">Free</span>
+                        </div>
+
+                        <!-- User Actions -->
+                        <div class="user-actions">
+                            <span class="credits-status">-- credits available</span>
+                        </div>
+                        
                         <button id="sign-out-button" class="sidebar-signout-button" title="Sign out">
                             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="signout-icon">
                                 <path d="M16 17l5-5-5-5M19.8 12H9M10 3H5a2 2 0 00-2 2v14a2 2 0 002 2h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
@@ -413,6 +436,10 @@
                         <!-- Signed-in Status -->
                         <div id="signed-in-status" class="signed-in-status" style="display: none;">
                             <p class="signed-in-text">Signed into <span id="signed-in-user"></span></p>
+                            <div class="signed-in-credits">
+                                <span class="credits-label">Credits:</span>
+                                <span id="credits-count-client" class="credits-count">--</span>
+                            </div>
                             <p id="subscription-status" class="subscription-status-text" style="display: none;"></p>
                             <button id="sign-out-mini-button" class="sign-out-mini-button">Sign Out</button>
                         </div>
@@ -440,6 +467,18 @@
                                 <span class="step-number">2</span>
                                 <span class="step-text">We'll create a professional Excel model for you</span>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Low Credits Warning -->
+                    <div id="low-credits-warning" class="warning-banner" style="display: none;">
+                        <div class="warning-content">
+                            <div class="warning-icon">⚠️</div>
+                            <div class="warning-text">
+                                <strong>Low Credits!</strong>
+                                <span>You're running low on credits! Upgrade to Pro for unlimited usage.</span>
+                            </div>
+                            <button class="upgrade-button">Upgrade to Pro</button>
                         </div>
                     </div>
                     

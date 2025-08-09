@@ -50,6 +50,31 @@ class UserProfileManager {
   }
 
   /**
+   * Force update the UI display (useful for troubleshooting)
+   */
+  forceUpdateDisplay() {
+    console.log("🔧 Force updating user interface display");
+    
+    // If no user data exists, show loading/unavailable state
+    if (!this.userData) {
+      this.userData = {
+        name: "Loading...",
+        email: "Backend unavailable", 
+        credits: 0
+      };
+    }
+    
+    if (!this.subscriptionData) {
+      this.subscriptionData = {
+        hasActiveSubscription: false,
+        status: 'none'
+      };
+    }
+    
+    this.updateUserInterface();
+  }
+
+  /**
    * Get current user data
    */
   getUserData() {
@@ -111,6 +136,9 @@ class UserProfileManager {
     const userName = this.userData.name || 'User';
     const userEmail = this.userData.email || '';
 
+    // Show the user info section
+    userInfo.style.display = 'block';
+
     // Update user name
     const nameElement = userInfo.querySelector('.user-name');
     if (nameElement) {
@@ -123,7 +151,7 @@ class UserProfileManager {
       emailElement.textContent = userEmail;
     }
 
-    console.log(`👤 Updated user info: ${userName} (${userEmail})`);
+    console.log(`👤 Updated user info: ${userName} (${userEmail}) - user-info section shown`);
   }
 
   /**
@@ -132,8 +160,8 @@ class UserProfileManager {
   updateCreditsDisplay() {
     const credits = this.getCredits();
     
-    // Update credits counter
-    const creditsElements = document.querySelectorAll('.credits-count, #credits-count');
+    // Update credits counter (both sidebar and client mode)
+    const creditsElements = document.querySelectorAll('.credits-count, #credits-count, #credits-count-client');
     creditsElements.forEach(element => {
       element.textContent = credits.toString();
     });
@@ -153,7 +181,10 @@ class UserProfileManager {
       }
     });
 
-    console.log(`💳 Updated credits display: ${credits}`);
+    // Check if low credits warning should be shown
+    this.checkLowCreditsWarning();
+
+    console.log(`💳 Updated credits display: ${credits} (elements found: ${creditsElements.length})`);
   }
 
   /**
@@ -197,8 +228,14 @@ class UserProfileManager {
     const credits = this.getCredits();
     const hasSubscription = this.hasActiveSubscription();
 
+    console.log(`🔔 Credits warning check: ${credits} credits, hasSubscription: ${hasSubscription}`);
+
     if (credits < 2 && !hasSubscription) {
+      console.log("🔔 Showing low credits warning");
       this.showLowCreditsWarning();
+    } else {
+      console.log("🔔 Hiding low credits warning");
+      this.hideLowCreditsWarning();
     }
   }
 
@@ -217,6 +254,16 @@ class UserProfileManager {
     }
   }
 
+  /**
+   * Hide low credits warning
+   */
+  hideLowCreditsWarning() {
+    const warning = document.getElementById('low-credits-warning');
+    if (warning) {
+      warning.style.display = 'none';
+    }
+  }
+
   // ============================================================================
   // ERROR HANDLING
   // ============================================================================
@@ -226,6 +273,12 @@ class UserProfileManager {
    */
   handleInitializationError(error) {
     console.error("User data initialization failed:", error);
+
+    // For development mode without backend, show user as not loaded
+    if (!this.userData) {
+      console.log("⚠️ Backend unavailable - user data not loaded");
+      // Don't set fake data, let the app handle missing data gracefully
+    }
 
     if (error.message.includes('Network error')) {
       this.showErrorMessage("Unable to connect to our servers. Some features may be limited.");
@@ -351,6 +404,13 @@ function getUserCredits() {
   return userProfileManager.getCredits();
 }
 
+/**
+ * Force update user display (global function for troubleshooting)
+ */
+function forceUpdateUserDisplay() {
+  return userProfileManager.forceUpdateDisplay();
+}
+
 // ============================================================================
 // EXPORTS
 // ============================================================================
@@ -361,5 +421,6 @@ export {
   initializeUserData,
   refreshUserData,
   canUseFeatures,
-  getUserCredits
+  getUserCredits,
+  forceUpdateUserDisplay
 };

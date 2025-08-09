@@ -51,22 +51,51 @@ export const CONFIG = {
       : `./prompts/${filename}`;
   },
 
+  // Backend API Configuration
+  backend: {
+    baseUrl: "https://backend-projectify-brjbsg6tc-judefinisterras-projects.vercel.app",
+    
+    timeout: 10000, // 10 seconds
+    
+    endpoints: {
+      auth: {
+        google: '/auth/google',
+        refresh: '/auth/refresh'
+      },
+      user: {
+        profile: '/me',
+        credits: '/use-credit',
+        usage: '/usage'
+      },
+      credits: {
+        use: '/use-credit',
+        deduct: '/deduct-credits'
+      },
+      subscription: {
+        status: '/subscription',
+        create: '/api/subscription/create',
+        cancel: '/api/subscription/cancel',
+        checkout: '/api/subscription/checkout'
+      }
+    }
+  },
+
   // Microsoft Authentication Configuration
   // Subscription API Configuration
   subscription: {
     // Your backend API endpoint for checking subscription status
-    apiUrl: process.env.NODE_ENV === 'development' 
-      ? "https://your-dev-api.com/api/subscription/status" 
-      : "https://your-api-domain.com/api/subscription/status",
+    apiUrl: "https://backend-projectify-bovrfq0yv-judefinisterras-projects.vercel.app/subscription",
     
     // Enable mock mode for development (returns fake subscription data)
-    mockMode: false, // Disabled - no fake subscription data
+    mockMode: false, // Disabled - use real backend
     
     // Mock response for development/testing
     mockResponse: {
-      status: 'active',
-      plan: 'Professional',
-      expires: '2024-12-31'
+      status: 'none',
+      plan: 'Free',
+      hasActiveSubscription: false,
+      credits: 15,
+      expires: null
     }
   },
 

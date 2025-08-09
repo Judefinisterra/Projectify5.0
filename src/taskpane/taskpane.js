@@ -3,13 +3,34 @@
 // Import backend API integration
 import backendAPI from './BackendAPI.js';
 // Import user profile management
-import userProfileManager, { initializeUserData, refreshUserData, canUseFeatures, getUserCredits } from './UserProfile.js';
+import userProfileManager, { initializeUserData, refreshUserData, canUseFeatures, getUserCredits, forceUpdateUserDisplay } from './UserProfile.js';
 // Import credit system management
 import { enforceFeatureAccess, useCreditForBuild, useCreditForUpdate, startSubscription } from './CreditSystem.js';
 
 // Ensure userProfileManager is available globally
 if (typeof window !== 'undefined') {
   window.userProfileManager = userProfileManager;
+  
+  // Debug function for testing credits display
+  window.debugCredits = function() {
+    console.log("🔧 Debug Credits Display");
+    console.log("User data:", userProfileManager.getUserData());
+    console.log("Credits:", userProfileManager.getCredits());
+    console.log("Can use features:", userProfileManager.canUseFeatures());
+    console.log("Backend API mock mode:", backendAPI.mockMode);
+    
+    // Force update the display
+    forceUpdateUserDisplay();
+    
+    // Also show current DOM elements
+    const creditsElements = document.querySelectorAll('.credits-count, #credits-count');
+    console.log("Credits elements found:", creditsElements.length);
+    creditsElements.forEach((el, i) => {
+      console.log(`Element ${i}:`, el, "Text:", el.textContent);
+    });
+    
+    console.log("Credits display updated!");
+  };
 }
 // Import subscription management
 import { checkSubscriptionStatus } from './SubscriptionManager.js';
@@ -44,6 +65,8 @@ import { handleFollowUpConversation, handleInitialConversation, handleConversati
 import { CONFIG } from './config.js';
 // >>> ADDED: Import file attachment and voice input functionality from AIModelPlanner
 import { initializeFileAttachment, initializeFileAttachmentDev, initializeVoiceInput, initializeVoiceInputDev, initializeTextareaAutoResize, initializeTextareaAutoResizeDev, setAIModelPlannerOpenApiKey, currentAttachedFilesDev, formatFileDataForAIDev, removeAllAttachmentsDev } from './AIModelPlanner.js';
+// >>> ADDED: Import cost tracking functionality
+import { trackAPICallCost, estimateTokens } from './CostTracker.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -99,48 +122,10 @@ async function loadCodeDatabase() {
   }
 }
 
-// Function to load API keys from environment variables
-// Keys are loaded from .env file via webpack DefinePlugin at build time
+// Simplified API key initialization (keys will be loaded from AIcalls.js when needed)
 export async function initializeAPIKeys() {
-  try {
-    console.log("Initializing API keys from taskpane.js...");
-    console.log("Environment check - NODE_ENV:", process.env.NODE_ENV);
-    console.log("Environment check - typeof process.env.OPENAI_API_KEY:", typeof process.env.OPENAI_API_KEY);
-
-    // Use keys from environment variables via webpack DefinePlugin
-    if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'undefined') {
-        INTERNAL_API_KEYS.OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-        console.log("OpenAI API key loaded from environment variables");
-    } else {
-         console.warn("OpenAI API key not found in environment variables.");
-    }
-
-    if (process.env.PINECONE_API_KEY && process.env.PINECONE_API_KEY !== 'undefined') {
-        INTERNAL_API_KEYS.PINECONE_API_KEY = process.env.PINECONE_API_KEY;
-        console.log("Pinecone API key loaded from environment variables");
-    } else {
-         console.warn("Pinecone API key not found in environment variables.");
-    }
-
-    // Add debug logging with secure masking of keys
-    console.log("Loaded API Keys (taskpane.js):");
-    console.log("  OPENAI_API_KEY:", INTERNAL_API_KEYS.OPENAI_API_KEY ?
-      `${INTERNAL_API_KEYS.OPENAI_API_KEY.substring(0, 3)}...${INTERNAL_API_KEYS.OPENAI_API_KEY.substring(INTERNAL_API_KEYS.OPENAI_API_KEY.length - 3)}` :
-      "Not found");
-    console.log("  PINECONE_API_KEY:", INTERNAL_API_KEYS.PINECONE_API_KEY ?
-      `${INTERNAL_API_KEYS.PINECONE_API_KEY.substring(0, 3)}...${INTERNAL_API_KEYS.PINECONE_API_KEY.substring(INTERNAL_API_KEYS.PINECONE_API_KEY.length - 3)}` :
-      "Not found");
-
-    const keysFound = !!(INTERNAL_API_KEYS.OPENAI_API_KEY && INTERNAL_API_KEYS.PINECONE_API_KEY);
-    console.log("API Keys Initialized:", keysFound);
-    // Return a copy to prevent external modification of the internal state
-    return { ...INTERNAL_API_KEYS };
-
-  } catch (error) {
-    console.error("Error initializing API keys:", error);
-    // Return empty keys on error
-    return { OPENAI_API_KEY: "", PINECONE_API_KEY: "" };
-  }
+  console.log("API keys will be loaded when needed from AIcalls.js");
+  return { ...INTERNAL_API_KEYS };
 }
 
 // Conversation history storage
@@ -1686,10 +1671,15 @@ Office.onReady(async (info) => {
     if (backendAPI.isAuthenticated()) {
       console.log("👤 User is authenticated, initializing data...");
       await initializeUserData();
+    } else {
+      console.log("👤 User not authenticated, using mock data for development");
+      forceUpdateUserDisplay();
     }
     
   } catch (error) {
     console.warn("⚠️ Backend initialization failed:", error);
+    console.log("🔧 Using fallback user display");
+    forceUpdateUserDisplay();
   }
   
   // Try to set optimal task pane width for our sidebar layout
@@ -1924,6 +1914,16 @@ Office.onReady(async (info) => {
       // Update UI with user information
       updateSignedInStatus();
       updateAuthUI(true);
+      
+      // Initialize user data with credits information
+      console.log('🔧 Attempting to initialize user data after Google authentication...');
+      initializeUserData().then(() => {
+        console.log('✅ User data initialized successfully after authentication');
+      }).catch(error => {
+        console.warn('Failed to initialize user data in showAuthenticatedInterface:', error);
+        console.log('🔧 Using fallback display update');
+        forceUpdateUserDisplay();
+      });
       
       productionLog('Authenticated interface setup completed');
     }
@@ -2684,6 +2684,14 @@ Office.onReady(async (info) => {
           signedInStatus.style.display = 'block';
           console.log('Signed-in status shown for:', userDisplayName);
           
+          // Update credits display in client mode
+          const clientCreditsElement = document.getElementById('credits-count-client');
+          if (clientCreditsElement && window.userProfileManager) {
+            const credits = window.userProfileManager.getCredits();
+            clientCreditsElement.textContent = credits.toString();
+            console.log('🔧 Updated client mode credits display:', credits);
+          }
+          
           // Check subscription status
           checkSubscriptionStatus();
         } else {
@@ -2709,37 +2717,19 @@ Office.onReady(async (info) => {
       try {
         console.log('Checking subscription status for:', googleUser.email);
         
-        // Check if mock mode is enabled (for development/testing)
-        if (CONFIG.subscription && CONFIG.subscription.mockMode) {
-          console.log('Using mock subscription data for development');
-          // Simulate API delay
-          await new Promise(resolve => setTimeout(resolve, 500));
-          updateSubscriptionDisplay(CONFIG.subscription.mockResponse);
-          return;
-        }
+        // Use BackendAPI which has mock support built-in
+        const subscriptionData = await backendAPI.getSubscriptionStatus();
+        updateSubscriptionDisplay(subscriptionData);
         
-        const SUBSCRIPTION_API_URL = CONFIG.subscription?.apiUrl || 'https://your-api-domain.com/api/subscription/status';
-        
-        const response = await fetch(`${SUBSCRIPTION_API_URL}?email=${encodeURIComponent(googleUser.email)}`, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            // Add any required authentication headers here
-            // 'Authorization': `Bearer ${your_api_token}`
-          }
-        });
-
-        if (response.ok) {
-          const subscriptionData = await response.json();
-          updateSubscriptionDisplay(subscriptionData);
-        } else {
-          console.warn('Subscription API returned non-200 status:', response.status);
-          updateSubscriptionDisplay({ status: 'unknown', plan: null });
-        }
       } catch (error) {
         console.error('Error checking subscription status:', error);
-        // Don't show error status until real API is configured
-        updateSubscriptionDisplay({ status: 'hidden', plan: null });
+        // Use fallback data for development
+        updateSubscriptionDisplay({ 
+          status: 'none', 
+          plan: 'Free',
+          hasActiveSubscription: false,
+          credits: 15
+        });
       }
     }
 
@@ -4729,6 +4719,14 @@ async function getUserProfile() {
             const profile = await profileResponse.json();
             console.log('User profile:', profile);
             updateUserProfile(profile);
+            
+            // Initialize user data from backend after successful sign-in
+            try {
+                await initializeUserData();
+            } catch (error) {
+                console.warn("Failed to initialize user data after sign-in:", error);
+                forceUpdateUserDisplay();
+            }
             
             // Try to get user photo
             getUserPhoto(tokenResponse.accessToken);

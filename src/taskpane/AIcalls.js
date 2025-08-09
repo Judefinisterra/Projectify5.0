@@ -24,6 +24,8 @@ import { handleAIModelPlannerConversation, resetAIModelPlannerConversation, setA
 import { getLogicErrorsForPrompt, getLogicErrors, hasLogicErrors } from './CodeCollection.js';
 // >>> ADDED: Import format validation functions  
 import { getFormatErrorsForPrompt, getFormatErrors, hasFormatErrors } from './CodeCollection.js';
+// >>> ADDED: Import cost tracking functions
+import { trackAPICallCost, estimateTokens } from './CostTracker.js';
 // Add the codeStrings variable with the specified content
 // REMOVED hardcoded codeStrings variable
 
@@ -447,8 +449,19 @@ export function loadConversationHistory() {
 export async function* callOpenAIChatCompletions(messages, options = {}) {
   const { model = GPT_O3, temperature = 0.7, stream = false, caller = "Unknown" } = options;
 
+  // >>> ADDED: Cost tracking variables
+  const startTime = Date.now();
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let fullResponse = "";
+
   try {
     console.log(`Calling OpenAI API with model: ${model}, stream: ${stream}`);
+    
+    // >>> ADDED: Calculate input tokens for cost tracking
+    inputTokens = messages.reduce((total, message) => {
+      return total + estimateTokens(message.content || "");
+    }, 0);
     
     // >>> ADDED: Comprehensive logging of all messages sent to OpenAI with descriptive names
     // Map system prompts to descriptive call names
@@ -517,9 +530,23 @@ export async function* callOpenAIChatCompletions(messages, options = {}) {
       throw new Error("OpenAI API key not found. Please check your API keys.");
     }
 
+    // Filter out messages with empty content
+    const validMessages = messages.filter(message => {
+      if (!message.content || message.content.trim() === "") {
+        console.log(`⚠️ Skipping empty ${message.role} message in OpenAI API call`);
+        return false;
+      }
+      return true;
+    });
+
+    // Validate that we have at least one valid message
+    if (validMessages.length === 0) {
+      throw new Error("No valid messages found for OpenAI API call. All messages were empty or invalid.");
+    }
+
     const body = {
       model: model,
-      messages: messages
+      messages: validMessages
     };
 
     // Only include temperature for models that support it
@@ -557,6 +584,22 @@ export async function* callOpenAIChatCompletions(messages, options = {}) {
         const { done, value } = await reader.read();
         if (done) {
           console.log("Stream finished.");
+          
+          // >>> ADDED: Track cost for streaming response
+          outputTokens = estimateTokens(fullResponse);
+          const duration = Date.now() - startTime;
+          
+          trackAPICallCost({
+            provider: 'openai',
+            model: model,
+            inputTokens: inputTokens,
+            outputTokens: outputTokens,
+            caller: caller,
+            timestamp: startTime,
+            duration: duration,
+            success: true
+          });
+          
           break;
         }
         const chunk = decoder.decode(value);
@@ -575,12 +618,40 @@ export async function* callOpenAIChatCompletions(messages, options = {}) {
           .filter(line => line !== null);
 
         for (const parsedLine of parsedLines) {
+          // >>> ADDED: Accumulate response text for cost tracking
+          if (parsedLine.choices && parsedLine.choices[0]?.delta?.content) {
+            fullResponse += parsedLine.choices[0].delta.content;
+          }
+          
           yield parsedLine;
         }
       }
     } else {
       const data = await response.json();
       console.log("OpenAI API response received (non-stream)");
+      
+      // >>> ADDED: Track cost for non-streaming response
+      const responseContent = data.choices[0].message.content;
+      outputTokens = estimateTokens(responseContent);
+      const duration = Date.now() - startTime;
+      
+      // Use actual token counts from API response if available
+      if (data.usage) {
+        inputTokens = data.usage.prompt_tokens || inputTokens;
+        outputTokens = data.usage.completion_tokens || outputTokens;
+      }
+      
+      trackAPICallCost({
+        provider: 'openai',
+        model: model,
+        inputTokens: inputTokens,
+        outputTokens: outputTokens,
+        caller: caller,
+        timestamp: startTime,
+        duration: duration,
+        success: true
+      });
+      
       // For non-streaming, to maintain compatibility with handleSendClient's expectation of an iterable, 
       // we yield a single object that mimics the structure of a stream chunk if needed, 
       // or simply return the content if the caller adapts.
@@ -590,12 +661,26 @@ export async function* callOpenAIChatCompletions(messages, options = {}) {
       // However, processPrompt calls callOpenAI without expecting a stream.
       // If callOpenAI is *only* called by handleSendClient, this else block might need to yield as well.
       // However, processPrompt calls callOpenAI without expecting a stream.
-      yield data.choices[0].message.content; // Yield the content string once
+      yield responseContent; // Yield the content string once
       return; // Explicitly end the generator
     }
 
   } catch (error) {
     console.error("Error calling OpenAI API:", error);
+    
+    // >>> ADDED: Track failed API call for cost analysis
+    const duration = Date.now() - startTime;
+    trackAPICallCost({
+      provider: 'openai',
+      model: model,
+      inputTokens: inputTokens,
+      outputTokens: 0, // No output on error
+      caller: caller,
+      timestamp: startTime,
+      duration: duration,
+      success: false
+    });
+    
     // If it's a stream, we can't return, but the error will propagate.
     // If not a stream, re-throw as before.
     if (!stream) throw error;
@@ -608,6 +693,12 @@ export async function* callOpenAIChatCompletions(messages, options = {}) {
 // Direct OpenAI Responses API call function (for o3 model)
 export async function* callOpenAIResponses(input, options = {}) {
   const { model = GPT_O3, reasoning = { effort: "medium" }, stream = false, caller = "Unknown", tools = [] } = options;
+
+  // >>> ADDED: Cost tracking variables
+  const startTime = Date.now();
+  let inputTokens = estimateTokens(input);
+  let outputTokens = 0;
+  let fullResponse = "";
 
   try {
     console.log(`Calling OpenAI Responses API with model: ${model}, stream: ${stream}`);
@@ -655,6 +746,11 @@ export async function* callOpenAIResponses(input, options = {}) {
       throw new Error("OpenAI API key not found. Please check your API keys.");
     }
 
+    // Validate input is not empty
+    if (!input || input.trim() === "") {
+      throw new Error("No valid input found for OpenAI Responses API call. Input was empty or invalid.");
+    }
+
     const body = {
       model: model,
       input: input,
@@ -693,6 +789,22 @@ export async function* callOpenAIResponses(input, options = {}) {
         const { done, value } = await reader.read();
         if (done) {
           console.log("Stream finished.");
+          
+          // >>> ADDED: Track cost for streaming response
+          outputTokens = estimateTokens(fullResponse);
+          const duration = Date.now() - startTime;
+          
+          trackAPICallCost({
+            provider: 'openai',
+            model: model,
+            inputTokens: inputTokens,
+            outputTokens: outputTokens,
+            caller: caller,
+            timestamp: startTime,
+            duration: duration,
+            success: true
+          });
+          
           break;
         }
         const chunk = decoder.decode(value);
@@ -711,26 +823,73 @@ export async function* callOpenAIResponses(input, options = {}) {
           .filter(line => line !== null);
 
         for (const parsedLine of parsedLines) {
+          // >>> ADDED: Accumulate response text for cost tracking
+          if (parsedLine.choices && parsedLine.choices[0]?.delta?.content) {
+            fullResponse += parsedLine.choices[0].delta.content;
+          } else if (parsedLine.output) {
+            fullResponse += parsedLine.output;
+          }
+          
           yield parsedLine;
         }
       }
     } else {
       const data = await response.json();
       console.log("OpenAI Responses API response received (non-stream)");
+      
+      // >>> ADDED: Track cost for non-streaming response
+      let responseContent = "";
+      
       // For responses API, the response structure is different
-      // Yield the content from the response
+      // Extract content from the response
       if (data.choices && data.choices[0] && data.choices[0].message) {
-        yield data.choices[0].message.content;
+        responseContent = data.choices[0].message.content;
       } else if (data.output) {
-        yield data.output;
+        responseContent = data.output;
       } else {
-        yield JSON.stringify(data); // Fallback to full response
+        responseContent = JSON.stringify(data); // Fallback to full response
       }
+      
+      outputTokens = estimateTokens(responseContent);
+      const duration = Date.now() - startTime;
+      
+      // Use actual token counts from API response if available
+      if (data.usage) {
+        inputTokens = data.usage.prompt_tokens || inputTokens;
+        outputTokens = data.usage.completion_tokens || outputTokens;
+      }
+      
+      trackAPICallCost({
+        provider: 'openai',
+        model: model,
+        inputTokens: inputTokens,
+        outputTokens: outputTokens,
+        caller: caller,
+        timestamp: startTime,
+        duration: duration,
+        success: true
+      });
+      
+      yield responseContent;
       return;
     }
 
   } catch (error) {
     console.error("Error calling OpenAI Responses API:", error);
+    
+    // >>> ADDED: Track failed API call for cost analysis
+    const duration = Date.now() - startTime;
+    trackAPICallCost({
+      provider: 'openai',
+      model: model,
+      inputTokens: inputTokens,
+      outputTokens: 0, // No output on error
+      caller: caller,
+      timestamp: startTime,
+      duration: duration,
+      success: false
+    });
+    
     if (!stream) throw error;
   }
 }
@@ -739,8 +898,19 @@ export async function* callOpenAIResponses(input, options = {}) {
 export async function* callClaudeAPI(messages, options = {}) {
   const { model = "claude-sonnet-4-20250514", temperature = 1, stream = false, caller = "Unknown" } = options;
 
+  // >>> ADDED: Cost tracking variables
+  const startTime = Date.now();
+  let inputTokens = 0;
+  let outputTokens = 0;
+  let fullResponse = "";
+
   try {
     console.log(`Calling Claude API with model: ${model}, stream: ${stream}`);
+    
+    // >>> ADDED: Calculate input tokens for cost tracking
+    inputTokens = messages.reduce((total, message) => {
+      return total + estimateTokens(message.content || "");
+    }, 0);
     
     // >>> ADDED: Comprehensive logging for Claude API calls
     let callName = "Unknown";
@@ -795,16 +965,26 @@ export async function* callClaudeAPI(messages, options = {}) {
       if (message.role === "system") {
         systemMessage = message.content;
       } else if (message.role === "user" || message.role === "assistant") {
-        userMessages.push({
-          role: message.role,
-          content: [
-            {
-              type: "text",
-              text: message.content
-            }
-          ]
-        });
+        // Only add messages with non-empty content
+        if (message.content && message.content.trim() !== "") {
+          userMessages.push({
+            role: message.role,
+            content: [
+              {
+                type: "text",
+                text: message.content
+              }
+            ]
+          });
+        } else {
+          console.log(`⚠️ Skipping empty ${message.role} message in Claude API call`);
+        }
       }
+    }
+
+    // Validate that we have at least one valid message
+    if (userMessages.length === 0) {
+      throw new Error("No valid messages found for Claude API call. All messages were empty or invalid.");
     }
 
     const body = {
@@ -845,24 +1025,78 @@ export async function* callClaudeAPI(messages, options = {}) {
         const { done, value } = await reader.read();
         if (done) {
           console.log("Stream finished.");
+          
+          // >>> ADDED: Track cost for Claude streaming response
+          outputTokens = estimateTokens(fullResponse);
+          const duration = Date.now() - startTime;
+          
+          trackAPICallCost({
+            provider: 'claude',
+            model: model,
+            inputTokens: inputTokens,
+            outputTokens: outputTokens,
+            caller: caller,
+            timestamp: startTime,
+            duration: duration,
+            success: true
+          });
+          
           break;
         }
         const chunk = decoder.decode(value);
         const lines = chunk.split("\n");
-        const parsedLines = lines
-          .map((line) => line.replace(/^data: /, "").trim())
-          .filter((line) => line !== "" && line !== "[DONE]")
-          .map((line) => {
-            try {
-              return JSON.parse(line);
-            } catch (e) {
-              console.warn("Could not parse JSON line from stream:", line, e);
-              return null;
+        
+        // Parse SSE format correctly - only process 'data:' lines as JSON
+        const parsedLines = [];
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          
+          // Skip empty lines, comments, and non-data SSE lines
+          if (trimmedLine === "" || trimmedLine.startsWith(":")) {
+            continue;
+          }
+          
+          // Handle SSE data lines
+          if (trimmedLine.startsWith("data: ")) {
+            const jsonData = trimmedLine.substring(6); // Remove "data: " prefix
+            
+            // Skip [DONE] markers
+            if (jsonData === "[DONE]") {
+              continue;
             }
-          })
-          .filter(line => line !== null);
+            
+            try {
+              const parsed = JSON.parse(jsonData);
+              parsedLines.push(parsed);
+            } catch (e) {
+              console.warn("Could not parse JSON data from SSE stream:", jsonData, e);
+            }
+          }
+          // Handle other SSE lines (event:, id:, retry:) - log for debugging but don't process
+          else if (trimmedLine.startsWith("event: ") || trimmedLine.startsWith("id: ") || trimmedLine.startsWith("retry: ")) {
+            // These are valid SSE lines, just not data we need to process
+            continue;
+          }
+          // Log unexpected line format for debugging
+          else if (trimmedLine !== "") {
+            console.debug("Unexpected SSE line format:", trimmedLine);
+          }
+        }
 
         for (const parsedLine of parsedLines) {
+          // >>> ADDED: Accumulate response text for cost tracking
+          // Handle Claude SSE format: content_block_delta events with text_delta
+          if (parsedLine.type === "content_block_delta" && 
+              parsedLine.delta && 
+              parsedLine.delta.type === "text_delta" && 
+              parsedLine.delta.text) {
+            fullResponse += parsedLine.delta.text;
+          }
+          // Also handle non-streaming content blocks
+          else if (parsedLine.content_block && parsedLine.content_block.text) {
+            fullResponse += parsedLine.content_block.text;
+          }
+          
           yield parsedLine;
         }
       }
@@ -871,20 +1105,57 @@ export async function* callClaudeAPI(messages, options = {}) {
       console.log("Claude API response received (non-stream)");
       
       // Extract content from Claude API response
+      let responseContent = "";
       if (data.content && Array.isArray(data.content) && data.content.length > 0) {
-        const textContent = data.content
+        responseContent = data.content
           .filter(item => item.type === "text")
           .map(item => item.text)
           .join("");
-        yield textContent;
       } else {
-        yield JSON.stringify(data); // Fallback to full response
+        responseContent = JSON.stringify(data); // Fallback to full response
       }
+      
+      // >>> ADDED: Track cost for Claude non-streaming response
+      outputTokens = estimateTokens(responseContent);
+      const duration = Date.now() - startTime;
+      
+      // Use actual token counts from API response if available
+      if (data.usage) {
+        inputTokens = data.usage.input_tokens || inputTokens;
+        outputTokens = data.usage.output_tokens || outputTokens;
+      }
+      
+      trackAPICallCost({
+        provider: 'claude',
+        model: model,
+        inputTokens: inputTokens,
+        outputTokens: outputTokens,
+        caller: caller,
+        timestamp: startTime,
+        duration: duration,
+        success: true
+      });
+      
+      yield responseContent;
       return;
     }
 
   } catch (error) {
     console.error("Error calling Claude API:", error);
+    
+    // >>> ADDED: Track failed Claude API call for cost analysis
+    const duration = Date.now() - startTime;
+    trackAPICallCost({
+      provider: 'claude',
+      model: model,
+      inputTokens: inputTokens,
+      outputTokens: 0, // No output on error
+      caller: caller,
+      timestamp: startTime,
+      duration: duration,
+      success: false
+    });
+    
     if (!stream) throw error;
   }
 }
@@ -3039,7 +3310,7 @@ Office.onReady(async (info) => {
 //         });
 
 //         if (response.ok) {
-//             console.log("Complete AI prompt saved successfully to lastprompt.txt");
+//             console.log("Complete AI prompt saved successfully to lastprompt.tx3
 //         } else {
 //             console.warn("Failed to save prompt to server:", response.statusText);
 //             // Fallback: save to localStorage

@@ -8,9 +8,26 @@ import { CONFIG } from './config.js';
 
 class BackendAPI {
   constructor() {
-    this.baseUrl = CONFIG.backend.baseUrl;
-    this.endpoints = CONFIG.backend.endpoints;
-    this.timeout = CONFIG.backend.timeout;
+    // Check if backend configuration exists
+    if (!CONFIG.backend) {
+      console.warn('⚠️ Backend configuration not found in CONFIG. Using mock mode.');
+      this.mockMode = true;
+    } else {
+      this.baseUrl = CONFIG.backend.baseUrl || 'https://your-backend-api.com';
+      this.endpoints = CONFIG.backend.endpoints || {};
+      this.timeout = CONFIG.backend.timeout || 10000;
+      
+      // Only use mock mode if backend URL is a placeholder
+      if (this.baseUrl.includes('your-backend-api.com') || this.baseUrl.includes('your-dev-backend-api.com')) {
+        console.warn('⚠️ Backend URL appears to be a placeholder. Enabling mock mode.');
+        this.mockMode = true;
+      } else {
+        console.log('✅ Using real backend at:', this.baseUrl);
+        this.mockMode = false;
+      }
+    }
+    
+    console.log('🔧 BackendAPI initialized:', this.mockMode ? 'Mock Mode' : `Real API at ${this.baseUrl}`);
   }
 
   // ============================================================================
@@ -22,6 +39,7 @@ class BackendAPI {
    */
   getAuthHeaders() {
     const token = sessionStorage.getItem('backend_access_token') || sessionStorage.getItem('access_token');
+    console.log('🔧 BackendAPI getAuthHeaders - token:', token ? `${token.substring(0, 20)}...` : 'No token found');
     return {
       'Content-Type': 'application/json',
       ...(token && { 'Authorization': `Bearer ${token}` })
@@ -56,6 +74,10 @@ class BackendAPI {
    * Check if user is authenticated with backend
    */
   isAuthenticated() {
+    // In mock mode, consider authenticated if Google auth was successful
+    if (this.mockMode) {
+      return !!sessionStorage.getItem('backend_access_token') || !!window.googleUser;
+    }
     return !!sessionStorage.getItem('backend_access_token');
   }
 
@@ -134,6 +156,28 @@ class BackendAPI {
   async signInWithGoogle(googleIdToken) {
     console.log('🔐 Signing in with Google via backend...');
     
+    // Return mock authentication in mock mode
+    if (this.mockMode) {
+      console.log('🔧 Mock mode: Returning mock authentication');
+      const mockAuthData = {
+        access_token: 'mock-access-token-123',
+        refresh_token: 'mock-refresh-token-123',
+        user: {
+          id: 'mock-user-123',
+          name: 'Development User',
+          email: 'dev@example.com'
+        },
+        session: {
+          refresh_token: 'mock-refresh-token-123'
+        }
+      };
+      
+      // Store mock tokens
+      this.storeTokens(mockAuthData.access_token, mockAuthData.refresh_token);
+      console.log('✅ Mock backend authentication successful');
+      return mockAuthData;
+    }
+    
     const response = await this.makeAPICall(this.endpoints.auth.google, {
       method: 'POST',
       body: JSON.stringify({ token: googleIdToken })
@@ -191,6 +235,23 @@ class BackendAPI {
   async getUserProfile() {
     console.log('👤 Fetching user profile...');
     
+    // Return mock data in mock mode
+    if (this.mockMode) {
+      console.log('🔧 Mock mode: Returning mock user profile');
+      const mockUser = {
+        id: 'mock-user-123',
+        name: 'Development User',
+        email: 'dev@example.com',
+        credits: 15,
+        subscription: {
+          status: 'none',
+          hasActiveSubscription: false
+        }
+      };
+      console.log('✅ Mock user profile loaded:', mockUser.name, `(${mockUser.credits} credits)`);
+      return mockUser;
+    }
+    
     const response = await this.makeAPICall(this.endpoints.user.profile);
     const user = await response.json();
     
@@ -216,7 +277,7 @@ class BackendAPI {
   // ============================================================================
 
   /**
-   * Use a credit for an action
+   * Use a credit for an action (legacy)
    */
   async useCredit(action) {
     console.log(`💳 Using credit for action: ${action}`);
@@ -230,6 +291,37 @@ class BackendAPI {
     
     if (result.success) {
       console.log(`✅ Credit used. Remaining: ${result.remainingCredits}`);
+    }
+    
+    return result;
+  }
+
+  /**
+   * Deduct credits based on actual API call cost
+   */
+  async deductCredits(costData) {
+    const { cost, provider, model, tokens, action, caller } = costData;
+    
+    console.log(`💰 Deducting credits for ${provider} API call: $${cost.toFixed(6)}`);
+    
+    const response = await this.makeAPICall(this.endpoints.credits.deduct, {
+      method: 'POST',
+      body: JSON.stringify({ 
+        cost, 
+        provider, 
+        model, 
+        tokens, 
+        action: action || `${provider}_api_call`,
+        caller 
+      })
+    });
+
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log(`✅ Credits deducted: ${result.creditCost.toFixed(4)} credits. Remaining: ${result.remainingCredits}`);
+    } else {
+      console.error(`❌ Failed to deduct credits:`, result.error);
     }
     
     return result;
@@ -263,6 +355,19 @@ class BackendAPI {
    */
   async getSubscriptionStatus() {
     console.log('📋 Fetching subscription status...');
+    
+    // Return mock data in mock mode
+    if (this.mockMode) {
+      console.log('🔧 Mock mode: Returning mock subscription status');
+      const mockSubscription = {
+        status: 'none',
+        hasActiveSubscription: false,
+        planType: 'free',
+        creditsRemaining: 15
+      };
+      console.log('✅ Mock subscription status loaded:', mockSubscription.status);
+      return mockSubscription;
+    }
     
     const response = await this.makeAPICall(this.endpoints.subscription.status);
     const subscription = await response.json();
