@@ -297,8 +297,8 @@ class CreditSystemManager {
    */
   formatCreditsDisplay(credits) {
     if (credits === 0) return "No credits";
-    if (credits === 1) return "1 credit";
-    return `${credits} credits`;
+    if (credits === 1) return "1.0 credit";
+    return `${credits.toFixed(1)} credits`;
   }
 
   /**

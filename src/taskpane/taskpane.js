@@ -2688,7 +2688,7 @@ Office.onReady(async (info) => {
           const clientCreditsElement = document.getElementById('credits-count-client');
           if (clientCreditsElement && window.userProfileManager) {
             const credits = window.userProfileManager.getCredits();
-            clientCreditsElement.textContent = credits.toString();
+            clientCreditsElement.textContent = credits.toFixed(1);
             console.log('🔧 Updated client mode credits display:', credits);
           }
           

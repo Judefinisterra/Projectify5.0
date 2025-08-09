@@ -153,21 +153,19 @@ async function deductCreditsAsync(costData) {
     
     try {
       // Try the new precise credit deduction endpoint
+      console.log(`🔍 Calling deductCredits with:`, costData);
       const result = await backendAPI.deductCredits(costData);
+      console.log(`🔍 Backend response:`, result);
       
       if (result.success) {
-        if (result.viaSubscription) {
-          console.log(`✅ API call completed via subscription (no credits deducted)`);
-        } else {
-          console.log(`✅ Credits deducted successfully: ${result.creditCost.toFixed(4)} credits. Remaining: ${result.remainingCredits}`);
-          
-          // Refresh user data to update UI
-          setTimeout(() => {
-            refreshUserData().catch(err => 
-              console.warn('Failed to refresh user data after credit deduction:', err)
-            );
-          }, 500);
-        }
+        console.log(`✅ Credits deducted successfully: ${result.creditCost.toFixed(4)} credits. Remaining: ${result.remainingCredits}`);
+        
+        // Refresh user data to update UI
+        setTimeout(() => {
+          refreshUserData().catch(err => 
+            console.warn('Failed to refresh user data after credit deduction:', err)
+          );
+        }, 500);
         return;
       }
     } catch (endpointError) {

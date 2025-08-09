@@ -53,7 +53,7 @@ export const CONFIG = {
 
   // Backend API Configuration
   backend: {
-    baseUrl: "https://backend-projectify-brjbsg6tc-judefinisterras-projects.vercel.app",
+    baseUrl: "https://backend-projectify-74f2tkrkr-judefinisterras-projects.vercel.app",
     
     timeout: 10000, // 10 seconds
     
@@ -80,23 +80,50 @@ export const CONFIG = {
     }
   },
 
+  // Backend API Configuration
+  backend: {
+    baseUrl: "https://backend-projectify-74f2tkrkr-judefinisterras-projects.vercel.app",
+    timeout: 30000,
+    endpoints: {
+      user: {
+        profile: '/me',
+        credits: '/use-credit', // Legacy
+        usage: '/usage'
+      },
+      credits: {
+        use: '/use-credit', // Legacy
+        deduct: '/deduct-credits' // New
+      },
+      subscription: {
+        status: '/subscription',
+        cancel: '/subscription/cancel',
+        create: '/subscription/create'
+      },
+      auth: {
+        google: '/auth/google'
+      }
+    }
+  },
+
   // Microsoft Authentication Configuration
   // Subscription API Configuration
-  subscription: {
-    // Your backend API endpoint for checking subscription status
-    apiUrl: "https://backend-projectify-bovrfq0yv-judefinisterras-projects.vercel.app/subscription",
-    
-    // Enable mock mode for development (returns fake subscription data)
-    mockMode: false, // Disabled - use real backend
-    
-    // Mock response for development/testing
-    mockResponse: {
-      status: 'none',
-      plan: 'Free',
-      hasActiveSubscription: false,
-      credits: 15,
-      expires: null
-    }
+  get subscription() {
+    return {
+      // Your backend API endpoint for checking subscription status (automatically derived from backend.baseUrl)
+      apiUrl: `${this.backend.baseUrl}/subscription`,
+      
+      // Enable mock mode for development (returns fake subscription data)
+      mockMode: false, // Disabled - use real backend
+      
+      // Mock response for development/testing
+      mockResponse: {
+        status: 'none',
+        plan: 'Free',
+        hasActiveSubscription: false,
+        credits: 15,
+        expires: null
+      }
+    };
   },
 
   authentication: {

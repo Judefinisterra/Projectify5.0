@@ -163,7 +163,7 @@ class UserProfileManager {
     // Update credits counter (both sidebar and client mode)
     const creditsElements = document.querySelectorAll('.credits-count, #credits-count, #credits-count-client');
     creditsElements.forEach(element => {
-      element.textContent = credits.toString();
+      element.textContent = credits.toFixed(1);
     });
 
     // Update credits status
@@ -173,10 +173,10 @@ class UserProfileManager {
         element.textContent = 'No credits remaining';
         element.className = 'credits-status credits-empty';
       } else if (credits < 3) {
-        element.textContent = `${credits} credits remaining`;
+        element.textContent = `${credits.toFixed(1)} credits remaining`;
         element.className = 'credits-status credits-low';
       } else {
-        element.textContent = `${credits} credits available`;
+        element.textContent = `${credits.toFixed(1)} credits available`;
         element.className = 'credits-status credits-good';
       }
     });
