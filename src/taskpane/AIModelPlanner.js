@@ -734,14 +734,14 @@ function displayInClientChatLogPlanner(message, isUser) {
         console.error("AIModelPlanner: Client chat log element not found. Attempting to create it...");
         const container = document.getElementById('client-chat-container');
         if (container) {
-            chatLog = document.createElement('div');
-            chatLog.id = 'chat-log-client';
-            chatLog.className = 'chat-log';
+            // Chat log now exists in HTML; reuse it instead of creating
+            chatLog = document.getElementById('chat-log-client');
+            if (!chatLog) {
+                console.error('Chat log element missing in DOM');
+                return;
+            }
             chatLog.style.display = 'block';
-            chatLog.style.flexGrow = '1';
-            chatLog.style.overflowY = 'auto';
-            container.appendChild(chatLog);
-            console.log("AIModelPlanner: Created chat log element");
+            console.log("AIModelPlanner: Reusing chat log element");
         } else {
             console.error("AIModelPlanner: Could not find container to create chat log");
             return;
@@ -1203,13 +1203,7 @@ export async function plannerHandleSend() {
     }
     
     if (chatLogClient) {
-        // Remove all inline styles that might be hiding it
-        chatLogClient.style.cssText = '';
-        // Then explicitly set the needed styles
-        chatLogClient.style.flexGrow = '1';
-        chatLogClient.style.overflowY = 'auto';
-        chatLogClient.style.borderBottom = '1px solid #eee';
-        chatLogClient.style.marginBottom = '10px';
+        // Minimal inline styles - let CSS handle the layout
         chatLogClient.style.display = 'block';
         chatLogClient.style.visibility = 'visible';
         chatLogClient.style.opacity = '1';

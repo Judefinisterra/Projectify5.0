@@ -6,6 +6,8 @@ import backendAPI from './BackendAPI.js';
 import userProfileManager, { initializeUserData, refreshUserData, canUseFeatures, getUserCredits, forceUpdateUserDisplay } from './UserProfile.js';
 // Import credit system management
 import { enforceFeatureAccess, useCreditForBuild, useCreditForUpdate, startSubscription } from './CreditSystem.js';
+// Import chat layout debugger
+import ChatLayoutDebugger from './ChatDebugger.js';
 
 // Ensure userProfileManager is available globally
 if (typeof window !== 'undefined') {
@@ -892,6 +894,11 @@ async function handleSend() {
 
 // >>> ADDED: handleSend for Client Mode (Simplified)
 async function handleSendClient() {
+            // Disabled - CSS flexbox layout handles everything now
+        // if (window.chatDebugger) {
+        //     window.chatDebugger.forceFix();
+        // }
+    
     const userInputElement = document.getElementById('user-input-client');
     if (!userInputElement) {
         console.error("[handleSendClient] User input element 'user-input-client' not found.");
@@ -1799,6 +1806,13 @@ Office.onReady(async (info) => {
       if (clientModeView) {
         clientModeView.style.display = 'flex';
         productionLog('Set clientModeView to display: flex with row direction for sidebar layout');
+        
+                // Disabled - CSS flexbox layout handles everything now
+        // setTimeout(() => {
+        //     if (window.chatDebugger) {
+        //         window.chatDebugger.debugAndFix();
+        //     }
+        // }, 500);
       } else {
         productionLog('clientModeView element not found!');
       }
