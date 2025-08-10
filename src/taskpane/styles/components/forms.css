@@ -1,0 +1,272 @@
+/* 
+ * Form Component Styles
+ * Input fields, textareas, selects, and form layouts
+ */
+
+/* Form Group */
+.form-group {
+    margin-bottom: var(--spacing-md);
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+/* Labels */
+.form-label {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    color: var(--gray-700);
+    margin-bottom: var(--spacing-xs);
+}
+
+.form-label-required::after {
+    content: " *";
+    color: var(--red-500);
+}
+
+/* Base Input Styles */
+.form-input,
+.form-textarea,
+.form-select,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+input[type="search"],
+textarea,
+select {
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+    color: var(--gray-900);
+    background-color: var(--primary-white);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-md);
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+/* Focus States */
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus,
+input:focus,
+textarea:focus,
+select:focus {
+    outline: none;
+    border-color: var(--blue-500);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Disabled State */
+.form-input:disabled,
+.form-textarea:disabled,
+.form-select:disabled,
+input:disabled,
+textarea:disabled,
+select:disabled {
+    background-color: var(--gray-100);
+    color: var(--gray-500);
+    cursor: not-allowed;
+}
+
+/* Error State */
+.form-input-error,
+.form-textarea-error,
+.form-select-error,
+.form-input.error,
+.form-textarea.error,
+.form-select.error {
+    border-color: var(--red-500);
+}
+
+.form-input-error:focus,
+.form-textarea-error:focus,
+.form-select-error:focus {
+    border-color: var(--red-500);
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+/* Success State */
+.form-input-success,
+.form-input.success {
+    border-color: var(--green-500);
+}
+
+/* Textarea Specific */
+textarea,
+.form-textarea {
+    min-height: 80px;
+    resize: vertical;
+}
+
+/* Select Specific */
+select,
+.form-select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right var(--spacing-sm) center;
+    background-size: 12px;
+    padding-right: calc(var(--spacing-md) + 16px);
+}
+
+/* Chat Input (Special Case) */
+.chat-input {
+    width: 100%;
+    min-height: 40px;
+    max-height: 120px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+    background-color: var(--primary-white);
+    border: 1px solid var(--gray-300);
+    border-radius: 20px;
+    resize: none;
+    transition: border-color var(--transition-fast);
+}
+
+.chat-input:focus {
+    outline: none;
+    border-color: var(--blue-500);
+}
+
+/* Form Help Text */
+.form-help {
+    font-size: var(--text-xs);
+    color: var(--gray-600);
+    margin-top: var(--spacing-xs);
+}
+
+.form-error {
+    font-size: var(--text-xs);
+    color: var(--red-600);
+    margin-top: var(--spacing-xs);
+}
+
+/* Input Group */
+.input-group {
+    display: flex;
+    align-items: stretch;
+}
+
+.input-group-prepend,
+.input-group-append {
+    display: flex;
+    align-items: center;
+    padding: 0 var(--spacing-md);
+    background-color: var(--gray-100);
+    border: 1px solid var(--gray-300);
+    font-size: var(--text-sm);
+    color: var(--gray-700);
+}
+
+.input-group-prepend {
+    border-right: 0;
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.input-group-append {
+    border-left: 0;
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+.input-group .form-input {
+    border-radius: 0;
+}
+
+.input-group .form-input:first-child {
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.input-group .form-input:last-child {
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+}
+
+/* Checkbox and Radio */
+.form-checkbox,
+.form-radio {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    cursor: pointer;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+input[type="checkbox"] {
+    border-radius: var(--radius-sm);
+}
+
+input[type="radio"] {
+    border-radius: 50%;
+}
+
+/* File Input */
+input[type="file"] {
+    font-size: var(--text-sm);
+    cursor: pointer;
+}
+
+/* Range Input */
+input[type="range"] {
+    width: 100%;
+    height: 6px;
+    background-color: var(--gray-200);
+    border-radius: var(--radius-full);
+    outline: none;
+    -webkit-appearance: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background-color: var(--blue-600);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    background-color: var(--blue-600);
+    border-radius: 50%;
+    cursor: pointer;
+    border: 0;
+}
+
+/* Form Actions */
+.form-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-lg);
+}
+
+.form-actions-right {
+    justify-content: flex-end;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .form-actions button {
+        width: 100%;
+    }
+}

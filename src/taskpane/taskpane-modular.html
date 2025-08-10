@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>GPT for Excel Word</title>
+
+    <!-- Office JavaScript API -->
+    <script type="text/javascript" src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mammoth@1.4.21/mammoth.browser.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.11.338/pdf.min.js"></script>
+    <script src="https://alcdn.msauth.net/browser/2.30.0/js/msal-browser.min.js"></script>
+
+    <!-- Modular CSS Structure -->
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <!-- Modern Startup Menu -->
+    <div id="startup-menu" class="landing-page" style="display: none;">
+        <div class="landing-content">
+            <img src="../../assets/logo-filled.png" alt="Logo" class="landing-logo" />
+            <h1 class="landing-title">Welcome to GPT for Excel Word</h1>
+            <p class="landing-subtitle">Choose your mode to get started</p>
+            
+            <div class="mode-selection">
+                <button id="developer-mode-button" class="mode-button" onclick="showDeveloperMode()">
+                    <span class="mode-icon">⚙️</span>
+                    <span class="mode-title">Developer Mode</span>
+                    <span class="mode-description">Full access to all features</span>
+                </button>
+                
+                <button id="client-mode-button" class="mode-button" onclick="showClientMode()">
+                    <span class="mode-icon">💼</span>
+                    <span class="mode-title">Client Mode</span>
+                    <span class="mode-description">Simplified chat interface</span>
+                </button>
+                
+                <button id="authentication-button" class="mode-button" onclick="showAuthentication()">
+                    <span class="mode-icon">🔐</span>
+                    <span class="mode-title">Authentication</span>
+                    <span class="mode-description">Manage your account</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Mode View -->
+    <div id="client-mode-view" class="client-view" style="display: none;">
+        <!-- Fixed Header -->
+        <header class="fixed-header">
+            <button id="hamburger-menu" class="hamburger-button" aria-label="Menu">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <div class="header-center">
+                <h1 class="header-title">GPT for Excel Word</h1>
+            </div>
+            <div class="header-right">
+                <select id="mode-dropdown" class="mode-dropdown form-select">
+                    <option value="one-shot">One-Shot</option>
+                    <option value="limited-guidance">Limited Guidance</option>
+                    <option value="full-guidance">Full Guidance</option>
+                </select>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <div id="chat-container" class="chat-container">
+                <!-- Welcome message -->
+                <div class="welcome-section text-center p-xl">
+                    <h1 class="welcome-title text-2xl mb-sm">Welcome to GPT for Excel Word</h1>
+                    <p class="welcome-subtitle text-muted">How can I help you today?</p>
+                </div>
+
+                <!-- Chat messages -->
+                <div id="response-area" class="chat-messages">
+                    <!-- Messages will be dynamically added here -->
+                </div>
+
+                <!-- Input area -->
+                <div class="chat-input-wrapper">
+                    <div class="chat-input-container flex gap-sm">
+                        <textarea 
+                            id="user-input" 
+                            class="chat-input flex-1" 
+                            placeholder="Type your message here..."
+                            rows="1"
+                        ></textarea>
+                        <button id="send-button" class="send-button btn-icon btn-primary" aria-label="Send message">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 2L11 13M22 2L15 22L11 13L2 9L22 2Z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fixed Footer -->
+        <footer class="fixed-footer">
+            <div class="footer-content">
+                <div class="footer-left">
+                    <span class="footer-credits">Credits: <span id="footer-credits-count">0</span></span>
+                </div>
+                <div class="footer-center">
+                    <span class="footer-subscription">Plan: <span id="footer-plan-name">Free</span></span>
+                </div>
+                <div class="footer-right">
+                    <button id="footer-signin-button" class="footer-sign-in-button" style="display: none;">
+                        Sign In
+                    </button>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Developer Mode View -->
+    <div id="developer-mode-view" class="developer-view" style="display: none;">
+        <!-- Developer mode content will go here -->
+        <div class="container p-lg">
+            <h1>Developer Mode</h1>
+            <p>Full featured interface coming soon...</p>
+            <button onclick="showStartupMenu()" class="btn btn-secondary">Back to Menu</button>
+        </div>
+    </div>
+
+    <!-- Authentication View -->
+    <div id="authentication-view" class="authentication-view" style="display: none;">
+        <!-- Authentication content will go here -->
+        <div class="container p-lg">
+            <h1>Authentication</h1>
+            <p>Sign in options coming soon...</p>
+            <button onclick="showStartupMenu()" class="btn btn-secondary">Back to Menu</button>
+        </div>
+    </div>
+
+    <!-- Modals will be loaded dynamically -->
+    <div id="modals-container"></div>
+
+    <!-- JavaScript Modules -->
+    <script src="taskpane.js"></script>
+</body>
+</html>

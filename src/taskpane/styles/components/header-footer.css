@@ -1,0 +1,182 @@
+/* 
+ * Header and Footer Component Styles
+ * Fixed header and footer used across views
+ */
+
+/* Fixed Header Styles */
+.fixed-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--header-height);
+    background-color: var(--primary-black);
+    color: var(--primary-white);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-md);
+    z-index: var(--z-fixed);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Hamburger Menu Button */
+.hamburger-button {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    border-radius: var(--radius-sm);
+    transition: background-color var(--transition-fast);
+}
+
+.hamburger-button:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.hamburger-button span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background-color: var(--primary-white);
+    transition: transform var(--transition-fast);
+}
+
+/* Header Center */
+.header-center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.header-title {
+    font-size: var(--text-lg);
+    font-weight: 500;
+    margin: 0;
+    color: var(--primary-white);
+}
+
+/* Header Right */
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+/* Mode Dropdown */
+.mode-dropdown {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--primary-white);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: var(--text-sm);
+    cursor: pointer;
+    outline: none;
+    transition: all var(--transition-fast);
+}
+
+.mode-dropdown:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.mode-dropdown:focus {
+    outline: 2px solid var(--primary-white);
+    outline-offset: 2px;
+}
+
+/* Fixed Footer Styles */
+.fixed-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--footer-height);
+    background-color: var(--primary-black);
+    color: var(--primary-white);
+    z-index: var(--z-fixed);
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.footer-content {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-md);
+    font-size: var(--text-xs);
+}
+
+.footer-left,
+.footer-center,
+.footer-right {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+/* Footer Credits and Subscription */
+.footer-credits,
+.footer-subscription {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.credits-label,
+.subscription-label {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.credits-value,
+.subscription-value {
+    font-weight: 500;
+}
+
+/* Footer Sign In Button */
+.footer-sign-in-button {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--primary-white);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--radius-sm);
+    padding: 4px 12px;
+    font-size: var(--text-xs);
+    cursor: pointer;
+    outline: none;
+    transition: all var(--transition-fast);
+}
+
+.footer-sign-in-button:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.footer-sign-in-button:focus {
+    outline: 2px solid var(--primary-white);
+    outline-offset: 2px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 480px) {
+    .header-title {
+        font-size: var(--text-base);
+    }
+    
+    .mode-dropdown {
+        font-size: var(--text-xs);
+        padding: 4px 8px;
+    }
+    
+    .footer-content {
+        font-size: 0.625rem;
+    }
+    
+    .footer-left,
+    .footer-center,
+    .footer-right {
+        gap: var(--spacing-xs);
+    }
+}

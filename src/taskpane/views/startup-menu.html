@@ -1,0 +1,28 @@
+<!-- Startup Menu View -->
+<div id="startup-menu" class="landing-page">
+    <div class="landing-content">
+        <img src="../../assets/logo-filled.png" alt="Logo" class="landing-logo" />
+        <h1 class="landing-title">Welcome to GPT for Excel Word</h1>
+        <p class="landing-subtitle">Choose your mode to get started</p>
+        
+        <div class="mode-selection">
+            <button id="developer-mode-button" class="mode-button" onclick="app.loadView('developer-mode')">
+                <span class="mode-icon">⚙️</span>
+                <span class="mode-title">Developer Mode</span>
+                <span class="mode-description">Full access to all features</span>
+            </button>
+            
+            <button id="client-mode-button" class="mode-button" onclick="app.loadView('client-mode')">
+                <span class="mode-icon">💼</span>
+                <span class="mode-title">Client Mode</span>
+                <span class="mode-description">Simplified chat interface</span>
+            </button>
+            
+            <button id="authentication-button" class="mode-button" onclick="app.loadView('authentication')">
+                <span class="mode-icon">🔐</span>
+                <span class="mode-title">Authentication</span>
+                <span class="mode-description">Manage your account</span>
+            </button>
+        </div>
+    </div>
+</div>
