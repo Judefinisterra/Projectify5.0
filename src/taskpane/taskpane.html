@@ -31,8 +31,35 @@
     <!-- For more information on Fluent UI, visit https://developer.microsoft.com/fluentui#/. -->
     <link rel="stylesheet" href="https://static2.sharepointonline.com/files/fabric/office-ui-fabric-core/11.0.0/css/fabric.min.css"/>
 
-    <!-- Template styles -->
-    <link href="taskpane.css" rel="stylesheet" type="text/css" />
+    <!-- Modular CSS Structure -->
+    <!-- 1. Variables and Design Tokens -->
+    <link href="styles/variables.css" rel="stylesheet" type="text/css" />
+    
+    <!-- 2. Reset and Base Styles -->
+    <link href="styles/reset.css" rel="stylesheet" type="text/css" />
+    
+    <!-- 3. Typography -->
+    <link href="styles/typography.css" rel="stylesheet" type="text/css" />
+    
+    <!-- 4. Layout Utilities -->
+    <link href="styles/layout.css" rel="stylesheet" type="text/css" />
+    
+    <!-- 5. Components -->
+    <link href="styles/components/buttons.css" rel="stylesheet" type="text/css" />
+    <link href="styles/components/forms.css" rel="stylesheet" type="text/css" />
+    <link href="styles/components/header-footer.css" rel="stylesheet" type="text/css" />
+    
+    <!-- 6. View-Specific Styles -->
+    <link href="styles/views/startup.css" rel="stylesheet" type="text/css" />
+    <link href="styles/views/login.css" rel="stylesheet" type="text/css" />
+    <link href="styles/views/authentication.css" rel="stylesheet" type="text/css" />
+    <link href="styles/client-mode.css" rel="stylesheet" type="text/css" />
+    
+    <!-- 7. Utilities and Helpers -->
+    <link href="styles/utilities.css" rel="stylesheet" type="text/css" />
+    
+    <!-- 8. Base styles (legacy compatibility) -->
+    <link href="styles/base.css" rel="stylesheet" type="text/css" />
 </head>
 
 <body class="ms-Fabric" dir="ltr">
@@ -882,7 +909,13 @@
         </footer>
     </div>
 
-
+    <!-- JavaScript Dependencies -->
+    <script src="UserProfile.js"></script>
+    <script src="SubscriptionManager.js"></script>
+    <script src="CreditSystem.js"></script>
+    <script src="BackendAPI.js"></script>
+    <script src="AIModelPlanner.js"></script>
+    <script src="taskpane.js"></script>
 
 </body>
 

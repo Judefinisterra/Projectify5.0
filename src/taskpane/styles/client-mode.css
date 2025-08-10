@@ -157,6 +157,22 @@
     border-top: 1px solid var(--border-color);
 }
 
+/* Client input area wrapper - fixed position at bottom above footer */
+.client-input-area-wrapper {
+    position: fixed;
+    bottom: 32px; /* Height of footer */
+    left: 0;
+    right: 0;
+    width: 100%;
+    background-color: var(--primary-white, #ffffff);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 1000; /* Above content but below footer */
+    padding: 10px 0;
+    border-top: 1px solid var(--gray-200, #e5e5e5);
+}
+
 .chat-input-container {
     display: flex;
     align-items: flex-end;

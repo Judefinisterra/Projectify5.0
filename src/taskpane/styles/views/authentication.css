@@ -1,0 +1,276 @@
+/* 
+ * Authentication View Styles
+ * Styles for the authentication/login screen
+ */
+
+/* Main container */
+#authentication-view {
+    background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+    padding: var(--spacing-lg);
+}
+
+.auth-container {
+    background-color: var(--primary-white);
+    border-radius: var(--radius-xl);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+    max-width: 480px;
+    width: 100%;
+    padding: var(--spacing-2xl);
+    position: relative;
+    margin: 0 auto;
+}
+
+/* Back button */
+.auth-back-button {
+    position: absolute;
+    top: var(--spacing-md);
+    left: var(--spacing-md);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: none;
+    border: 1px solid transparent;
+    color: var(--gray-600);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.auth-back-button:hover {
+    color: var(--gray-900);
+    background-color: var(--gray-50);
+    border-color: var(--gray-200);
+}
+
+/* Content */
+.auth-content {
+    text-align: center;
+}
+
+.auth-brand {
+    margin-bottom: var(--spacing-xl);
+}
+
+.auth-logo {
+    width: 64px;
+    height: 64px;
+    margin: 0 auto var(--spacing-md);
+    display: block;
+    border-radius: var(--radius-lg);
+}
+
+.auth-title {
+    font-size: var(--text-2xl);
+    font-weight: 800;
+    color: var(--gray-900);
+    letter-spacing: -0.02em;
+    margin: 0 0 var(--spacing-sm) 0;
+}
+
+.auth-subtitle {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    color: var(--gray-800);
+    margin: 0 0 var(--spacing-md) 0;
+}
+
+.auth-description {
+    font-size: var(--text-base);
+    color: var(--gray-600);
+    margin: 0 0 var(--spacing-xl) 0;
+    line-height: var(--leading-relaxed);
+}
+
+/* Sign-in buttons */
+.auth-actions {
+    margin-bottom: var(--spacing-lg);
+}
+
+.google-signin-btn,
+.microsoft-signin-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    width: 100%;
+    padding: var(--spacing-md);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-md);
+    background-color: var(--primary-white);
+    font-size: var(--text-base);
+    font-weight: 500;
+    color: var(--gray-700);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    margin-bottom: var(--spacing-sm);
+}
+
+.google-signin-btn:hover {
+    background-color: rgba(66, 133, 244, 0.04);
+    border-color: #4285F4;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.microsoft-signin-btn {
+    margin-top: var(--spacing-sm);
+}
+
+.microsoft-signin-btn:hover {
+    background-color: rgba(0, 164, 239, 0.04);
+    border-color: #00a4ef;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.google-signin-btn:active,
+.microsoft-signin-btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.google-icon,
+.microsoft-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
+/* Manual sign-in button */
+.manual-signin-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    width: 100%;
+    padding: var(--spacing-md);
+    border: 1px solid var(--gray-900);
+    border-radius: var(--radius-md);
+    background-color: var(--gray-900);
+    font-size: var(--text-base);
+    font-weight: 500;
+    color: var(--primary-white);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    margin-top: var(--spacing-md);
+}
+
+.manual-signin-btn:hover {
+    background-color: var(--gray-800);
+    border-color: var(--gray-800);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.manual-signin-btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+/* Sign-in divider */
+.auth-divider {
+    position: relative;
+    text-align: center;
+    margin: var(--spacing-lg) 0;
+    color: var(--gray-500);
+    font-size: var(--text-sm);
+}
+
+.auth-divider::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: var(--gray-300);
+}
+
+.auth-divider span {
+    position: relative;
+    background-color: var(--primary-white);
+    padding: 0 var(--spacing-md);
+}
+
+/* Footer */
+.auth-footer {
+    text-align: center;
+    font-size: var(--text-xs);
+    color: var(--gray-600);
+    margin-top: var(--spacing-xl);
+}
+
+.auth-link {
+    color: var(--blue-600);
+    text-decoration: none;
+}
+
+.auth-link:hover {
+    text-decoration: underline;
+}
+
+/* Loading state */
+.auth-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-xl);
+    z-index: 10;
+}
+
+.auth-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--gray-200);
+    border-top-color: var(--blue-600);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive design */
+@media (max-width: 640px) {
+    #authentication-view {
+        padding: var(--spacing-md);
+    }
+    
+    .auth-container {
+        padding: var(--spacing-lg);
+    }
+    
+    .auth-logo {
+        width: 48px;
+        height: 48px;
+    }
+    
+    .auth-title {
+        font-size: var(--text-xl);
+    }
+    
+    .auth-subtitle {
+        font-size: var(--text-base);
+    }
+    
+    .auth-description {
+        font-size: var(--text-sm);
+    }
+    
+    .google-signin-btn,
+    .microsoft-signin-btn,
+    .manual-signin-btn {
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: var(--text-sm);
+    }
+}

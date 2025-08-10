@@ -19,22 +19,11 @@
 @import "./components/buttons.css";
 @import "./components/forms.css";
 @import "./components/header-footer.css";
-@import "./components/modals.css";
-@import "./components/chat.css";
-@import "./components/slide-menu.css";
-@import "./components/cards.css";
 
 /* 6. View-Specific Styles */
 @import "./views/startup.css";
 @import "./views/login.css";
-@import "./views/authentication.css";
-@import "./views/client-mode.css";
-@import "./views/developer-mode.css";
+@import "./client-mode.css";
 
 /* 7. Utilities and Helpers */
 @import "./utilities.css";
-
-/* 8. Print Styles */
-@media print {
-    @import "./print.css";
-}
