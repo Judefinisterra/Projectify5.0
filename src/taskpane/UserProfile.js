@@ -124,6 +124,11 @@ class UserProfileManager {
     this.updateCreditsDisplay();
     this.updateSubscriptionDisplay();
     this.checkLowCreditsWarning();
+    
+    // Also update footer if the function exists
+    if (typeof window.updateFooterDisplay === 'function') {
+      window.updateFooterDisplay();
+    }
   }
 
   /**

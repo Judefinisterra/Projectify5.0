@@ -3329,13 +3329,24 @@ Office.onReady(async (info) => {
 
     // Initialize system prompt dropdown functionality
     function initializeSystemPromptDropdown() {
-        const dropdown = document.getElementById('system-prompt-dropdown');
-        if (dropdown) {
-            dropdown.addEventListener('change', function() {
-                console.log(`System prompt mode changed to: ${this.value}`);
-                // Optionally reset conversation when mode changes
-                // resetChatClient();
-            });
+        // Handle both the old dropdown and the new header dropdown
+        const oldDropdown = document.getElementById('system-prompt-dropdown');
+        const newDropdown = document.getElementById('mode-dropdown');
+        
+        const handleDropdownChange = function() {
+            console.log(`System prompt mode changed to: ${this.value}`);
+            // Sync both dropdowns if they exist
+            if (oldDropdown && this === newDropdown) oldDropdown.value = this.value;
+            if (newDropdown && this === oldDropdown) newDropdown.value = this.value;
+            // Optionally reset conversation when mode changes
+            // resetChatClient();
+        };
+        
+        if (oldDropdown) {
+            oldDropdown.addEventListener('change', handleDropdownChange);
+        }
+        if (newDropdown) {
+            newDropdown.addEventListener('change', handleDropdownChange);
         }
     }
 
@@ -3984,6 +3995,153 @@ Office.onReady(async (info) => {
             hideParamsModal();
         }
     };
+
+    // Initialize new header menu functionality
+    function initializeHeaderMenu() {
+        const hamburgerButton = document.getElementById('hamburger-menu');
+        const slideMenu = document.getElementById('slide-menu');
+        const closeMenuButton = document.getElementById('close-menu');
+        const profileModal = document.getElementById('profile-modal');
+        const modalCloseButton = profileModal?.querySelector('.modal-close-button');
+        
+        // Hamburger menu toggle
+        if (hamburgerButton && slideMenu) {
+            hamburgerButton.addEventListener('click', () => {
+                slideMenu.classList.add('open');
+            });
+            
+            closeMenuButton?.addEventListener('click', () => {
+                slideMenu.classList.remove('open');
+            });
+        }
+        
+        // Menu item actions
+        const menuItems = document.querySelectorAll('.menu-item');
+        menuItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const action = item.dataset.action;
+                
+                switch (action) {
+                    case 'chat':
+                        // Show chat panel, hide subscription panel
+                        document.getElementById('client-chat-container').style.display = 'flex';
+                        document.getElementById('subscription-panel').style.display = 'none';
+                        slideMenu.classList.remove('open');
+                        break;
+                        
+                    case 'subscription':
+                        // Show subscription panel, hide chat
+                        document.getElementById('client-chat-container').style.display = 'none';
+                        document.getElementById('subscription-panel').style.display = 'block';
+                        slideMenu.classList.remove('open');
+                        break;
+                        
+                    case 'developer-mode':
+                        // Switch to developer mode
+                        if (typeof showDeveloperMode === 'function') {
+                            showDeveloperMode();
+                            slideMenu.classList.remove('open');
+                        }
+                        break;
+                        
+                    case 'profile':
+                        // Show profile modal
+                        if (profileModal) {
+                            profileModal.style.display = 'flex';
+                            slideMenu.classList.remove('open');
+                            updateProfileModal();
+                        }
+                        break;
+                        
+                    case 'back-to-menu':
+                        // Go back to startup menu
+                        if (typeof showStartupMenu === 'function') {
+                            showStartupMenu();
+                            slideMenu.classList.remove('open');
+                        }
+                        break;
+                }
+            });
+        });
+        
+        // Profile modal close
+        modalCloseButton?.addEventListener('click', () => {
+            profileModal.style.display = 'none';
+        });
+        
+        // Close modal when clicking outside
+        window.addEventListener('click', (event) => {
+            if (event.target === profileModal) {
+                profileModal.style.display = 'none';
+            }
+        });
+    }
+    
+    // Update profile modal with user data
+    function updateProfileModal() {
+        const userData = userProfileManager.getUserData();
+        
+        if (userData && userData.email) {
+            // Update avatar
+            const profileAvatar = document.getElementById('profile-user-avatar');
+            const profileInitials = document.getElementById('profile-user-initials');
+            
+            if (userData.picture) {
+                profileAvatar.src = userData.picture;
+                profileAvatar.style.display = 'block';
+                profileInitials.style.display = 'none';
+            } else {
+                profileAvatar.style.display = 'none';
+                profileInitials.style.display = 'flex';
+                profileInitials.textContent = userData.name.split(' ').map(n => n[0]).join('').toUpperCase();
+            }
+            
+            // Update user details
+            document.getElementById('profile-user-name').textContent = userData.name;
+            document.getElementById('profile-user-email').textContent = userData.email;
+        }
+        
+        // Handle sign out button
+        const profileSignOutButton = document.getElementById('profile-sign-out-button');
+        if (profileSignOutButton) {
+            profileSignOutButton.onclick = () => {
+                handleSignOut();
+                document.getElementById('profile-modal').style.display = 'none';
+            };
+        }
+    }
+    
+    // Update footer with credits and subscription info
+    function updateFooterDisplay() {
+        const credits = getUserCredits();
+        const userData = userProfileManager.getUserData();
+        
+        // Update credits count
+        const footerCreditsCount = document.getElementById('footer-credits-count');
+        if (footerCreditsCount) {
+            footerCreditsCount.textContent = credits !== null ? credits : '--';
+        }
+        
+        // Update subscription type
+        const footerSubscriptionType = document.getElementById('footer-subscription-type');
+        if (footerSubscriptionType && userData) {
+            const subscriptionType = userData.subscription?.type || 'Free';
+            footerSubscriptionType.textContent = subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1);
+        }
+        
+        // Show/hide sign in button based on auth state
+        const footerSignInButton = document.getElementById('footer-sign-in');
+        if (footerSignInButton) {
+            footerSignInButton.style.display = userData && userData.email ? 'none' : 'block';
+        }
+    }
+    
+    // Make updateFooterDisplay globally available
+    window.updateFooterDisplay = updateFooterDisplay;
+    
+    // Initialize header menu and footer
+    initializeHeaderMenu();
+    updateFooterDisplay();
 
     // ... (rest of your Office.onReady, e.g., Promise.all)
   }
