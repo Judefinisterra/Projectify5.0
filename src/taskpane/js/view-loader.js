@@ -14,6 +14,12 @@ class ViewLoader {
      */
     async loadView(viewName) {
         try {
+            // Check authentication for protected views
+            if (viewName === 'client-mode' && !this.isAuthenticated()) {
+                console.log('User not authenticated, redirecting to login');
+                viewName = 'login';
+            }
+
             // Unload previous view's specific styles
             if (this.currentView && this.currentView !== viewName) {
                 this.unloadStyles(this.currentView);
@@ -39,6 +45,19 @@ class ViewLoader {
         } catch (error) {
             console.error(`Error loading view ${viewName}:`, error);
         }
+    }
+
+    /**
+     * Check if user is authenticated
+     * @returns {boolean}
+     */
+    isAuthenticated() {
+        // Check for stored auth tokens
+        const googleToken = localStorage.getItem('google_access_token');
+        const msalToken = localStorage.getItem('msal_access_token');
+        const apiKey = localStorage.getItem('user_api_key');
+        
+        return !!(googleToken || msalToken || apiKey);
     }
 
     /**

@@ -2797,20 +2797,34 @@ body {
     margin-bottom: var(--spacing-2xl);
 }
 
+.auth-logo {
+    display: block;
+}
+
 .auth-title {
     font-size: 2.5rem;
-    font-weight: 700;
+    font-weight: 800;
     color: var(--gray-900);
-    margin: 0 0 var(--spacing-md) 0;
+    margin: 0 0 var(--spacing-sm) 0;
     letter-spacing: -0.02em;
 }
 
 .auth-subtitle {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--gray-800);
+    margin: 0 0 var(--spacing-sm) 0;
+    line-height: 1.4;
+}
+
+.auth-description {
+    font-size: 1rem;
     color: var(--gray-600);
     margin: 0 0 var(--spacing-2xl) 0;
-    font-weight: 400;
     line-height: 1.6;
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .auth-actions {

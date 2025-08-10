@@ -1786,6 +1786,21 @@ Office.onReady(async (info) => {
 
     function showClientMode() {
       productionLog('showClientMode function called');
+      
+      // Check if user is authenticated first
+      const googleToken = localStorage.getItem('google_access_token');
+      const msalToken = localStorage.getItem('msal_access_token');
+      const apiKey = localStorage.getItem('user_api_key');
+      const isAuthenticated = !!(googleToken || msalToken || apiKey);
+      
+      if (!isAuthenticated) {
+        productionLog('User not authenticated, showing authentication view with EBITDAI branding');
+        // Store that user wanted client mode after auth
+        localStorage.setItem('post_auth_redirect', 'client-mode');
+        showAuthentication();
+        return;
+      }
+      
       productionLog(`Before changes - startupMenu display: ${startupMenu ? startupMenu.style.display : 'null'}`);
       productionLog(`Before changes - clientModeView display: ${clientModeView ? clientModeView.style.display : 'null'}`);
       
@@ -2380,7 +2395,138 @@ Office.onReady(async (info) => {
         googleSignInButton.onclick = handleGoogleSignIn;
       }
       
+      // Set up Microsoft Sign-In button handler
+      const microsoftSignInButton = document.getElementById('microsoft-signin-auth-button');
+      if (microsoftSignInButton) {
+        microsoftSignInButton.onclick = handleMicrosoftSignIn;
+      }
+      
+      // Set up API Key Sign-In button handler
+      const apiKeySignInButton = document.getElementById('api-key-signin-button');
+      if (apiKeySignInButton) {
+        apiKeySignInButton.onclick = showApiKeyDialog;
+      }
+      
       console.log("Authentication view activated");
+    }
+    
+    // Handle Microsoft Sign-In
+    function handleMicrosoftSignIn() {
+      console.log("Microsoft Sign-In clicked");
+      
+      // Check if user already signed in with MSAL
+      if (typeof msalInstance !== 'undefined' && msalInstance) {
+        handleSignInClick(); // Use existing MSAL sign-in
+      } else {
+        showError("Microsoft authentication is not available. Please try Google Sign-In or use an API Key.");
+      }
+    }
+    
+    // Show API Key Dialog
+    function showApiKeyDialog() {
+      console.log("API Key Sign-In clicked");
+      
+      // Create a simple dialog for API key input
+      const dialog = document.createElement('div');
+      dialog.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        z-index: 10000;
+        width: 90%;
+        max-width: 400px;
+      `;
+      
+      dialog.innerHTML = `
+        <h3 style="margin-top: 0;">Enter Your OpenAI API Key</h3>
+        <p style="color: #666; font-size: 14px;">Your API key will be stored locally and used for AI requests.</p>
+        <input type="password" id="api-key-input" placeholder="sk-..." style="width: 100%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 4px;">
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+          <button id="api-key-cancel" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">Cancel</button>
+          <button id="api-key-submit" style="padding: 8px 16px; border: none; background: #333; color: white; border-radius: 4px; cursor: pointer;">Sign In</button>
+        </div>
+      `;
+      
+      // Add backdrop
+      const backdrop = document.createElement('div');
+      backdrop.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 9999;
+      `;
+      
+      document.body.appendChild(backdrop);
+      document.body.appendChild(dialog);
+      
+      // Focus input
+      const input = document.getElementById('api-key-input');
+      input.focus();
+      
+      // Handle cancel
+      document.getElementById('api-key-cancel').onclick = () => {
+        backdrop.remove();
+        dialog.remove();
+      };
+      
+      // Handle submit
+      document.getElementById('api-key-submit').onclick = () => {
+        const apiKey = input.value.trim();
+        if (apiKey && apiKey.startsWith('sk-')) {
+          // Store API key
+          localStorage.setItem('user_api_key', apiKey);
+          localStorage.setItem('auth_method', 'api_key');
+          
+          // Create mock user data
+          const userData = {
+            name: 'API Key User',
+            email: 'api@user.local',
+            picture: null,
+            credits: 100,
+            subscription: 'Free'
+          };
+          
+          localStorage.setItem('user_data', JSON.stringify(userData));
+          sessionStorage.setItem('googleUser', JSON.stringify(userData));
+          
+          // Update UI
+          if (typeof window.initializeUserData === 'function') {
+            window.initializeUserData();
+          }
+          
+          // Clean up dialog
+          backdrop.remove();
+          dialog.remove();
+          
+          // Redirect based on stored preference
+          const postAuthRedirect = localStorage.getItem('post_auth_redirect');
+          if (postAuthRedirect === 'client-mode') {
+            showClientMode();
+          } else {
+            showStartupMenu();
+          }
+          
+          localStorage.removeItem('post_auth_redirect');
+          showMessage('Successfully signed in with API key!');
+        } else {
+          showError('Please enter a valid OpenAI API key (should start with "sk-")');
+        }
+      };
+      
+      // Handle enter key
+      input.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          document.getElementById('api-key-submit').click();
+        }
+      });
     }
 
     function handleGoogleSignIn() {
