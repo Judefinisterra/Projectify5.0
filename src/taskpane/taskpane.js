@@ -1948,6 +1948,27 @@ Office.onReady(async (info) => {
       console.log('🔧 Attempting to initialize user data after Google authentication...');
       initializeUserData().then(() => {
         console.log('✅ User data initialized successfully after authentication');
+        
+        // Transition to client mode view
+        console.log('🔄 Transitioning to client mode view...');
+        
+        // Hide all other views
+        const authView = document.getElementById('authentication-view');
+        const startupMenu = document.getElementById('startup-menu');
+        const appBody = document.getElementById('app-body');
+        const clientModeView = document.getElementById('client-mode-view');
+        
+        if (authView) authView.style.display = 'none';
+        if (startupMenu) startupMenu.style.display = 'none';
+        if (appBody) appBody.style.display = 'none';
+        
+        // Show client mode view
+        if (clientModeView) {
+          clientModeView.style.display = 'flex';
+          console.log('✅ Client mode view displayed');
+        } else {
+          console.warn('⚠️ Client mode view not found');
+        }
       }).catch(error => {
         console.warn('Failed to initialize user data in showAuthenticatedInterface:', error);
         console.log('🔧 Using fallback display update');

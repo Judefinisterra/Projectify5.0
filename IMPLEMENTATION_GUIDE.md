@@ -168,3 +168,4 @@ We're using a utility-first approach with BEM-style components:
 1. Use production build: `npm run build`
 2. Enable CSS minification
 3. Check for duplicate imports
+

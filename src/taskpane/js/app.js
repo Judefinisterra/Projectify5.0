@@ -177,3 +177,4 @@ app.signOut = function() {
 
 // Export for use in modules
 window.app = app;
+
