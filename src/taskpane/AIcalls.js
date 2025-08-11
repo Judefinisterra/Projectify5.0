@@ -1269,8 +1269,12 @@ export async function createEmbedding(text) {
 
     const data = await response.json();
     console.log("OpenAI Embeddings API response received");
-
-    return data.data[0].embedding;
+    
+    // Add debugging for embedding dimensions
+    const embedding = data.data[0].embedding;
+    console.log(`Embedding generated: dimension=${embedding.length}, model=text-embedding-3-large`);
+    
+    return embedding;
   } catch (error) {
     console.error("Error creating embedding:", error);
     throw error;
@@ -2179,18 +2183,32 @@ export async function queryVectorDB({ queryPrompt, indexName = 'codes', numResul
         const url = `${indexConfig.apiEndpoint}/query`;
         if (DEBUG) console.log("Making Pinecone API request to:", url);
 
+        // Add detailed debugging for Pinecone request
+        const requestBody = {
+            vector: embedding,
+            topK: numResults,
+            includeMetadata: true,
+            namespace: "ns1" // Assuming namespace is constant
+        };
+        
+        console.log("Pinecone Request Debug Info:", {
+            url: url,
+            indexName: indexName,
+            vectorLength: embedding ? embedding.length : 'undefined',
+            vectorSample: embedding ? `[${embedding.slice(0, 3).join(', ')}...${embedding.slice(-3).join(', ')}]` : 'no vector',
+            topK: numResults,
+            namespace: "ns1",
+            hasApiKey: !!INTERNAL_API_KEYS.PINECONE_API_KEY,
+            apiKeyPrefix: INTERNAL_API_KEYS.PINECONE_API_KEY ? INTERNAL_API_KEYS.PINECONE_API_KEY.substring(0, 10) + '...' : 'missing'
+        });
+
         const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'api-key': INTERNAL_API_KEYS.PINECONE_API_KEY,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                vector: embedding,
-                topK: numResults,
-                includeMetadata: true,
-                namespace: "ns1" // Assuming namespace is constant
-            })
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
@@ -2231,6 +2249,91 @@ export async function queryVectorDB({ queryPrompt, indexName = 'codes', numResul
     }
 }
 
+
+// Diagnostic function to test Pinecone connection and configuration
+export async function testPineconeConnection(indexName = 'call2trainingdata') {
+    console.log("\n========== PINECONE DIAGNOSTIC TEST ==========");
+    
+    try {
+        // 1. Check API key
+        console.log("1. Checking API key...");
+        if (!INTERNAL_API_KEYS.PINECONE_API_KEY) {
+            console.error("❌ No Pinecone API key found!");
+            return;
+        }
+        console.log("✅ API key found:", INTERNAL_API_KEYS.PINECONE_API_KEY.substring(0, 10) + "...");
+        
+        // 2. Check index configuration
+        console.log("\n2. Checking index configuration...");
+        const indexConfig = PINECONE_INDEXES[indexName];
+        if (!indexConfig) {
+            console.error(`❌ Index '${indexName}' not found in configuration!`);
+            console.log("Available indexes:", Object.keys(PINECONE_INDEXES));
+            return;
+        }
+        console.log(`✅ Index configuration found:`, indexConfig);
+        
+        // 3. Test embedding generation
+        console.log("\n3. Testing embedding generation...");
+        const testText = "This is a test query";
+        const embedding = await createEmbedding(testText);
+        console.log(`✅ Embedding generated successfully: ${embedding.length} dimensions`);
+        console.log(`   Using model: text-embedding-3-large`);
+        
+        // 4. Test Pinecone query with minimal vector
+        console.log("\n4. Testing Pinecone query...");
+        const url = `${indexConfig.apiEndpoint}/query`;
+        
+        // Create a test vector with correct dimensions
+        const testVector = new Array(embedding.length).fill(0.1);
+        
+        const testBody = {
+            vector: testVector,
+            topK: 1,
+            includeMetadata: true,
+            namespace: "ns1"
+        };
+        
+        console.log("Test request details:", {
+            url: url,
+            vectorDimensions: testVector.length,
+            namespace: "ns1"
+        });
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'api-key': INTERNAL_API_KEYS.PINECONE_API_KEY,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(testBody)
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("❌ Pinecone query failed!");
+            console.error("Status:", response.status);
+            console.error("Error:", errorText);
+            
+            // Try to parse error for more details
+            try {
+                const errorJson = JSON.parse(errorText);
+                console.error("Parsed error:", errorJson);
+            } catch (e) {
+                // Not JSON, that's ok
+            }
+        } else {
+            const data = await response.json();
+            console.log("✅ Pinecone query successful!");
+            console.log("Response:", data);
+        }
+        
+    } catch (error) {
+        console.error("❌ Diagnostic test failed:", error);
+    }
+    
+    console.log("\n========== END DIAGNOSTIC TEST ==========\n");
+}
 
 // Helper function to extract text from Pinecone match JSON
 function extractTextFromJson(jsonInput) {

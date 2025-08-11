@@ -484,9 +484,8 @@
             </nav>
         </div>
 
-        <div class="client-app-layout">
-            <!-- Sidebar -->
-            <div class="sidebar">
+        <!-- Sidebar -->
+        <div class="sidebar">
                 <!-- Logo -->
                 <div class="sidebar-logo">
                     <div class="logo-icon">
@@ -601,83 +600,85 @@
                         </div>
                     </div>
                     
-                    <!-- Input area wrapper that will be repositioned -->
-                    <div id="client-input-wrapper" class="client-input-area-wrapper">
-                        <div class="chatgpt-input-bar" id="chatgpt-input-bar">
-                            <!-- Normal Input Mode -->
-                            <div id="normal-input-mode" class="input-mode">
-                                <div class="left-controls">
-                                    <input type="file" id="file-input-client" accept=".xlsx,.xls,.xlsm,.csv,.doc,.docx,.pdf,.txt" multiple style="display: none;">
-                                    <button id="attach-file-client" class="ms-Button ms-Button--icon attachment-button" title="Attach Excel, CSV, Word, PDF, or Text file">
-                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="plus-icon">
-                                            <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                                <textarea id="user-input-client" placeholder="Describe your business" rows="1"></textarea>
-                                <div class="right-controls">
-                                    <button id="voice-input-client" class="ms-Button ms-Button--icon voice-button" title="Voice input">
-                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="microphone-icon">
-                                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill="currentColor"/>
-                                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                                            <path d="M12 19v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                            <path d="M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
-                                    </button>
-                                    <button id="send-client" class="ms-Button ms-Button--icon send-button">
-                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="send-icon">
-                                            <path d="M12 4L12 20M12 4L18 10M12 4L6 10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
-                                    </button>
-                                </div>
+
+                </div>
+                
+                <!-- Input area wrapper moved outside of chat container -->
+                <div id="client-input-wrapper" class="client-input-area-wrapper">
+                    <div class="chatgpt-input-bar" id="chatgpt-input-bar">
+                        <!-- Normal Input Mode -->
+                        <div id="normal-input-mode" class="input-mode">
+                            <div class="left-controls">
+                                <input type="file" id="file-input-client" accept=".xlsx,.xls,.xlsm,.csv,.doc,.docx,.pdf,.txt" multiple style="display: none;">
+                                <button id="attach-file-client" class="ms-Button ms-Button--icon attachment-button" title="Attach Excel, CSV, Word, PDF, or Text file">
+                                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="plus-icon">
+                                        <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                    </svg>
+                                </button>
                             </div>
-                            
-                            <!-- Voice Recording Mode -->
-                            <div id="voice-recording-mode" class="input-mode" style="display: none;">
-                                <div class="left-controls">
-                                    <button class="ms-Button ms-Button--icon attachment-button">
-                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="plus-icon">
-                                            <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                                <div class="voice-waveform-container">
-                                    <canvas id="voice-waveform" class="voice-waveform"></canvas>
-                                    <div id="voice-recording-timer" class="voice-recording-timer">00:00</div>
-                                </div>
-                                <div class="voice-recording-controls">
-                                    <button id="cancel-voice-recording" class="ms-Button ms-Button--icon voice-control-button" title="Cancel recording">
-                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="cancel-icon">
-                                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                                        </svg>
-                                    </button>
-                                    <button id="accept-voice-recording" class="ms-Button ms-Button--icon voice-control-button" title="Send for transcription">
-                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="check-icon">
-                                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <!-- Transcription Loading Mode -->
-                            <div id="transcription-loading-mode" class="input-mode" style="display: none;">
-                                <div class="transcription-loading-content">
-                                    <div class="transcription-spinner"></div>
-                                    <span class="transcription-loading-text">Transcribing...</span>
-                                </div>
+                            <textarea id="user-input-client" placeholder="Describe your business" rows="1"></textarea>
+                            <div class="right-controls">
+                                <button id="voice-input-client" class="ms-Button ms-Button--icon voice-button" title="Voice input">
+                                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="microphone-icon">
+                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill="currentColor"/>
+                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                        <path d="M12 19v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                                <button id="send-client" class="ms-Button ms-Button--icon send-button">
+                                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="send-icon">
+                                        <path d="M12 6.5L17.5 12L16.09 13.41L13 10.33V17.5H11V10.33L7.91 13.41L6.5 12L12 6.5Z" fill="currentColor"/>
+                                    </svg>
+                                </button>
                             </div>
                         </div>
-                        <div id="attached-files-container" class="attached-files-container" style="display: none;">
-                            <div class="attached-files-header">
-                                <span class="attached-files-count">0 files attached</span>
-                                <button id="clear-all-attachments" class="clear-all-btn">Clear All</button>
+                        
+                        <!-- Voice Recording Mode -->
+                        <div id="voice-recording-mode" class="input-mode" style="display: none;">
+                            <div class="left-controls">
+                                <button class="ms-Button ms-Button--icon attachment-button">
+                                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="plus-icon">
+                                        <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                    </svg>
+                                </button>
                             </div>
-                            <div id="attached-files-list" class="attached-files-list">
-                                <!-- Individual attached files will be added here dynamically -->
+                            <div class="voice-waveform-container">
+                                <canvas id="voice-waveform" class="voice-waveform"></canvas>
+                                <div id="voice-recording-timer" class="voice-recording-timer">00:00</div>
+                            </div>
+                            <div class="voice-recording-controls">
+                                <button id="cancel-voice-recording" class="ms-Button ms-Button--icon voice-control-button" title="Cancel recording">
+                                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="cancel-icon">
+                                        <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                                <button id="accept-voice-recording" class="ms-Button ms-Button--icon voice-control-button" title="Send for transcription">
+                                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="check-icon">
+                                        <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
+                                    </svg>
+                                </button>
                             </div>
                         </div>
-                        <div id="loading-animation-client" class="loading-animation" style="display: none;"></div>
+                        
+                        <!-- Transcription Loading Mode -->
+                        <div id="transcription-loading-mode" class="input-mode" style="display: none;">
+                            <div class="transcription-loading-content">
+                                <div class="transcription-spinner"></div>
+                                <span class="transcription-loading-text">Transcribing...</span>
+                            </div>
+                        </div>
                     </div>
+                    <div id="attached-files-container" class="attached-files-container" style="display: none;">
+                        <div class="attached-files-header">
+                            <span class="attached-files-count">0 files attached</span>
+                            <button id="clear-all-attachments" class="clear-all-btn">Clear All</button>
+                        </div>
+                        <div id="attached-files-list" class="attached-files-list">
+                            <!-- Individual attached files will be added here dynamically -->
+                        </div>
+                    </div>
+                    <div id="loading-animation-client" class="loading-animation" style="display: none;"></div>
                 </div>
 
                 <!-- Subscription Panel -->
@@ -863,7 +864,6 @@
                     </div>
                 </div>
             </div>
-        </div>
         
         <!-- Fixed Footer -->
         <footer class="fixed-footer">

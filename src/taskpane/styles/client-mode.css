@@ -200,12 +200,13 @@
 #chat-log-client {
     flex: 1;
     overflow-y: auto;
-    padding: 20px;
+    padding: 0px;
     display: none;
 }
 
 #client-chat-container.conversation-active .welcome-section {
     display: none;
+    flex: 1;
 }
 
 #client-chat-container.conversation-active #chat-log-client {
@@ -246,7 +247,7 @@
     border: 1px solid #e0e0e0;
 }
 
-/* ===== INPUT AREA ===== */
+/* ===== INPUT AREA - ChatGPT Style ===== */
 .client-input-area-wrapper {
     background-color: #ffffff;
     border-top: 1px solid #e0e0e0;
@@ -309,63 +310,112 @@
     justify-content: center;
 }
 
+/* ChatGPT-style input bar */
 .chatgpt-input-bar {
     max-width: 700px;
     margin: 0 auto;
     display: flex;
-    align-items: flex-end;
-    gap: 8px;
-    padding: 8px;
-    background-color: #f5f5f5;
+    align-items: center;
+    gap: 0;
+    padding: 0;
+    background-color: #f4f4f4;
     border-radius: 24px;
-    border: 1px solid #e0e0e0;
+    border: 1px solid #d9d9e3;
+    overflow: hidden;
+}
+
+.input-mode {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    gap: 0;
 }
 
 .left-controls,
 .right-controls {
     display: flex;
     align-items: center;
-    gap: 4px;
+    padding: 0 8px;
 }
 
-#attach-file-client,
-#voice-input-client {
-    width: 32px;
-    height: 32px;
+/* Attachment button - Plus sign with no background */
+#attach-file-client {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    margin: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: transparent;
+    background: none;
     border: none;
     cursor: pointer;
-    color: #666666;
-    border-radius: 50%;
-    transition: all 0.2s ease;
-}
-
-#attach-file-client:hover,
-#voice-input-client:hover {
-    background-color: rgba(0, 0, 0, 0.05);
     color: #000000;
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
 }
 
+#attach-file-client:hover {
+    opacity: 1;
+}
+
+#attach-file-client .plus-icon {
+    width: 24px;
+    height: 24px;
+}
+
+/* Text input area */
 #user-input-client {
     flex: 1;
-    min-height: 40px;
-    max-height: 120px;
-    padding: 0 12px;
+    min-height: 44px;
+    max-height: 200px;
+    padding: 12px 0;
     border: none;
     outline: none;
     resize: none;
     font-size: 14px;
     line-height: 1.5;
     background: transparent;
+    color: #000000;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
+#user-input-client::placeholder {
+    color: #8e8ea0;
+}
+
+/* Voice input button - Microphone */
+#voice-input-client {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #000000;
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+}
+
+#voice-input-client:hover {
+    opacity: 1;
+}
+
+#voice-input-client .microphone-icon {
+    width: 20px;
+    height: 20px;
+}
+
+/* Send button - Black circle with white arrow */
 #send-client {
     width: 32px;
     height: 32px;
+    margin: 0 6px;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -374,24 +424,71 @@
     border: none;
     border-radius: 50%;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: opacity 0.2s ease;
+    flex-shrink: 0;
 }
 
 #send-client:hover:not(:disabled) {
-    background-color: #333333;
-    transform: scale(1.05);
+    opacity: 0.8;
 }
 
 #send-client:disabled {
-    opacity: 0.5;
+    background-color: #e0e0e0;
+    color: #a0a0a0;
     cursor: not-allowed;
 }
 
+#send-client .send-icon {
+    width: 16px;
+    height: 16px;
+    color: inherit;
+}
+
+/* Icon styles */
 .plus-icon,
 .microphone-icon,
 .send-icon {
-    width: 18px;
-    height: 18px;
+    display: block;
+    pointer-events: none;
+}
+
+/* Make sure icons are visible - Override all Office UI Fabric styles */
+.ms-Button.attachment-button,
+.ms-Button.voice-button,
+.ms-Button.send-button,
+.ms-Button--icon.attachment-button,
+.ms-Button--icon.voice-button,
+.ms-Button--icon.send-button {
+    background: transparent !important;
+    border: none !important;
+    min-width: unset !important;
+    min-height: unset !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Force button visibility */
+#attach-file-client,
+#voice-input-client,
+#send-client {
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Ensure SVG icons are visible */
+#attach-file-client svg,
+#voice-input-client svg,
+#send-client svg {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Override any .ms-Icon styles that might hide our SVGs */
+.ms-Button .ms-Icon {
+    display: none !important;
 }
 
 /* ===== FOOTER ===== */

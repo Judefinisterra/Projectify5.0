@@ -924,15 +924,18 @@ async function handleSendClient() {
     const clientChatContainer = document.getElementById('client-chat-container');
     const chatLogClient = document.getElementById('chat-log-client');
     
-    // Hide the welcome section when conversation starts
-    if (welcomeSection && conversationHistoryClient.length === 0) {
+    // Always add conversation-active class when sending a message
+    if (clientChatContainer) {
+        clientChatContainer.classList.add('conversation-active');
+        console.log('[sendToAPIClient] Added conversation-active class to hide welcome section');
+    }
+    
+    // Force hide welcome section as backup
+    if (welcomeSection) {
         welcomeSection.style.display = 'none';
     }
     
-    if (clientChatContainer && !clientChatContainer.classList.contains('conversation-active')) {
-        clientChatContainer.classList.add('conversation-active');
-    }
-    
+    // Force show chat log as backup
     if (chatLogClient) {
         chatLogClient.style.display = 'block';
     }
