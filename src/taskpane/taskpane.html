@@ -32,34 +32,30 @@
     <link rel="stylesheet" href="https://static2.sharepointonline.com/files/fabric/office-ui-fabric-core/11.0.0/css/fabric.min.css"/>
 
     <!-- Modular CSS Structure -->
-    <!-- 1. Variables and Design Tokens -->
+    <!-- 1. Variables and Design Tokens (must be first) -->
     <link href="styles/variables.css" rel="stylesheet" type="text/css" />
     
     <!-- 2. Reset and Base Styles -->
     <link href="styles/reset.css" rel="stylesheet" type="text/css" />
+    <link href="styles/base.css" rel="stylesheet" type="text/css" />
     
     <!-- 3. Typography -->
     <link href="styles/typography.css" rel="stylesheet" type="text/css" />
     
     <!-- 4. Layout Utilities -->
     <link href="styles/layout.css" rel="stylesheet" type="text/css" />
+    <link href="styles/utilities.css" rel="stylesheet" type="text/css" />
     
     <!-- 5. Components -->
     <link href="styles/components/buttons.css" rel="stylesheet" type="text/css" />
     <link href="styles/components/forms.css" rel="stylesheet" type="text/css" />
     <link href="styles/components/header-footer.css" rel="stylesheet" type="text/css" />
     
-    <!-- 6. View-Specific Styles -->
+    <!-- 6. View-Specific Styles (most specific, loaded last) -->
     <link href="styles/views/startup.css" rel="stylesheet" type="text/css" />
     <link href="styles/views/login.css" rel="stylesheet" type="text/css" />
     <link href="styles/views/authentication.css" rel="stylesheet" type="text/css" />
     <link href="styles/client-mode.css" rel="stylesheet" type="text/css" />
-    
-    <!-- 7. Utilities and Helpers -->
-    <link href="styles/utilities.css" rel="stylesheet" type="text/css" />
-    
-    <!-- 8. Base styles (legacy compatibility) -->
-    <link href="styles/base.css" rel="stylesheet" type="text/css" />
 </head>
 
 <body class="ms-Fabric" dir="ltr">
@@ -403,10 +399,13 @@
             </button>
             
             <div class="header-center">
-                <h1 class="header-title">GPT for Excel Word</h1>
+                <h1 class="header-title">
+                    <span class="title-white">EBITD</span><span class="title-red">AI</span>
+                </h1>
             </div>
             
             <div class="header-right">
+                <label class="mode-label">Mode:</label>
                 <select id="mode-dropdown" class="mode-dropdown">
                     <option value="one-shot">One-shot</option>
                     <option value="limited-guidance">Limited Guidance</option>

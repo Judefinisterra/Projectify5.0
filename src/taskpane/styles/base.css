@@ -1,8 +1,8 @@
 /* Base CSS - Shared across all views */
 
-/* CSS Reset and Variables */
+/* Additional variables that complement variables.css */
 :root {
-    /* Color Palette */
+    /* Additional Colors */
     --primary-color: #2563eb;
     --primary-hover: #1d4ed8;
     --secondary-color: #64748b;
@@ -14,29 +14,10 @@
     --error-color: #ef4444;
     --success-color: #10b981;
     
-    /* Typography */
-    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    /* Additional Font Sizes */
     --font-size-base: 14px;
     --font-size-small: 12px;
     --font-size-large: 16px;
-    --font-size-xl: 20px;
-    --font-size-2xl: 24px;
-    
-    /* Spacing */
-    --spacing-xs: 4px;
-    --spacing-sm: 8px;
-    --spacing-md: 16px;
-    --spacing-lg: 24px;
-    --spacing-xl: 32px;
-    
-    /* Layout */
-    --header-height: 48px;
-    --footer-height: 32px;
-    --sidebar-width: 250px;
-    
-    /* Animations */
-    --transition-fast: 150ms ease-in-out;
-    --transition-normal: 300ms ease-in-out;
 }
 
 /* Reset */
