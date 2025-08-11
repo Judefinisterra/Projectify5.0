@@ -45,7 +45,11 @@ export function setAIModelPlannerOpenApiKey(key) {
 
 // Function to get the currently selected system prompt mode
 function getSelectedSystemPromptMode() {
-  const dropdown = document.getElementById('system-prompt-dropdown');
+  // Check both possible dropdown IDs
+  let dropdown = document.getElementById('mode-dropdown');
+  if (!dropdown) {
+    dropdown = document.getElementById('system-prompt-dropdown');
+  }
   return dropdown ? dropdown.value : 'one-shot'; // Default to one-shot
 }
 

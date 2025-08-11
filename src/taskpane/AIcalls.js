@@ -2384,7 +2384,10 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
         }
 
         // Determine which followup system prompt to use based on current mode
-        const dropdown = document.getElementById('system-prompt-dropdown');
+        let dropdown = document.getElementById('mode-dropdown');
+        if (!dropdown) {
+            dropdown = document.getElementById('system-prompt-dropdown');
+        }
         const currentMode = dropdown ? dropdown.value : 'one-shot';
         const followupPromptName = (currentMode === 'one-shot') ? 'oneshotfollowup_system' : 'Followup_System';
         
