@@ -455,6 +455,155 @@
     font-weight: 500;
 }
 
+/* ===== DEVELOPER MODE INDICATOR ===== */
+.developer-mode-badge {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    background-color: #4caf50;
+    color: #ffffff;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    z-index: 50;
+    animation: slideIn 0.3s ease-out;
+}
+
+.developer-mode-badge::before {
+    content: "🛠️";
+    font-size: 16px;
+}
+
+.developer-mode-badge .badge-text {
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+/* ===== ACTION BUTTONS ===== */
+.dev-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding: 16px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.dev-actions .ms-Button {
+    background-color: #ffffff;
+    color: #333333;
+    border: 1px solid #ddd;
+    padding: 10px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    font-weight: 500;
+    min-width: auto;
+}
+
+.dev-actions .ms-Button:hover {
+    background-color: #f0f0f0;
+    border-color: #007acc;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.dev-actions .ms-Button:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* Special styling for different button types */
+#write-to-excel {
+    background-color: #107c10;
+    color: #ffffff;
+    border-color: #107c10;
+}
+
+#write-to-excel:hover {
+    background-color: #0e6e0e;
+    border-color: #0e6e0e;
+}
+
+#write-to-excel::before {
+    content: "📊";
+    font-size: 16px;
+}
+
+#insert-to-editor::before {
+    content: "📝";
+    font-size: 16px;
+}
+
+#reset-chat {
+    background-color: #dc3545;
+    color: #ffffff;
+    border-color: #dc3545;
+}
+
+#reset-chat:hover {
+    background-color: #c82333;
+    border-color: #c82333;
+}
+
+#reset-chat::before {
+    content: "🔄";
+    font-size: 16px;
+}
+
+#add-to-training-queue {
+    background-color: #007acc;
+    color: #ffffff;
+    border-color: #007acc;
+}
+
+#add-to-training-queue:hover {
+    background-color: #005a9e;
+    border-color: #005a9e;
+}
+
+#add-to-training-queue::before {
+    content: "🎯";
+    font-size: 16px;
+}
+
+#clear-training-data-que-button::before {
+    content: "🗑️";
+    font-size: 16px;
+}
+
+#attach-actuals-button::before {
+    content: "📎";
+    font-size: 16px;
+}
+
+.dev-actions .ms-Button .ms-Button-label {
+    font-weight: 500;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 768px) {
     .container {

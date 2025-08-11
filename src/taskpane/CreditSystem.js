@@ -18,10 +18,32 @@ class CreditSystemManager {
   // ============================================================================
 
   /**
+   * Check if we're currently in developer mode
+   */
+  isInDeveloperMode() {
+    // Check if app-body (developer mode view) is currently visible
+    const appBody = document.getElementById('app-body');
+    const isDeveloperViewActive = appBody && appBody.style.display !== 'none';
+    
+    // Log for debugging
+    if (isDeveloperViewActive) {
+      console.log("🛠️ Developer Mode detected - unlimited API calls enabled");
+    }
+    
+    return isDeveloperViewActive;
+  }
+
+  /**
    * Check if user has sufficient credits for an action
    */
   async checkCreditsForAction(action) {
     try {
+      // DEVELOPER MODE BYPASS - if in developer mode, allow unlimited API calls
+      if (this.isInDeveloperMode()) {
+        console.log("🛠️ DEVELOPER MODE: Unlimited API calls - bypassing all credit checks");
+        return { canProceed: true, reason: 'developer_mode_unlimited' };
+      }
+      
       // Development mode bypass - if no authentication is set up, allow unlimited usage
       if (typeof window !== 'undefined' && !window.userProfileManager) {
         console.log("🔧 Development mode: No user profile manager - allowing unlimited usage");
@@ -122,13 +144,13 @@ class CreditSystemManager {
         };
       }
 
-      // If development mode or user data not loaded, skip backend call
-      if (creditCheck.reason === 'development' || creditCheck.reason === 'user_data_not_loaded' || creditCheck.reason === 'error_bypass') {
+      // If development mode, developer mode unlimited, or user data not loaded, skip backend call
+      if (creditCheck.reason === 'development' || creditCheck.reason === 'developer_mode_unlimited' || creditCheck.reason === 'user_data_not_loaded' || creditCheck.reason === 'error_bypass') {
         console.log(`🔧 ${creditCheck.reason} - skipping backend credit consumption`);
         return {
           success: true,
           message: `Action completed (${creditCheck.reason})`,
-          remainingCredits: null,
+          remainingCredits: creditCheck.reason === 'developer_mode_unlimited' ? 'unlimited' : null,
           viaDevelopmentMode: true
         };
       }
@@ -172,6 +194,11 @@ class CreditSystemManager {
       const creditCheck = await this.checkCreditsForAction(featureType);
       
       if (creditCheck.canProceed) {
+        // Special logging for developer mode
+        if (creditCheck.reason === 'developer_mode_unlimited') {
+          console.log(`🛠️ DEVELOPER MODE: Feature "${featureType}" - unlimited usage, no credits deducted`);
+        }
+        
         // Execute the callback if access is allowed
         if (typeof callback === 'function') {
           return await callback();
