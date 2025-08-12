@@ -1,0 +1,279 @@
+/**
+ * Loading Animation Component Styles
+ * Modular CSS for the loading animation component
+ */
+
+/* Base loading animation container */
+.loading-animation {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-md, 1rem);
+    padding: var(--spacing-xl, 2rem);
+}
+
+/* Spinner styles */
+.loading-animation .spinner,
+.loading-animation .loading-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 2px solid var(--gray-200, #e5e7eb);
+    border-top: 2px solid var(--gray-800, #1f2937);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Spinner size variants */
+.loading-animation.spinner-sm .spinner,
+.loading-animation.spinner-sm .loading-spinner {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-width: 2px;
+}
+
+.loading-animation.spinner-lg .spinner,
+.loading-animation.spinner-lg .loading-spinner {
+    width: 3rem;
+    height: 3rem;
+    border-width: 3px;
+}
+
+/* Loading text */
+.loading-animation .loading-text {
+    color: var(--gray-600, #4b5563);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* Position variants */
+.loading-animation.position-absolute {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.loading-animation.position-fixed {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(255, 255, 255, 0.95);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Client mode specific styles */
+#loading-animation-client {
+    display: none;
+}
+
+#loading-animation-client .loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #f0f0f0;
+    border-top-color: #000000;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto;
+}
+
+/* Developer mode specific styles */
+.loading-animation.dev-mode {
+    background-color: rgba(255, 255, 255, 0.95);
+    border: 1px solid var(--gray-200, #e5e7eb);
+    border-radius: var(--radius-md, 0.5rem);
+    box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+}
+
+/* Animation keyframes */
+@keyframes spin {
+    0% { 
+        transform: rotate(0deg); 
+    }
+    100% { 
+        transform: rotate(360deg); 
+    }
+}
+
+/* Fade in/out animations */
+.loading-animation {
+    transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+}
+
+.loading-animation.loading-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.loading-animation.loading-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Color themes */
+.loading-animation.theme-dark .spinner,
+.loading-animation.theme-dark .loading-spinner {
+    border-color: rgba(255, 255, 255, 0.2);
+    border-top-color: #ffffff;
+}
+
+.loading-animation.theme-dark .loading-text {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.loading-animation.theme-dark {
+    background-color: rgba(0, 0, 0, 0.8);
+}
+
+/* Success state */
+.loading-animation.success .spinner,
+.loading-animation.success .loading-spinner {
+    border-color: var(--green-100, #dcfce7);
+    border-top-color: var(--green-600, #16a34a);
+}
+
+.loading-animation.success .loading-text {
+    color: var(--green-600, #16a34a);
+}
+
+/* Error state */
+.loading-animation.error .spinner,
+.loading-animation.error .loading-spinner {
+    border-color: #fee2e2;
+    border-top-color: #dc2626;
+}
+
+.loading-animation.error .loading-text {
+    color: #dc2626;
+}
+
+/* Inline variant */
+.loading-animation.inline {
+    display: inline-flex;
+    padding: 0;
+    gap: 8px;
+    background: none;
+    box-shadow: none;
+}
+
+.loading-animation.inline .spinner,
+.loading-animation.inline .loading-spinner {
+    width: 1rem;
+    height: 1rem;
+    border-width: 2px;
+}
+
+.loading-animation.inline .loading-text {
+    font-size: inherit;
+}
+
+/* Overlay variant */
+.loading-animation-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.loading-animation-overlay .loading-animation {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* Dots animation variant */
+.loading-dots {
+    display: inline-flex;
+    gap: 4px;
+}
+
+.loading-dots span {
+    width: 8px;
+    height: 8px;
+    background-color: var(--gray-600, #4b5563);
+    border-radius: 50%;
+    animation: dot-pulse 1.4s ease-in-out infinite;
+}
+
+.loading-dots span:nth-child(1) {
+    animation-delay: -0.32s;
+}
+
+.loading-dots span:nth-child(2) {
+    animation-delay: -0.16s;
+}
+
+@keyframes dot-pulse {
+    0%, 60%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    30% {
+        transform: scale(1.5);
+        opacity: 0.6;
+    }
+}
+
+/* Progress bar variant */
+.loading-progress {
+    width: 200px;
+    height: 4px;
+    background-color: var(--gray-200, #e5e7eb);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.loading-progress-bar {
+    height: 100%;
+    background-color: var(--gray-800, #1f2937);
+    animation: progress-slide 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-slide {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(200%);
+    }
+}
+
+/* Pulse animation variant */
+.loading-pulse {
+    width: 40px;
+    height: 40px;
+    background-color: var(--gray-400, #9ca3af);
+    border-radius: 50%;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}

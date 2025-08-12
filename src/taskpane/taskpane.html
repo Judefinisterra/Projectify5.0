@@ -526,9 +526,36 @@
                     </div>
                 </div>
                 
+                <!-- Voice Recording Mode -->
+                <div id="voice-recording-mode" class="input-mode" style="display: none;">
+                    <div class="voice-waveform-container">
+                        <canvas id="voice-waveform" class="voice-waveform"></canvas>
+                        <div id="voice-recording-timer" class="voice-recording-timer">00:00</div>
+                    </div>
+                    <div class="voice-recording-controls">
+                       <button id="cancel-voice-recording" class="ms-Button ms-Button--icon voice-control-button" title="Cancel recording">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="cancel-icon">
+                                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                         </button>
+                        <button id="stop-voice-recording" class="ms-Button ms-Button--primary voice-stop-button" title="Stop recording">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="stop-icon">
+                                <rect x="6" y="6" width="12" height="12" fill="currentColor"/>
+                            </svg>
+                            <span>Stop Recording</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Transcription Loading Mode -->
+                <div id="transcription-loading-mode" class="input-mode" style="display: none;">
+                    <div class="transcription-loading-content">
+                        <div class="loading-spinner"></div>
+                        <div class="transcription-loading-text">Transcribing your audio...</div>
+                    </div>
+                </div>
+                
                 <!-- Hidden elements - Keep for JavaScript compatibility -->
-                <div id="voice-recording-mode" class="hidden"></div>
-                <div id="transcription-loading-mode" class="hidden"></div>
                 <div id="attached-files-container" class="hidden"></div>
                 <div id="loading-animation-client" class="hidden"></div>
             </div>

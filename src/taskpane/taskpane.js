@@ -127,7 +127,7 @@ async function loadCodeDatabase() {
 // Simplified API key initialization (keys will be loaded from AIcalls.js when needed)
 export async function initializeAPIKeys() {
   console.log("API keys will be loaded when needed from AIcalls.js");
-  return { ...INTERNAL_API_KEYS };
+    return { ...INTERNAL_API_KEYS };
 }
 
 // Conversation history storage
@@ -1913,7 +1913,7 @@ Office.onReady(async (info) => {
       // Show the sign-in button in sidebar
       const signInButton = document.getElementById('sign-in-button');
       if (signInButton) {
-        signInButton.style.display = 'flex';
+          signInButton.style.display = 'flex';
         productionLog('Sidebar sign-in button shown');
       }
       
@@ -2571,21 +2571,21 @@ Office.onReady(async (info) => {
       console.log("Office platform:", Office.context?.platform);
       console.log("================================");
       
-             // Use Office Dialog API for authentication within Excel environment
-       if (typeof Office !== 'undefined' && Office.context && Office.context.ui && typeof Office.context.ui.displayDialogAsync === 'function') {
+      // Use Office Dialog API for authentication within Excel environment
+      if (typeof Office !== 'undefined' && Office.context && Office.context.ui && typeof Office.context.ui.displayDialogAsync === 'function') {
          console.log("✅ Using Office Dialog API for authentication");
-         const authUrl = buildGoogleAuthUrl();
-         console.log("Auth URL:", authUrl);
+        const authUrl = buildGoogleAuthUrl();
+        console.log("Auth URL:", authUrl);
          
          // Show loading message
          showMessage("Opening authentication dialog...");
-         
-         Office.context.ui.displayDialogAsync(authUrl, {
+        
+        Office.context.ui.displayDialogAsync(authUrl, {
            height: 70,
            width: 70,
            requireHTTPS: true,
            displayInIframe: false // Ensure it opens in a proper dialog, not iframe
-         }, function (result) {
+        }, function (result) {
            console.log("Dialog creation result:", result);
           if (result.status === Office.AsyncResultStatus.Succeeded) {
             const dialog = result.value;
@@ -2684,20 +2684,20 @@ Office.onReady(async (info) => {
 
          async function handleGoogleAuthSuccess(authResult) {
        console.log("✅ Google authentication successful", authResult);
-       
+      
        try {
          // Store Google user data locally (for display purposes)
-         if (authResult.user) {
-           sessionStorage.setItem('googleUser', JSON.stringify(authResult.user));
-         }
-         if (authResult.access_token) {
-           sessionStorage.setItem('googleToken', authResult.access_token);
-         }
-         if (authResult.id_token) {
-           sessionStorage.setItem('googleCredential', authResult.id_token);
-         }
-         
-         const userName = authResult.user ? authResult.user.name : 'User';
+      if (authResult.user) {
+        sessionStorage.setItem('googleUser', JSON.stringify(authResult.user));
+      }
+      if (authResult.access_token) {
+        sessionStorage.setItem('googleToken', authResult.access_token);
+      }
+      if (authResult.id_token) {
+        sessionStorage.setItem('googleCredential', authResult.id_token);
+      }
+      
+      const userName = authResult.user ? authResult.user.name : 'User';
          showMessage(`Welcome ${userName}! Connecting to backend...`);
          
          // Authenticate with backend using Google ID token
@@ -2732,7 +2732,7 @@ Office.onReady(async (info) => {
            showError("Some features may be unavailable due to backend connection issues.");
          }, 2000);
        }
-     }
+    }
 
     function handleGoogleAuthError(error) {
       console.error("Google authentication error:", error);
@@ -2893,7 +2893,7 @@ Office.onReady(async (info) => {
         
         // Use BackendAPI which has mock support built-in
         const subscriptionData = await backendAPI.getSubscriptionStatus();
-        updateSubscriptionDisplay(subscriptionData);
+          updateSubscriptionDisplay(subscriptionData);
         
       } catch (error) {
         console.error('Error checking subscription status:', error);
@@ -3085,7 +3085,7 @@ Office.onReady(async (info) => {
         // Initial call to set correct height
         autoResizeTextarea();
     }
-    
+
     // >>> ADDED: Setup for Client Mode Chat Buttons
     const sendClientButton = document.getElementById('send-client');
     if (sendClientButton) {
@@ -3518,12 +3518,12 @@ Office.onReady(async (info) => {
         const newDropdown = document.getElementById('mode-dropdown');
         
         const handleDropdownChange = function() {
-            console.log(`System prompt mode changed to: ${this.value}`);
+                console.log(`System prompt mode changed to: ${this.value}`);
             // Sync both dropdowns if they exist
             if (oldDropdown && this === newDropdown) oldDropdown.value = this.value;
             if (newDropdown && this === oldDropdown) newDropdown.value = this.value;
-            // Optionally reset conversation when mode changes
-            // resetChatClient();
+                // Optionally reset conversation when mode changes
+                // resetChatClient();
         };
         
         if (oldDropdown) {
@@ -5339,6 +5339,9 @@ function switchToVoiceModeClient() {
         return;
     }
     
+    // Reset debug flag
+    window.waveformDebugLogged = false;
+    
     // Store cursor position
     cursorPositionBeforeRecording = textArea.selectionStart;
     
@@ -5349,11 +5352,12 @@ function switchToVoiceModeClient() {
     inputBar.style.display = 'none';
     inputBar.parentNode.insertBefore(voiceRecordingUI, inputBar);
     
-    // Initialize waveform
-    initializeWaveformClient();
-    
-    // Start recording immediately
-    startVoiceRecordingClient();
+    // Initialize waveform after a slight delay to ensure DOM is ready
+    setTimeout(() => {
+        initializeWaveformClient();
+        // Start recording immediately
+        startVoiceRecordingClient();
+    }, 50);
 }
 
 // Create voice recording UI
@@ -5441,19 +5445,29 @@ function initializeWaveformClient() {
     if (waveformCanvasClient) {
         const ctx = waveformCanvasClient.getContext('2d');
         
+        // Force a layout refresh to ensure dimensions are calculated
+        waveformCanvasClient.offsetHeight; // Force reflow
+        
         // Set canvas size
         const rect = waveformCanvasClient.getBoundingClientRect();
-        waveformCanvasClient.width = rect.width;
-        waveformCanvasClient.height = rect.height;
+        const width = rect.width || 300; // Fallback width
+        const height = rect.height || 40; // Fallback height
+        
+        waveformCanvasClient.width = width;
+        waveformCanvasClient.height = height;
+        
+        console.log('[Voice-Client] Canvas dimensions:', { width, height, rect });
         
         // Clear canvas
         ctx.clearRect(0, 0, waveformCanvasClient.width, waveformCanvasClient.height);
         
         console.log('[Voice-Client] Waveform canvas initialized');
+    } else {
+        console.error('[Voice-Client] Waveform canvas element not found');
     }
 }
 
-// Draw waveform animation
+// Draw waveform animation (using the same bar-style animation as dev side)
 function drawWaveformClient() {
     if (!waveformCanvasClient || !analyserClient) {
         console.warn('[Voice-Client] Canvas or analyser not ready');
@@ -5461,40 +5475,72 @@ function drawWaveformClient() {
     }
     
     const ctx = waveformCanvasClient.getContext('2d');
-    const bufferLength = analyserClient.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+    const rect = waveformCanvasClient.getBoundingClientRect();
+    const width = rect.width || waveformCanvasClient.width;
+    const height = rect.height || waveformCanvasClient.height;
     
-    analyserClient.getByteTimeDomainData(dataArray);
-    
-    // Clear canvas
-    ctx.fillStyle = '#f3f4f6';
-    ctx.fillRect(0, 0, waveformCanvasClient.width, waveformCanvasClient.height);
-    
-    // Draw waveform
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#3b82f6';
-    ctx.beginPath();
-    
-    const sliceWidth = waveformCanvasClient.width / bufferLength;
-    let x = 0;
-    
-    for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = v * waveformCanvasClient.height / 2;
-        
-        if (i === 0) {
-            ctx.moveTo(x, y);
-        } else {
-            ctx.lineTo(x, y);
-        }
-        
-        x += sliceWidth;
+    // Debug log on first frame
+    if (!window.waveformDebugLogged) {
+        console.log('[Voice-Client] Drawing waveform:', { width, height, canvas: waveformCanvasClient });
+        window.waveformDebugLogged = true;
     }
     
-    ctx.lineTo(waveformCanvasClient.width, waveformCanvasClient.height / 2);
-    ctx.stroke();
+    // Get time domain data for real-time audio visualization
+    const bufferLength = analyserClient.fftSize;
+    const dataArray = new Uint8Array(bufferLength);
+    analyserClient.getByteTimeDomainData(dataArray);
     
-    // Continue animation if recording
+    // Clear canvas with transparent background
+    ctx.clearRect(0, 0, width, height);
+    
+    // Calculate how many bars we want to show
+    const numBars = Math.min(60, Math.floor(width / 4)); // Adjust bar count based on width
+    const barWidth = (width - (numBars - 1)) / numBars; // Account for spacing
+    
+    // Process audio data to get average values for each bar
+    const samplesPerBar = Math.floor(bufferLength / numBars);
+    
+    for (let i = 0; i < numBars; i++) {
+        let sum = 0;
+        let max = 0;
+        
+        // Calculate average amplitude for this bar's samples
+        for (let j = 0; j < samplesPerBar; j++) {
+            const sampleIndex = i * samplesPerBar + j;
+            if (sampleIndex < dataArray.length) {
+                const amplitude = Math.abs(dataArray[sampleIndex] - 128);
+                sum += amplitude;
+                max = Math.max(max, amplitude);
+            }
+        }
+        
+        // Use a combination of average and max for more dynamic visualization
+        const average = sum / samplesPerBar;
+        const value = (average * 0.7 + max * 0.3) / 128; // Weighted combination
+        
+        // Calculate bar height with minimum and maximum constraints
+        const minHeight = 3; // Minimum bar height
+        const maxHeight = height * 0.8; // Maximum bar height
+        let barHeight = value * height * 2; // Scale up for visibility
+        
+        // Apply logarithmic scaling for better visual dynamics
+        barHeight = Math.log10(1 + barHeight * 9) * (height / 2);
+        
+        // Ensure bars are within constraints
+        barHeight = Math.max(barHeight, minHeight);
+        barHeight = Math.min(barHeight, maxHeight);
+        
+        // Calculate x position with spacing
+        const x = i * (barWidth + 1);
+        
+        // Draw the bar centered vertically
+        const y = (height - barHeight) / 2;
+        
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(x, y, barWidth, barHeight);
+    }
+    
+    // Continue animation - this ensures continuous updates
     if (mediaRecorderClient && mediaRecorderClient.state === 'recording') {
         waveformAnimationIdClient = requestAnimationFrame(drawWaveformClient);
     }
@@ -5529,6 +5575,16 @@ async function startVoiceRecordingClient() {
         
         // Start waveform animation
         drawWaveformClient();
+        
+        // Backup timer to ensure continuous animation (in case requestAnimationFrame fails)
+        const backupTimer = setInterval(() => {
+            if (mediaRecorderClient && mediaRecorderClient.state === 'recording' && !waveformAnimationIdClient) {
+                console.log('[Voice-Client] Restarting waveform animation via backup timer');
+                drawWaveformClient();
+            } else if (!mediaRecorderClient || mediaRecorderClient.state !== 'recording') {
+                clearInterval(backupTimer);
+            }
+        }, 100); // Check every 100ms
         
         // Create MediaRecorder
         const options = { mimeType: 'audio/webm;codecs=opus' };
