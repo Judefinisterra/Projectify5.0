@@ -4303,11 +4303,11 @@ Office.onReady(async (info) => {
             footerCreditsCount.textContent = credits !== null ? credits.toFixed(1) : '--';
         }
         
-        // Update subscription type
-        const footerSubscriptionType = document.getElementById('footer-subscription-type');
-        if (footerSubscriptionType && userData) {
+        // Update subscription plan
+        const footerPlanName = document.getElementById('footer-plan-name');
+        if (footerPlanName && userData) {
             const subscriptionType = userData.subscription?.type || 'Free';
-            footerSubscriptionType.textContent = subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1);
+            footerPlanName.textContent = subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1);
         }
         
         // Show/hide sign in button based on auth state

@@ -87,7 +87,26 @@
     margin-bottom: var(--spacing-lg);
 }
 
-.google-signin-btn,
+.google-signin-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    padding: 14px 32px;
+    border: none;
+    border-radius: 6px;
+    background-color: #3a4452;
+    font-size: 16px;
+    font-weight: 500;
+    color: #ffffff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: var(--spacing-sm);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
 .microsoft-signin-btn {
     display: flex;
     align-items: center;
@@ -107,10 +126,9 @@
 }
 
 .google-signin-btn:hover {
-    background-color: rgba(66, 133, 244, 0.04);
-    border-color: #4285F4;
+    background-color: #2d3542;
     transform: translateY(-1px);
-    box-shadow: var(--shadow-sm);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .microsoft-signin-btn {
@@ -124,13 +142,23 @@
     box-shadow: var(--shadow-sm);
 }
 
-.google-signin-btn:active,
+.google-signin-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    background-color: #2d3542;
+}
+
 .microsoft-signin-btn:active {
     transform: translateY(0);
     box-shadow: none;
 }
 
-.google-icon,
+.google-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+}
+
 .microsoft-icon {
     width: 20px;
     height: 20px;
@@ -267,7 +295,11 @@
         font-size: var(--text-sm);
     }
     
-    .google-signin-btn,
+    .google-signin-btn {
+        padding: 12px 24px;
+        font-size: 14px;
+    }
+    
     .microsoft-signin-btn,
     .manual-signin-btn {
         padding: var(--spacing-sm) var(--spacing-md);
