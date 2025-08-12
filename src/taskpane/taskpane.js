@@ -950,6 +950,56 @@ async function handleSendClient() {
     userInputElement.style.overflowY = 'hidden';
     userInputElement.classList.remove('scrollable');
     
+    // Credits gate: if user cannot use features, stream an upgrade message and return
+    try {
+        if (typeof canUseFeatures === 'function' && !canUseFeatures()) {
+            // Ensure conversation layout is active
+            const welcomeSection = document.querySelector('.welcome-section');
+            const clientChatContainer = document.getElementById('client-chat-container');
+            const chatLogClient = document.getElementById('chat-log-client');
+            if (clientChatContainer) clientChatContainer.classList.add('conversation-active');
+            if (welcomeSection) welcomeSection.style.display = 'none';
+            if (chatLogClient) chatLogClient.style.display = 'block';
+
+            // Append user's message as normal
+            appendMessage(userInput, true, 'chat-log-client', 'welcome-message-client');
+
+            // Append assistant response styled as normal
+            if (chatLogClient) {
+                const assistantMessageDiv = document.createElement('div');
+                assistantMessageDiv.className = 'chat-message assistant-message';
+                const assistantMessageContent = document.createElement('p');
+                assistantMessageContent.className = 'message-content';
+                assistantMessageDiv.appendChild(assistantMessageContent);
+                chatLogClient.appendChild(assistantMessageDiv);
+                chatLogClient.scrollTop = chatLogClient.scrollHeight;
+
+                const parts = [
+                    'You are out of credits. ',
+                    'Please upgrade to a new plan in order to continue modeling with EBITDAI. ',
+                    'You can view our different plans at ',
+                ];
+                for (const part of parts) {
+                    await new Promise(r => setTimeout(r, 50));
+                    assistantMessageContent.textContent += part;
+                    chatLogClient.scrollTop = chatLogClient.scrollHeight;
+                }
+                const link = document.createElement('a');
+                link.href = 'https://ebitdai.co/credits';
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.textContent = 'ebitdai.co/credits';
+                assistantMessageContent.appendChild(link);
+            }
+
+            // Clear input and stop processing
+            userInputElement.value = '';
+            return;
+        }
+    } catch (e) {
+        console.warn('[handleSendClient] credits gate check failed:', e);
+    }
+
     setButtonLoadingClient(true);
 
     // Get the chat log and welcome message elements

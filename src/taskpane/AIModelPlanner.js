@@ -134,6 +134,10 @@ async function generateModelSummary(modelCodesString) {
     // Hide welcome message if it exists
     const welcomeMessage = document.getElementById('welcome-message-client');
     if (welcomeMessage) welcomeMessage.style.display = 'none';
+    const containerRoot = document.getElementById('client-chat-container');
+    if (containerRoot) {
+        containerRoot.classList.add('conversation-active');
+    }
 
     const assistantMessageDiv = document.createElement('div');
     assistantMessageDiv.className = 'chat-message assistant-message';
@@ -800,7 +804,12 @@ function displayInClientChatLogPlanner(message, isUser) {
     contentElement.className = 'message-content';
 
     if (typeof message === 'string') {
-        contentElement.textContent = message;
+        // Allow basic HTML (links) for system notices. For normal content this will be plain text.
+        if (message.includes('<a ')) {
+            contentElement.innerHTML = message;
+        } else {
+            contentElement.textContent = message;
+        }
     } else if (Array.isArray(message)) {
         contentElement.textContent = message.join('\n');
     } else if (typeof message === 'object' && message !== null) {
@@ -1183,6 +1192,31 @@ async function _executePlannerCodes(modelCodesString, retryCount = 0) {
 export async function plannerHandleSend() {
     console.log("[plannerHandleSend] Function called - VERSION 3"); // Debug to ensure new code is running
     
+    // Always switch UI to conversation view on any send attempt
+    try {
+        const container = document.getElementById('client-chat-container');
+        const welcome = document.querySelector('.welcome-section');
+        const chatLog = document.getElementById('chat-log-client');
+        if (container) container.classList.add('conversation-active');
+        if (welcome) welcome.style.display = 'none';
+        if (chatLog) chatLog.style.display = 'block';
+    } catch (_) {}
+
+    try {
+        if (typeof window.userProfileManager?.getCredits === 'function') {
+            const credits = window.userProfileManager.getCredits();
+            if (credits < 5) {
+                displayInClientChatLogPlanner(
+                    'You are out of credits. Please upgrade to a new plan in order to continue modeling with EBITDAI. You can view our different plans at <a href="https://ebitdai.co/credits" target="_blank" rel="noopener noreferrer">ebitdai.co/credits</a>',
+                    false
+                );
+                return;
+            }
+        }
+    } catch (e) {
+        console.warn('[plannerHandleSend] credit gate check failed:', e);
+    }
+
     const userInputElement = document.getElementById('user-input-client');
     if (!userInputElement) { console.error("AIModelPlanner: Client user input element not found."); return; }
     let userInput = userInputElement.value.trim();
@@ -3839,40 +3873,58 @@ function autoResizeTextareaDev(textarea) {
 export function initializeTextareaAutoResize() {
     console.log('[TextArea] Initializing client mode auto-resize functionality');
     
-    const textarea = document.getElementById('user-input-client');
-    if (!textarea) {
+    const inputEl = document.getElementById('user-input-client');
+    if (!inputEl) {
         console.warn('[TextArea] Client textarea not found');
         return;
     }
-    
+
+    const isTextarea = inputEl.tagName && inputEl.tagName.toLowerCase() === 'textarea';
+
+    // For single-line input fields we don't need auto-resize; just return gracefully
+    if (!isTextarea) {
+        console.log('[TextArea] Skipping auto-resize: user-input-client is an <input>, not a <textarea>');
+        return;
+    }
+
+    const textarea = inputEl;
+
     // Auto-resize on input
     textarea.addEventListener('input', () => {
-        autoResizeTextarea(textarea);
+        if (typeof autoResizeTextarea === 'function') {
+            autoResizeTextarea(textarea);
+        }
     });
     
     // Auto-resize on paste
     textarea.addEventListener('paste', () => {
-        // Use setTimeout to wait for paste content to be inserted
         setTimeout(() => {
-            autoResizeTextarea(textarea);
+            if (typeof autoResizeTextarea === 'function') {
+                autoResizeTextarea(textarea);
+            }
         }, 10);
     });
     
     // Auto-resize when text is set programmatically (like from voice input)
     const originalValueDescriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
-    Object.defineProperty(textarea, 'value', {
-        set: function(newValue) {
-            originalValueDescriptor.set.call(this, newValue);
-            autoResizeTextarea(this);
-        },
-        get: function() {
-            return originalValueDescriptor.get.call(this);
-        },
-        configurable: true
-    });
+    if (originalValueDescriptor) {
+        Object.defineProperty(textarea, 'value', {
+            set: function(newValue) {
+                originalValueDescriptor.set.call(this, newValue);
+                if (typeof autoResizeTextarea === 'function') {
+                    autoResizeTextarea(this);
+                }
+            },
+            get: function() {
+                return originalValueDescriptor.get.call(this);
+            },
+            configurable: true
+        });
+    }
     
-    // Initial resize to set proper height
-    autoResizeTextarea(textarea);
+    if (typeof autoResizeTextarea === 'function') {
+        autoResizeTextarea(textarea);
+    }
     
     console.log('[TextArea] Client mode auto-resize functionality initialized successfully');
 }
