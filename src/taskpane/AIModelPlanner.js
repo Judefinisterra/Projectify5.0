@@ -542,7 +542,7 @@ async function* callOpenAIForModelPlanner(messages, options = {}) {
 
 
 // Function to process a prompt for the AI Model Planner
-async function* processAIModelPlannerPromptInternal({ userInput, systemPrompt, model, temperature, history = [], stream = false }) {
+async function* processAIModelPlannerPromptInternal({ userInput, systemPrompt, model, temperature, history = [], stream = false, images = [] }) {
     // >>> ADDED: Log the function call details
     console.log("\n╔══════════════════════════════════════════════════════════════╗");
     console.log("║        processAIModelPlannerPromptInternal CALLED              ║");
@@ -554,6 +554,7 @@ async function* processAIModelPlannerPromptInternal({ userInput, systemPrompt, m
     console.log(`Temperature: ${temperature}`);
     console.log(`Stream: ${stream}`);
     console.log(`History items: ${history.length}`);
+    console.log(`Images: ${images.length}`);
     console.log("────────────────────────────────────────────────────────────────\n");
     // <<< END ADDED
 
@@ -574,7 +575,30 @@ async function* processAIModelPlannerPromptInternal({ userInput, systemPrompt, m
         });
     }
 
-    messages.push({ role: "user", content: userInput });
+    // For vision API, we need to format messages with images differently
+    if (images.length > 0) {
+        // Create a content array with text and image parts
+        const contentParts = [
+            { type: "text", text: userInput }
+        ];
+        
+        // Add each image as a separate content part
+        // OpenAI expects "image_url" type with a data URL
+        images.forEach(imageFile => {
+            if (imageFile.fullDataUrl) {
+                contentParts.push({
+                    type: "image_url",
+                    image_url: {
+                        url: imageFile.fullDataUrl // This is already a data URL
+                    }
+                });
+            }
+        });
+        
+        messages.push({ role: "user", content: contentParts });
+    } else {
+        messages.push({ role: "user", content: userInput });
+    }
 
     try {
         // Pass the stream option to callOpenAIForModelPlanner
@@ -800,12 +824,13 @@ function setClientLoadingStatePlanner(isLoading) {
 
 // Core conversation logic, now private to this module
 async function* _handleAIModelPlannerConversation(userInput, options = {}) {
-    const { stream = false } = options;
+    const { stream = false, images = [] } = options;
     const systemPrompt = await getAIModelPlanningSystemPrompt();
     if (!systemPrompt) throw new Error("Failed to load AI Model Planning system prompt.");
 
     const isFollowUp = modelPlannerConversationHistory.length > 0;
-    const model = "gpt-4.1"; // Or get from options if you want to make it configurable here
+    // Use GPT-4o (Omni) model which supports both text and vision
+    const model = "gpt-4o"; // This model supports vision natively
     const temperature = 0.7;   // Or get from options
 
     // Pass the stream option down to processAIModelPlannerPromptInternal
@@ -815,7 +840,8 @@ async function* _handleAIModelPlannerConversation(userInput, options = {}) {
         model: model,
         temperature: temperature,
         history: isFollowUp ? modelPlannerConversationHistory : [],
-        stream: stream // Pass the stream flag
+        stream: stream, // Pass the stream flag
+        images: images // Pass images for vision API
     });
 
     if (stream) {
@@ -1161,11 +1187,30 @@ export async function plannerHandleSend() {
     if (!userInputElement) { console.error("AIModelPlanner: Client user input element not found."); return; }
     let userInput = userInputElement.value.trim();
 
-    // Check if there are attached files and include them in the prompt
+    // Check if there are attached files
+    let hasImages = false;
+    let textFileData = '';
+    const imageFiles = [];
+    
     if (currentAttachedFiles.length > 0) {
         console.log("[plannerHandleSend] Including attached files data:", currentAttachedFiles.map(f => f.fileName).join(', '));
-        const filesDataForAI = formatFileDataForAI(currentAttachedFiles);
-        userInput = userInput + filesDataForAI;
+        
+        // Separate images from other files
+        currentAttachedFiles.forEach(file => {
+            if (file.fileType === 'Image' && file.fullDataUrl) {
+                imageFiles.push(file);
+                hasImages = true;
+            } else {
+                // Format non-image files as text
+                const singleFileData = formatFileDataForAI([file]);
+                textFileData += singleFileData;
+            }
+        });
+        
+        // Add text file data to user input
+        if (textFileData) {
+            userInput = userInput + textFileData;
+        }
     }
 
     if (!userInput) {
@@ -1261,7 +1306,12 @@ export async function plannerHandleSend() {
 
     try {
         // Call _handleAIModelPlannerConversation with stream option
-        const stream = _handleAIModelPlannerConversation(userInput, { stream: true });
+        // Prepare options with image data if available
+        const conversationOptions = { stream: true };
+        if (hasImages && imageFiles.length > 0) {
+            conversationOptions.images = imageFiles;
+        }
+        const stream = _handleAIModelPlannerConversation(userInput, conversationOptions);
 
         for await (const chunk of stream) {
             if (chunk.choices && chunk.choices[0]?.delta?.content) {
@@ -2059,8 +2109,22 @@ function formatFileDataForAI(filesData) {
             if (fileData.content.rawText.length > 2000) {
                 formattedData += `*Note: Showing first 2000 characters of ${fileData.content.characterCount} total characters from ${fileData.content.pageCount} pages.*\n\n`;
             }
-        } else {
-            // Format Excel/CSV data
+        } else if (fileData.fileType === 'Image') {
+            // Format Image data with full base64 for Claude vision API
+            formattedData += `Image Type: ${fileData.mimeType || 'image/jpeg'}\n`;
+            if (fileData.dimensions) {
+                formattedData += `Original Dimensions: ${fileData.dimensions.original.width}x${fileData.dimensions.original.height}\n`;
+                formattedData += `API Dimensions: ${fileData.dimensions.api.width}x${fileData.dimensions.api.height}\n`;
+            }
+            
+            // Include the full base64 image data for Claude API
+            if (fileData.fullDataUrl) {
+                formattedData += `\n![${fileData.fileName}](${fileData.fullDataUrl})\n\n`;
+            }
+            
+            formattedData += `Please analyze this image and use it as context for building the financial model.\n\n`;
+        } else if (fileData.sheetNames && fileData.sheets) {
+            // Format Excel/CSV data when structure is available
             formattedData += `Number of Sheets: ${fileData.sheetNames.length}\n\n`;
             
             // Process each sheet
@@ -2088,6 +2152,9 @@ function formatFileDataForAI(filesData) {
                     formattedData += 'No data found in this sheet.\n\n';
                 }
             });
+        } else {
+            // Generic fallback for unknown types
+            formattedData += `File attached of type ${fileData.fileType || fileData.mimeType || 'unknown'} (size: ${formatFileSize(fileData.fileSize || 0)}).\n\n`;
         }
         
         if (fileIndex < filesData.length - 1) {
@@ -2263,25 +2330,42 @@ async function processImageFile(file) {
                 const img = new Image();
                 img.onload = () => {
                     try {
-                        const canvas = document.createElement('canvas');
-                        // Create a small preview while preserving aspect ratio
-                        const maxSide = 56; // tiny chip preview
-                        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
-                        const w = Math.max(1, Math.round(img.width * scale));
-                        const h = Math.max(1, Math.round(img.height * scale));
-                        canvas.width = w;
-                        canvas.height = h;
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, w, h);
-                        const previewDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                        // Create small preview canvas
+                        const previewCanvas = document.createElement('canvas');
+                        const maxPreviewSide = 56; // tiny chip preview
+                        const previewScale = Math.min(1, maxPreviewSide / Math.max(img.width, img.height));
+                        const previewW = Math.max(1, Math.round(img.width * previewScale));
+                        const previewH = Math.max(1, Math.round(img.height * previewScale));
+                        previewCanvas.width = previewW;
+                        previewCanvas.height = previewH;
+                        const previewCtx = previewCanvas.getContext('2d');
+                        previewCtx.drawImage(img, 0, 0, previewW, previewH);
+                        const previewDataUrl = previewCanvas.toDataURL('image/jpeg', 0.9);
+
+                        // Create full-size canvas for API (max 1024px on longest side for efficiency)
+                        const fullCanvas = document.createElement('canvas');
+                        const maxApiSide = 1024;
+                        const apiScale = Math.min(1, maxApiSide / Math.max(img.width, img.height));
+                        const apiW = Math.round(img.width * apiScale);
+                        const apiH = Math.round(img.height * apiScale);
+                        fullCanvas.width = apiW;
+                        fullCanvas.height = apiH;
+                        const fullCtx = fullCanvas.getContext('2d');
+                        fullCtx.drawImage(img, 0, 0, apiW, apiH);
+                        const fullDataUrl = fullCanvas.toDataURL('image/jpeg', 0.85);
 
                         const fileData = {
                             fileName: file.name || 'pasted-image.jpg',
-                            fileSize: file.size || previewDataUrl.length,
+                            fileSize: file.size || fullDataUrl.length,
                             fileType: 'Image',
                             mimeType: 'image/jpeg',
                             previewDataUrl,
+                            fullDataUrl, // Full image for API
                             originalType: file.type || 'image/*',
+                            dimensions: {
+                                original: { width: img.width, height: img.height },
+                                api: { width: apiW, height: apiH }
+                            }
                         };
                         resolve(fileData);
                     } catch (innerErr) {
@@ -2344,6 +2428,9 @@ export function initializeFileAttachment() {
         console.warn('[initializeFileAttachment] Required attachment elements not found');
         return;
     }
+
+    // Expose handler globally for paste attach fallback
+    window.__plannerHandleFileAttachment = handleFileAttachment;
     
     // Attach file button click
     attachFileButton.addEventListener('click', () => {

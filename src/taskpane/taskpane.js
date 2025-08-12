@@ -1963,10 +1963,11 @@ Office.onReady(async (info) => {
                   const ext = blob.type.includes('png') ? 'png' : (blob.type.includes('webp') ? 'webp' : 'jpg');
                   const fileName = `pasted-${Date.now()}.${ext}`;
                   const file = new File([blob], fileName, { type: blob.type });
-                  if (typeof handleFileAttachment === 'function') {
+                  const attachFn = (typeof handleFileAttachment === 'function') ? handleFileAttachment : (window.__plannerHandleFileAttachment || null);
+                  if (attachFn) {
                     // Prevent text paste insertion
                     e.preventDefault();
-                    await handleFileAttachment(file);
+                    await attachFn(file);
                   }
                 }
               }
@@ -3188,17 +3189,22 @@ Office.onReady(async (info) => {
     }
 
     // >>> ADDED: Setup for Client Mode Chat Buttons
+    // Don't override the send button handler - it's already set by AIcalls.js to use plannerHandleSend
+    // which properly includes attachments. Just ensure credit enforcement wraps around it.
     const sendClientButton = document.getElementById('send-client');
     if (sendClientButton) {
-      sendClientButton.onclick = async () => {
-        // Check credits before allowing AI conversation
-        await enforceFeatureAccess('update', async () => {
-          // Use credit for update/conversation
-          await useCreditForUpdate();
-          // Proceed with AI conversation
-          await handleSendClient();
-        });
-      };
+      const originalHandler = sendClientButton.onclick;
+      if (originalHandler) {
+        sendClientButton.onclick = async () => {
+          // Check credits before allowing AI conversation
+          await enforceFeatureAccess('update', async () => {
+            // Use credit for update/conversation
+            await useCreditForUpdate();
+            // Call the original handler (plannerHandleSend)
+            await originalHandler();
+          });
+        };
+      }
     }
     
     // >>> ADDED: Voice Recording Setup for Client Mode
