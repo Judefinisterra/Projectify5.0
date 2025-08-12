@@ -377,6 +377,18 @@
   color: var(--color-text-placeholder);
 }
 
+/* Remove focus outline */
+#user-input-client:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+/* Also remove any potential highlights on hover */
+#user-input-client:hover {
+  outline: none;
+  box-shadow: none;
+}
+
 /* Voice Button */
 #voice-input-client {
   width: 24px;
