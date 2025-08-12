@@ -1997,6 +1997,7 @@ Office.onReady(async (info) => {
       // Hide the normal input elements
       const inputBar = document.getElementById('chatgpt-input-bar');
       const attachedFiles = document.getElementById('attached-files-container');
+      const attachedFilesList = document.getElementById('attached-files-list');
       const loadingAnimation = document.getElementById('loading-animation-client');
       
       if (inputBar) {
@@ -2096,6 +2097,7 @@ Office.onReady(async (info) => {
       // Show the normal input elements
       const inputBar = document.getElementById('chatgpt-input-bar');
       const attachedFiles = document.getElementById('attached-files-container');
+      const attachedFilesList = document.getElementById('attached-files-list');
       const loadingAnimation = document.getElementById('loading-animation-client');
       
       if (inputBar) {
@@ -2103,8 +2105,9 @@ Office.onReady(async (info) => {
         productionLog('Input bar restored');
       }
       if (attachedFiles) {
-        attachedFiles.style.display = 'block';
-        productionLog('Attached files restored');
+        const hasItems = attachedFilesList && attachedFilesList.children && attachedFilesList.children.length > 0;
+        attachedFiles.style.display = hasItems ? 'block' : 'none';
+        productionLog(`Attached files ${hasItems ? 'restored (visible)' : 'hidden (no items)'}`);
       }
       // Note: loadingAnimation should remain hidden until needed
       

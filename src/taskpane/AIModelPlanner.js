@@ -2189,6 +2189,13 @@ function showAttachedFiles(filesData) {
         return;
     }
     
+    // If empty, hide and exit
+    if (!filesData || filesData.length === 0) {
+        attachedFilesList.innerHTML = '';
+        attachedFilesContainer.style.display = 'none';
+        return;
+    }
+    
     // Update count
     attachedFilesCount.textContent = `${filesData.length} file${filesData.length !== 1 ? 's' : ''} attached`;
     
