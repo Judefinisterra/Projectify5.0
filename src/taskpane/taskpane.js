@@ -4409,10 +4409,12 @@ Office.onReady(async (info) => {
             });
         }
         
-        // Menu item actions
-        const menuItems = document.querySelectorAll('.menu-item');
-        menuItems.forEach(item => {
-            item.addEventListener('click', () => {
+        // Menu item actions (robust: delegate on nav to capture clicks on inner SVG/spans)
+        const slideMenuNav = document.querySelector('.slide-menu-nav');
+        if (slideMenuNav) {
+            slideMenuNav.addEventListener('click', (event) => {
+                const item = event.target.closest('button.menu-item');
+                if (!item) return;
                 const action = item.dataset.action;
                 
                 switch (action) {
@@ -4478,7 +4480,7 @@ Office.onReady(async (info) => {
                         break;
                 }
             });
-        });
+        }
         
         // Profile modal close
         modalCloseButton?.addEventListener('click', () => {
@@ -4512,7 +4514,8 @@ Office.onReady(async (info) => {
     // Update account modal with user data
     function updateAccountModal() {
         const userData = userProfileManager.getUserData();
-        
+        const subscriptionData = userProfileManager.getSubscriptionData();
+
         if (userData && userData.email) {
             // Update avatar text
             const avatarText = document.getElementById('user-avatar-text-modal');
@@ -4525,6 +4528,20 @@ Office.onReady(async (info) => {
             const emailElement = document.getElementById('user-email-modal');
             if (emailElement) {
                 emailElement.textContent = userData.email;
+            }
+
+            // Update credits
+            const creditsEl = document.getElementById('user-credits-modal');
+            if (creditsEl) {
+                const credits = typeof userData.credits === 'number' ? userData.credits : getUserCredits();
+                creditsEl.textContent = credits != null ? credits.toFixed(1) : '--';
+            }
+
+            // Update subscription type
+            const subEl = document.getElementById('user-subscription-modal');
+            if (subEl) {
+                const status = subscriptionData?.status || (userProfileManager.hasActiveSubscription() ? 'active' : 'free');
+                subEl.textContent = status;
             }
         }
     }

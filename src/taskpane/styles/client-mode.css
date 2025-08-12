@@ -142,6 +142,33 @@
   font-weight: 700;
 }
 
+/* Account modal quick stats */
+.account-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  margin: var(--spacing-md) 0;
+}
+
+.account-stat {
+  background: #f7f7f8;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.account-stat .stat-label {
+  display: block;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.account-stat .stat-value {
+  font-size: 16px;
+  color: #111827;
+  font-weight: 600;
+}
+
 /* Mode Dropdown */
 .header-right {
   display: flex;

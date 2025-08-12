@@ -466,7 +466,7 @@
         </div>
         
         <!-- Account Modal -->
-        <div id="account-modal" class="modal-overlay" style="display: none;">
+        <div id="account-modal" class="modal-overlay" style="display: none; position: fixed; inset: 0; z-index: 10002; background: rgba(0,0,0,0.25); align-items: center; justify-content: center;">
             <div class="modal-content account-modal-content">
                 <div class="modal-header">
                     <h2>Account</h2>
@@ -484,6 +484,17 @@
                         <div class="user-details">
                             <div id="user-email-modal" class="user-email">user@example.com</div>
                             <div class="user-status">Signed in</div>
+                        </div>
+                    </div>
+
+                    <div class="account-stats">
+                        <div class="account-stat">
+                            <span class="stat-label">Credits</span>
+                            <span id="user-credits-modal" class="stat-value">--</span>
+                        </div>
+                        <div class="account-stat">
+                            <span class="stat-label">Subscription</span>
+                            <span id="user-subscription-modal" class="stat-value">--</span>
                         </div>
                     </div>
                     <button id="logout-button-modal" class="logout-button">
