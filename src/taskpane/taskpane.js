@@ -3099,6 +3099,9 @@ Office.onReady(async (info) => {
         });
       };
     }
+    
+    // >>> ADDED: Voice Recording Setup for Client Mode
+    initializeVoiceRecordingClient();
 
     const resetChatClientButton = document.getElementById('reset-chat-client');
     if (resetChatClientButton) resetChatClientButton.onclick = resetChatClient;
@@ -5279,6 +5282,509 @@ function testAuthSetup() {
 
 // Make test function globally available for debugging
 window.testAuthSetup = testAuthSetup;
+// <<< END ADDED
+
+// >>> ADDED: Voice Recording Implementation for Client Mode
+// Voice recording variables
+let mediaRecorderClient = null;
+let audioChunksClient = [];
+let recordingStartTimeClient = null;
+let recordingTimerIntervalClient = null;
+let audioContextClient = null;
+let analyserClient = null;
+let waveformCanvasClient = null;
+let waveformAnimationIdClient = null;
+let cursorPositionBeforeRecording = 0;
+
+// Initialize voice recording for client mode
+function initializeVoiceRecordingClient() {
+    // Check if getUserMedia is supported
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.warn('[Voice-Client] getUserMedia API not supported in this browser');
+        const voiceButton = document.getElementById('voice-input-client');
+        if (voiceButton) {
+            voiceButton.style.display = 'none';
+        }
+        return;
+    }
+    
+    if (!window.MediaRecorder) {
+        console.warn('[Voice-Client] MediaRecorder API not supported in this browser');
+        const voiceButton = document.getElementById('voice-input-client');
+        if (voiceButton) {
+            voiceButton.style.display = 'none';
+        }
+        return;
+    }
+    
+    // Get voice button
+    const voiceButton = document.getElementById('voice-input-client');
+    
+    // Voice button click - start recording immediately
+    if (voiceButton) {
+        voiceButton.addEventListener('click', () => {
+            console.log('[Voice-Client] Voice button clicked - switching to voice mode');
+            switchToVoiceModeClient();
+        });
+    }
+}
+
+// Switch to voice recording mode
+function switchToVoiceModeClient() {
+    const inputBar = document.querySelector('.chatgpt-input-bar');
+    const textArea = document.getElementById('user-input-client');
+    
+    if (!inputBar || !textArea) {
+        console.error('[Voice-Client] Required elements not found');
+        return;
+    }
+    
+    // Store cursor position
+    cursorPositionBeforeRecording = textArea.selectionStart;
+    
+    // Create voice recording UI
+    const voiceRecordingUI = createVoiceRecordingUI();
+    
+    // Hide the input bar and show voice recording UI
+    inputBar.style.display = 'none';
+    inputBar.parentNode.insertBefore(voiceRecordingUI, inputBar);
+    
+    // Initialize waveform
+    initializeWaveformClient();
+    
+    // Start recording immediately
+    startVoiceRecordingClient();
+}
+
+// Create voice recording UI
+function createVoiceRecordingUI() {
+    const voiceRecordingMode = document.createElement('div');
+    voiceRecordingMode.id = 'voice-recording-mode-client';
+    voiceRecordingMode.className = 'voice-recording-mode';
+    voiceRecordingMode.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        background: #f3f4f6;
+        border-radius: 8px;
+        margin: 0 16px 16px 16px;
+        gap: 12px;
+    `;
+    
+    voiceRecordingMode.innerHTML = `
+        <div style="flex: 1; display: flex; align-items: center; gap: 12px;">
+            <canvas id="voice-waveform-client" style="flex: 1; height: 40px; background: transparent;"></canvas>
+            <div id="voice-recording-timer-client" style="font-size: 14px; color: #6b7280; font-weight: 500;">00:00</div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button id="cancel-voice-recording-client" style="
+                padding: 8px;
+                background: #ef4444;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            " title="Cancel recording">
+                <svg viewBox="0 0 24 24" style="width: 16px; height: 16px;">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </button>
+            <button id="accept-voice-recording-client" style="
+                padding: 8px 16px;
+                background: #10b981;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            " title="Stop and transcribe">
+                <svg viewBox="0 0 24 24" style="width: 16px; height: 16px;">
+                    <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                </svg>
+                Done
+            </button>
+        </div>
+    `;
+    
+    // Add event listeners
+    setTimeout(() => {
+        const cancelBtn = document.getElementById('cancel-voice-recording-client');
+        const acceptBtn = document.getElementById('accept-voice-recording-client');
+        
+        if (cancelBtn) {
+            cancelBtn.onclick = () => {
+                console.log('[Voice-Client] Cancel recording clicked');
+                switchToNormalModeClient();
+            };
+        }
+        
+        if (acceptBtn) {
+            acceptBtn.onclick = () => {
+                console.log('[Voice-Client] Accept recording clicked');
+                stopVoiceRecordingClient();
+            };
+        }
+    }, 0);
+    
+    return voiceRecordingMode;
+}
+
+// Initialize waveform canvas
+function initializeWaveformClient() {
+    waveformCanvasClient = document.getElementById('voice-waveform-client');
+    if (waveformCanvasClient) {
+        const ctx = waveformCanvasClient.getContext('2d');
+        
+        // Set canvas size
+        const rect = waveformCanvasClient.getBoundingClientRect();
+        waveformCanvasClient.width = rect.width;
+        waveformCanvasClient.height = rect.height;
+        
+        // Clear canvas
+        ctx.clearRect(0, 0, waveformCanvasClient.width, waveformCanvasClient.height);
+        
+        console.log('[Voice-Client] Waveform canvas initialized');
+    }
+}
+
+// Draw waveform animation
+function drawWaveformClient() {
+    if (!waveformCanvasClient || !analyserClient) {
+        console.warn('[Voice-Client] Canvas or analyser not ready');
+        return;
+    }
+    
+    const ctx = waveformCanvasClient.getContext('2d');
+    const bufferLength = analyserClient.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    
+    analyserClient.getByteTimeDomainData(dataArray);
+    
+    // Clear canvas
+    ctx.fillStyle = '#f3f4f6';
+    ctx.fillRect(0, 0, waveformCanvasClient.width, waveformCanvasClient.height);
+    
+    // Draw waveform
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#3b82f6';
+    ctx.beginPath();
+    
+    const sliceWidth = waveformCanvasClient.width / bufferLength;
+    let x = 0;
+    
+    for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = v * waveformCanvasClient.height / 2;
+        
+        if (i === 0) {
+            ctx.moveTo(x, y);
+        } else {
+            ctx.lineTo(x, y);
+        }
+        
+        x += sliceWidth;
+    }
+    
+    ctx.lineTo(waveformCanvasClient.width, waveformCanvasClient.height / 2);
+    ctx.stroke();
+    
+    // Continue animation if recording
+    if (mediaRecorderClient && mediaRecorderClient.state === 'recording') {
+        waveformAnimationIdClient = requestAnimationFrame(drawWaveformClient);
+    }
+}
+
+// Start voice recording
+async function startVoiceRecordingClient() {
+    try {
+        console.log('[Voice-Client] Requesting microphone access...');
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                sampleRate: 44100
+            } 
+        });
+        
+        console.log('[Voice-Client] Microphone access granted');
+        
+        // Setup audio context for waveform visualization
+        audioContextClient = new (window.AudioContext || window.webkitAudioContext)();
+        analyserClient = audioContextClient.createAnalyser();
+        const source = audioContextClient.createMediaStreamSource(stream);
+        source.connect(analyserClient);
+        
+        // Configure analyser
+        analyserClient.fftSize = 1024;
+        analyserClient.smoothingTimeConstant = 0.3;
+        analyserClient.minDecibels = -90;
+        analyserClient.maxDecibels = -10;
+        
+        // Start waveform animation
+        drawWaveformClient();
+        
+        // Create MediaRecorder
+        const options = { mimeType: 'audio/webm;codecs=opus' };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options.mimeType = 'audio/webm';
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options.mimeType = 'audio/mp4';
+            }
+        }
+        
+        mediaRecorderClient = new MediaRecorder(stream, options);
+        audioChunksClient = [];
+        
+        mediaRecorderClient.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunksClient.push(event.data);
+            }
+        };
+        
+        mediaRecorderClient.onstop = async () => {
+            console.log('[Voice-Client] Recording stopped');
+            
+            // Stop all tracks
+            stream.getTracks().forEach(track => track.stop());
+            
+            // Create audio blob
+            const audioBlob = new Blob(audioChunksClient, { type: 'audio/webm' });
+            console.log('[Voice-Client] Audio blob created, size:', audioBlob.size);
+            
+            // Show loading state
+            switchToLoadingModeClient();
+            
+            // Transcribe audio
+            await transcribeAudioClient(audioBlob);
+        };
+        
+        // Start recording
+        mediaRecorderClient.start();
+        recordingStartTimeClient = Date.now();
+        
+        // Start timer
+        updateRecordingTimerClient();
+        recordingTimerIntervalClient = setInterval(updateRecordingTimerClient, 100);
+        
+        console.log('[Voice-Client] Recording started');
+        
+    } catch (error) {
+        console.error('[Voice-Client] Error starting recording:', error);
+        showError('Failed to access microphone. Please check your permissions.');
+        switchToNormalModeClient();
+    }
+}
+
+// Update recording timer
+function updateRecordingTimerClient() {
+    if (!recordingStartTimeClient) return;
+    
+    const elapsed = Math.floor((Date.now() - recordingStartTimeClient) / 1000);
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = elapsed % 60;
+    
+    const timerElement = document.getElementById('voice-recording-timer-client');
+    if (timerElement) {
+        timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+}
+
+// Stop voice recording
+function stopVoiceRecordingClient() {
+    if (mediaRecorderClient && mediaRecorderClient.state === 'recording') {
+        mediaRecorderClient.stop();
+        
+        // Stop timer
+        if (recordingTimerIntervalClient) {
+            clearInterval(recordingTimerIntervalClient);
+            recordingTimerIntervalClient = null;
+        }
+        
+        // Stop waveform animation
+        if (waveformAnimationIdClient) {
+            cancelAnimationFrame(waveformAnimationIdClient);
+            waveformAnimationIdClient = null;
+        }
+    }
+}
+
+// Switch to loading mode
+function switchToLoadingModeClient() {
+    const voiceRecordingMode = document.getElementById('voice-recording-mode-client');
+    
+    if (voiceRecordingMode) {
+        voiceRecordingMode.innerHTML = `
+            <div style="display: flex; align-items: center; justify-content: center; gap: 12px; width: 100%;">
+                <div style="
+                    width: 24px;
+                    height: 24px;
+                    border: 3px solid #e5e7eb;
+                    border-top-color: #3b82f6;
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                "></div>
+                <span style="color: #6b7280; font-size: 14px;">Transcribing...</span>
+            </div>
+        `;
+        
+        // Add spinning animation if not already present
+        if (!document.getElementById('voice-spin-style')) {
+            const style = document.createElement('style');
+            style.id = 'voice-spin-style';
+            style.textContent = `
+                @keyframes spin {
+                    to { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+}
+
+// Switch back to normal mode
+function switchToNormalModeClient() {
+    // Remove voice recording UI
+    const voiceRecordingMode = document.getElementById('voice-recording-mode-client');
+    if (voiceRecordingMode) {
+        voiceRecordingMode.remove();
+    }
+    
+    // Show input bar again
+    const inputBar = document.querySelector('.chatgpt-input-bar');
+    if (inputBar) {
+        inputBar.style.display = 'block';
+    }
+    
+    // Stop any ongoing recording
+    if (mediaRecorderClient && mediaRecorderClient.state === 'recording') {
+        mediaRecorderClient.stop();
+    }
+    
+    // Cleanup
+    cleanupVoiceRecordingClient();
+}
+
+// Cleanup voice recording resources
+function cleanupVoiceRecordingClient() {
+    if (recordingTimerIntervalClient) {
+        clearInterval(recordingTimerIntervalClient);
+        recordingTimerIntervalClient = null;
+    }
+    
+    if (waveformAnimationIdClient) {
+        cancelAnimationFrame(waveformAnimationIdClient);
+        waveformAnimationIdClient = null;
+    }
+    
+    if (audioContextClient) {
+        audioContextClient.close();
+        audioContextClient = null;
+    }
+    
+    analyserClient = null;
+    mediaRecorderClient = null;
+    audioChunksClient = [];
+    recordingStartTimeClient = null;
+}
+
+// Transcribe audio
+async function transcribeAudioClient(audioBlob) {
+    try {
+        console.log('[Voice-Client] Starting transcription...');
+        
+        // Get API key from AIcalls.js
+        const { initializeAPIKeys } = await import('./AIcalls.js');
+        const apiKeys = await initializeAPIKeys();
+        const apiKey = apiKeys.OPENAI_API_KEY;
+        
+        if (!apiKey) {
+            throw new Error('No API key available for transcription');
+        }
+        
+        // Create form data
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'recording.webm');
+        formData.append('model', 'whisper-1');
+        
+        // Make API request
+        const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Transcription failed: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('[Voice-Client] Transcription result:', result);
+        
+        if (result.text) {
+            // Insert transcribed text at cursor position
+            insertTranscribedTextClient(result.text);
+        }
+        
+    } catch (error) {
+        console.error('[Voice-Client] Transcription error:', error);
+        showError('Failed to transcribe audio. Please try again.');
+    } finally {
+        switchToNormalModeClient();
+    }
+}
+
+// Insert transcribed text at cursor position
+function insertTranscribedTextClient(text) {
+    const textArea = document.getElementById('user-input-client');
+    if (!textArea) return;
+    
+    // Get current text
+    const currentText = textArea.value;
+    const beforeCursor = currentText.substring(0, cursorPositionBeforeRecording);
+    const afterCursor = currentText.substring(cursorPositionBeforeRecording);
+    
+    // Insert text at cursor position
+    textArea.value = beforeCursor + text + afterCursor;
+    
+    // Set cursor position after inserted text
+    const newCursorPosition = cursorPositionBeforeRecording + text.length;
+    textArea.setSelectionRange(newCursorPosition, newCursorPosition);
+    
+    // Focus the textarea
+    textArea.focus();
+    
+    // Trigger input event for any listeners
+    textArea.dispatchEvent(new Event('input', { bubbles: true }));
+    
+    console.log('[Voice-Client] Transcribed text inserted');
+}
+
+// Add keyboard shortcuts for voice recording
+document.addEventListener('keydown', (e) => {
+    const voiceMode = document.getElementById('voice-recording-mode-client');
+    
+    if (voiceMode && voiceMode.parentNode) {
+        // ESC to cancel recording
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            switchToNormalModeClient();
+        }
+        // Enter to accept recording
+        else if (e.key === 'Enter') {
+            e.preventDefault();
+            stopVoiceRecordingClient();
+        }
+    }
+});
 // <<< END ADDED
 
 
