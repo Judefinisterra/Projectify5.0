@@ -8,8 +8,7 @@ export async function initialize() {
     
     // Set up event listeners
     setupGoogleSignIn();
-    setupMicrosoftSignIn();
-    setupManualSignIn();
+    // Microsoft and API Key sign-in removed
     
     // Check if already signing in (redirect from OAuth)
     checkOAuthCallback();

@@ -2419,17 +2419,7 @@ Office.onReady(async (info) => {
         googleSignInButton.onclick = handleGoogleSignIn;
       }
       
-      // Set up Microsoft Sign-In button handler
-      const microsoftSignInButton = document.getElementById('microsoft-signin-auth-button');
-      if (microsoftSignInButton) {
-        microsoftSignInButton.onclick = handleMicrosoftSignIn;
-      }
-      
-      // Set up API Key Sign-In button handler
-      const apiKeySignInButton = document.getElementById('api-key-signin-button');
-      if (apiKeySignInButton) {
-        apiKeySignInButton.onclick = showApiKeyDialog;
-      }
+      // Microsoft and API Key sign-in buttons removed
       
       console.log("Authentication view activated");
     }
@@ -4310,7 +4300,7 @@ Office.onReady(async (info) => {
         // Update credits count
         const footerCreditsCount = document.getElementById('footer-credits-count');
         if (footerCreditsCount) {
-            footerCreditsCount.textContent = credits !== null ? credits : '--';
+            footerCreditsCount.textContent = credits !== null ? credits.toFixed(1) : '--';
         }
         
         // Update subscription type
