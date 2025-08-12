@@ -1875,9 +1875,10 @@ Office.onReady(async (info) => {
       }
       // <<< END PRIORITY AUTHENTICATION CHECK
       
-      // Initialize file attachment functionality
-      if (typeof initializeFileAttachment === 'function') {
+      // Initialize file attachment functionality (guarded to avoid duplicate bindings)
+      if (typeof initializeFileAttachment === 'function' && !window.__clientAttachInitialized) {
         initializeFileAttachment();
+        window.__clientAttachInitialized = true;
         productionLog('initializeFileAttachment called');
       }
       // Ensure attachment listeners are bound even if DOM timing changes
@@ -2132,31 +2133,37 @@ Office.onReady(async (info) => {
           clearInterval(intervalId);
           window.__clientAttachInitRunning = false;
 
-          // Call canonical initializer if available (idempotent)
+          // Call canonical initializer once if not already initialized
           try {
-            if (typeof initializeFileAttachment === 'function') {
+            if (typeof initializeFileAttachment === 'function' && !window.__clientAttachInitialized) {
               initializeFileAttachment();
-              productionLog('initializeFileAttachment re-bound via retry helper');
+              window.__clientAttachInitialized = true;
+              productionLog('initializeFileAttachment bound via retry helper');
             }
           } catch (err) {
-            console.warn('initializeFileAttachment retry failed, applying fallback listeners', err);
+            console.warn('initializeFileAttachment invocation failed, considering fallback listeners', err);
           }
 
-          // Fallback: bind minimal listeners if not already bound
-          if (!attachBtn.dataset.listenerBound) {
-            attachBtn.addEventListener('click', () => {
-              console.log('[Client-Attach] Attach file button clicked');
-              fileInput.click();
-            });
-            attachBtn.dataset.listenerBound = 'true';
-          }
+          // Mark as bound so we don't attach fallback listeners if the canonical initializer handled it
+          attachBtn.dataset.listenerBound = 'true';
+          fileInput.dataset.listenerBound = 'true';
 
-          if (!fileInput.dataset.listenerBound) {
-            fileInput.addEventListener('change', (e) => {
-              const count = e && e.target && e.target.files ? e.target.files.length : 0;
-              console.log('[Client-Attach] Files selected:', count);
-            });
-            fileInput.dataset.listenerBound = 'true';
+          // Fallback: only if canonical initializer is unavailable
+          if (!window.__clientAttachInitialized) {
+            if (!attachBtn.dataset.fallbackListener) {
+              attachBtn.addEventListener('click', () => {
+                console.log('[Client-Attach] Attach file button clicked');
+                fileInput.click();
+              });
+              attachBtn.dataset.fallbackListener = 'true';
+            }
+            if (!fileInput.dataset.fallbackListener) {
+              fileInput.addEventListener('change', (e) => {
+                const count = e && e.target && e.target.files ? e.target.files.length : 0;
+                console.log('[Client-Attach] Files selected:', count);
+              });
+              fileInput.dataset.fallbackListener = 'true';
+            }
           }
         } else if (attempts >= maxAttempts) {
           clearInterval(intervalId);
