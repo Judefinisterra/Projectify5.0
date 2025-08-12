@@ -2967,6 +2967,10 @@ Office.onReady(async (info) => {
 
     // Function to check if user is already authenticated
     function isUserAuthenticated() {
+      // Hard block if a forced logout flag is present
+      if (localStorage.getItem('force_logout') === '1' || sessionStorage.getItem('force_logout') === '1') {
+        return false;
+      }
       const user = sessionStorage.getItem('googleUser');
       const credential = sessionStorage.getItem('googleCredential') || sessionStorage.getItem('googleToken');
       return user && credential;
@@ -5276,6 +5280,18 @@ async function signOut() {
     try {
         console.log('Signing out...');
         
+        // Proactively clear local and session storage tokens before any provider-specific logout
+        try {
+            localStorage.removeItem('backend_access_token');
+            localStorage.removeItem('backend_refresh_token');
+            localStorage.removeItem('access_token');
+            localStorage.removeItem('refresh_token');
+            sessionStorage.removeItem('backend_access_token');
+            sessionStorage.removeItem('backend_refresh_token');
+            sessionStorage.removeItem('access_token');
+            sessionStorage.removeItem('refresh_token');
+        } catch (_) {}
+
         // Check if we're using Google authentication and call the proper logout function
         if (typeof window.handleGoogleSignOutView === 'function') {
             console.log('Using Google logout function');
@@ -5283,19 +5299,15 @@ async function signOut() {
             if (result && result.success) {
                 console.log('Google logout completed successfully');
             }
-        } else {
-            console.log('Google logout function not available, clearing local storage');
-            // Fallback: Clear Google authentication state from sessionStorage
-            sessionStorage.removeItem('googleUser');
-            sessionStorage.removeItem('googleToken');
-            sessionStorage.removeItem('googleCredential');
-            
-            // Clear any other auth-related session data
-            sessionStorage.removeItem('authToken');
-            sessionStorage.removeItem('userInfo');
-            
-            console.log('Google authentication state cleared from sessionStorage');
         }
+
+        console.log('Clearing any remaining Google session data');
+        // Fallback: Clear Google-related session state regardless
+        sessionStorage.removeItem('googleUser');
+        sessionStorage.removeItem('googleToken');
+        sessionStorage.removeItem('googleCredential');
+        sessionStorage.removeItem('authToken');
+        sessionStorage.removeItem('userInfo');
         
         // Only try MSAL logout if MSAL was actually initialized and used
         try {
@@ -5321,7 +5333,7 @@ async function signOut() {
             } catch (_) {}
         }
 
-        // Redirect back to authentication view
+        // Redirect back to authentication view and disable auto-login
         const authView = document.getElementById('authentication-view');
         const clientView = document.getElementById('client-mode-view');
         if (authView && clientView) {
@@ -5329,6 +5341,26 @@ async function signOut() {
             clientView.style.display = 'none';
             console.log('Redirected to authentication view');
         }
+
+        // Guard against automatic re-login by clearing any flags/tokens used at startup
+        try {
+            localStorage.removeItem('google_access_token');
+            localStorage.removeItem('msal_access_token');
+            localStorage.removeItem('user_api_key');
+            // Set a short-lived flag to prevent auto-login checks
+            localStorage.setItem('force_logout', '1');
+            sessionStorage.setItem('force_logout', '1');
+        } catch (_) {}
+
+        // Reinitialize authentication view handlers (Google Sign-In button)
+        try {
+            if (typeof showAuthentication === 'function') {
+                showAuthentication();
+            } else {
+                const googleSignInButton = document.getElementById('google-signin-button');
+                if (googleSignInButton) googleSignInButton.onclick = handleGoogleSignIn;
+            }
+        } catch (_) {}
         
         console.log('Sign-out successful');
         showMessage('Successfully signed out');
