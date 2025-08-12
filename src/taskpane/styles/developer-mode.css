@@ -1,5 +1,10 @@
 /* Developer Mode Styles */
 
+/* ===== HIDE FIXED FOOTER IN DEVELOPER MODE ===== */
+#app-body:not([style*="display: none"]) ~ .fixed-footer {
+    display: none !important;
+}
+
 /* ===== MAIN CONTAINER ===== */
 #app-body {
     display: flex;
