@@ -190,6 +190,21 @@
     box-shadow: 0 4px 8px rgba(0,0,0,0.15);
 }
 
+/* Fix for icon-only buttons */
+#voice-input-dev,
+#attach-file-dev {
+    width: 40px !important;
+    height: 40px !important;
+    padding: 8px !important;
+    min-width: 40px !important;
+}
+
+#voice-input-dev svg,
+#attach-file-dev svg {
+    width: 24px;
+    height: 24px;
+}
+
 .attachment-button:active,
 .voice-button:active,
 .send-button:active,
@@ -512,101 +527,110 @@
 }
 
 .dev-actions .ms-Button {
-    background-color: #ffffff;
+    background-color: #e0e0e0;
     color: #333333;
-    border: 1px solid #ddd;
-    padding: 10px 16px;
-    border-radius: 6px;
+    border: 1px solid #ccc;
+    padding: 8px 16px;
+    border-radius: 4px;
     font-size: 14px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: background-color 0.2s ease;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    font-weight: 500;
+    box-shadow: none;
+    font-weight: normal;
     min-width: auto;
 }
 
 .dev-actions .ms-Button:hover {
-    background-color: #f0f0f0;
-    border-color: #007acc;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    background-color: #d0d0d0;
+    border-color: #bbb;
+    transform: none;
+    box-shadow: none;
 }
 
 .dev-actions .ms-Button:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    background-color: #c0c0c0;
+    border-color: #aaa;
+    transform: none;
+    box-shadow: none;
 }
 
-/* Special styling for different button types */
-#write-to-excel {
-    background-color: #107c10;
-    color: #ffffff;
-    border-color: #107c10;
+/* Remove special styling and emojis - all buttons use the base .ms-Button style */
+
+/* Style all buttons in the input area */
+.input-area .ms-Button {
+    background-color: #e0e0e0;
+    color: #333333;
+    border: 1px solid #ccc;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    font-weight: normal;
+    margin: 4px;
 }
 
-#write-to-excel:hover {
-    background-color: #0e6e0e;
-    border-color: #0e6e0e;
+.input-area .ms-Button:hover {
+    background-color: #d0d0d0;
+    border-color: #bbb;
 }
 
-#write-to-excel::before {
-    content: "📊";
-    font-size: 16px;
+.input-area .ms-Button:active {
+    background-color: #c0c0c0;
+    border-color: #aaa;
 }
 
-#insert-to-editor::before {
-    content: "📝";
-    font-size: 16px;
+/* Style all buttons in the code area */
+.code-area-buttons .ms-Button {
+    background-color: #e0e0e0;
+    color: #333333;
+    border: 1px solid #ccc;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    text-decoration: none;
+    font-weight: normal;
+    margin: 4px;
 }
 
-#reset-chat {
-    background-color: #dc3545;
-    color: #ffffff;
-    border-color: #dc3545;
+.code-area-buttons .ms-Button:hover {
+    background-color: #d0d0d0;
+    border-color: #bbb;
 }
 
-#reset-chat:hover {
-    background-color: #c82333;
-    border-color: #c82333;
+.code-area-buttons .ms-Button:active {
+    background-color: #c0c0c0;
+    border-color: #aaa;
 }
 
-#reset-chat::before {
-    content: "🔄";
-    font-size: 16px;
+/* Override primary button styles */
+.code-area-buttons .ms-Button--primary {
+    background-color: #e0e0e0 !important;
+    color: #333333 !important;
+    border-color: #ccc !important;
 }
 
-#add-to-training-queue {
-    background-color: #007acc;
-    color: #ffffff;
-    border-color: #007acc;
+.code-area-buttons .ms-Button--primary:hover {
+    background-color: #d0d0d0 !important;
+    border-color: #bbb !important;
 }
 
-#add-to-training-queue:hover {
-    background-color: #005a9e;
-    border-color: #005a9e;
-}
-
-#add-to-training-queue::before {
-    content: "🎯";
-    font-size: 16px;
-}
-
-#clear-training-data-que-button::before {
-    content: "🗑️";
-    font-size: 16px;
-}
-
-#attach-actuals-button::before {
-    content: "📎";
-    font-size: 16px;
-}
-
-.dev-actions .ms-Button .ms-Button-label {
-    font-weight: 500;
+.dev-actions .ms-Button .ms-Button-label,
+.input-area .ms-Button .ms-Button-label {
+    font-weight: normal;
 }
 
 /* ===== RESPONSIVE ===== */
