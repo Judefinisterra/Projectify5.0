@@ -445,7 +445,9 @@ class BackendAPI {
    */
   async healthCheck() {
     try {
-      const response = await fetch(`${this.baseUrl}${this.endpoints.health}`, {
+      // Use root endpoint if health endpoint is not defined
+      const healthEndpoint = this.endpoints.health || '/';
+      const response = await fetch(`${this.baseUrl}${healthEndpoint}`, {
         timeout: 5000
       });
       return response.ok;

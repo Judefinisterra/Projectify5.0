@@ -52,39 +52,16 @@ export const CONFIG = {
   },
 
   // Backend API Configuration
-  backend: {
-    baseUrl: "https://backend-projectify-74f2tkrkr-judefinisterras-projects.vercel.app",
-    
-    timeout: 10000, // 10 seconds
-    
-    endpoints: {
-      auth: {
-        google: '/auth/google',
-        refresh: '/auth/refresh'
-      },
-      user: {
-        profile: '/me',
-        credits: '/use-credit',
-        usage: '/usage'
-      },
-      credits: {
-        use: '/use-credit',
-        deduct: '/deduct-credits'
-      },
-      subscription: {
-        status: '/subscription',
-        create: '/api/subscription/create',
-        cancel: '/api/subscription/cancel',
-        checkout: '/api/subscription/checkout'
-      }
-    }
-  },
-
   // Backend API Configuration
   backend: {
     baseUrl: "https://backend-projectify-74f2tkrkr-judefinisterras-projects.vercel.app",
     timeout: 30000,
     endpoints: {
+      health: '/health',  // Add health endpoint
+      auth: {
+        google: '/auth/google',
+        refresh: '/auth/refresh'
+      },
       user: {
         profile: '/me',
         credits: '/use-credit', // Legacy
@@ -96,11 +73,9 @@ export const CONFIG = {
       },
       subscription: {
         status: '/subscription',
+        create: '/subscription/create',
         cancel: '/subscription/cancel',
-        create: '/subscription/create'
-      },
-      auth: {
-        google: '/auth/google'
+        checkout: '/api/subscription/checkout'
       }
     }
   },

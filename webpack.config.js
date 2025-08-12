@@ -207,6 +207,26 @@ module.exports = async (env, options) => {
         options: env.WEBPACK_BUILD || options.https !== undefined ? options.https : await getHttpsOptions(),
       },
       port: process.env.npm_package_config_dev_server_port || 3002,
+      // Add stability configurations
+      hot: true,
+      liveReload: false,  // Disable live reload to prevent unnecessary refreshes
+      watchFiles: {
+        paths: ['src/**/*', 'manifest.xml'],
+        options: {
+          ignored: /node_modules/,
+          usePolling: true,  // Use polling on Windows to avoid file system issues
+          interval: 1000,    // Check for changes every second
+          aggregateTimeout: 300  // Wait 300ms before rebuilding
+        }
+      },
+      client: {
+        overlay: {
+          errors: true,
+          warnings: false
+        },
+        reconnect: true,
+        logging: 'info'
+      }
     },
   };
 

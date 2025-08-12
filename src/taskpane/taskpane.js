@@ -4387,6 +4387,8 @@ Office.onReady(async (info) => {
         const closeMenuButton = document.getElementById('close-menu');
         const profileModal = document.getElementById('profile-modal');
         const modalCloseButton = profileModal?.querySelector('.modal-close-button');
+        const accountModal = document.getElementById('account-modal');
+        const accountModalCloseButton = accountModal?.querySelector('.modal-close-button');
         
         // Hamburger menu toggle
         if (hamburgerButton && slideMenu) {
@@ -4420,11 +4422,21 @@ Office.onReady(async (info) => {
                         slideMenu.classList.remove('open');
                         break;
                         
-                    case 'developer-mode':
+                    case 'developer':
                         // Switch to developer mode
                         if (typeof showDeveloperMode === 'function') {
                             showDeveloperMode();
                             slideMenu.classList.remove('open');
+                        }
+                        break;
+                        
+                    case 'account':
+                        // Show account modal
+                        const accountModal = document.getElementById('account-modal');
+                        if (accountModal) {
+                            accountModal.style.display = 'flex';
+                            slideMenu.classList.remove('open');
+                            updateAccountModal();
                         }
                         break;
                         
@@ -4437,6 +4449,7 @@ Office.onReady(async (info) => {
                         }
                         break;
                         
+                    case 'home':
                     case 'back-to-menu':
                         // Go back to startup menu
                         if (typeof showStartupMenu === 'function') {
@@ -4458,7 +4471,43 @@ Office.onReady(async (info) => {
             if (event.target === profileModal) {
                 profileModal.style.display = 'none';
             }
+            if (event.target === accountModal) {
+                accountModal.style.display = 'none';
+            }
         });
+        
+        // Account modal close button
+        accountModalCloseButton?.addEventListener('click', () => {
+            accountModal.style.display = 'none';
+        });
+        
+        // Logout button in account modal
+        const logoutButtonModal = document.getElementById('logout-button-modal');
+        logoutButtonModal?.addEventListener('click', () => {
+            // Call existing logout functionality
+            handleSignOut();
+            accountModal.style.display = 'none';
+        });
+    }
+    
+    // Update account modal with user data
+    function updateAccountModal() {
+        const userData = userProfileManager.getUserData();
+        
+        if (userData && userData.email) {
+            // Update avatar text
+            const avatarText = document.getElementById('user-avatar-text-modal');
+            if (avatarText) {
+                const initials = userData.name ? userData.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : 'U';
+                avatarText.textContent = initials;
+            }
+            
+            // Update email
+            const emailElement = document.getElementById('user-email-modal');
+            if (emailElement) {
+                emailElement.textContent = userData.email;
+            }
+        }
     }
     
     // Update profile modal with user data
