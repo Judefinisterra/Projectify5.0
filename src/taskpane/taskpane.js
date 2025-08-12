@@ -5381,37 +5381,40 @@ function createVoiceRecordingUI() {
             <canvas id="voice-waveform-client" style="flex: 1; height: 40px; background: transparent;"></canvas>
             <div id="voice-recording-timer-client" style="font-size: 14px; color: #6b7280; font-weight: 500;">00:00</div>
         </div>
-        <div style="display: flex; gap: 8px;">
+        <div style="display: flex; gap: 4px; align-items: center;">
             <button id="cancel-voice-recording-client" style="
-                padding: 8px;
-                background: #ef4444;
-                color: white;
+                padding: 4px;
+                background: transparent;
+                color: #6b7280;
                 border: none;
-                border-radius: 6px;
                 cursor: pointer;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-            " title="Cancel recording">
-                <svg viewBox="0 0 24 24" style="width: 16px; height: 16px;">
-                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                transition: color 0.2s;
+            " title="Cancel recording" 
+               onmouseover="this.style.color='#374151'" 
+               onmouseout="this.style.color='#6b7280'">
+                <svg viewBox="0 0 16 16" style="width: 14px; height: 14px;">
+                    <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </button>
             <button id="accept-voice-recording-client" style="
-                padding: 8px 16px;
-                background: #10b981;
-                color: white;
+                padding: 4px;
+                background: transparent;
+                color: #6b7280;
                 border: none;
-                border-radius: 6px;
                 cursor: pointer;
                 display: flex;
                 align-items: center;
-                gap: 4px;
-            " title="Stop and transcribe">
-                <svg viewBox="0 0 24 24" style="width: 16px; height: 16px;">
-                    <path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                justify-content: center;
+                transition: color 0.2s;
+            " title="Done recording"
+               onmouseover="this.style.color='#374151'" 
+               onmouseout="this.style.color='#6b7280'">
+                <svg viewBox="0 0 16 16" style="width: 14px; height: 14px;">
+                    <path d="M3 8l3 3L13 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
                 </svg>
-                Done
             </button>
         </div>
     `;
