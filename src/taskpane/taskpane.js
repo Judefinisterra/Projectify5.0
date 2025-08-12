@@ -4430,6 +4430,17 @@ Office.onReady(async (info) => {
                         slideMenu.classList.remove('open');
                         break;
                         
+                    case 'plans':
+                        // Open pricing/credits page in default browser
+                        try {
+                            window.open('https://ebitdai.co/credits', '_blank');
+                        } catch (e) {
+                            console.warn('Failed to open plans link, falling back');
+                            location.href = 'https://ebitdai.co/credits';
+                        }
+                        slideMenu.classList.remove('open');
+                        break;
+
                     case 'developer':
                         // Switch to developer mode
                         if (typeof showDeveloperMode === 'function') {
