@@ -4504,10 +4504,13 @@ Office.onReady(async (info) => {
         
         // Logout button in account modal
         const logoutButtonModal = document.getElementById('logout-button-modal');
-        logoutButtonModal?.addEventListener('click', () => {
+        logoutButtonModal?.addEventListener('click', async () => {
             // Call existing logout functionality
-            handleSignOut();
-            accountModal.style.display = 'none';
+            try {
+                await signOut();
+            } finally {
+                accountModal.style.display = 'none';
+            }
         });
     }
     
