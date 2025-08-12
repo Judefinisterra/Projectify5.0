@@ -1725,7 +1725,7 @@ Office.onReady(async (info) => {
     const startupMenu = document.getElementById('startup-menu');
     const developerModeButton = document.getElementById('developer-mode-button');
     const clientModeButton = document.getElementById('client-mode-button');
-    const authenticationButton = document.getElementById('authentication-button');
+    // const authenticationButton = document.getElementById('authentication-button'); // Authentication removed
     const appBody = document.getElementById('app-body'); // Already exists, ensure it's captured
     const clientModeView = document.getElementById('client-mode-view');
     const authenticationView = document.getElementById('authentication-view');
@@ -1880,6 +1880,8 @@ Office.onReady(async (info) => {
         initializeFileAttachment();
         productionLog('initializeFileAttachment called');
       }
+      // Ensure attachment listeners are bound even if DOM timing changes
+      initClientAttachmentWithRetry();
       
       // Initialize voice input functionality
       if (typeof initializeVoiceInput === 'function') {
@@ -2106,6 +2108,62 @@ Office.onReady(async (info) => {
       // Note: loadingAnimation should remain hidden until needed
       
       productionLog('Normal input interface restored');
+
+      // Re-bind attachment listeners after restoring input UI
+      initClientAttachmentWithRetry();
+    }
+
+    // Ensures the client attach-file button has working listeners,
+    // retrying briefly to handle dynamic DOM timing.
+    function initClientAttachmentWithRetry() {
+      if (window.__clientAttachInitRunning) {
+        return;
+      }
+      window.__clientAttachInitRunning = true;
+
+      let attempts = 0;
+      const maxAttempts = 20; // ~4s total
+      const intervalId = setInterval(() => {
+        attempts += 1;
+        const attachBtn = document.getElementById('attach-file-client');
+        const fileInput = document.getElementById('file-input-client');
+
+        if (attachBtn && fileInput) {
+          clearInterval(intervalId);
+          window.__clientAttachInitRunning = false;
+
+          // Call canonical initializer if available (idempotent)
+          try {
+            if (typeof initializeFileAttachment === 'function') {
+              initializeFileAttachment();
+              productionLog('initializeFileAttachment re-bound via retry helper');
+            }
+          } catch (err) {
+            console.warn('initializeFileAttachment retry failed, applying fallback listeners', err);
+          }
+
+          // Fallback: bind minimal listeners if not already bound
+          if (!attachBtn.dataset.listenerBound) {
+            attachBtn.addEventListener('click', () => {
+              console.log('[Client-Attach] Attach file button clicked');
+              fileInput.click();
+            });
+            attachBtn.dataset.listenerBound = 'true';
+          }
+
+          if (!fileInput.dataset.listenerBound) {
+            fileInput.addEventListener('change', (e) => {
+              const count = e && e.target && e.target.files ? e.target.files.length : 0;
+              console.log('[Client-Attach] Files selected:', count);
+            });
+            fileInput.dataset.listenerBound = 'true';
+          }
+        } else if (attempts >= maxAttempts) {
+          clearInterval(intervalId);
+          window.__clientAttachInitRunning = false;
+          productionLog('Client attach elements not found after retries');
+        }
+      }, 200);
     }
     
     function handleSignInClick() {
@@ -2978,11 +3036,12 @@ Office.onReady(async (info) => {
     } else {
         console.error("Could not find button with id='client-mode-button'");
     }
-    if (authenticationButton) {
-        authenticationButton.onclick = showAuthentication;
-    } else {
-        console.error("Could not find button with id='authentication-button'");
-    }
+    // Authentication button removed
+    // if (authenticationButton) {
+    //     authenticationButton.onclick = showAuthentication;
+    // } else {
+    //     console.error("Could not find button with id='authentication-button'");
+    // }
 
 
 
