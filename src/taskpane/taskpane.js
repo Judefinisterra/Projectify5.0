@@ -1790,19 +1790,33 @@ Office.onReady(async (info) => {
     function showClientMode() {
       productionLog('showClientMode function called');
       
-      // Check if user is authenticated first
-      const googleToken = localStorage.getItem('google_access_token');
-      const msalToken = localStorage.getItem('msal_access_token');
-      const apiKey = localStorage.getItem('user_api_key');
-      const isAuthenticated = !!(googleToken || msalToken || apiKey);
+      // Check if user is authenticated using the same method as isUserAuthenticated()
+      // First check sessionStorage (current session)
+      const googleUserSession = sessionStorage.getItem('googleUser');
+      const googleCredentialSession = sessionStorage.getItem('googleCredential') || sessionStorage.getItem('googleToken');
+      
+      // Also check localStorage (persistent auth)
+      const googleTokenLocal = localStorage.getItem('google_access_token');
+      const msalTokenLocal = localStorage.getItem('msal_access_token');
+      const apiKeyLocal = localStorage.getItem('user_api_key');
+      
+      // Check both session and local storage for authentication
+      const isAuthenticated = (googleUserSession && googleCredentialSession) || 
+                            !!(googleTokenLocal || msalTokenLocal || apiKeyLocal) ||
+                            (currentUser !== null) || // Microsoft auth
+                            isUserAuthenticated(); // Use the existing function
+      
+      productionLog(`Authentication check - Session: ${!!(googleUserSession && googleCredentialSession)}, Local: ${!!(googleTokenLocal || msalTokenLocal || apiKeyLocal)}, isUserAuthenticated: ${isUserAuthenticated()}`);
       
       if (!isAuthenticated) {
-        productionLog('User not authenticated, showing authentication view with EBITDAI branding');
+        productionLog('User not authenticated, showing authentication view');
         // Store that user wanted client mode after auth
         localStorage.setItem('post_auth_redirect', 'client-mode');
         showAuthentication();
         return;
       }
+      
+      productionLog('User is authenticated, proceeding to show client mode directly');
       
       productionLog(`Before changes - startupMenu display: ${startupMenu ? startupMenu.style.display : 'null'}`);
       productionLog(`Before changes - clientModeView display: ${clientModeView ? clientModeView.style.display : 'null'}`);
@@ -1838,7 +1852,7 @@ Office.onReady(async (info) => {
       productionLog(`After changes - startupMenu display: ${startupMenu ? startupMenu.style.display : 'null'}`);
       productionLog(`After changes - clientModeView display: ${clientModeView ? clientModeView.style.display : 'null'}`);
       
-      // >>> PRIORITY: Initialize and check authentication FIRST before any other functionality
+      // >>> PRIORITY: Initialize authentication and update UI
       try {
         // Initialize MSAL if not already done
         if (typeof msal !== 'undefined' && !msalInstance) {
@@ -1846,32 +1860,20 @@ Office.onReady(async (info) => {
           productionLog(`MSAL initialization result: ${msalInitialized}`);
         }
         
-        // Check authentication state
+        // Check authentication state for Microsoft auth
         if (typeof msal !== 'undefined' && msalInstance) {
           checkAuthState(); // Check if user is already signed in
           productionLog('Authentication state checked for client mode');
-        } else {
-          productionLog('MSAL not available - showing authentication prompt');
         }
         
-        // CRITICAL: Check if user is authenticated and show appropriate UI
-        const isAuthenticated = isUserAuthenticated();
-        productionLog(`User authentication status: ${isAuthenticated}`);
-        
-        if (!isAuthenticated) {
-          // User is NOT authenticated - prioritize sign-in
-          showAuthenticationFirst();
-          productionLog('Authentication required - showing sign-in first');
-        } else {
-          // User IS authenticated - show normal interface
-          showAuthenticatedInterface();
-          productionLog('User authenticated - showing normal interface');
-        }
+        // User IS authenticated (we already checked above) - show normal interface
+        showAuthenticatedInterface();
+        productionLog('User authenticated - showing normal interface');
         
       } catch (error) {
-        console.error('Error in authentication check during client mode:', error);
-        // Fallback to showing authentication prompt
-        showAuthenticationFirst();
+        console.error('Error in authentication initialization during client mode:', error);
+        // Continue anyway since user is authenticated
+        showAuthenticatedInterface();
       }
       // <<< END PRIORITY AUTHENTICATION CHECK
       
@@ -2788,14 +2790,18 @@ Office.onReady(async (info) => {
       
        try {
          // Store Google user data locally (for display purposes)
+      // Store in both sessionStorage (current session) and localStorage (persistence)
       if (authResult.user) {
         sessionStorage.setItem('googleUser', JSON.stringify(authResult.user));
+        localStorage.setItem('googleUser', JSON.stringify(authResult.user));
       }
       if (authResult.access_token) {
         sessionStorage.setItem('googleToken', authResult.access_token);
+        localStorage.setItem('google_access_token', authResult.access_token);
       }
       if (authResult.id_token) {
         sessionStorage.setItem('googleCredential', authResult.id_token);
+        localStorage.setItem('googleCredential', authResult.id_token);
       }
       
       const userName = authResult.user ? authResult.user.name : 'User';
@@ -2817,8 +2823,17 @@ Office.onReady(async (info) => {
            showMessage(`Welcome ${userName}! (Google only)`);
          }
          
-         // Update interface to show authenticated state
-         showAuthenticatedInterface();
+         // Check for post-auth redirect
+         const postAuthRedirect = localStorage.getItem('post_auth_redirect');
+         if (postAuthRedirect === 'client-mode') {
+           console.log('Post-auth redirect to client mode detected');
+           localStorage.removeItem('post_auth_redirect');
+           // Simply call showAuthenticatedInterface which handles the client mode display
+           showAuthenticatedInterface();
+         } else {
+           // Update interface to show authenticated state
+           showAuthenticatedInterface();
+         }
          
        } catch (error) {
          console.error("❌ Backend authentication failed:", error);
@@ -5368,10 +5383,22 @@ function getCurrentUser() {
  * Check if user is authenticated (checks Google first, then Microsoft)
  */
 function isUserAuthenticated() {
-    // Check Google authentication first
-    const googleUser = sessionStorage.getItem('googleUser');
-    const googleCredential = sessionStorage.getItem('googleCredential') || sessionStorage.getItem('googleToken');
-    if (googleUser && googleCredential) {
+    // Check Google authentication first - check both session and local storage
+    const googleUserSession = sessionStorage.getItem('googleUser');
+    const googleCredentialSession = sessionStorage.getItem('googleCredential') || sessionStorage.getItem('googleToken');
+    
+    const googleUserLocal = localStorage.getItem('googleUser');
+    const googleCredentialLocal = localStorage.getItem('googleCredential') || localStorage.getItem('google_access_token');
+    
+    if ((googleUserSession && googleCredentialSession) || (googleUserLocal && googleCredentialLocal)) {
+        return true;
+    }
+    
+    // Check other auth methods in localStorage
+    const msalToken = localStorage.getItem('msal_access_token');
+    const apiKey = localStorage.getItem('user_api_key');
+    
+    if (msalToken || apiKey) {
         return true;
     }
     

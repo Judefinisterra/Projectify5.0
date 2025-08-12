@@ -3126,6 +3126,30 @@ Office.onReady(async (info) => {
     }
 
     function showClientModeView() { // Renamed
+      console.log("showClientModeView called");
+      
+      // Check if user is authenticated using multiple sources
+      const googleUserSession = sessionStorage.getItem('googleUser');
+      const googleCredentialSession = sessionStorage.getItem('googleCredential') || sessionStorage.getItem('googleToken');
+      const googleTokenLocal = localStorage.getItem('google_access_token');
+      const msalTokenLocal = localStorage.getItem('msal_access_token');
+      const apiKeyLocal = localStorage.getItem('user_api_key');
+      
+      const isAuthenticated = (googleUserSession && googleCredentialSession) || 
+                            !!(googleTokenLocal || msalTokenLocal || apiKeyLocal);
+      
+      console.log(`Authentication check - Session: ${!!(googleUserSession && googleCredentialSession)}, Local: ${!!(googleTokenLocal || msalTokenLocal || apiKeyLocal)}`);
+      
+      if (!isAuthenticated) {
+        console.log('User not authenticated, showing authentication view');
+        // Store that user wanted client mode after auth
+        localStorage.setItem('post_auth_redirect', 'client-mode');
+        showAuthenticationView();
+        return;
+      }
+      
+      console.log('User is authenticated, proceeding to show client mode directly');
+      
       if (startupMenu) startupMenu.style.display = 'none';
       if (appBody) appBody.style.display = 'none';
       if (clientModeView) clientModeView.style.display = 'flex';
@@ -3255,20 +3279,31 @@ Office.onReady(async (info) => {
     function handleGoogleAuthSuccessView(authResult) {
       console.log("Google authentication successful (AIcalls.js)", authResult);
       
-      // Store user session
+      // Store user session in both sessionStorage and localStorage for persistence
       if (authResult.user) {
         sessionStorage.setItem('googleUser', JSON.stringify(authResult.user));
+        localStorage.setItem('googleUser', JSON.stringify(authResult.user));
       }
       if (authResult.access_token) {
         sessionStorage.setItem('googleToken', authResult.access_token);
+        localStorage.setItem('google_access_token', authResult.access_token);
       }
       if (authResult.id_token) {
         sessionStorage.setItem('googleCredential', authResult.id_token);
+        localStorage.setItem('googleCredential', authResult.id_token);
       }
       
       // Show success message and redirect
       const userName = authResult.user ? authResult.user.name : 'User';
       showMessage(`Welcome ${userName}! Authentication successful.`);
+      
+      // Check for post-auth redirect
+      const postAuthRedirect = localStorage.getItem('post_auth_redirect');
+      if (postAuthRedirect === 'client-mode') {
+        console.log('Post-auth redirect to client mode detected');
+        localStorage.removeItem('post_auth_redirect');
+      }
+      
       showClientModeView();
     }
 
