@@ -549,8 +549,16 @@
                     </div>
                 </div>
                 
-                <!-- Hidden elements - Keep for JavaScript compatibility -->
-                <div id="attached-files-container" class="hidden"></div>
+                <!-- Attached Files Container for Client Mode (animated) -->
+                <div id="attached-files-container" class="attached-files-container" style="display: none;">
+                    <div class="attached-files-header">
+                        <span class="attached-files-count">0 files attached</span>
+                        <button id="clear-all-attachments" class="clear-all-button" title="Clear all attachments">Clear all</button>
+                    </div>
+                    <div id="attached-files-list" class="attached-files-list">
+                        <!-- File items will be dynamically added here -->
+                    </div>
+                </div>
                 <div id="loading-animation-client" class="hidden"></div>
             </div>
 

@@ -2195,7 +2195,7 @@ function showAttachedFiles(filesData) {
     // Clear existing file items
     attachedFilesList.innerHTML = '';
     
-    // Create file items
+    // Create file items with enter animation
     filesData.forEach((fileData, index) => {
         const fileItem = document.createElement('div');
         fileItem.className = 'attached-file-item';
@@ -2221,11 +2221,18 @@ function showAttachedFiles(filesData) {
             removeFileByIndex(parseInt(e.target.getAttribute('data-file-index')));
         });
         
+        // Append and trigger CSS animation
         attachedFilesList.appendChild(fileItem);
+        // Ensure animation runs when dynamically inserted
+        requestAnimationFrame(() => {
+            fileItem.style.willChange = 'transform, opacity';
+        });
     });
     
-    // Show the container
+    // Show the container with slide-up animation
     attachedFilesContainer.style.display = 'block';
+    attachedFilesContainer.classList.remove('hidden');
+    attachedFilesContainer.classList.add('attached-files-container');
     
     console.log('[showAttachedFiles] Showing', filesData.length, 'attached files in UI');
 }

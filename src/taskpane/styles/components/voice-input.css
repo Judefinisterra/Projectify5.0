@@ -189,7 +189,7 @@
 }
 
 .attached-file-item {
-    animation: fadeInScale 0.3s ease-out;
+    animation: fadeInScale 0.25s ease-out;
     transition: all 0.2s ease;
 }
 
@@ -206,6 +206,40 @@
     to {
         opacity: 1;
     }
+}
+
+/* Pill-style chip and small close button to match reference */
+.attached-file-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 9999px;
+    padding: 8px 12px;
+}
+
+.attached-file-item .file-name {
+    font-weight: 600;
+    color: #111827;
+}
+
+.attached-file-item .file-size,
+.attached-file-item .file-type-badge {
+    color: #6b7280;
+}
+
+.attached-file-item .remove-file-btn {
+    width: 20px;
+    height: 20px;
+    border-radius: 9999px;
+    border: none;
+    background: #111827;
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
 }
 
 @keyframes fadeInUp {
