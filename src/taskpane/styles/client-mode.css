@@ -553,9 +553,8 @@
     font-size: 24px;
   }
   
-  .step-text {
-    font-size: var(--font-size-base);
-  }
+  /* Keep step-text font size constant */
+  /* .step-text font size remains at var(--font-size-lg) */
   
   .message-content {
     max-width: 85%;
