@@ -242,6 +242,13 @@
     cursor: pointer;
 }
 
+.attached-file-item .file-thumb {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    object-fit: cover;
+}
+
 @keyframes fadeInUp {
     from {
         opacity: 0;

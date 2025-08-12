@@ -1945,6 +1945,38 @@ Office.onReady(async (info) => {
       
       // Restore normal chat input interface
       restoreNormalInputInterface();
+
+      // Enable paste-to-attach on the main input
+      const clientTextArea = document.getElementById('user-input-client');
+      if (clientTextArea && !clientTextArea.dataset.pasteBound) {
+        clientTextArea.addEventListener('paste', async (e) => {
+          try {
+            if (!e.clipboardData || !e.clipboardData.items) return;
+            const items = e.clipboardData.items;
+            for (let i = 0; i < items.length; i += 1) {
+              const it = items[i];
+              if (it.kind === 'file') {
+                const blob = it.getAsFile();
+                if (blob && blob.type && blob.type.startsWith('image/')) {
+                  console.log('[Paste-Attach] Image detected from clipboard');
+                  // Name the file if clipboard lacks a name
+                  const ext = blob.type.includes('png') ? 'png' : (blob.type.includes('webp') ? 'webp' : 'jpg');
+                  const fileName = `pasted-${Date.now()}.${ext}`;
+                  const file = new File([blob], fileName, { type: blob.type });
+                  if (typeof handleFileAttachment === 'function') {
+                    // Prevent text paste insertion
+                    e.preventDefault();
+                    await handleFileAttachment(file);
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            console.warn('Paste-to-attach failed:', err);
+          }
+        });
+        clientTextArea.dataset.pasteBound = 'true';
+      }
       
       // Update UI with user information
       updateSignedInStatus();
@@ -3580,6 +3612,34 @@ Office.onReady(async (info) => {
 
     // ... (rest of your Office.onReady, including suggestion logic, initializations)
 
+    // Update the welcome title and steps based on the selected mode
+    function updateWelcomeByMode(modeValue) {
+        try {
+            const titleEl = document.querySelector('.welcome-section .welcome-title');
+            const stepTextEls = document.querySelectorAll('.welcome-section .welcome-steps .step-text');
+
+            if (!titleEl || stepTextEls.length < 2) {
+                return; // Welcome screen not visible in current context
+            }
+
+            if (modeValue === 'one-shot') {
+                titleEl.textContent = 'One-Shot Mode';
+                stepTextEls[0].textContent = "Provide your key business assumptions, including revenue, pricing, expenses, financing, and other critical details.";
+                stepTextEls[1].textContent = "Your model will be generated instantly based on the information you provide.";
+            } else if (modeValue === 'limited-guidance') {
+                titleEl.textContent = 'Limited-Guidance Mode';
+                stepTextEls[0].textContent = "Share your business assumptions covering revenue, pricing, expenses, financing, and other essential inputs.";
+                stepTextEls[1].textContent = "We’ll ask one to two clarifying questions before delivering your completed model.";
+            } else if (modeValue === 'full-guidance') {
+                titleEl.textContent = 'Full-Guidance Mode';
+                stepTextEls[0].textContent = 'Start with a concise overview of your business.';
+                stepTextEls[1].textContent = 'We’ll work with you step-by-step to define every aspect of your model.';
+            }
+        } catch (err) {
+            console.warn('updateWelcomeByMode failed:', err);
+        }
+    }
+
     // Initialize system prompt dropdown functionality
     function initializeSystemPromptDropdown() {
         // Handle both the old dropdown and the new header dropdown
@@ -3593,6 +3653,10 @@ Office.onReady(async (info) => {
             if (newDropdown && this === oldDropdown) newDropdown.value = this.value;
                 // Optionally reset conversation when mode changes
                 // resetChatClient();
+
+            // Update welcome screen content according to selected mode
+            const currentMode = this.value;
+            updateWelcomeByMode(currentMode);
         };
         
         if (oldDropdown) {
@@ -3600,6 +3664,8 @@ Office.onReady(async (info) => {
         }
         if (newDropdown) {
             newDropdown.addEventListener('change', handleDropdownChange);
+            // Initialize the welcome screen once with current value
+            updateWelcomeByMode(newDropdown.value);
         }
     }
 

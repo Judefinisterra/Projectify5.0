@@ -2116,21 +2116,24 @@ async function handleFileAttachment(file) {
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
             'application/msword', // .doc
             'application/pdf', // .pdf
-            'text/plain' // .txt
+            'text/plain', // .txt
+            'image/jpeg', // images
+            'image/png',
+            'image/webp'
         ];
         
         const fileExtension = file.name.toLowerCase().split('.').pop();
         console.log('[handleFileAttachment] File extension:', fileExtension);
         
         const mimeTypeAllowed = allowedTypes.includes(file.type);
-        const extensionAllowed = ['xlsx', 'xls', 'xlsm', 'csv', 'doc', 'docx', 'pdf', 'txt'].includes(fileExtension);
+        const extensionAllowed = ['xlsx', 'xls', 'xlsm', 'csv', 'doc', 'docx', 'pdf', 'txt', 'jpg', 'jpeg', 'png', 'webp'].includes(fileExtension);
         
         console.log('[handleFileAttachment] MIME type allowed:', mimeTypeAllowed);
         console.log('[handleFileAttachment] Extension allowed:', extensionAllowed);
         
         if (!mimeTypeAllowed && !extensionAllowed) {
             console.log('[handleFileAttachment] File validation failed - neither MIME type nor extension is allowed');
-            throw new Error('Please upload an Excel file (.xlsx, .xls, .xlsm), CSV file (.csv), Word document (.doc, .docx), PDF file (.pdf), or Text file (.txt)');
+            throw new Error('Please upload a supported file: Excel (.xlsx/.xls/.xlsm), CSV, Word (.doc/.docx), PDF, Text (.txt), or Image (.jpg/.jpeg/.png/.webp)');
         }
         
         // Validate file size (max 10MB)
@@ -2155,6 +2158,11 @@ async function handleFileAttachment(file) {
         } else if (fileExtension === 'txt' || file.type === 'text/plain') {
             console.log('[handleFileAttachment] Processing as Text file');
             fileData = await processTXTFile(file);
+        } else if (
+            file.type.startsWith('image/') || ['jpg','jpeg','png','webp'].includes(fileExtension)
+        ) {
+            console.log('[handleFileAttachment] Processing as Image file');
+            fileData = await processImageFile(file);
         } else {
             console.log('[handleFileAttachment] Processing as Excel file (.xlsx/.xls/.xlsm)');
             fileData = await processXLSXFile(file);
@@ -2212,7 +2220,9 @@ function showAttachedFiles(filesData) {
         let badgeClass = 'file-type-badge';
         let badgeText = fileData.fileType;
         
+        const thumbnailHtml = fileData.previewDataUrl ? `<img class="file-thumb" src="${fileData.previewDataUrl}" alt="${fileData.fileName}" />` : '';
         fileItem.innerHTML = `
+            ${thumbnailHtml}
             <div class="attached-file-info">
                 <span class="file-name" title="${fileData.fileName}">${fileData.fileName}</span>
                 <span class="file-size">${formatFileSize(fileData.fileSize)}</span>
@@ -2242,6 +2252,51 @@ function showAttachedFiles(filesData) {
     attachedFilesContainer.classList.add('attached-files-container');
     
     console.log('[showAttachedFiles] Showing', filesData.length, 'attached files in UI');
+}
+
+// Process pasted/attached image -> normalize to JPEG preview + blob metadata
+async function processImageFile(file) {
+    return new Promise((resolve, reject) => {
+        try {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        // Create a small preview while preserving aspect ratio
+                        const maxSide = 56; // tiny chip preview
+                        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+                        const w = Math.max(1, Math.round(img.width * scale));
+                        const h = Math.max(1, Math.round(img.height * scale));
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        const previewDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+
+                        const fileData = {
+                            fileName: file.name || 'pasted-image.jpg',
+                            fileSize: file.size || previewDataUrl.length,
+                            fileType: 'Image',
+                            mimeType: 'image/jpeg',
+                            previewDataUrl,
+                            originalType: file.type || 'image/*',
+                        };
+                        resolve(fileData);
+                    } catch (innerErr) {
+                        reject(innerErr);
+                    }
+                };
+                img.onerror = reject;
+                img.src = reader.result;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        } catch (err) {
+            reject(err);
+        }
+    });
 }
 
 // Function to hide attached files in UI
