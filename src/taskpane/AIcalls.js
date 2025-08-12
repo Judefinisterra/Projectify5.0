@@ -3125,7 +3125,7 @@ Office.onReady(async (info) => {
       console.log("Developer Mode view activated");
     }
 
-    function showClientModeView() { // Renamed
+    async function showClientModeView() { // Renamed
       console.log("showClientModeView called");
       
       // Check if user is authenticated using multiple sources
@@ -3149,6 +3149,38 @@ Office.onReady(async (info) => {
       }
       
       console.log('User is authenticated, proceeding to show client mode directly');
+      
+      // Check if we need to authenticate with backend
+      const hasBackendToken = sessionStorage.getItem('backend_access_token') || 
+                             localStorage.getItem('backend_access_token');
+      
+      if (!hasBackendToken) {
+        console.log('User has Google auth but no backend token - need to authenticate with backend');
+        
+        // Try to authenticate with backend using stored Google credentials
+        const googleIdToken = sessionStorage.getItem('googleCredential') || 
+                             localStorage.getItem('googleCredential');
+        
+        if (googleIdToken && window.backendAPI) {
+          try {
+            console.log('Authenticating with backend using stored Google token');
+            const backendAuthResult = await window.backendAPI.signInWithGoogle(googleIdToken);
+            console.log('Backend authentication successful');
+          } catch (error) {
+            console.error('Failed to authenticate with backend:', error);
+            // If backend auth fails, show authentication page
+            localStorage.setItem('post_auth_redirect', 'client-mode');
+            showAuthenticationView();
+            return;
+          }
+        } else {
+          console.log('No Google ID token or backendAPI found - showing authentication page');
+          // No ID token to authenticate with backend, show auth page
+          localStorage.setItem('post_auth_redirect', 'client-mode');
+          showAuthenticationView();
+          return;
+        }
+      }
       
       if (startupMenu) startupMenu.style.display = 'none';
       if (appBody) appBody.style.display = 'none';

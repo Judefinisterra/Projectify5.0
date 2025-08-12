@@ -1793,7 +1793,7 @@ Office.onReady(async (info) => {
       console.log("Developer Mode activated");
     }
 
-    function showClientMode() {
+    async function showClientMode() {
       productionLog('showClientMode function called');
       
       // Check if user is authenticated using the same method as isUserAuthenticated()
@@ -1872,9 +1872,47 @@ Office.onReady(async (info) => {
           productionLog('Authentication state checked for client mode');
         }
         
-        // User IS authenticated (we already checked above) - show normal interface
-        showAuthenticatedInterface();
-        productionLog('User authenticated - showing normal interface');
+        // User IS authenticated (we already checked above)
+        // But we need to check if we have backend tokens or need to authenticate with backend
+        const hasBackendToken = sessionStorage.getItem('backend_access_token') || 
+                               localStorage.getItem('backend_access_token');
+        
+        if (!hasBackendToken) {
+          productionLog('User has Google auth but no backend token - authenticating with backend');
+          
+          // Try to authenticate with backend using stored Google credentials
+          const googleIdToken = sessionStorage.getItem('googleCredential') || 
+                               localStorage.getItem('googleCredential');
+          
+          if (googleIdToken) {
+            try {
+              productionLog('Authenticating with backend using stored Google token');
+              const backendAuthResult = await backendAPI.signInWithGoogle(googleIdToken);
+              productionLog('Backend authentication successful');
+              
+              // Now show the authenticated interface
+              showAuthenticatedInterface();
+              productionLog('User authenticated - showing normal interface');
+            } catch (error) {
+              console.error('Failed to authenticate with backend:', error);
+              productionLog('Backend authentication failed - showing authentication page');
+              // If backend auth fails, show authentication page
+              localStorage.setItem('post_auth_redirect', 'client-mode');
+              showAuthentication();
+              return;
+            }
+          } else {
+            productionLog('No Google ID token found - showing authentication page');
+            // No ID token to authenticate with backend, show auth page
+            localStorage.setItem('post_auth_redirect', 'client-mode');
+            showAuthentication();
+            return;
+          }
+        } else {
+          // We have backend tokens, show normal interface
+          showAuthenticatedInterface();
+          productionLog('User authenticated with backend - showing normal interface');
+        }
         
       } catch (error) {
         console.error('Error in authentication initialization during client mode:', error);

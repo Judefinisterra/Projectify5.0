@@ -38,7 +38,11 @@ class BackendAPI {
    * Get authentication headers for API calls
    */
   getAuthHeaders() {
-    const token = sessionStorage.getItem('backend_access_token') || sessionStorage.getItem('access_token');
+    // Try sessionStorage first, then localStorage for persistence
+    const token = sessionStorage.getItem('backend_access_token') || 
+                  sessionStorage.getItem('access_token') ||
+                  localStorage.getItem('backend_access_token') ||
+                  localStorage.getItem('access_token');
     console.log('🔧 BackendAPI getAuthHeaders - token:', token ? `${token.substring(0, 20)}...` : 'No token found');
     return {
       'Content-Type': 'application/json',
@@ -51,12 +55,18 @@ class BackendAPI {
    */
   storeTokens(accessToken, refreshToken) {
     if (accessToken) {
+      // Store in both session and local storage for persistence
       sessionStorage.setItem('backend_access_token', accessToken);
+      localStorage.setItem('backend_access_token', accessToken);
       sessionStorage.setItem('access_token', accessToken); // Backward compatibility
+      localStorage.setItem('access_token', accessToken); // Backward compatibility
     }
     if (refreshToken) {
+      // Store in both session and local storage for persistence
       sessionStorage.setItem('backend_refresh_token', refreshToken);
+      localStorage.setItem('backend_refresh_token', refreshToken);
       sessionStorage.setItem('refresh_token', refreshToken); // Backward compatibility
+      localStorage.setItem('refresh_token', refreshToken); // Backward compatibility
     }
   }
 
@@ -64,21 +74,31 @@ class BackendAPI {
    * Clear stored tokens
    */
   clearTokens() {
+    // Clear from both session and local storage
     sessionStorage.removeItem('backend_access_token');
     sessionStorage.removeItem('backend_refresh_token');
     sessionStorage.removeItem('access_token');
     sessionStorage.removeItem('refresh_token');
+    
+    localStorage.removeItem('backend_access_token');
+    localStorage.removeItem('backend_refresh_token');
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
   }
 
   /**
    * Check if user is authenticated with backend
    */
   isAuthenticated() {
-    // In mock mode, consider authenticated if Google auth was successful
+    // Check both session and local storage
+    const hasToken = !!sessionStorage.getItem('backend_access_token') || 
+                    !!localStorage.getItem('backend_access_token');
+    
+    // In mock mode, also consider authenticated if Google auth was successful
     if (this.mockMode) {
-      return !!sessionStorage.getItem('backend_access_token') || !!window.googleUser;
+      return hasToken || !!window.googleUser;
     }
-    return !!sessionStorage.getItem('backend_access_token');
+    return hasToken;
   }
 
   // ============================================================================
@@ -178,27 +198,48 @@ class BackendAPI {
       return mockAuthData;
     }
     
-    const response = await this.makeAPICall(this.endpoints.auth.google, {
-      method: 'POST',
-      body: JSON.stringify({ token: googleIdToken })
-    });
-
-    const data = await response.json();
+    // For authentication, make direct fetch call without auth headers
+    const url = `${this.baseUrl}${this.endpoints.auth.google}`;
     
-    if (data.access_token) {
-      this.storeTokens(data.access_token, data.session?.refresh_token);
-      console.log('✅ Backend authentication successful');
-      return data;
+    try {
+      console.log(`🌐 Auth API Call: POST ${url}`);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ token: googleIdToken })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(error.error || error.message || `HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      
+      if (data.access_token) {
+        this.storeTokens(data.access_token, data.refresh_token || data.session?.refresh_token);
+        console.log('✅ Backend authentication successful');
+        return data;
+      }
+      
+      throw new Error('Backend authentication failed - no access token received');
+      
+    } catch (error) {
+      console.error('❌ Backend auth error:', error);
+      throw error;
     }
-    
-    throw new Error('Backend authentication failed');
   }
 
   /**
    * Refresh authentication token
    */
   async refreshToken() {
-    const refreshToken = sessionStorage.getItem('backend_refresh_token');
+    // Try sessionStorage first, then localStorage
+    const refreshToken = sessionStorage.getItem('backend_refresh_token') || 
+                        localStorage.getItem('backend_refresh_token');
     if (!refreshToken) {
       console.log('❌ No refresh token available');
       return false;

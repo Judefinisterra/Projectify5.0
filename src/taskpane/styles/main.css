@@ -19,6 +19,9 @@
 @import "./components/buttons.css";
 @import "./components/forms.css";
 @import "./components/header-footer.css";
+@import "./components/slide-menu.css";
+@import "./components/voice-input.css";
+@import "./components/loading-animation.css";
 @import "./modals.css";
 
 /* 6. View-Specific Styles */
