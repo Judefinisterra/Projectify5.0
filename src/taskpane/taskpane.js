@@ -4585,20 +4585,24 @@ Office.onReady(async (info) => {
     
     // Update footer with credits and subscription info
     function updateFooterDisplay() {
-        const credits = getUserCredits();
         const userData = userProfileManager.getUserData();
+        const credits = userData ? getUserCredits() : null;
         
         // Update credits count
         const footerCreditsCount = document.getElementById('footer-credits-count');
         if (footerCreditsCount) {
-            footerCreditsCount.textContent = credits !== null ? credits.toFixed(1) : '--';
+            footerCreditsCount.textContent = credits != null ? credits.toFixed(1) : '--';
         }
         
         // Update subscription plan
         const footerPlanName = document.getElementById('footer-plan-name');
-        if (footerPlanName && userData) {
-            const subscriptionType = userData.subscription?.type || 'Free';
-            footerPlanName.textContent = subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1);
+        if (footerPlanName) {
+            if (userData) {
+                const subscriptionType = userData.subscription?.type || 'Free';
+                footerPlanName.textContent = subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1);
+            } else {
+                footerPlanName.textContent = '';
+            }
         }
         
         // Show/hide sign in button based on auth state
@@ -5308,11 +5312,20 @@ async function signOut() {
         updateAuthUI(false);
         updateSignedInStatus();
         
+        // Clear in-memory user state used by UI helpers
+        if (window.userProfileManager) {
+            try {
+                window.userProfileManager.userData = null;
+                window.userProfileManager.subscriptionData = null;
+                window.updateFooterDisplay && window.updateFooterDisplay();
+            } catch (_) {}
+        }
+
         // Redirect back to authentication view
         const authView = document.getElementById('authentication-view');
         const clientView = document.getElementById('client-mode-view');
         if (authView && clientView) {
-            authView.style.display = 'block';
+            authView.style.display = 'flex';
             clientView.style.display = 'none';
             console.log('Redirected to authentication view');
         }
