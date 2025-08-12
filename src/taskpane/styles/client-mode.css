@@ -310,13 +310,14 @@
   max-width: var(--max-content-width);
   margin: 0 auto;
   display: flex;
-  align-items: flex-end;
+  align-items: center; /* Changed from flex-end to center */
   gap: 0;
   padding: 0;
   background-color: var(--color-input-bg);
   border-radius: var(--border-radius-full);
   border: 1px solid var(--color-input-border);
   overflow: hidden;
+  /* min-height: 24px; Explicit height for consistency */
 }
 
 .input-mode {
@@ -332,7 +333,7 @@
   display: flex;
   align-items: center;
   padding: 0 var(--spacing-sm);
-  min-height: 44px; /* Match the input container minimum height */
+  /* min-height: 24px; Match the input container minimum height */
 }
 
 /* Attachment Button */
@@ -358,50 +359,25 @@
 /* Text Input */
 #user-input-client {
   flex: 1;
-  min-height: 44px; /* Match container height for proper centering */
-  height: 44px; /* Start at container height */
-  max-height: 120px; /* ~5 lines */
-  padding: 11px 12px; /* Adjusted vertical padding for centering */
+  height: 100%; /* Fill container height */
+  padding: 0 12px; /* Horizontal padding only */
   border: none;
   outline: none;
-  resize: none;
   font-size: var(--font-size-base);
-  line-height: 22px; /* Line height that works with padding for 44px total */
+  line-height: normal;
   background: transparent;
   color: var(--color-black);
   font-family: var(--font-family);
-  overflow-y: hidden; /* Will be set to auto when scrollable */
+  white-space: nowrap; /* Single line, no wrap */
+  text-overflow: ellipsis; /* Show ellipsis for overflow */
   box-sizing: border-box;
-  transition: height 0.15s ease-out;
 }
 
 #user-input-client::placeholder {
   color: var(--color-text-placeholder);
 }
 
-/* Scrollable state when content exceeds max height */
-#user-input-client.scrollable {
-  overflow-y: auto;
-}
-
-/* Custom scrollbar for webkit browsers */
-#user-input-client::-webkit-scrollbar {
-  width: 6px;
-}
-
-#user-input-client::-webkit-scrollbar-track {
-  background: transparent;
-  border-radius: 3px;
-}
-
-#user-input-client::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 3px;
-}
-
-#user-input-client::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
+/* No scrolling needed for single-line input */
 
 /* Remove focus outline */
 #user-input-client:focus {
