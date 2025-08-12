@@ -1278,7 +1278,11 @@ export async function plannerHandleSend() {
     displayInClientChatLogPlanner(displayMessage, true);
     
     userInputElement.value = '';
-    userInputElement.style.height = 'auto'; // Reset height after sending
+    
+    // Reset textarea height to default
+    userInputElement.style.height = '44px';
+    userInputElement.style.overflowY = 'hidden';
+    userInputElement.classList.remove('scrollable');
     
     // Clear attachments after sending
     removeAllAttachments();
@@ -3761,27 +3765,48 @@ export function initializeVoiceInputDev() {
 function autoResizeTextarea(textarea) {
     if (!textarea) return;
     
-    const baseHeight = 24; // Base single-line height (matches CSS min-height)
-    const maxHeight = 120; // Maximum height before scrolling (matches CSS max-height)
-    const lineHeight = 24; // Approximate line height based on font size and line-height
+    // Get computed styles to account for padding
+    const computedStyle = window.getComputedStyle(textarea);
+    const paddingTop = parseFloat(computedStyle.paddingTop);
+    const paddingBottom = parseFloat(computedStyle.paddingBottom);
+    const lineHeight = parseFloat(computedStyle.lineHeight);
     
-    // Reset height to base to get accurate scrollHeight
-    textarea.style.height = baseHeight + 'px';
+    const baseHeight = 44; // Minimum height matching CSS
+    const maxHeight = 120; // Maximum height before scrolling
     
-    // Calculate required height based on content
+    // Reset height to get accurate scrollHeight
+    textarea.style.height = 'auto';
+    textarea.style.overflowY = 'hidden';
+    
+    // Get the scroll height
     const scrollHeight = textarea.scrollHeight;
-    const requiredHeight = Math.max(baseHeight, scrollHeight);
     
-    // Set height up to maximum, then enable scrolling
-    if (requiredHeight <= maxHeight) {
-        textarea.style.height = requiredHeight + 'px';
-        textarea.classList.remove('scrollable');
-    } else {
-        textarea.style.height = maxHeight + 'px';
-        textarea.classList.add('scrollable');
+    // Calculate the number of lines
+    const contentHeight = scrollHeight - paddingTop - paddingBottom;
+    const lines = Math.ceil(contentHeight / lineHeight);
+    
+    // Calculate required height
+    let requiredHeight = baseHeight;
+    if (lines > 1) {
+        // For multi-line content, calculate based on line count
+        requiredHeight = (lines * lineHeight) + paddingTop + paddingBottom;
     }
     
-    console.log(`[TextArea] Auto-resize: required=${requiredHeight}px, set=${textarea.style.height}, scrollable=${textarea.classList.contains('scrollable')}`);
+    // Apply height constraints
+    const finalHeight = Math.min(Math.max(baseHeight, requiredHeight), maxHeight);
+    
+    // Set height and scrolling behavior
+    textarea.style.height = finalHeight + 'px';
+    
+    if (requiredHeight > maxHeight) {
+        textarea.style.overflowY = 'auto';
+        textarea.classList.add('scrollable');
+    } else {
+        textarea.style.overflowY = 'hidden';
+        textarea.classList.remove('scrollable');
+    }
+    
+    console.log(`[TextArea] Auto-resize: lines=${lines}, required=${requiredHeight}px, final=${finalHeight}px, scrollable=${textarea.classList.contains('scrollable')}`);
 }
 
 // Function to auto-resize textarea for developer mode

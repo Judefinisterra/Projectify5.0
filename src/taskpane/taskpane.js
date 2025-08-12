@@ -944,6 +944,12 @@ async function handleSendClient() {
     // Append user's message to the chat log
     appendMessage(userInput, true, 'chat-log-client', 'welcome-message-client');
     userInputElement.value = ''; // Clear the input field
+    
+    // Reset textarea height to default
+    userInputElement.style.height = '44px';
+    userInputElement.style.overflowY = 'hidden';
+    userInputElement.classList.remove('scrollable');
+    
     setButtonLoadingClient(true);
 
     // Get the chat log and welcome message elements

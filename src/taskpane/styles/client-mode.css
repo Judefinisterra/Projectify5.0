@@ -332,7 +332,7 @@
   display: flex;
   align-items: center;
   padding: 0 var(--spacing-sm);
-  height: 44px;
+  min-height: 44px; /* Match the input container minimum height */
 }
 
 /* Attachment Button */
@@ -358,23 +358,49 @@
 /* Text Input */
 #user-input-client {
   flex: 1;
-  min-height: 44px;
-  max-height: 72px; /* ~3 lines */
-  padding: 10px 12px;
+  min-height: 44px; /* Match container height for proper centering */
+  height: 44px; /* Start at container height */
+  max-height: 120px; /* ~5 lines */
+  padding: 11px 12px; /* Adjusted vertical padding for centering */
   border: none;
   outline: none;
   resize: none;
   font-size: var(--font-size-base);
-  line-height: 24px;
+  line-height: 22px; /* Line height that works with padding for 44px total */
   background: transparent;
   color: var(--color-black);
   font-family: var(--font-family);
-  overflow: hidden;
-  vertical-align: middle;
+  overflow-y: hidden; /* Will be set to auto when scrollable */
+  box-sizing: border-box;
+  transition: height 0.15s ease-out;
 }
 
 #user-input-client::placeholder {
   color: var(--color-text-placeholder);
+}
+
+/* Scrollable state when content exceeds max height */
+#user-input-client.scrollable {
+  overflow-y: auto;
+}
+
+/* Custom scrollbar for webkit browsers */
+#user-input-client::-webkit-scrollbar {
+  width: 6px;
+}
+
+#user-input-client::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 3px;
+}
+
+#user-input-client::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+#user-input-client::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
 }
 
 /* Remove focus outline */
