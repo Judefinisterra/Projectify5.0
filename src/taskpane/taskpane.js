@@ -3269,6 +3269,14 @@ Office.onReady(async (info) => {
     // >>> ADDED: Voice Recording Setup for Client Mode
     initializeVoiceRecordingClient();
 
+    // Add click handler for EBITDAI header to open website
+    const headerTitleLink = document.getElementById('header-title-link');
+    if (headerTitleLink) {
+        headerTitleLink.onclick = () => {
+            window.open('https://ebitdai.co', '_blank');
+        };
+    }
+
     const resetChatClientButton = document.getElementById('reset-chat-client');
     if (resetChatClientButton) resetChatClientButton.onclick = resetChatClient;
 

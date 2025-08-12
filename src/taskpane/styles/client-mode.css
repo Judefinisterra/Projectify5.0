@@ -126,6 +126,11 @@
   font-size: var(--font-size-lg);
   font-weight: 500;
   margin: 0;
+  transition: opacity 0.2s ease;
+}
+
+.header-title:hover {
+  opacity: 0.8;
 }
 
 .title-white {
