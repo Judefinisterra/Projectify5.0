@@ -3075,6 +3075,27 @@ Office.onReady(async (info) => {
         console.error("Could not find button with id='training-replace-all-button'");
     }
 
+    // >>> ADDED: Auto-resize textarea functionality
+    const userInputClient = document.getElementById('user-input-client');
+    if (userInputClient) {
+        // Function to auto-resize textarea
+        function autoResizeTextarea() {
+            // Reset height to auto to get the correct scrollHeight
+            userInputClient.style.height = 'auto';
+            
+            // Calculate new height
+            const newHeight = Math.min(userInputClient.scrollHeight, 72); // Max 3 lines (~72px)
+            userInputClient.style.height = newHeight + 'px';
+        }
+        
+        // Add event listeners for auto-resize
+        userInputClient.addEventListener('input', autoResizeTextarea);
+        userInputClient.addEventListener('change', autoResizeTextarea);
+        
+        // Initial call to set correct height
+        autoResizeTextarea();
+    }
+    
     // >>> ADDED: Setup for Client Mode Chat Buttons
     const sendClientButton = document.getElementById('send-client');
     if (sendClientButton) {

@@ -3022,7 +3022,11 @@ function handleClientModeResetChat() {
     
     resetAIModelPlannerConversation(); // Reset the conversation history in the planner
     lastAIModelPlannerResponse = null;
-    document.getElementById('user-input-client').value = '';
+    const userInputClient = document.getElementById('user-input-client');
+    if (userInputClient) {
+        userInputClient.value = '';
+        userInputClient.style.height = 'auto'; // Reset height
+    }
     console.log("Client mode chat reset.");
 }
 

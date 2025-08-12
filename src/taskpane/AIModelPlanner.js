@@ -1233,6 +1233,7 @@ export async function plannerHandleSend() {
     displayInClientChatLogPlanner(displayMessage, true);
     
     userInputElement.value = '';
+    userInputElement.style.height = 'auto'; // Reset height after sending
     
     // Clear attachments after sending
     removeAllAttachments();
@@ -1563,7 +1564,10 @@ export function plannerHandleReset() {
     // <<< END ADDED
 
     const userInput = document.getElementById('user-input-client');
-    if (userInput) userInput.value = '';
+    if (userInput) {
+        userInput.value = '';
+        userInput.style.height = 'auto'; // Reset height
+    }
 
     console.log("AIModelPlanner: Client chat reset completed.");
 }
