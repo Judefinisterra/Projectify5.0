@@ -42,13 +42,7 @@ Create the model instantly based on the provided information:
 - **Include only explicitly mentioned items** - don't assume additional complexity
 - **Keep it simple** - fewer tabs and assumptions are better
 
-**STANDARD ASSUMPTIONS FOR MISSING INFORMATION:**
-- **Payment Terms**: Customers pay immediately (no working capital) unless specified
-- **Employee Benefits**: 20% benefits load if employees mentioned without benefits details
- - **Tax Rate**: For very vague requests, include taxes at 25%; otherwise include taxes only if explicitly requested or clearly implied
-- **Growth**: Flat/static volumes unless growth explicitly mentioned
-- **Asset Life**: Standard depreciation periods if fixed assets mentioned without details
-
+*
 **TAB STRUCTURE RULES:**
 - **Only include tabs for items mentioned or clearly implied**
 - **Never double-count**: Each item goes on exactly one tab
