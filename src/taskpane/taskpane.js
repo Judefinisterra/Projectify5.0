@@ -4550,11 +4550,7 @@ Office.onReady(async (info) => {
             }
         }
         
-        // Show/hide sign in button based on auth state
-        const footerSignInButton = document.getElementById('footer-sign-in');
-        if (footerSignInButton) {
-            footerSignInButton.style.display = userData && userData.email ? 'none' : 'block';
-        }
+        // Sign-in button removed from footer
     }
     
     // Make updateFooterDisplay globally available

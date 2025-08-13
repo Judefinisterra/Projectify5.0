@@ -148,7 +148,7 @@ function trackAPICallCost(callData) {
  */
 async function deductCreditsAsync(costData) {
   try {
-    const creditCost = costData.cost / 0.05; // Convert to credits
+    const creditCost = costData.cost / 0.005; // Convert to credits (10x cost increase: 1 credit = $0.005)
     console.log(`💳 Deducting ${creditCost.toFixed(4)} credits for $${costData.cost.toFixed(6)} API call...`);
     
     try {
@@ -172,7 +172,7 @@ async function deductCreditsAsync(costData) {
       console.warn(`⚠️ New credit deduction endpoint not available, falling back to legacy method...`);
       
       // Fallback to legacy single-credit deduction if cost is significant enough
-      if (costData.cost >= 0.025) { // If cost is at least half a credit
+      if (costData.cost >= 0.0025) { // If cost is at least half a credit (10x cost increase)
         try {
           console.log(`💳 Using legacy credit deduction (1 credit) for $${costData.cost.toFixed(6)} call`);
           const fallbackResult = await backendAPI.useCredit('api_call');

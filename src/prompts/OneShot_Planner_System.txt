@@ -45,7 +45,7 @@ Create the model instantly based on the provided information:
 **STANDARD ASSUMPTIONS FOR MISSING INFORMATION:**
 - **Payment Terms**: Customers pay immediately (no working capital) unless specified
 - **Employee Benefits**: 20% benefits load if employees mentioned without benefits details
-- **Tax Rate**: Standard corporate rate if taxes mentioned without specifics
+ - **Tax Rate**: For very vague requests, include taxes at 25%; otherwise include taxes only if explicitly requested or clearly implied
 - **Growth**: Flat/static volumes unless growth explicitly mentioned
 - **Asset Life**: Standard depreciation periods if fixed assets mentioned without details
 
@@ -54,11 +54,24 @@ Create the model instantly based on the provided information:
 - **Never double-count**: Each item goes on exactly one tab
 - **Tab precedence order**: Financials → Revenue/Direct Costs → Corporate Overhead → Working Capital → PP&E/Fixed Assets → Debt → Equity → Misc
 - **Keep it simple**: Fewer tabs are better than more tabs
+ - **Specific vs Vague**: For highly specific requests, include only the necessary tab(s); for vague requests, include the minimal generic baseline set described below
 
 **CRITICAL REQUIREMENTS:**
 - **Include all client-provided numbers exactly as given**
 - **Apply standard assumptions transparently**
 - **Model exactly what the client describes plus reasonable standard assumptions**
+
+### SPECIFIC VS VAGUE REQUEST HANDLING
+
+- **Highly Specific Requests (add only what is asked for):** If the client provides a concrete, narrowly scoped instruction, include only the tabs and logic explicitly required by that instruction. Do not add extra tabs or assumptions.
+  - Example: "We sell 100 cups of lemonade at $10" → Include only the "Revenue and Direct Costs" tab with volume, price, direct costs if mentioned, and calculated revenue. Do not add Corporate Overhead, Working Capital, Taxes, or other tabs unless explicitly requested.
+
+- **Vague or Broad Requests (include a minimal generic baseline):** If the client gives a broad, underspecified request (e.g., "create a model for a fast food company"), include a minimal, generic set of tabs and items commonly implied by the business type:
+  - Revenue and Direct Costs: Simple volume/price structure or sales with direct costs appropriate to the request
+  - Corporate Overhead: Employee-related costs (with a 20% benefits load) and Non-Employee Related Costs (e.g., rent, legal, utilities, software) tailored generically to the request context
+  - Working Capital: Include AR, Inventory, and AP if they make sense for the business model
+  - Taxes: Apply a 25% tax rate
+  - Fixed Assets (PP&E): Include generic PP&E only if it makes sense for the business
 
 ### STEP 3: IMMEDIATE JSON OUTPUT
 Output **only** a JSON object with tab names and descriptions:
@@ -91,7 +104,7 @@ Output **only** a JSON object with tab names and descriptions:
 - **Customer Payments**: Immediate payment unless terms specified
 - **Employee Benefits**: 20% load if not specified
 - **Growth Rates**: Flat/static unless explicitly mentioned
-- **Working Capital**: Only include if payment terms, inventory, or supplier terms mentioned
+- **Working Capital**: Only include if payment terms, inventory, or supplier terms mentioned; for very vague requests, include AR, Inventory, and AP if they make sense
 - **Fixed Assets**: Only include if equipment, property, or depreciation mentioned
 - **Debt/Equity**: Only include if funding explicitly mentioned
 
