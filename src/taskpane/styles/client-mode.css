@@ -349,13 +349,14 @@
   border-radius: var(--border-radius-full);
   border: 1px solid var(--color-input-border);
   overflow: hidden;
-  /* min-height: 24px; Explicit height for consistency */
+  min-height: 48px; /* Set appropriate min-height for input with padding */
 }
 
 .input-mode {
   display: flex;
   align-items: center;
   width: 100%;
+  height: 100%; /* Take full height of parent for proper centering */
   gap: 0;
 }
 
@@ -391,8 +392,8 @@
 /* Text Input */
 #user-input-client {
   flex: 1;
-  height: 100%; /* Fill container height */
-  padding: 0 12px; /* Horizontal padding only */
+  /* Remove height: 100% to allow natural centering */
+  padding: 8px 12px; /* Add vertical padding for better appearance */
   border: none;
   outline: none;
   font-size: var(--font-size-base);
