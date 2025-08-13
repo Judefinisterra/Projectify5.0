@@ -56,7 +56,7 @@
     <link href="styles/modals.css" rel="stylesheet" type="text/css" />
     
     <!-- 6. View-Specific Styles (most specific, loaded last) -->
-    <link href="styles/views/startup.css" rel="stylesheet" type="text/css" />
+
     <link href="styles/views/login.css" rel="stylesheet" type="text/css" />
     <link href="styles/views/authentication.css" rel="stylesheet" type="text/css" />
     <link href="styles/client-mode.css" rel="stylesheet" type="text/css" />
@@ -68,50 +68,16 @@
         <p>Please <a target="_blank" href="https://learn.microsoft.com/office/dev/add-ins/testing/sideload-office-add-ins-for-testing" rel="noopener">sideload</a> your add-in to see app body.</p>
     </div>
 
-    <!-- Modern Startup Menu -->
-    <div id="startup-menu" class="ms-welcome__main" style="display: none; justify-content: center; align-items: center; flex-direction: column; height: 100vh;">
-        <div class="startup-container">
-            <div class="startup-brand">
-                <h1 class="startup-title">
-                    PROJECTIF<span class="brand-accent">AI</span>
-                </h1>
-                <p class="startup-subtitle">Professional Financial Modeling with AI</p>
-            </div>
-            
-            <div class="mode-selection">
-                <h2 class="mode-title">Choose Your Mode</h2>
-                <div id="mode-buttons-container" class="mode-buttons">
-                    <button id="developer-mode-button" class="mode-button developer-mode" style="display: none;">
-                        <div class="mode-icon">🛠️</div>
-                        <div class="mode-content">
-                            <h3 class="mode-name">Developer Mode</h3>
-                            <p class="mode-description">Advanced features for power users</p>
-                        </div>
-                    </button>
-                    <button id="client-mode-button" class="mode-button client-mode">
-                        <div class="mode-icon">👤</div>
-                        <div class="mode-content">
-                            <h3 class="mode-name">Client Mode</h3>
-                            <p class="mode-description">Simplified interface for financial modeling</p>
-                        </div>
-                    </button>
 
-                </div>
-            </div>
-        </div>
-    </div>
 
-    <!-- Authentication View -->
-    <div id="authentication-view" class="ms-welcome__main" style="display: none; justify-content: center; align-items: center; flex-direction: column; height: 100vh;">
+    <!-- Authentication View (shown by default, JavaScript will redirect authenticated users) -->
+    <div id="authentication-view" class="ms-welcome__main" style="display: flex; justify-content: center; align-items: center; flex-direction: column; height: 100vh;">
         <div class="auth-container">
-            <button id="back-to-menu-auth-button" class="ms-Button back-to-menu-button auth-back-button">
-                <span class="ms-Button-label">← Back to Home</span>
-            </button>
+
             
             <div class="auth-content">
                 <div class="auth-brand">
                     <img src="../../assets/logo-filled.png" alt="EBITDAI" class="auth-logo" style="width: 64px; height: 64px; margin: 0 auto 16px;">
-                    <h1 class="auth-title">EBITDAI</h1>
                     <h2 class="auth-subtitle">AI-Powered Financial Modeling for Excel</h2>
                     <p class="auth-description">Build comprehensive 3-statement models, DCF analyses, and LBO models in minutes instead of hours.</p>
                 </div>
@@ -140,8 +106,8 @@
     </div>
 
     <main id="app-body" class="ms-welcome__main" style="display: none;">
-        <button id="back-to-menu-dev-button" class="ms-Button back-to-menu-button">
-            <span class="ms-Button-label">Back to Menu</span>
+        <button id="back-to-client-dev-button" class="ms-Button back-to-menu-button">
+            <span class="ms-Button-label">← Back to Client Mode</span>
         </button>
         
 
@@ -464,7 +430,7 @@
                         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="menu-icon">
                             <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
                         </svg>
-                        <span>Back to Home</span>
+                        <span>Close Menu</span>
                     </button>
                 </div>
             </nav>

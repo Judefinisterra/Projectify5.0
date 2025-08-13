@@ -3109,17 +3109,12 @@ Office.onReady(async (info) => {
     // conversationHistory = loadConversationHistory(); // Assuming loadConversationHistory is for dev chat
     // ... display developer chat history ...
 
-    // Startup Menu Logic (assuming this is still part of AIcalls.js)
-    const startupMenu = document.getElementById('startup-menu');
-    const developerModeButton = document.getElementById('developer-mode-button');
-    const clientModeButton = document.getElementById('client-mode-button');
-    const authenticationButton = document.getElementById('authentication-button');
+    // View references
     const appBody = document.getElementById('app-body');
     const clientModeView = document.getElementById('client-mode-view');
     const authenticationView = document.getElementById('authentication-view');
 
     function showDeveloperModeView() { // Renamed to avoid conflict if global
-      if (startupMenu) startupMenu.style.display = 'none';
       if (appBody) appBody.style.display = 'flex'; 
       if (clientModeView) clientModeView.style.display = 'none';
       console.log("Developer Mode view activated");
@@ -3182,7 +3177,6 @@ Office.onReady(async (info) => {
         }
       }
       
-      if (startupMenu) startupMenu.style.display = 'none';
       if (appBody) appBody.style.display = 'none';
       if (clientModeView) clientModeView.style.display = 'flex';
       if (authenticationView) authenticationView.style.display = 'none';
@@ -3195,7 +3189,6 @@ Office.onReady(async (info) => {
     }
 
     function showAuthenticationView() { // Added authentication view function
-      if (startupMenu) startupMenu.style.display = 'none';
       if (appBody) appBody.style.display = 'none';
       if (clientModeView) clientModeView.style.display = 'none';
       if (authenticationView) authenticationView.style.display = 'flex';
@@ -3413,55 +3406,25 @@ Office.onReady(async (info) => {
       }
     }
     
-    function showStartupMenuView() { // Renamed
-        // >>> DYNAMIC MODE CHECK: Use same detection as main logic
-        const isLocalDev = window.location.hostname === 'localhost' || 
-                          window.location.hostname === '127.0.0.1' ||
-                          window.location.href.includes('localhost:3002');
-        const FORCE_PRODUCTION_MODE = !isLocalDev;
+    function showStartupMenuView() { // Redirects based on auth status
+        // Check if user is authenticated
+        const isAuthenticated = window.isUserAuthenticated && window.isUserAuthenticated();
         
-        if (FORCE_PRODUCTION_MODE) {
-            console.log('[AIcalls.js] Production mode - redirecting to client mode instead of startup menu');
+        if (isAuthenticated) {
+            console.log('[AIcalls.js] User authenticated - redirecting to client mode');
             showClientModeView();
         } else {
-            console.log('[AIcalls.js] Development mode - showing startup menu');
-            if (startupMenu) startupMenu.style.display = 'flex';
-            if (appBody) appBody.style.display = 'none';
-            if (clientModeView) clientModeView.style.display = 'none';
-            if (authenticationView) authenticationView.style.display = 'none';
+            console.log('[AIcalls.js] User not authenticated - redirecting to authentication view');
+            showAuthenticationView();
         }
     }
 
-    if (developerModeButton) developerModeButton.onclick = showDeveloperModeView;
-    if (clientModeButton) clientModeButton.onclick = showClientModeView;
-    if (authenticationButton) authenticationButton.onclick = showAuthenticationView;
-
-    const backToMenuDevButton = document.getElementById('back-to-menu-dev-button');
-    if (backToMenuDevButton) backToMenuDevButton.onclick = showStartupMenuView;
-    const backToMenuClientButton = document.getElementById('back-to-menu-client-button');
-    if (backToMenuClientButton) backToMenuClientButton.onclick = showStartupMenuView;
-    const backToMenuAuthButton = document.getElementById('back-to-menu-auth-button');
-    if (backToMenuAuthButton) backToMenuAuthButton.onclick = showStartupMenuView;
+    // Button handlers removed - startup menu and back buttons no longer exist
     
     document.getElementById("sideload-msg").style.display = "none";
     
-    // >>> DYNAMIC MODE CHECK: Use same detection as taskpane.js
-    const isLocalDevelopment = window.location.hostname === 'localhost' || 
-                              window.location.hostname === '127.0.0.1' ||
-                              window.location.href.includes('localhost:3002');
-    const FORCE_PRODUCTION_MODE = !isLocalDevelopment;
-    
-    if (FORCE_PRODUCTION_MODE) {
-      console.log('[AIcalls.js] Production mode - maintaining client mode');
-      if (startupMenu) startupMenu.style.display = "none"; // Keep startup menu hidden
-      if (appBody) appBody.style.display = "none";
-      if (clientModeView) clientModeView.style.display = "flex"; // Keep client mode active
-    } else {
-      console.log('[AIcalls.js] Development mode - showing startup menu');
-      if (startupMenu) startupMenu.style.display = "flex"; // Show startup menu first
-      if (appBody) appBody.style.display = "none";
-      if (clientModeView) clientModeView.style.display = "none";
-    }
+    // Initial view is handled by taskpane.js based on authentication status
+    console.log('[AIcalls.js] View initialization handled by main taskpane.js');
 
     // ... any other existing Office.onReady logic for developer mode ...
   }

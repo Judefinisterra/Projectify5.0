@@ -222,6 +222,38 @@
   height: 20px;
 }
 
+/* Header Responsive Behavior */
+@media (max-width: 400px) {
+  .header-center {
+    display: none;
+  }
+  
+  .header-right {
+    margin-left: auto;
+  }
+}
+
+/* @media (max-width: 400px) {
+  .mode-label {
+    display: none;
+  }
+  
+  .mode-dropdown {
+    font-size: 14px;
+    padding: 4px 8px;
+  }
+  
+  .compose-button {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .compose-icon {
+    width: 18px;
+    height: 18px;
+  }
+} */
+
 /* ==============================================
    4. MAIN CONTENT AREA - Flexible container
    ============================================== */

@@ -1777,51 +1777,41 @@ Office.onReady(async (info) => {
   if (info.host === Office.HostType.Excel) {
     productionLog('Excel host detected');
     
-    // Get references to the new elements
-    const startupMenu = document.getElementById('startup-menu');
-    const developerModeButton = document.getElementById('developer-mode-button');
-    const clientModeButton = document.getElementById('client-mode-button');
-    // const authenticationButton = document.getElementById('authentication-button'); // Authentication removed
-    const appBody = document.getElementById('app-body'); // Already exists, ensure it's captured
+    // Get references to the view elements
+    const appBody = document.getElementById('app-body');
     const clientModeView = document.getElementById('client-mode-view');
     const authenticationView = document.getElementById('authentication-view');
 
-    productionLog(`Elements found - startupMenu: ${!!startupMenu}, appBody: ${!!appBody}, clientModeView: ${!!clientModeView}`);
+    productionLog(`Elements found - appBody: ${!!appBody}, clientModeView: ${!!clientModeView}, authenticationView: ${!!authenticationView}`);
 
-    // >>> DYNAMIC MODE DETECTION: Show startup menu on localhost, skip in production
-    const isLocalDevelopment = window.location.hostname === 'localhost' || 
-                              window.location.hostname === '127.0.0.1' ||
-                              window.location.href.includes('localhost:3002');
-    const FORCE_PRODUCTION_MODE = !isLocalDevelopment;
+    // >>> CHECK AUTH AND NAVIGATE DIRECTLY
+    console.log('🔍 Checking authentication on app initialization...');
+    console.log(`📍 URL: ${window.location.href}`);
+    console.log(`🌐 backendAPI available: ${!!backendAPI}`);
+    console.log(`🔐 backendAPI.isAuthenticated(): ${backendAPI ? backendAPI.isAuthenticated() : 'N/A'}`);
     
-    productionLog(`URL: ${window.location.href}`);
-    productionLog(`Hostname: ${window.location.hostname}`);
-    productionLog(`isLocalDevelopment: ${isLocalDevelopment}`);
-    productionLog(`FORCE_PRODUCTION_MODE: ${FORCE_PRODUCTION_MODE}`);
+    // Check if user is authenticated - inline check to avoid scoping issues
+    const isAuthenticated = backendAPI && backendAPI.isAuthenticated();
+    console.log(`✅ Direct auth check returned: ${isAuthenticated}`);
     
-    if (FORCE_PRODUCTION_MODE) {
-      // Skip startup menu and go directly to client mode
-      productionLog('Attempting to show client mode...');
+    if (isAuthenticated) {
+      // User is authenticated, clear any force_logout flags
+      console.log('🧹 Clearing force_logout flags since user is authenticated');
+      localStorage.removeItem('force_logout');
+      sessionStorage.removeItem('force_logout');
+      
+      // Go directly to client mode
+      console.log('🚀 User authenticated - navigating to client mode');
       showClientMode();
-      productionLog('showClientMode() called');
     } else {
-      // Development: Show startup menu with both developer and client mode options
-      productionLog('Development mode - showing startup menu');
-      if (developerModeButton) {
-        developerModeButton.style.display = 'inline-block';
-      }
-      if (startupMenu) {
-        startupMenu.style.display = 'flex';
-      }
+      // User is not authenticated, go to authentication view
+      console.log('🔓 User not authenticated - navigating to authentication view');
+      showAuthentication();
     }
-    
-    // Check authentication state on load
-    updateAuthUI();
     // <<< END ADDED
 
     // Functions to switch views
     function showDeveloperMode() {
-      if (startupMenu) startupMenu.style.display = 'none';
       if (appBody) appBody.style.display = 'flex'; // Matches .ms-welcome__main display if it's flex
       if (clientModeView) clientModeView.style.display = 'none';
       
@@ -1846,23 +1836,10 @@ Office.onReady(async (info) => {
     async function showClientMode() {
       productionLog('showClientMode function called');
       
-      // Check if user is authenticated using the same method as isUserAuthenticated()
-      // First check sessionStorage (current session)
-      const googleUserSession = sessionStorage.getItem('googleUser');
-      const googleCredentialSession = sessionStorage.getItem('googleCredential') || sessionStorage.getItem('googleToken');
+      // Use the global unified authentication check
+      const isAuthenticated = isUserAuthenticated();
       
-      // Also check localStorage (persistent auth)
-      const googleTokenLocal = localStorage.getItem('google_access_token');
-      const msalTokenLocal = localStorage.getItem('msal_access_token');
-      const apiKeyLocal = localStorage.getItem('user_api_key');
-      
-      // Check both session and local storage for authentication
-      const isAuthenticated = (googleUserSession && googleCredentialSession) || 
-                            !!(googleTokenLocal || msalTokenLocal || apiKeyLocal) ||
-                            (currentUser !== null) || // Microsoft auth
-                            isUserAuthenticated(); // Use the existing function
-      
-      productionLog(`Authentication check - Session: ${!!(googleUserSession && googleCredentialSession)}, Local: ${!!(googleTokenLocal || msalTokenLocal || apiKeyLocal)}, isUserAuthenticated: ${isUserAuthenticated()}`);
+      productionLog(`Authentication check - isUserAuthenticated: ${isAuthenticated}`);
       
       if (!isAuthenticated) {
         productionLog('User not authenticated, showing authentication view');
@@ -1874,15 +1851,7 @@ Office.onReady(async (info) => {
       
       productionLog('User is authenticated, proceeding to show client mode directly');
       
-      productionLog(`Before changes - startupMenu display: ${startupMenu ? startupMenu.style.display : 'null'}`);
       productionLog(`Before changes - clientModeView display: ${clientModeView ? clientModeView.style.display : 'null'}`);
-      
-      if (startupMenu) {
-        startupMenu.style.display = 'none';
-        productionLog('Set startupMenu to display: none');
-      } else {
-        productionLog('startupMenu element not found!');
-      }
       
       if (appBody) {
         appBody.style.display = 'none';
@@ -1905,7 +1874,6 @@ Office.onReady(async (info) => {
         productionLog('clientModeView element not found!');
       }
       
-      productionLog(`After changes - startupMenu display: ${startupMenu ? startupMenu.style.display : 'null'}`);
       productionLog(`After changes - clientModeView display: ${clientModeView ? clientModeView.style.display : 'null'}`);
       
       // >>> PRIORITY: Initialize authentication and update UI
@@ -2089,12 +2057,10 @@ Office.onReady(async (info) => {
         
         // Hide all other views
         const authView = document.getElementById('authentication-view');
-        const startupMenu = document.getElementById('startup-menu');
         const appBody = document.getElementById('app-body');
         const clientModeView = document.getElementById('client-mode-view');
         
         if (authView) authView.style.display = 'none';
-        if (startupMenu) startupMenu.style.display = 'none';
         if (appBody) appBody.style.display = 'none';
         
         // Show client mode view
@@ -2577,21 +2543,19 @@ Office.onReady(async (info) => {
         }
     }
 
-    // >>> ADDED: Function to show startup menu
+    // >>> ADDED: Function that redirects based on auth status instead of showing menu
     function showStartupMenu() {
-      // >>> PRODUCTION MODE CHECK: Don't show startup menu in production
-      if (FORCE_PRODUCTION_MODE) {
-        productionLog('Production mode - redirecting to client mode instead of startup menu');
+      // No longer show startup menu - redirect based on auth status
+      productionLog('showStartupMenu called - redirecting based on auth status');
+      
+      const isAuthenticated = isUserAuthenticated();
+      
+      if (isAuthenticated) {
+        productionLog('User authenticated - redirecting to client mode');
         showClientMode();
       } else {
-        productionLog('Development mode - showing startup menu');
-        if (startupMenu) startupMenu.style.display = 'flex';
-        if (appBody) appBody.style.display = 'none';
-        if (clientModeView) clientModeView.style.display = 'none';
-        if (authenticationView) authenticationView.style.display = 'none';
-        
-        // Reset client mode state when going back to menu
-        resetChatClient();
+        productionLog('User not authenticated - redirecting to authentication view');
+        showAuthentication();
       }
     }
     // <<< END ADDED
@@ -2602,10 +2566,10 @@ Office.onReady(async (info) => {
         const user = getCurrentUser();
         alert(`You are already signed in as ${user.name}. Redirecting to Client Mode.`);
         showClientMode();
+        console.log('showAuthenticatione shows that user is authenticated');
         return;
       }
       
-      if (startupMenu) startupMenu.style.display = 'none';
       if (appBody) appBody.style.display = 'none';
       if (clientModeView) clientModeView.style.display = 'none';
       if (authenticationView) authenticationView.style.display = 'flex';
@@ -2881,6 +2845,10 @@ Office.onReady(async (info) => {
 
          async function handleGoogleAuthSuccess(authResult) {
        console.log("✅ Google authentication successful", authResult);
+       
+       // Clear force_logout flags on successful authentication
+       localStorage.removeItem('force_logout');
+       sessionStorage.removeItem('force_logout');
       
        try {
          // Store Google user data locally (for display purposes)
@@ -3015,22 +2983,7 @@ Office.onReady(async (info) => {
       }
     }
 
-    // Function to check if user is already authenticated
-    function isUserAuthenticated() {
-      // Hard block if a forced logout flag is present
-      if (localStorage.getItem('force_logout') === '1' || sessionStorage.getItem('force_logout') === '1') {
-        return false;
-      }
-      const user = sessionStorage.getItem('googleUser');
-      const credential = sessionStorage.getItem('googleCredential') || sessionStorage.getItem('googleToken');
-      return user && credential;
-    }
-
-    // Function to get current user info
-    function getCurrentUser() {
-      const userStr = sessionStorage.getItem('googleUser');
-      return userStr ? JSON.parse(userStr) : null;
-    }
+    // Removed local authentication functions - using global ones instead
 
     // Function to get current user display name
     function getCurrentUserDisplayName() {
@@ -3181,23 +3134,7 @@ Office.onReady(async (info) => {
       }
     }
 
-    // Assign click handlers for startup menu buttons
-    if (developerModeButton) {
-        developerModeButton.onclick = showDeveloperMode;
-    } else {
-        console.error("Could not find button with id='developer-mode-button'");
-    }
-    if (clientModeButton) {
-        clientModeButton.onclick = showClientMode;
-    } else {
-        console.error("Could not find button with id='client-mode-button'");
-    }
-    // Authentication button removed
-    // if (authenticationButton) {
-    //     authenticationButton.onclick = showAuthentication;
-    // } else {
-    //     console.error("Could not find button with id='authentication-button'");
-    // }
+    // Startup menu buttons removed - no longer needed since we skip startup menu
 
 
 
@@ -3343,13 +3280,7 @@ Office.onReady(async (info) => {
       };
     });
 
-    // Add event listener for the new icon button
-    const resetChatIconButton = document.getElementById('reset-chat-icon-button');
-    if (resetChatIconButton) {
-        resetChatIconButton.onclick = resetChatClient;
-    } else {
-        console.error("Could not find button with id='reset-chat-icon-button'");
-    }
+
 
     const writeToExcelClientButton = document.getElementById('write-to-excel-client');
     if (writeToExcelClientButton) {
@@ -3874,68 +3805,25 @@ Office.onReady(async (info) => {
       }
       // <<< END MOVED CODE
 
-      // Startup Menu Logic - Placed before Promise.all to ensure elements are handled
-      const startupMenu = document.getElementById('startup-menu');
-      const developerModeButton = document.getElementById('developer-mode-button');
-      const clientModeButton = document.getElementById('client-mode-button');
-      // appBody and clientModeView will be fetched inside showDeveloperMode/showClientMode
-      // or assume they are accessible if defined earlier in Office.onReady
+      // Startup menu elements removed - navigation is handled based on auth status
 
-      if (developerModeButton) {
-          developerModeButton.onclick = showDeveloperMode; // Assumes showDeveloperMode is globally accessible
+      // Back to Client Mode button for Developer Mode
+      const backToClientDevButton = document.getElementById('back-to-client-dev-button');
+      if (backToClientDevButton) {
+          backToClientDevButton.onclick = () => {
+              productionLog('Back to Client Mode clicked from Developer Mode');
+              showClientMode();
+          };
       } else {
-          console.error("[Office.onReady] Could not find button with id='developer-mode-button'");
-      }
-      if (clientModeButton) {
-          clientModeButton.onclick = showClientMode; // Assumes showClientMode is globally accessible
-      } else {
-          console.error("[Office.onReady] Could not find button with id='client-mode-button'");
-      }
-
-      // Get references and assign handlers for Back to Menu buttons
-      const backToMenuDevButton = document.getElementById('back-to-menu-dev-button');
-      const backToMenuClientButton = document.getElementById('back-to-menu-client-button');
-      const backToMenuAuthButton = document.getElementById('back-to-menu-auth-button');
-
-      if (backToMenuDevButton) {
-          backToMenuDevButton.onclick = showStartupMenu; // Assumes showStartupMenu is globally accessible
-      } else {
-          console.error("[Office.onReady] Could not find button with id='back-to-menu-dev-button'");
-      }
-      if (backToMenuClientButton) {
-          backToMenuClientButton.onclick = showStartupMenu; // Assumes showStartupMenu is globally accessible
-      } else {
-          console.error("[Office.onReady] Could not find button with id='back-to-menu-client-button'");
-      }
-      if (backToMenuAuthButton) {
-          backToMenuAuthButton.onclick = showStartupMenu; // Assumes showStartupMenu is globally accessible
-      } else {
-          console.error("[Office.onReady] Could not find button with id='back-to-menu-auth-button'");
+          console.error("[Office.onReady] Could not find button with id='back-to-client-dev-button'");
       }
 
       document.getElementById("sideload-msg").style.display = "none";
       const appBody = document.getElementById('app-body');
       const clientModeView = document.getElementById('client-mode-view');
 
-      // >>> DYNAMIC MODE CHECK: Use same detection as main logic
-      const isLocalDev = window.location.hostname === 'localhost' || 
-                        window.location.hostname === '127.0.0.1' ||
-                        window.location.href.includes('localhost:3002');
-      const forceProductionMode = !isLocalDev;
-      
-      if (forceProductionMode) {
-        productionLog('Initialization complete - maintaining client mode (production)');
-        // Keep client mode active, don't show startup menu
-        if (startupMenu) startupMenu.style.display = "none";
-        if (appBody) appBody.style.display = "none";
-        if (clientModeView) clientModeView.style.display = "flex";
-      } else {
-        productionLog('Initialization complete - showing startup menu (development)');
-        if (startupMenu) startupMenu.style.display = "flex";
-        if (appBody) appBody.style.display = "none";
-        if (clientModeView) clientModeView.style.display = "none";
-      }
-      // End Startup Menu Logic
+      // Always skip startup menu - handled during initial load
+      productionLog('Initialization complete - startup menu skipped, auth-based navigation active');
 
     }).catch(error => {
         console.error("Error during initialization:", error);
@@ -3945,23 +3833,8 @@ Office.onReady(async (info) => {
     document.getElementById("sideload-msg").style.display = "none";
     // document.getElementById("app-body").style.display = "block"; // Keep app-body hidden initially
     
-    // >>> DYNAMIC MODE CHECK: Use same detection as main logic
-    const isLocalDev2 = window.location.hostname === 'localhost' || 
-                       window.location.hostname === '127.0.0.1' ||
-                       window.location.href.includes('localhost:3002');
-    const forceProductionMode2 = !isLocalDev2;
-    
-    if (forceProductionMode2) {
-      productionLog('Post-initialization - maintaining client mode (production)');
-      if (startupMenu) startupMenu.style.display = "none"; // Keep startup menu hidden
-      if (appBody) appBody.style.display = "none";
-      if (clientModeView) clientModeView.style.display = "flex"; // Keep client mode active
-    } else {
-      productionLog('Post-initialization - showing startup menu (development)');
-      if (startupMenu) startupMenu.style.display = "flex"; // Show startup menu instead
-      if (appBody) appBody.style.display = "none";
-      if (clientModeView) clientModeView.style.display = "none";
-    }
+    // Startup menu is always skipped - navigation is handled based on auth status
+    productionLog('Post-initialization - auth-based navigation active');
 
     // ... (existing modal logic: applyParamsButton.onclick, window.onclick)
 
@@ -4544,9 +4417,9 @@ Office.onReady(async (info) => {
                         
                     case 'home':
                     case 'back-to-menu':
-                        // Go back to startup menu
+                        // Switch mode based on auth status
                         if (typeof showStartupMenu === 'function') {
-                            showStartupMenu();
+                            showStartupMenu(); // This now redirects based on auth
                             slideMenu.classList.remove('open');
                         }
                         break;
@@ -5607,48 +5480,83 @@ function updateAuthUI(isAuthenticated) {
 }
 
 /**
- * Get current authenticated user (prioritizes Google, then Microsoft)
+ * Get current authenticated user - checks backend data first, then other auth methods
  */
 function getCurrentUser() {
-    // Check Google authentication first
-    const googleUserStr = sessionStorage.getItem('googleUser');
+    // First check if we have backend user data (from UserProfile)
+    // This is the most reliable source as it's fetched from the backend
+    if (window.userProfileManager && window.userProfileManager.userData) {
+        const backendUser = window.userProfileManager.userData;
+        return {
+            name: backendUser.name || backendUser.email,
+            email: backendUser.email,
+            credits: backendUser.credits,
+            source: 'backend'
+        };
+    }
+    
+    // Check Google authentication in both session and local storage
+    const googleUserStr = sessionStorage.getItem('googleUser') || localStorage.getItem('googleUser');
     if (googleUserStr) {
         try {
-            return JSON.parse(googleUserStr);
+            const googleUser = JSON.parse(googleUserStr);
+            return {
+                ...googleUser,
+                source: 'google'
+            };
         } catch (e) {
             console.error('Error parsing Google user data:', e);
         }
     }
     
     // Fallback to Microsoft authentication
-    return currentUser;
+    if (currentUser) {
+        return {
+            ...currentUser,
+            source: 'microsoft'
+        };
+    }
+    
+    // No authenticated user found
+    return null;
 }
 
 /**
- * Check if user is authenticated (checks Google first, then Microsoft)
+ * Single global authentication check - uses backendAPI as the source of truth
  */
 function isUserAuthenticated() {
-    // Check Google authentication first - check both session and local storage
-    const googleUserSession = sessionStorage.getItem('googleUser');
-    const googleCredentialSession = sessionStorage.getItem('googleCredential') || sessionStorage.getItem('googleToken');
+    // Hard block if a forced logout flag is present
+    const forceLogout = localStorage.getItem('force_logout') === '1' || sessionStorage.getItem('force_logout') === '1';
+    console.log('🔍 isUserAuthenticated check - force_logout:', forceLogout);
+    if (forceLogout) {
+        return false;
+    }
     
-    const googleUserLocal = localStorage.getItem('googleUser');
-    const googleCredentialLocal = localStorage.getItem('googleCredential') || localStorage.getItem('google_access_token');
-    
-    if ((googleUserSession && googleCredentialSession) || (googleUserLocal && googleCredentialLocal)) {
+    // Use backendAPI as the single source of truth for authentication
+    // It checks both sessionStorage and localStorage for backend_access_token
+    console.log('🔍 isUserAuthenticated check - backendAPI:', !!backendAPI);
+    console.log('🔍 isUserAuthenticated check - backendAPI.isAuthenticated:', backendAPI ? backendAPI.isAuthenticated() : 'N/A');
+    if (backendAPI && backendAPI.isAuthenticated()) {
         return true;
     }
     
-    // Check other auth methods in localStorage
+    // Only check for other auth methods if backend says not authenticated
+    // This handles edge cases where user has auth tokens but hasn't synced with backend yet
+    const googleToken = localStorage.getItem('google_access_token') || 
+                       sessionStorage.getItem('googleToken') || 
+                       sessionStorage.getItem('googleCredential');
     const msalToken = localStorage.getItem('msal_access_token');
     const apiKey = localStorage.getItem('user_api_key');
     
-    if (msalToken || apiKey) {
+    console.log('🔍 isUserAuthenticated check - other tokens:', {googleToken: !!googleToken, msalToken: !!msalToken, apiKey: !!apiKey, currentUser: !!currentUser});
+    
+    // If we have any auth tokens, we should be authenticated
+    if (googleToken || msalToken || apiKey || currentUser) {
+        console.log('Found auth tokens but backend not authenticated - may need to sync');
         return true;
     }
     
-    // Fallback to Microsoft authentication
-    return currentUser !== null;
+    return false;
 }
 
 /**

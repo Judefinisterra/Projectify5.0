@@ -46,12 +46,12 @@ function determineInitialView() {
     
     // Check if user is authenticated
     const isAuthenticated = checkAuthentication();
-    if (!isAuthenticated) {
-        return 'authentication';
+    if (isAuthenticated) {
+        return 'client-mode';
     }
     
-    // Default to startup menu
-    return 'startup-menu';
+    // Default to authentication for non-authenticated users
+    return 'authentication';
 }
 
 /**
@@ -144,7 +144,7 @@ function showErrorState(message) {
         <div class="error-state">
             <h2>Error Loading View</h2>
             <p>${message}</p>
-            <button onclick="app.loadView('startup-menu')">Return to Home</button>
+            <button onclick="app.loadView('authentication')">Return to Home</button>
         </div>
     `;
 }
@@ -162,7 +162,7 @@ function fireViewLoadedEvent(viewName) {
 
 // Global navigation functions
 app.goBack = function() {
-    app.loadView('startup-menu');
+    app.loadView('authentication');
 };
 
 app.signOut = function() {
