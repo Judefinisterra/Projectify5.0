@@ -189,6 +189,7 @@ Organize your summary by tabs, following this format:
 - Show how tabs connect to create the complete financial picture
 - End with key insights
  - At the very end of the summary, include two short sections titled "Time Series" and "Color Coding" (in that order), summarizing the dual annual/monthly structure and the color conventions described above
+ - If the "Time Series" or "Color Coding" explanations have already been provided earlier in the current chat, do not repeat them; omit to avoid duplication
 
 **Tone:** Professional but accessible, focusing on business value rather than technical details
 

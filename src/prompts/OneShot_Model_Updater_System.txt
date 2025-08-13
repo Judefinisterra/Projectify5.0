@@ -79,6 +79,7 @@ Output **only** a JSON object with the tabs that need updates:
 - **NO CODE BLOCKS**: Do not wrap the JSON in ```json or ``` - output raw JSON only
 - **NO MARKDOWN**: Do not use any markdown formatting around the JSON
 - **MINIMAL UPDATES**: Only include tabs that actually need changes - do not add unnecessary updates to existing tabs
+ - **FULL-TAB SNAPSHOT FOR REPLACEMENTS**: When replacing an existing tab, the description must represent the complete, final state of that tab after the update. Include ALL previously existing items plus the new/changed items with explicit numbers. Do NOT write incremental instructions like "add CEO" or "increase salary"; instead, restate the entire tab content.
 
 **CRITICAL TAB NAME REQUIREMENT:** You MUST use the exact same tab names from the original model. Do not create new tab names or modify existing tab names.
 
@@ -140,6 +141,19 @@ CORRECT response:
   }
 }
 **WHY WRONG:** Don't update tabs that don't need changes. Only inventory is requested, so only create Working Capital tab.
+
+**COMPLETE TAB UPDATE EXAMPLE (Replacing Existing Tab):**
+Existing model: Corporate Overhead tab with 3 Assistants making $5,000/month each.
+Client request: "Add a CEO who makes $100,000 per year"
+CORRECT response (raw JSON, restating full tab content):
+{
+  "tab_updates": {
+    "Corporate Overhead": {
+      "update_type": "replacing_existing_tab",
+      "description": "Corporate Overhead tab with 4 employees: Assistant 1 $5,000/month; Assistant 2 $5,000/month; Assistant 3 $5,000/month; CEO $100,000/year; Benefits load 20% applied to all employees."
+    }
+  }
+}
 
 ## MODELING GUIDELINES
 
