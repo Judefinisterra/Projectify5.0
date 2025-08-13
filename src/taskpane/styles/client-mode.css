@@ -192,6 +192,36 @@
   outline: none;
 }
 
+/* Compose Button */
+.compose-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: transparent;
+  color: var(--color-white);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.compose-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.8);
+}
+
+.compose-button:active {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.compose-icon {
+  width: 20px;
+  height: 20px;
+}
+
 /* ==============================================
    4. MAIN CONTENT AREA - Flexible container
    ============================================== */

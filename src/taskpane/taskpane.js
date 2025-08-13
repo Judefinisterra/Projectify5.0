@@ -1131,7 +1131,7 @@ function resetChatClient() {
 
     // Show the welcome section again
     if (welcomeSection) {
-        welcomeSection.style.display = 'block';
+        welcomeSection.style.display = 'flex';
     }
 
     if (clientChatContainer) {
@@ -4451,6 +4451,7 @@ Office.onReady(async (info) => {
         const modalCloseButton = profileModal?.querySelector('.modal-close-button');
         const accountModal = document.getElementById('account-modal');
         const accountModalCloseButton = accountModal?.querySelector('.modal-close-button');
+        const composeButton = document.getElementById('compose-new-message');
         
         // Hamburger menu toggle
         if (hamburgerButton && slideMenu) {
@@ -4460,6 +4461,23 @@ Office.onReady(async (info) => {
             
             closeMenuButton?.addEventListener('click', () => {
                 slideMenu.classList.remove('open');
+            });
+        }
+        
+        // Compose new message button
+        if (composeButton) {
+            composeButton.addEventListener('click', () => {
+                // Clear the current conversation and reset to welcome screen
+                resetChatClient();
+                console.log("[Compose] Started new conversation");
+                
+                // Focus on the input field after reset
+                setTimeout(() => {
+                    const userInput = document.getElementById('user-input-client');
+                    if (userInput) {
+                        userInput.focus();
+                    }
+                }, 100);
             });
         }
         
