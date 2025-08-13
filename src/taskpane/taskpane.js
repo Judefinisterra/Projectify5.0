@@ -66,7 +66,7 @@ import { handleFollowUpConversation, handleInitialConversation, handleConversati
 // >>> ADDED: Import CONFIG for URL management
 import { CONFIG } from './config.js';
 // >>> ADDED: Import file attachment and voice input functionality from AIModelPlanner
-import { initializeFileAttachment, initializeFileAttachmentDev, initializeVoiceInput, initializeVoiceInputDev, initializeTextareaAutoResize, initializeTextareaAutoResizeDev, setAIModelPlannerOpenApiKey, currentAttachedFilesDev, formatFileDataForAIDev, removeAllAttachmentsDev } from './AIModelPlanner.js';
+import { initializeFileAttachment, initializeFileAttachmentDev, initializeVoiceInput, initializeVoiceInputDev, initializeTextareaAutoResize, initializeTextareaAutoResizeDev, setAIModelPlannerOpenApiKey, currentAttachedFilesDev, formatFileDataForAIDev, removeAllAttachmentsDev, resetAIModelPlannerConversation } from './AIModelPlanner.js';
 // >>> ADDED: Import cost tracking functionality
 import { trackAPICallCost, estimateTokens } from './CostTracker.js';
 // Add the codeStrings variable with the specified content
@@ -1147,6 +1147,9 @@ function resetChatClient() {
     // Reset conversation history for client mode
     conversationHistoryClient = [];
     lastResponseClient = null;
+    
+    // Reset AI Model Planner conversation history as well
+    resetAIModelPlannerConversation();
     
     // Reset the stored user inputs for client mode too
     firstUserInput = null;

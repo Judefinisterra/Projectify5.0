@@ -84,6 +84,53 @@ async function getEncoderSummarySystemPrompt() {
   return "You are an expert financial analyst who translates technical financial model codes into clear, plain English explanations for business clients. [Error: Encoder Summary system prompt could not be loaded]"; 
 }
 
+// Helper function to convert basic markdown to HTML for chat display
+function convertMarkdownToHTML(text) {
+    // Escape HTML special characters first for security
+    const escapeHtml = (str) => {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    };
+    
+    // Split into lines to process headers
+    const lines = text.split('\n');
+    const processedLines = lines.map(line => {
+        // Convert ## headers to <strong> tags with larger font
+        if (line.startsWith('## ')) {
+            const headerText = escapeHtml(line.substring(3));
+            return `<strong style="font-size: 1.2em; display: block; margin: 0.5em 0;">${headerText}</strong>`;
+        }
+        
+        // Handle bullet points
+        if (line.startsWith('- ')) {
+            let bulletContent = escapeHtml(line.substring(2));
+            // Apply bold formatting to bullet content
+            const boldPattern = /\*\*(.*?)\*\*/g;
+            bulletContent = bulletContent.replace(boldPattern, '<strong>$1</strong>');
+            return `• ${bulletContent}`;
+        }
+        
+        // Handle numbered lists
+        const numberedMatch = line.match(/^(\d+)\.\s(.+)$/);
+        if (numberedMatch) {
+            let listContent = escapeHtml(numberedMatch[2]);
+            // Apply bold formatting
+            const boldPattern = /\*\*(.*?)\*\*/g;
+            listContent = listContent.replace(boldPattern, '<strong>$1</strong>');
+            return `${numberedMatch[1]}. ${listContent}`;
+        }
+        
+        // Convert **text** to <strong>text</strong> for regular lines
+        const boldPattern = /\*\*(.*?)\*\*/g;
+        let processedLine = escapeHtml(line);
+        processedLine = processedLine.replace(boldPattern, '<strong>$1</strong>');
+        return processedLine;
+    });
+    
+    return processedLines.join('\n');
+}
+
 // Function to generate model summary after successful model execution with streaming
 async function generateModelSummary(modelCodesString) {
   if (!modelCodesString || modelCodesString.trim().length === 0) {
@@ -141,9 +188,10 @@ async function generateModelSummary(modelCodesString) {
 
     const assistantMessageDiv = document.createElement('div');
     assistantMessageDiv.className = 'chat-message assistant-message';
-    const assistantMessageContent = document.createElement('p');
+    const assistantMessageContent = document.createElement('div');
     assistantMessageContent.className = 'message-content';
-    assistantMessageContent.textContent = '## 📊 Your Model Explanation\n\n'; // Start with header
+    assistantMessageContent.style.whiteSpace = 'pre-wrap'; // Preserve line breaks
+    assistantMessageContent.innerHTML = convertMarkdownToHTML('## 📊 Your Model Explanation\n\n'); // Start with formatted header
     assistantMessageDiv.appendChild(assistantMessageContent);
     
     chatLogClient.appendChild(assistantMessageDiv);
@@ -174,6 +222,7 @@ async function generateModelSummary(modelCodesString) {
     const decoder = new TextDecoder();
     let buffer = "";
     let fullSummaryContent = "";
+    let accumulatedContent = "## 📊 Your Model Explanation\n\n"; // Start with header
 
     while (true) {
       const { done, value } = await reader.read();
@@ -190,7 +239,9 @@ async function generateModelSummary(modelCodesString) {
                 if (parsedLine.choices && parsedLine.choices[0]?.delta?.content) {
                   const content = parsedLine.choices[0].delta.content;
                   fullSummaryContent += content;
-                  assistantMessageContent.textContent += content;
+                  accumulatedContent += content;
+                  // Update the HTML with formatted content
+                  assistantMessageContent.innerHTML = convertMarkdownToHTML(accumulatedContent);
                   if (chatLogClient) chatLogClient.scrollTop = chatLogClient.scrollHeight;
                 }
               } catch (e) {
@@ -224,7 +275,9 @@ async function generateModelSummary(modelCodesString) {
               if (parsedLine.choices && parsedLine.choices[0]?.delta?.content) {
                 const content = parsedLine.choices[0].delta.content;
                 fullSummaryContent += content;
-                assistantMessageContent.textContent += content;
+                accumulatedContent += content;
+                // Update the HTML with formatted content
+                assistantMessageContent.innerHTML = convertMarkdownToHTML(accumulatedContent);
                 if (chatLogClient) chatLogClient.scrollTop = chatLogClient.scrollHeight;
               }
             } catch (e) {
@@ -804,11 +857,17 @@ function displayInClientChatLogPlanner(message, isUser) {
     contentElement.className = 'message-content';
 
     if (typeof message === 'string') {
-        // Allow basic HTML (links) for system notices. For normal content this will be plain text.
+        // Allow basic HTML (links) for system notices. For normal content convert markdown
         if (message.includes('<a ')) {
             contentElement.innerHTML = message;
         } else {
-            contentElement.textContent = message;
+            // Apply markdown conversion for assistant messages that might contain formatting
+            if (!isUser && (message.includes('##') || message.includes('**') || message.includes('\n'))) {
+                contentElement.style.whiteSpace = 'pre-wrap';
+                contentElement.innerHTML = convertMarkdownToHTML(message);
+            } else {
+                contentElement.textContent = message;
+            }
         }
     } else if (Array.isArray(message)) {
         contentElement.textContent = message.join('\n');
