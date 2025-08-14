@@ -126,11 +126,7 @@ async function loadCodeDatabase() {
   }
 }
 
-// Simplified API key initialization (keys will be loaded from AIcalls.js when needed)
-export async function initializeAPIKeys() {
-  console.log("API keys will be loaded when needed from AIcalls.js");
-    return { ...INTERNAL_API_KEYS };
-}
+// API keys will be loaded from AIcalls.js when needed
 
 // Conversation history storage
 let conversationHistory = [];
@@ -3957,7 +3953,10 @@ Office.onReady(async (info) => {
 
     // Make sure initialization runs after setting up modal logic
     Promise.all([
-        initializeAPIKeys(),
+        (async () => {
+            const { initializeAPIKeys } = await import('./AIcalls.js');
+            return await initializeAPIKeys();
+        })(),
         loadCodeDatabase()
     ]).then(([keys]) => {
       if (!keys) {
