@@ -3951,6 +3951,25 @@ Office.onReady(async (info) => {
         }
     }
 
+    // Function to conditionally show developer mode menu based on environment
+    function initializeDeveloperModeVisibility() {
+        const developerMenuItem = document.querySelector('[data-action="developer"]');
+        
+        if (developerMenuItem) {
+            // Only show developer mode in development builds
+            if (process.env.IS_DEVELOPMENT) {
+                console.log("Development mode detected - showing developer mode menu");
+                developerMenuItem.style.display = 'flex';
+            } else {
+                console.log("Production mode detected - hiding developer mode menu");
+                developerMenuItem.remove(); // Completely remove from DOM in production
+            }
+        }
+    }
+
+    // Initialize developer mode visibility based on environment
+    initializeDeveloperModeVisibility();
+
     // Make sure initialization runs after setting up modal logic
     Promise.all([
         (async () => {

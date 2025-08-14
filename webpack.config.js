@@ -122,6 +122,7 @@ module.exports = async (env, options) => {
       }),
       new webpack.DefinePlugin({
         'process.env.NODE_ENV': JSON.stringify(dev ? 'development' : 'production'),
+        'process.env.IS_DEVELOPMENT': JSON.stringify(dev),
         ...envKeys,
       }),
       new webpack.ProvidePlugin({
