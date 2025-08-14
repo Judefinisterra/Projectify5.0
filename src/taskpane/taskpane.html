@@ -105,6 +105,59 @@
         </div>
     </div>
 
+    <!-- Subscription Welcome View (shown when user has 0 credits) -->
+    <div id="subscription-welcome-view" class="ms-welcome__main" style="display: none; justify-content: center; align-items: center; flex-direction: column; height: 100vh;">
+        <div class="auth-container">
+            <div class="auth-content">
+                <div class="auth-brand">
+                    <img src="../../assets/logo-filled.png" alt="EBITDAI" class="auth-logo" style="width: 64px; height: 64px; margin: 0 auto 16px;">
+                    <h1 class="auth-title" style="font-size: 28px; font-weight: 600; margin-bottom: 12px;">Welcome to EBITDAI!</h1>
+                    <p class="auth-description" style="font-size: 18px; margin-bottom: 24px;">To continue, please choose a subscription to begin your free trial at <a href="https://ebitdai.co/credits" target="_blank" class="auth-link" style="color: #0066cc; text-decoration: underline;">ebitdai.co/credits</a></p>
+                </div>
+                
+                <div class="subscription-benefits" style="margin: 32px 0; text-align: left;">
+                    <h3 style="font-size: 20px; margin-bottom: 16px; font-weight: 600;">What you get with EBITDAI:</h3>
+                    <ul style="list-style: none; padding: 0; margin: 0;">
+                        <li style="margin-bottom: 12px; display: flex; align-items: flex-start;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" style="margin-right: 12px; flex-shrink: 0; margin-top: 2px;">
+                                <path fill="#34A853" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                            </svg>
+                            <span>Build comprehensive 3-statement financial models in minutes</span>
+                        </li>
+                        <li style="margin-bottom: 12px; display: flex; align-items: flex-start;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" style="margin-right: 12px; flex-shrink: 0; margin-top: 2px;">
+                                <path fill="#34A853" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                            </svg>
+                            <span>Generate DCF analyses and LBO models instantly</span>
+                        </li>
+                        <li style="margin-bottom: 12px; display: flex; align-items: flex-start;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" style="margin-right: 12px; flex-shrink: 0; margin-top: 2px;">
+                                <path fill="#34A853" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                            </svg>
+                            <span>Access to all AI-powered financial modeling tools</span>
+                        </li>
+                        <li style="margin-bottom: 12px; display: flex; align-items: flex-start;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" style="margin-right: 12px; flex-shrink: 0; margin-top: 2px;">
+                                <path fill="#34A853" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                            </svg>
+                            <span>Free trial credits to explore all features</span>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="auth-actions">
+                    <a href="https://ebitdai.co/credits" target="_blank" class="ms-Button ms-Button--primary" style="width: 100%; padding: 12px 24px; font-size: 16px; text-decoration: none; display: inline-block; text-align: center;">
+                        <span class="ms-Button-label">Choose Your Plan</span>
+                    </a>
+                    
+                    <button id="subscription-sign-out" class="ms-Button" style="width: 100%; margin-top: 12px; padding: 10px 24px;">
+                        <span class="ms-Button-label">Sign Out</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <main id="app-body" class="ms-welcome__main" style="display: none;">
         <button id="back-to-client-dev-button" class="ms-Button back-to-menu-button">
             <span class="ms-Button-label">← Back to Client Mode</span>

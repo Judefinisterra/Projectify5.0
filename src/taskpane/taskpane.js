@@ -2074,6 +2074,17 @@ Office.onReady(async (info) => {
       initializeUserData().then(() => {
         console.log('✅ User data initialized successfully after authentication');
         
+        // Check if user has credits
+        const userCredits = getUserCredits();
+        console.log(`💰 User credits: ${userCredits}`);
+        
+        // If user has 0 credits, show subscription welcome view
+        if (userCredits === 0) {
+          console.log('⚠️ User has 0 credits - showing subscription welcome view');
+          showSubscriptionWelcome();
+          return;
+        }
+        
         // Transition to client mode view
         console.log('🔄 Transitioning to client mode view...');
         
@@ -2081,9 +2092,11 @@ Office.onReady(async (info) => {
         const authView = document.getElementById('authentication-view');
         const appBody = document.getElementById('app-body');
         const clientModeView = document.getElementById('client-mode-view');
+        const subscriptionView = document.getElementById('subscription-welcome-view');
         
         if (authView) authView.style.display = 'none';
         if (appBody) appBody.style.display = 'none';
+        if (subscriptionView) subscriptionView.style.display = 'none';
         
         // Show client mode view
         if (clientModeView) {
@@ -2096,6 +2109,17 @@ Office.onReady(async (info) => {
         console.warn('Failed to initialize user data in showAuthenticatedInterface:', error);
         console.log('🔧 Using fallback display update');
         forceUpdateUserDisplay();
+        
+        // Still check credits even if there was an error
+        try {
+          const userCredits = getUserCredits();
+          if (userCredits === 0) {
+            console.log('⚠️ User has 0 credits (fallback check) - showing subscription welcome view');
+            showSubscriptionWelcome();
+          }
+        } catch (creditError) {
+          console.error('Failed to check credits:', creditError);
+        }
       });
       
       productionLog('Authenticated interface setup completed');
@@ -2596,12 +2620,46 @@ Office.onReady(async (info) => {
       if (clientModeView) clientModeView.style.display = 'none';
       if (authenticationView) authenticationView.style.display = 'flex';
       
+      // Hide subscription welcome view
+      const subscriptionView = document.getElementById('subscription-welcome-view');
+      if (subscriptionView) subscriptionView.style.display = 'none';
+      
       // Set up Google Sign-In button handler
       setupGoogleSignInButton();
       
       // Microsoft and API Key sign-in buttons removed
       
       console.log("Authentication view activated");
+    }
+
+    // Show subscription welcome view for users with 0 credits
+    function showSubscriptionWelcome() {
+      productionLog('showSubscriptionWelcome function called');
+      
+      // Hide all views
+      if (appBody) appBody.style.display = 'none';
+      if (clientModeView) clientModeView.style.display = 'none';
+      if (authenticationView) authenticationView.style.display = 'none';
+      
+      // Show subscription welcome view
+      const subscriptionView = document.getElementById('subscription-welcome-view');
+      if (subscriptionView) {
+        subscriptionView.style.display = 'flex';
+        productionLog('Subscription welcome view displayed');
+        
+        // Set up sign-out button handler
+        const signOutBtn = document.getElementById('subscription-sign-out');
+        if (signOutBtn && !signOutBtn.hasAttribute('data-listener-attached')) {
+          signOutBtn.addEventListener('click', () => {
+            productionLog('Sign out from subscription welcome view');
+            signOutUser();
+          });
+          signOutBtn.setAttribute('data-listener-attached', 'true');
+          productionLog('Subscription sign-out button handler attached');
+        }
+      } else {
+        console.error('Subscription welcome view not found');
+      }
     }
     
     // Handle Microsoft Sign-In
@@ -5680,6 +5738,27 @@ function testAuthSetup() {
 
 // Make test function globally available for debugging
 window.testAuthSetup = testAuthSetup;
+
+// Test function to simulate user with 0 credits
+window.testZeroCredits = function() {
+    console.log('Testing zero credits flow...');
+    
+    // Temporarily override getUserCredits to return 0
+    const originalGetUserCredits = window.getUserCredits;
+    window.getUserCredits = function() {
+        console.log('getUserCredits called - returning 0 for test');
+        return 0;
+    };
+    
+    // Show the subscription welcome view
+    showSubscriptionWelcome();
+    
+    // Restore original function after 5 seconds
+    setTimeout(() => {
+        window.getUserCredits = originalGetUserCredits;
+        console.log('Test complete - getUserCredits restored');
+    }, 5000);
+};
 // <<< END ADDED
 
 // >>> ADDED: Voice Recording Implementation for Client Mode
