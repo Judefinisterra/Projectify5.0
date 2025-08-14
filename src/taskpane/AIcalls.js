@@ -2989,6 +2989,14 @@ async function handleClientModeSend() {
 
     displayInClientChat(userInput, true);
     userInputElement.value = '';
+    userInputElement.style.height = 'auto';
+    userInputElement.classList.remove('scrollable');
+    // Remove expanded class from input bar
+    const inputBar = userInputElement.closest('.chatgpt-input-bar');
+    inputBar?.classList.remove('expanded');
+    // Trigger resize to ensure proper height
+    const event = new Event('input', { bubbles: true });
+    userInputElement.dispatchEvent(event);
     setClientLoadingButton(true);
 
     try {
@@ -3026,6 +3034,13 @@ function handleClientModeResetChat() {
     if (userInputClient) {
         userInputClient.value = '';
         userInputClient.style.height = 'auto'; // Reset height
+        userInputClient.classList.remove('scrollable');
+        // Remove expanded class from input bar
+        const inputBar = userInputClient.closest('.chatgpt-input-bar');
+        inputBar?.classList.remove('expanded');
+        // Trigger resize to ensure proper height
+        const event = new Event('input', { bubbles: true });
+        userInputClient.dispatchEvent(event);
     }
     console.log("Client mode chat reset.");
 }

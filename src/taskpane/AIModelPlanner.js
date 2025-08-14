@@ -1373,9 +1373,14 @@ export async function plannerHandleSend() {
     userInputElement.value = '';
     
     // Reset textarea height to default
-    userInputElement.style.height = '44px';
-    userInputElement.style.overflowY = 'hidden';
+    userInputElement.style.height = 'auto';
     userInputElement.classList.remove('scrollable');
+    // Remove expanded class from input bar
+    const inputBar = userInputElement.closest('.chatgpt-input-bar');
+    inputBar?.classList.remove('expanded');
+    // Trigger resize to ensure proper height
+    const event = new Event('input', { bubbles: true });
+    userInputElement.dispatchEvent(event);
     
     // Clear attachments after sending
     removeAllAttachments();
@@ -3973,48 +3978,43 @@ export function initializeVoiceInputDev() {
 function autoResizeTextarea(textarea) {
     if (!textarea) return;
     
-    // Get computed styles to account for padding
-    const computedStyle = window.getComputedStyle(textarea);
-    const paddingTop = parseFloat(computedStyle.paddingTop);
-    const paddingBottom = parseFloat(computedStyle.paddingBottom);
-    const lineHeight = parseFloat(computedStyle.lineHeight);
-    
-    const baseHeight = 44; // Minimum height matching CSS
-    const maxHeight = 120; // Maximum height before scrolling
-    
-    // Reset height to get accurate scrollHeight
+    // Reset height to auto to get the correct scrollHeight
     textarea.style.height = 'auto';
-    textarea.style.overflowY = 'hidden';
     
-    // Get the scroll height
+    // Calculate new height based on content
     const scrollHeight = textarea.scrollHeight;
+    const singleLineHeight = 44; // Height for single line with padding
+    const maxHeight = 116; // 4 rows max with padding (24px * 4 + 20px padding)
+    const newHeight = Math.min(scrollHeight, maxHeight);
     
-    // Calculate the number of lines
-    const contentHeight = scrollHeight - paddingTop - paddingBottom;
-    const lines = Math.ceil(contentHeight / lineHeight);
+    // Set the new height
+    textarea.style.height = newHeight + 'px';
     
-    // Calculate required height
-    let requiredHeight = baseHeight;
-    if (lines > 1) {
-        // For multi-line content, calculate based on line count
-        requiredHeight = (lines * lineHeight) + paddingTop + paddingBottom;
-    }
+    // Find the input bar container
+    const inputBar = textarea.closest('.chatgpt-input-bar');
     
-    // Apply height constraints
-    const finalHeight = Math.min(Math.max(baseHeight, requiredHeight), maxHeight);
-    
-    // Set height and scrolling behavior
-    textarea.style.height = finalHeight + 'px';
-    
-    if (requiredHeight > maxHeight) {
-        textarea.style.overflowY = 'auto';
-        textarea.classList.add('scrollable');
+    // Add/remove expanded class based on whether we're beyond single line
+    if (scrollHeight > singleLineHeight) {
+        inputBar?.classList.add('expanded');
     } else {
-        textarea.style.overflowY = 'hidden';
-        textarea.classList.remove('scrollable');
+        inputBar?.classList.remove('expanded');
     }
     
-    console.log(`[TextArea] Auto-resize: lines=${lines}, required=${requiredHeight}px, final=${finalHeight}px, scrollable=${textarea.classList.contains('scrollable')}`);
+    // Add scrollable class if content exceeds max height
+    if (scrollHeight > maxHeight) {
+        textarea.classList.add('scrollable');
+        textarea.style.overflowY = 'auto';
+    } else {
+        textarea.classList.remove('scrollable');
+        textarea.style.overflowY = 'hidden';
+    }
+    
+    console.log('[TextArea] Auto-resize:', {
+        scrollHeight,
+        newHeight,
+        hasScroll: scrollHeight > maxHeight,
+        isExpanded: scrollHeight > singleLineHeight
+    });
 }
 
 // Function to auto-resize textarea for developer mode
@@ -4080,20 +4080,24 @@ export function initializeTextareaAutoResize() {
     });
     
     // Auto-resize when text is set programmatically (like from voice input)
-    const originalValueDescriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
-    if (originalValueDescriptor) {
-        Object.defineProperty(textarea, 'value', {
-            set: function(newValue) {
-                originalValueDescriptor.set.call(this, newValue);
-                if (typeof autoResizeTextarea === 'function') {
-                    autoResizeTextarea(this);
-                }
-            },
-            get: function() {
-                return originalValueDescriptor.get.call(this);
-            },
-            configurable: true
-        });
+    // Check if the property has already been redefined to avoid errors
+    const currentDescriptor = Object.getOwnPropertyDescriptor(textarea, 'value');
+    if (!currentDescriptor || !currentDescriptor.set || !currentDescriptor.set.toString().includes('autoResizeTextarea')) {
+        const originalValueDescriptor = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+        if (originalValueDescriptor) {
+            Object.defineProperty(textarea, 'value', {
+                set: function(newValue) {
+                    originalValueDescriptor.set.call(this, newValue);
+                    if (typeof autoResizeTextarea === 'function') {
+                        autoResizeTextarea(this);
+                    }
+                },
+                get: function() {
+                    return originalValueDescriptor.get.call(this);
+                },
+                configurable: true
+            });
+        }
     }
     
     if (typeof autoResizeTextarea === 'function') {

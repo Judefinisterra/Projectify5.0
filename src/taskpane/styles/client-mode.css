@@ -404,31 +404,35 @@
   max-width: var(--max-content-width);
   margin: 0 auto;
   display: flex;
-  align-items: center; /* Changed from flex-end to center */
+  align-items: center; /* Center for single-line, will adjust with content */
   gap: 0;
   padding: 0;
   background-color: var(--color-input-bg);
   border-radius: var(--border-radius-full);
   border: 1px solid var(--color-input-border);
   overflow: hidden;
-  min-height: 48px; /* Set appropriate min-height for input with padding */
+  min-height: 48px; /* Minimum height for single row */
+  height: auto; /* Auto height to expand with content */
+  transition: height 0.2s ease; /* Smooth height transition */
 }
 
 .input-mode {
   display: flex;
-  align-items: center;
+  align-items: center; /* Center alignment for single-line state */
   width: 100%;
-  height: 100%; /* Take full height of parent for proper centering */
+  height: auto; /* Auto height to expand with content */
+  min-height: 48px; /* Minimum height for single row */
   gap: 0;
+  transition: height 0.2s ease; /* Smooth height transition */
 }
 
 /* Controls */
 .left-controls,
 .right-controls {
   display: flex;
-  align-items: center;
+  align-items: center; /* Center alignment to match input-mode */
   padding: 0 var(--spacing-sm);
-  /* min-height: 24px; Match the input container minimum height */
+  /* Remove bottom padding for centered alignment */
 }
 
 /* Attachment Button */
@@ -454,18 +458,22 @@
 /* Text Input */
 #user-input-client {
   flex: 1;
-  /* Remove height: 100% to allow natural centering */
-  padding: 8px 12px; /* Add vertical padding for better appearance */
+  padding: 10px 12px; /* Vertical padding for centering */
   border: none;
   outline: none;
   font-size: var(--font-size-base);
-  line-height: normal;
+  line-height: 24px; /* Fixed line height for consistent centering */
   background: transparent;
   color: var(--color-black);
   font-family: var(--font-family);
-  white-space: nowrap; /* Single line, no wrap */
-  text-overflow: ellipsis; /* Show ellipsis for overflow */
+  resize: none; /* Disable manual resize */
+  overflow-y: hidden; /* Hide scrollbar initially */
   box-sizing: border-box;
+  min-height: 44px; /* Single line height with padding (24px + 20px padding) */
+  max-height: 116px; /* Maximum height for ~4 rows (24px * 4 + 20px padding) */
+  transition: height 0.1s ease; /* Smooth height transition */
+  vertical-align: middle; /* Ensure proper vertical alignment */
+  /* Remove white-space and text-overflow for multi-line support */
 }
 
 #user-input-client::placeholder {
@@ -484,6 +492,22 @@
 #user-input-client:hover {
   outline: none;
   box-shadow: none;
+}
+
+/* When textarea is expanded beyond max height, show scrollbar */
+#user-input-client.scrollable {
+  overflow-y: auto;
+}
+
+/* When input area has multiple lines, adjust alignment */
+.chatgpt-input-bar.expanded .input-mode {
+  align-items: flex-end;
+}
+
+.chatgpt-input-bar.expanded .left-controls,
+.chatgpt-input-bar.expanded .right-controls {
+  align-items: flex-end;
+  padding-bottom: 10px; /* Match textarea bottom padding */
 }
 
 /* Voice Button */

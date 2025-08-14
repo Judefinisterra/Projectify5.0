@@ -948,9 +948,14 @@ async function handleSendClient() {
     userInputElement.value = ''; // Clear the input field
     
     // Reset textarea height to default
-    userInputElement.style.height = '44px';
-    userInputElement.style.overflowY = 'hidden';
+    userInputElement.style.height = 'auto';
     userInputElement.classList.remove('scrollable');
+    // Remove expanded class from input bar
+    const inputBar = userInputElement.closest('.chatgpt-input-bar');
+    inputBar?.classList.remove('expanded');
+    // Trigger resize to ensure proper height
+    const event = new Event('input', { bubbles: true });
+    userInputElement.dispatchEvent(event);
     
     // Credits gate: if user cannot use features, stream an upgrade message and return
     try {
@@ -996,6 +1001,14 @@ async function handleSendClient() {
 
             // Clear input and stop processing
             userInputElement.value = '';
+            userInputElement.style.height = 'auto';
+            userInputElement.classList.remove('scrollable');
+            // Remove expanded class from input bar
+            const inputBar = userInputElement.closest('.chatgpt-input-bar');
+            inputBar?.classList.remove('expanded');
+            // Trigger resize to ensure proper height
+            const event = new Event('input', { bubbles: true });
+            userInputElement.dispatchEvent(event);
             return;
         }
     } catch (e) {
@@ -1142,8 +1155,14 @@ function resetChatClient() {
 
     if (userInputClient) {
         userInputClient.value = '';
-        // userInputClient.style.height = '24px'; // Let CSS control height
+        userInputClient.style.height = 'auto'; // Reset to auto height
         userInputClient.classList.remove('scrollable');
+        // Remove expanded class from input bar
+        const inputBar = userInputClient.closest('.chatgpt-input-bar');
+        inputBar?.classList.remove('expanded');
+        // Trigger resize to ensure proper height
+        const event = new Event('input', { bubbles: true });
+        userInputClient.dispatchEvent(event);
     }
 
     // Reset conversation history for client mode
@@ -2067,6 +2086,8 @@ Office.onReady(async (info) => {
         clientTextArea.dataset.pasteBound = 'true';
       }
       
+      // Auto-resize functionality will be initialized later by initializeTextareaAutoResize
+      
       // Update UI with user information
       updateSignedInStatus();
       updateAuthUI(true);
@@ -2658,6 +2679,90 @@ Office.onReady(async (info) => {
           });
           signOutBtn.setAttribute('data-listener-attached', 'true');
           productionLog('Subscription sign-out button handler attached');
+        }
+        
+        // Set up refresh credits button handler
+        const refreshBtn = document.getElementById('subscription-refresh-credits');
+        if (refreshBtn && !refreshBtn.hasAttribute('data-listener-attached')) {
+          refreshBtn.addEventListener('click', async () => {
+            productionLog('Refresh credits button clicked');
+            
+            // Show loading state
+            const originalHTML = refreshBtn.innerHTML;
+            refreshBtn.disabled = true;
+            refreshBtn.innerHTML = '<span class="ms-Button-label">Checking credits...</span>';
+            
+            try {
+              // Refresh user data to get latest credits
+              productionLog('Refreshing user data...');
+              const refreshSuccess = await initializeUserData();
+              
+              if (refreshSuccess) {
+                // Check if user now has credits
+                const userCredits = getUserCredits();
+                productionLog(`User credits after refresh: ${userCredits}`);
+                
+                if (userCredits > 0) {
+                  productionLog('User has credits, transitioning to client mode');
+                  
+                  // Hide subscription welcome view
+                  subscriptionView.style.display = 'none';
+                  
+                  // Show client mode view
+                  const clientModeView = document.getElementById('client-mode-view');
+                  if (clientModeView) {
+                    clientModeView.style.display = 'flex';
+                    productionLog('Client mode view displayed');
+                    
+                    // Update header and footer displays
+                    updateFooterDisplay();
+                    updateAccountModal();
+                    
+                    // Initialize client mode features
+                    initClientAttachmentWithRetry();
+                    initializeSidebarNavigation();
+                  } else {
+                    console.error('Client mode view not found');
+                  }
+                } else {
+                  // Still no credits, show a message
+                  productionLog('Still no credits after refresh');
+                  refreshBtn.innerHTML = originalHTML;
+                  refreshBtn.disabled = false;
+                  
+                  // Show a temporary message
+                  const tempMessage = document.createElement('div');
+                  tempMessage.style.cssText = 'color: #cc0000; margin-top: 8px; font-size: 14px; text-align: center;';
+                  tempMessage.textContent = 'No credits found. Please complete your subscription at ebitdai.co/credits';
+                  refreshBtn.parentElement.appendChild(tempMessage);
+                  
+                  // Remove message after 5 seconds
+                  setTimeout(() => {
+                    tempMessage.remove();
+                  }, 5000);
+                }
+              } else {
+                throw new Error('Failed to refresh user data');
+              }
+            } catch (error) {
+              console.error('Error refreshing credits:', error);
+              refreshBtn.innerHTML = originalHTML;
+              refreshBtn.disabled = false;
+              
+              // Show error message
+              const errorMessage = document.createElement('div');
+              errorMessage.style.cssText = 'color: #cc0000; margin-top: 8px; font-size: 14px; text-align: center;';
+              errorMessage.textContent = 'Error checking credits. Please try again.';
+              refreshBtn.parentElement.appendChild(errorMessage);
+              
+              // Remove message after 3 seconds
+              setTimeout(() => {
+                errorMessage.remove();
+              }, 3000);
+            }
+          });
+          refreshBtn.setAttribute('data-listener-attached', 'true');
+          productionLog('Refresh credits button handler attached');
         }
       } else {
         console.error('Subscription welcome view not found');
