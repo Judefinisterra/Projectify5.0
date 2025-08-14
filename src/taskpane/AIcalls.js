@@ -3070,6 +3070,13 @@ function handleClientModeInsertToEditor() {
 
 Office.onReady(async (info) => {
   if (info.host === Office.HostType.Excel) {
+    // Check if this is being loaded as a module by taskpane.js
+    // If window.isTaskpaneMain is set, skip view management to prevent duplicate auth
+    if (window.isTaskpaneMain) {
+      console.log('[AIcalls.js] Loaded as module - skipping view management');
+      return;
+    }
+    
     // ... existing setup for developer mode buttons, API keys, etc. ...
     
     // Initialize API Keys (calls setAIModelPlannerOpenApiKey inside)
@@ -3193,11 +3200,12 @@ Office.onReady(async (info) => {
       if (clientModeView) clientModeView.style.display = 'none';
       if (authenticationView) authenticationView.style.display = 'flex';
       
-      // Set up Google Sign-In button handler
-      const googleSignInButton = document.getElementById('google-signin-button');
-      if (googleSignInButton) {
-        googleSignInButton.onclick = handleGoogleSignInView;
-      }
+      // >>> REMOVED: Google Sign-In button handler to prevent duplicate authentication
+      // The button handler is already set up in taskpane.js
+      // const googleSignInButton = document.getElementById('google-signin-button');
+      // if (googleSignInButton) {
+      //   googleSignInButton.onclick = handleGoogleSignInView;
+      // }
       
       console.log("Authentication view activated");
     }

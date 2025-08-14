@@ -44,6 +44,8 @@ import { validateCodeStringsForRun } from './Validation.js';
 import { generateTabString } from './IndexWorksheet.js';
 // >>> REMOVED: structureDatabasequeries import - now handled internally by getAICallsProcessedResponse
 // import { structureDatabasequeries } from './StructureHelper.js';
+// Set flag to prevent AIcalls.js from managing views when loaded as a module
+window.isTaskpaneMain = true;
 // >>> ADDED: Import setAPIKeys function from AIcalls
 import { setAPIKeys } from './AIcalls.js';
 // >>> ADDED: Import callOpenAI function from AIcalls
@@ -3185,9 +3187,19 @@ Office.onReady(async (info) => {
 
     // Function to sign out user
     function signOutUser() {
+      // Clear all authentication tokens and session data
       sessionStorage.removeItem('googleUser');
       sessionStorage.removeItem('googleCredential');
       sessionStorage.removeItem('googleToken');
+      localStorage.removeItem('google_access_token');
+      localStorage.removeItem('backend_access_token');
+      localStorage.removeItem('backend_refresh_token');
+      
+      // Clear user profile data if exists
+      if (window.userProfileManager) {
+        window.userProfileManager.userData = null;
+        window.userProfileManager.subscriptionData = null;
+      }
       
       // Revoke Google token if available
       if (typeof google !== 'undefined' && google.accounts) {
@@ -3195,7 +3207,25 @@ Office.onReady(async (info) => {
       }
       
       console.log("User signed out");
-      showStartupMenu();
+      
+      // Hide all views
+      if (appBody) appBody.style.display = 'none';
+      if (clientModeView) clientModeView.style.display = 'none';
+      
+      // Hide subscription welcome view
+      const subscriptionView = document.getElementById('subscription-welcome-view');
+      if (subscriptionView) subscriptionView.style.display = 'none';
+      
+      // Show authentication view
+      if (authenticationView) {
+        authenticationView.style.display = 'flex';
+        // Re-initialize authentication handlers
+        setupGoogleSignInButton();
+        console.log("Redirected to authentication view after sign out");
+      }
+      
+      // Update any UI elements that depend on auth state
+      updateSignedInStatus();
     }
 
     // Function to update UI based on authentication state
@@ -4677,17 +4707,31 @@ Office.onReady(async (info) => {
   }
 });
 
+// Store the handler function reference to properly remove it later
+let googleSignInHandler = null;
+let googleSignInButtonSetup = false;
+
 // Helper function to ensure Google Sign-In button is properly set up
 function setupGoogleSignInButton() {
+  // Prevent multiple setups
+  if (googleSignInButtonSetup) {
+    console.log('⚠️ Google Sign-In button already set up, skipping...');
+    return;
+  }
+  
   const googleSignInButton = document.getElementById('google-signin-button');
   if (googleSignInButton) {
     console.log('🔧 Setting up Google Sign-In button');
+    
     // Remove any existing handlers
     googleSignInButton.onclick = null;
-    googleSignInButton.removeEventListener('click', window.handleGoogleSignIn);
+    if (googleSignInHandler) {
+      googleSignInButton.removeEventListener('click', googleSignInHandler);
+      googleSignInHandler = null;
+    }
     
-    // Add new handler
-    googleSignInButton.addEventListener('click', (e) => {
+    // Create new handler
+    googleSignInHandler = (e) => {
       e.preventDefault();
       console.log('🖱️ Google Sign-In button clicked!');
       if (window.handleGoogleSignIn) {
@@ -4695,7 +4739,11 @@ function setupGoogleSignInButton() {
       } else {
         console.error('❌ handleGoogleSignIn function not found!');
       }
-    });
+    };
+    
+    // Add new handler
+    googleSignInButton.addEventListener('click', googleSignInHandler);
+    googleSignInButtonSetup = true;
     console.log('✅ Google Sign-In button event listener added');
   } else {
     console.log('⏳ Google Sign-In button not found yet');
