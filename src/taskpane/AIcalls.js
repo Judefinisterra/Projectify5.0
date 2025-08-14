@@ -3155,17 +3155,23 @@ Office.onReady(async (info) => {
       const isAuthenticated = (googleUserSession && googleCredentialSession) || 
                             !!(googleTokenLocal || msalTokenLocal || apiKeyLocal);
       
-      console.log(`Authentication check - Session: ${!!(googleUserSession && googleCredentialSession)}, Local: ${!!(googleTokenLocal || msalTokenLocal || apiKeyLocal)}`);
+      if (DEBUG) {
+        console.log(`Authentication check - Session: ${!!(googleUserSession && googleCredentialSession)}, Local: ${!!(googleTokenLocal || msalTokenLocal || apiKeyLocal)}`);
+      }
       
       if (!isAuthenticated) {
-        console.log('User not authenticated, showing authentication view');
+        if (DEBUG) {
+          console.log('User not authenticated, showing authentication view');
+        }
         // Store that user wanted client mode after auth
         localStorage.setItem('post_auth_redirect', 'client-mode');
         showAuthenticationView();
         return;
       }
       
-      console.log('User is authenticated, proceeding to show client mode directly');
+      if (DEBUG) {
+        console.log('User is authenticated, proceeding to show client mode directly');
+      }
       
       // Check if we need to authenticate with backend
       const hasBackendToken = sessionStorage.getItem('backend_access_token') || 
@@ -3222,11 +3228,15 @@ Office.onReady(async (info) => {
       //   googleSignInButton.onclick = handleGoogleSignInView;
       // }
       
-      console.log("Authentication view activated");
+      if (DEBUG) {
+        console.log("Authentication view activated");
+      }
     }
 
     function handleGoogleSignInView() {
-      console.log("Google Sign-In clicked (AIcalls.js)");
+      if (DEBUG) {
+        console.log("Google Sign-In clicked (AIcalls.js)");
+      }
       
       // Use Office Dialog API for authentication within Excel environment
       if (typeof Office !== 'undefined' && Office.context && Office.context.ui) {
@@ -3261,7 +3271,9 @@ Office.onReady(async (info) => {
             // Handle dialog closed by user
             dialog.addEventHandler(Office.EventType.DialogEventReceived, function (arg) {
               if (arg.error === 12006) { // Dialog closed by user
-                console.log("Authentication canceled by user");
+                if (DEBUG) {
+                  console.log("Authentication canceled by user");
+                }
               } else {
                 console.error("Dialog error:", arg.error);
                 showError("Authentication failed. Please try again.");
