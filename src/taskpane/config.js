@@ -54,7 +54,7 @@ export const CONFIG = {
   // Backend API Configuration
   // Backend API Configuration
   backend: {
-    baseUrl: "https://backend-projectify-74f2tkrkr-judefinisterras-projects.vercel.app",
+    baseUrl: "https://backend-projectify-m133f57ae-judefinisterras-projects.vercel.app",
     timeout: 30000,
     endpoints: {
       health: '/health',  // Add health endpoint
