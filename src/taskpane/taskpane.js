@@ -4531,29 +4531,10 @@ Office.onReady(async (info) => {
         }
     }
     
-    // Update footer with credits and subscription info
+    // Update footer display (currently no actions needed as links are direct)
     function updateFooterDisplay() {
-        const userData = userProfileManager.getUserData();
-        const credits = userData ? getUserCredits() : null;
-        
-        // Update credits count
-        const footerCreditsCount = document.getElementById('footer-credits-count');
-        if (footerCreditsCount) {
-            footerCreditsCount.textContent = credits != null ? credits.toFixed(1) : '--';
-        }
-        
-        // Update subscription plan
-        const footerPlanName = document.getElementById('footer-plan-name');
-        if (footerPlanName) {
-            if (userData) {
-                const subscriptionType = userData.subscription?.type || 'Free';
-                footerPlanName.textContent = subscriptionType.charAt(0).toUpperCase() + subscriptionType.slice(1);
-            } else {
-                footerPlanName.textContent = '';
-            }
-        }
-        
-        // Sign-in button removed from footer
+        // Footer links now use direct href attributes with target="_blank"
+        // No additional JavaScript handling needed
     }
     
     // Make updateFooterDisplay globally available

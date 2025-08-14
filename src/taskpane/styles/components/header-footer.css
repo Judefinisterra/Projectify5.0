@@ -119,8 +119,7 @@
     gap: var(--spacing-sm);
 }
 
-/* Footer Credits and Subscription */
-.footer-credits,
+/* Footer Subscription */
 .footer-subscription {
     display: flex;
     align-items: center;
@@ -135,6 +134,23 @@
 .credits-value,
 .subscription-value {
     font-weight: 500;
+}
+
+/* Footer Links */
+.footer-link {
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+}
+
+.footer-link:hover {
+    color: var(--primary-white);
+    text-decoration: underline;
+}
+
+.footer-separator {
+    color: rgba(255, 255, 255, 0.4);
+    margin: 0 var(--spacing-xs);
 }
 
 /* Footer Sign In Button */
