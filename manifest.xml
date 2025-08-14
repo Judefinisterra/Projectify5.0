@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="TaskPaneApp">
   <Id>db739376-5300-4f49-ad71-136f9ebfb872</Id>
-  <Version>1.0.0.1</Version>
+  <Version>1.0.0.2</Version>
   <ProviderName>Contoso</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Build Financial Models with AI"/>
   <Description DefaultValue="Build Financial Models with AI"/>
-  <IconUrl DefaultValue="https://projectify5-0.vercel.app/assets/icon-32.png"/>
-  <HighResolutionIconUrl DefaultValue="https://projectify5-0.vercel.app/assets/icon-64.png"/>
+  <IconUrl DefaultValue="https://localhost:3002/assets/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://localhost:3002/assets/icon-64.png"/>
   <SupportUrl DefaultValue="https://www.contoso.com/help"/>
   <AppDomains>
     <AppDomain>https://localhost:3002</AppDomain>
@@ -27,7 +27,7 @@
     </Sets>
   </Requirements>
   <DefaultSettings>
-    <SourceLocation DefaultValue="https://projectify5-0.vercel.app/taskpane.html"/>
+    <SourceLocation DefaultValue="https://localhost:3002/taskpane.html"/>
     <RequestedWidth>500</RequestedWidth>
     <RequestedHeight>600</RequestedHeight>
   </DefaultSettings>
@@ -89,17 +89,17 @@
     </Hosts>
     <Resources>
       <bt:Images>
-        <bt:Image id="Icon.16x16" DefaultValue="https://projectify5-0.vercel.app/assets/icon-16.png"/>
-        <bt:Image id="Icon.32x32" DefaultValue="https://projectify5-0.vercel.app/assets/icon-32.png"/>
-        <bt:Image id="Icon.80x80" DefaultValue="https://projectify5-0.vercel.app/assets/icon-80.png"/>
+        <bt:Image id="Icon.16x16" DefaultValue="https://localhost:3002/assets/icon-16.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://localhost:3002/assets/icon-32.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://localhost:3002/assets/icon-80.png"/>
       </bt:Images>
       <bt:Urls>
-        <bt:Url id="Functions.Script.Url" DefaultValue="https://projectify5-0.vercel.app/functions.js"/>
-        <bt:Url id="Functions.Metadata.Url" DefaultValue="https://projectify5-0.vercel.app/functions.json"/>
-        <bt:Url id="Functions.Page.Url" DefaultValue="https://projectify5-0.vercel.app/functions.html"/>
+        <bt:Url id="Functions.Script.Url" DefaultValue="https://localhost:3002/functions.js"/>
+        <bt:Url id="Functions.Metadata.Url" DefaultValue="https://localhost:3002/functions.json"/>
+        <bt:Url id="Functions.Page.Url" DefaultValue="https://localhost:3002/functions.html"/>
         <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://go.microsoft.com/fwlink/?LinkId=276812"/>
-        <bt:Url id="Commands.Url" DefaultValue="https://projectify5-0.vercel.app/commands.html"/>
-        <bt:Url id="Taskpane.Url" DefaultValue="https://projectify5-0.vercel.app/taskpane.html"/>
+        <bt:Url id="Commands.Url" DefaultValue="https://localhost:3002/commands.html"/>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3002/taskpane.html"/>
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="Functions.Namespace" DefaultValue="CONTOSO"/>
