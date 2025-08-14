@@ -3706,11 +3706,11 @@ Office.onReady(async (info) => {
             } else if (modeValue === 'limited-guidance') {
                 titleEl.textContent = 'Limited-Guidance Mode';
                 stepTextEls[0].textContent = "Share your business assumptions covering revenue, pricing, expenses, financing, and other essential inputs.";
-                stepTextEls[1].textContent = "We’ll ask one to two clarifying questions before delivering your completed model.";
+                stepTextEls[1].textContent = "We will ask one to two clarifying questions before delivering your completed model.";
             } else if (modeValue === 'full-guidance') {
                 titleEl.textContent = 'Full-Guidance Mode';
                 stepTextEls[0].textContent = 'Start with a concise overview of your business.';
-                stepTextEls[1].textContent = 'We’ll work with you step-by-step to define every aspect of your model.';
+                stepTextEls[1].textContent = "We will work with you step-by-step to define every aspect of your model.";
             }
         } catch (err) {
             console.warn('updateWelcomeByMode failed:', err);
@@ -4474,6 +4474,56 @@ Office.onReady(async (info) => {
                 await signOut();
             } finally {
                 accountModal.style.display = 'none';
+            }
+        });
+        
+        // Refresh button in account modal
+        const refreshAccountButton = document.getElementById('refresh-account-button');
+        refreshAccountButton?.addEventListener('click', async () => {
+            const button = refreshAccountButton;
+            const originalText = button.querySelector('span').textContent;
+            
+            try {
+                // Disable button and show loading state
+                button.disabled = true;
+                button.classList.add('refreshing');
+                button.querySelector('span').textContent = 'Refreshing...';
+                
+                // Refresh user data from backend
+                if (window.userProfileManager) {
+                    await window.userProfileManager.refreshUserData();
+                    console.log('✅ Account data refreshed successfully');
+                    
+                    // Update the account modal display
+                    updateAccountModal();
+                    
+                    // Also update other UI elements
+                    window.userProfileManager.updateUserInterface();
+                    
+                    // Show success feedback
+                    button.querySelector('span').textContent = 'Refreshed!';
+                    setTimeout(() => {
+                        button.querySelector('span').textContent = originalText;
+                    }, 1500);
+                } else {
+                    throw new Error('User profile manager not initialized');
+                }
+                
+            } catch (error) {
+                console.error('❌ Failed to refresh account data:', error);
+                button.querySelector('span').textContent = 'Error';
+                
+                // Show error message
+                console.error('Failed to refresh account data. Please try again.');
+                
+                setTimeout(() => {
+                    button.querySelector('span').textContent = originalText;
+                }, 2000);
+                
+            } finally {
+                // Re-enable button and remove loading state
+                button.disabled = false;
+                button.classList.remove('refreshing');
             }
         });
     }

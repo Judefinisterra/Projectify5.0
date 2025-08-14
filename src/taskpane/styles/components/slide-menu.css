@@ -232,6 +232,66 @@
     color: #ef4444;
 }
 
+/* Refresh Button */
+.refresh-account-button {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background-color: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    margin-bottom: 12px;
+}
+
+.refresh-account-button:hover {
+    background-color: #eff6ff;
+    border-color: #3b82f6;
+    color: #3b82f6;
+}
+
+.refresh-account-button:active {
+    background-color: #dbeafe;
+    transform: scale(0.98);
+}
+
+.refresh-account-button:disabled {
+    background-color: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.refresh-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.refresh-account-button:hover .refresh-icon {
+    color: #3b82f6;
+}
+
+.refresh-account-button.refreshing .refresh-icon {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* ==============================================
    OVERLAY (optional backdrop)
    ============================================== */
