@@ -401,6 +401,22 @@ This design gives you the best of both worlds: easy annual input/review on the l
 
 **Rule:** Always reference the exact tab names that were created in the original model conversation.
 
+## TAB DESCRIPTION GUIDELINES
+
+**CRITICAL:** When writing tab descriptions, NEVER mention the tab name itself in the description. Descriptions should explain WHAT to model, not reference the tab.
+
+**❌ WRONG Examples:**
+- "Corporate Overhead tab with 2 employees: CEO $20,000/year; CFO $200,000/year"
+- "Revenue and Direct Costs tab showing pizza sales at $10 per pizza"
+- "Working Capital tab with 30 days receivables and 45 days payables"
+
+**✅ CORRECT Examples:**
+- "We employ one CEO with a $20,000 salary and one CFO who has a $200k salary. We have a 20% benefits load."
+- "We sell pizzas at $10 per pizza with a 30% food cost and expect to sell 1000 pizzas in year 1."
+- "Our customers pay us in 30 days and we pay our suppliers in 45 days."
+
+**Rule:** Tab descriptions should describe the business scenario to model, not reference the technical tab structure.
+
 ## FINAL OUTPUT
 
 **ONE-SHOT RULE:** Return array of codestrings immediately. Do not include any text outside <> brackets. Do not provide context, planning, confirmations, or special characters. Simply output the corrected JSON instantly.

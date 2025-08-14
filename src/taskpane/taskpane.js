@@ -907,7 +907,7 @@ async function handleSendClient() {
     const userInput = userInputElement.value.trim();
     
     if (!userInput) {
-        alert('Please enter a request (Client Mode)'); 
+        showError('Please enter a request'); 
         return;
     }
 
@@ -1727,6 +1727,25 @@ async function insertSheetsAndRunCodes() {
 
 Office.onReady(async (info) => {
   productionLog('Office.onReady started');
+  
+  // Set up authentication expired event listener
+  window.addEventListener('auth-expired', (event) => {
+    console.log('⚠️ Authentication expired event received:', event.detail.message);
+    
+    // Show authentication view
+    const authView = document.getElementById('authentication-view');
+    const appBody = document.getElementById('app-body');
+    const clientModeView = document.getElementById('client-mode-view');
+    
+    if (authView) authView.style.display = 'flex';
+    if (appBody) appBody.style.display = 'none';
+    if (clientModeView) clientModeView.style.display = 'none';
+    
+    // Show error message
+    if (typeof showError === 'function') {
+      showError(event.detail.message || 'Session expired. Please sign in again.');
+    }
+  });
   
   // Initialize backend integration
   try {
@@ -2567,9 +2586,9 @@ Office.onReady(async (info) => {
       // Check if user is already authenticated
       if (isUserAuthenticated()) {
         const user = getCurrentUser();
-        alert(`You are already signed in as ${user.name}. Redirecting to Client Mode.`);
+        showMessage(`You are already signed in as ${user.name}. Redirecting to Client Mode.`);
         showClientMode();
-        console.log('showAuthenticatione shows that user is authenticated');
+        console.log('showAuthentication shows that user is authenticated');
         return;
       }
       
@@ -2578,10 +2597,7 @@ Office.onReady(async (info) => {
       if (authenticationView) authenticationView.style.display = 'flex';
       
       // Set up Google Sign-In button handler
-      const googleSignInButton = document.getElementById('google-signin-button');
-      if (googleSignInButton) {
-        googleSignInButton.onclick = handleGoogleSignIn;
-      }
+      setupGoogleSignInButton();
       
       // Microsoft and API Key sign-in buttons removed
       
@@ -4537,16 +4553,46 @@ Office.onReady(async (info) => {
         // No additional JavaScript handling needed
     }
     
-    // Make updateFooterDisplay globally available
+    // Make functions globally available
     window.updateFooterDisplay = updateFooterDisplay;
+    window.handleGoogleSignIn = handleGoogleSignIn;
+    window.showAuthentication = showAuthentication;
     
     // Initialize header menu and footer
     initializeHeaderMenu();
     updateFooterDisplay();
+    
+    // Setup Google Sign-In button if authentication view is shown
+    setupGoogleSignInButton();
 
     // ... (rest of your Office.onReady, e.g., Promise.all)
   }
 });
+
+// Helper function to ensure Google Sign-In button is properly set up
+function setupGoogleSignInButton() {
+  const googleSignInButton = document.getElementById('google-signin-button');
+  if (googleSignInButton) {
+    console.log('🔧 Setting up Google Sign-In button');
+    // Remove any existing handlers
+    googleSignInButton.onclick = null;
+    googleSignInButton.removeEventListener('click', window.handleGoogleSignIn);
+    
+    // Add new handler
+    googleSignInButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      console.log('🖱️ Google Sign-In button clicked!');
+      if (window.handleGoogleSignIn) {
+        window.handleGoogleSignIn();
+      } else {
+        console.error('❌ handleGoogleSignIn function not found!');
+      }
+    });
+    console.log('✅ Google Sign-In button event listener added');
+  } else {
+    console.log('⏳ Google Sign-In button not found yet');
+  }
+}
 
 // >>> ADDED: Function definition moved here
 async function insertResponseToEditor() {
@@ -5278,10 +5324,11 @@ async function signOut() {
             if (typeof showAuthentication === 'function') {
                 showAuthentication();
             } else {
-                const googleSignInButton = document.getElementById('google-signin-button');
-                if (googleSignInButton) googleSignInButton.onclick = handleGoogleSignIn;
+                setupGoogleSignInButton();
             }
-        } catch (_) {}
+        } catch (error) {
+            console.error('Error setting up authentication:', error);
+        }
         
         console.log('Sign-out successful');
         showMessage('Successfully signed out');

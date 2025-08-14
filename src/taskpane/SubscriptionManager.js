@@ -282,6 +282,8 @@ class SubscriptionManager {
         badge.textContent = 'Trial';
       } else if (status === 'cancelled') {
         badge.textContent = 'Cancelled';
+      } else if (status === 'choose_plan') {
+        badge.textContent = 'Choose Plan';
       } else {
         badge.textContent = 'Free';
       }

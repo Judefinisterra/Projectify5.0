@@ -92,13 +92,39 @@ class BackendAPI {
   isAuthenticated() {
     // Check both session and local storage
     const hasToken = !!sessionStorage.getItem('backend_access_token') || 
-                    !!localStorage.getItem('backend_access_token');
+                    !!localStorage.getItem('backend_access_token') ||
+                    !!sessionStorage.getItem('access_token') ||
+                    !!localStorage.getItem('access_token');
     
     // In mock mode, also consider authenticated if Google auth was successful
     if (this.mockMode) {
       return hasToken || !!window.googleUser;
     }
     return hasToken;
+  }
+  
+  /**
+   * Debug function to check token status
+   */
+  debugTokenStatus() {
+    const status = {
+      sessionStorage: {
+        backend_access_token: !!sessionStorage.getItem('backend_access_token'),
+        backend_refresh_token: !!sessionStorage.getItem('backend_refresh_token'),
+        access_token: !!sessionStorage.getItem('access_token'),
+        refresh_token: !!sessionStorage.getItem('refresh_token')
+      },
+      localStorage: {
+        backend_access_token: !!localStorage.getItem('backend_access_token'),
+        backend_refresh_token: !!localStorage.getItem('backend_refresh_token'),
+        access_token: !!localStorage.getItem('access_token'),
+        refresh_token: !!localStorage.getItem('refresh_token')
+      },
+      isAuthenticated: this.isAuthenticated()
+    };
+    
+    console.log('🔍 Token Status:', status);
+    return status;
   }
 
   // ============================================================================
@@ -139,7 +165,18 @@ class BackendAPI {
           };
           return fetch(url, retryOptions);
         } else {
-          throw new Error('Authentication failed');
+          // No refresh token available - need to re-authenticate
+          console.log('❌ No refresh token available - clearing auth and requiring re-login');
+          this.clearTokens();
+          
+          // Emit an event to trigger re-authentication UI
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('auth-expired', { 
+              detail: { message: 'Session expired. Please sign in again.' }
+            }));
+          }
+          
+          throw new Error('Authentication failed - session expired');
         }
       }
 
@@ -219,8 +256,20 @@ class BackendAPI {
       
       const data = await response.json();
       
+      console.log('📦 Backend auth response received:', {
+        hasAccessToken: !!data.access_token,
+        hasRefreshToken: !!data.refresh_token,
+        hasSessionRefreshToken: !!data.session?.refresh_token,
+        tokenLength: data.access_token?.length,
+        refreshTokenLength: (data.refresh_token || data.session?.refresh_token)?.length
+      });
+      
       if (data.access_token) {
-        this.storeTokens(data.access_token, data.refresh_token || data.session?.refresh_token);
+        const refreshToken = data.refresh_token || data.session?.refresh_token;
+        if (!refreshToken) {
+          console.warn('⚠️ No refresh token received from backend!');
+        }
+        this.storeTokens(data.access_token, refreshToken);
         console.log('✅ Backend authentication successful');
         return data;
       }
@@ -239,29 +288,62 @@ class BackendAPI {
   async refreshToken() {
     // Try sessionStorage first, then localStorage
     const refreshToken = sessionStorage.getItem('backend_refresh_token') || 
-                        localStorage.getItem('backend_refresh_token');
+                        localStorage.getItem('backend_refresh_token') ||
+                        sessionStorage.getItem('refresh_token') ||
+                        localStorage.getItem('refresh_token');
+    
     if (!refreshToken) {
       console.log('❌ No refresh token available');
+      console.log('Session storage tokens:', {
+        backend_refresh_token: !!sessionStorage.getItem('backend_refresh_token'),
+        refresh_token: !!sessionStorage.getItem('refresh_token'),
+        backend_access_token: !!sessionStorage.getItem('backend_access_token'),
+        access_token: !!sessionStorage.getItem('access_token')
+      });
+      console.log('Local storage tokens:', {
+        backend_refresh_token: !!localStorage.getItem('backend_refresh_token'),
+        refresh_token: !!localStorage.getItem('refresh_token'),
+        backend_access_token: !!localStorage.getItem('backend_access_token'),
+        access_token: !!localStorage.getItem('access_token')
+      });
       return false;
     }
 
     try {
+      console.log('🔄 Attempting to refresh token...');
       const response = await fetch(`${this.baseUrl}${this.endpoints.auth.refresh}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: refreshToken })
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ Token refresh failed:', response.status, errorData);
+        
+        // If refresh token is invalid, clear all tokens
+        if (response.status === 401 || response.status === 403) {
+          console.log('🗑️ Refresh token invalid, clearing all tokens');
+          this.clearTokens();
+        }
+        return false;
+      }
+
       const data = await response.json();
       if (data.access_token) {
-        this.storeTokens(data.access_token);
+        // Store both access and refresh tokens if provided
+        this.storeTokens(data.access_token, data.refresh_token);
         console.log('✅ Token refreshed successfully');
         return true;
+      } else {
+        console.error('❌ No access token in refresh response');
+        return false;
       }
     } catch (error) {
-      console.error('❌ Token refresh failed:', error);
+      console.error('❌ Token refresh failed with error:', error);
     }
 
+    // Only clear tokens if refresh definitively failed
     this.clearTokens();
     return false;
   }
@@ -475,6 +557,12 @@ class InsufficientCreditsError extends Error {
 // ============================================================================
 
 const backendAPI = new BackendAPI();
+
+// Expose to window for debugging in production
+if (typeof window !== 'undefined') {
+  window.backendAPI = backendAPI;
+  window.debugTokens = () => backendAPI.debugTokenStatus();
+}
 
 // ============================================================================
 // EXPORTS
