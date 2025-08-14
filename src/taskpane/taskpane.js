@@ -137,6 +137,91 @@ let conversationHistory = [];
 // Track if this is the first message in the current session
 let isFirstMessageInSession = true;
 
+// Function to conditionally show developer mode menu based on environment
+function initializeDeveloperModeVisibility() {
+    console.log("🔍 Initializing developer mode visibility...");
+    console.log("🔍 IS_DEVELOPMENT value:", process.env.IS_DEVELOPMENT);
+    console.log("🔍 IS_DEVELOPMENT type:", typeof process.env.IS_DEVELOPMENT);
+    console.log("🔍 NODE_ENV value:", process.env.NODE_ENV);
+    
+    // Try multiple selectors to find the developer menu item
+    const selectors = [
+        '[data-action="developer"]',
+        'button[data-action="developer"]',
+        '.menu-item[data-action="developer"]'
+    ];
+    
+    let developerMenuItem = null;
+    for (const selector of selectors) {
+        developerMenuItem = document.querySelector(selector);
+        console.log(`🔍 Trying selector "${selector}":`, !!developerMenuItem);
+        if (developerMenuItem) break;
+    }
+    
+    // Also try to find all menu items for debugging
+    const allMenuItems = document.querySelectorAll('.menu-item');
+    console.log("🔍 Total menu items found:", allMenuItems.length);
+    allMenuItems.forEach((item, index) => {
+        console.log(`🔍 Menu item ${index}:`, item.getAttribute('data-action'), item.textContent.trim());
+    });
+    
+    if (developerMenuItem) {
+        console.log("🔍 Developer menu item current style display:", developerMenuItem.style.display);
+        console.log("🔍 Developer menu item computed display:", window.getComputedStyle(developerMenuItem).display);
+        
+        // Only show developer mode in development builds
+        // Use window.location to detect localhost (most reliable method)
+        const isLocalhost = window.location.hostname === 'localhost' || 
+                           window.location.hostname === '127.0.0.1' ||
+                           window.location.href.includes('localhost');
+        
+        console.log("🔍 Environment detection:");
+        console.log("  window.location.hostname:", window.location.hostname);
+        console.log("  window.location.href:", window.location.href);
+        console.log("  isLocalhost:", isLocalhost);
+        
+        if (isLocalhost) {
+            console.log("✅ Development mode detected - showing developer mode menu");
+            
+            // Apply multiple aggressive styles to ensure visibility
+            developerMenuItem.style.display = 'flex !important';
+            developerMenuItem.style.visibility = 'visible !important';
+            developerMenuItem.style.opacity = '1 !important';
+            developerMenuItem.style.height = 'auto !important';
+            developerMenuItem.style.width = '100% !important';
+            developerMenuItem.style.position = 'relative !important';
+            developerMenuItem.style.border = '2px solid red'; // Temporary debug border
+            developerMenuItem.classList.remove('hidden');
+            developerMenuItem.removeAttribute('hidden');
+            
+            console.log("✅ Applied aggressive styling for visibility");
+            
+            // Double-check after a short delay
+            setTimeout(() => {
+                const computedStyle = window.getComputedStyle(developerMenuItem);
+                console.log("🔍 Final computed styles:");
+                console.log("  display:", computedStyle.display);
+                console.log("  visibility:", computedStyle.visibility);
+                console.log("  opacity:", computedStyle.opacity);
+                console.log("  height:", computedStyle.height);
+                console.log("  position:", computedStyle.position);
+                console.log("🔍 Element bounds:", developerMenuItem.getBoundingClientRect());
+                
+                // Force reflow
+                developerMenuItem.offsetHeight;
+            }, 100);
+            
+        } else {
+            console.log("❌ Production mode detected - hiding developer mode menu");
+            developerMenuItem.remove(); // Completely remove from DOM in production
+        }
+    } else {
+        console.log("⚠️ Developer menu item not found in DOM");
+        console.log("⚠️ Available elements with data-action:", 
+            Array.from(document.querySelectorAll('[data-action]')).map(el => el.getAttribute('data-action')));
+    }
+}
+
 // >>> ADDED: State for Client Chat
 let conversationHistoryClient = [];
 let lastResponseClient = null;
@@ -2121,6 +2206,12 @@ Office.onReady(async (info) => {
         if (clientModeView) {
           clientModeView.style.display = 'flex';
           console.log('✅ Client mode view displayed');
+          
+          // Initialize developer mode visibility now that the UI is loaded
+          setTimeout(() => {
+            console.log("🎯 Initializing developer mode from client view...");
+            initializeDeveloperModeVisibility();
+          }, 200);
         } else {
           console.warn('⚠️ Client mode view not found');
         }
@@ -3951,24 +4042,9 @@ Office.onReady(async (info) => {
         }
     }
 
-    // Function to conditionally show developer mode menu based on environment
-    function initializeDeveloperModeVisibility() {
-        const developerMenuItem = document.querySelector('[data-action="developer"]');
-        
-        if (developerMenuItem) {
-            // Only show developer mode in development builds
-            if (process.env.IS_DEVELOPMENT) {
-                console.log("Development mode detected - showing developer mode menu");
-                developerMenuItem.style.display = 'flex';
-            } else {
-                console.log("Production mode detected - hiding developer mode menu");
-                developerMenuItem.remove(); // Completely remove from DOM in production
-            }
-        }
-    }
+    // Duplicate function removed - using global function instead
 
-    // Initialize developer mode visibility based on environment
-    initializeDeveloperModeVisibility();
+    // Developer mode initialization moved to client view display section
 
     // Make sure initialization runs after setting up modal logic
     Promise.all([
