@@ -2889,7 +2889,9 @@ Office.onReady(async (info) => {
     }
 
     function handleGoogleSignIn() {
-      console.log("Google Sign-In clicked");
+      if (CONFIG.isDevelopment) {
+        console.log("Google Sign-In clicked");
+      }
       
       // Ensure Office.js is fully initialized before proceeding
       if (typeof Office === 'undefined') {
@@ -2900,27 +2902,35 @@ Office.onReady(async (info) => {
       
       // Wait for Office to be ready if it's still initializing
       Office.onReady(() => {
-        console.log("Office.onReady called - proceeding with authentication");
+        if (CONFIG.isDevelopment) {
+          console.log("Office.onReady called - proceeding with authentication");
+        }
         proceedWithGoogleAuth();
       });
     }
     
     function proceedWithGoogleAuth() {
-      // Debug Office context with more detail
-      console.log("=== Office Environment Debug ===");
-      console.log("Office available:", typeof Office !== 'undefined');
-      console.log("Office.context available:", typeof Office !== 'undefined' && Office.context);
-      console.log("Office.context.ui available:", typeof Office !== 'undefined' && Office.context && Office.context.ui);
-      console.log("Office.context.ui.displayDialogAsync available:", typeof Office !== 'undefined' && Office.context && Office.context.ui && typeof Office.context.ui.displayDialogAsync === 'function');
-      console.log("Office host:", Office.context?.host);
-      console.log("Office platform:", Office.context?.platform);
-      console.log("================================");
+      // Debug Office context - only in development
+      if (CONFIG.isDevelopment) {
+        console.log("=== Office Environment Debug ===");
+        console.log("Office available:", typeof Office !== 'undefined');
+        console.log("Office.context available:", typeof Office !== 'undefined' && Office.context);
+        console.log("Office.context.ui available:", typeof Office !== 'undefined' && Office.context && Office.context.ui);
+        console.log("Office.context.ui.displayDialogAsync available:", typeof Office !== 'undefined' && Office.context && Office.context.ui && typeof Office.context.ui.displayDialogAsync === 'function');
+        console.log("Office host:", Office.context?.host);
+        console.log("Office platform:", Office.context?.platform);
+        console.log("================================");
+      }
       
       // Use Office Dialog API for authentication within Excel environment
       if (typeof Office !== 'undefined' && Office.context && Office.context.ui && typeof Office.context.ui.displayDialogAsync === 'function') {
-         console.log("✅ Using Office Dialog API for authentication");
+        if (CONFIG.isDevelopment) {
+          console.log("✅ Using Office Dialog API for authentication");
+        }
         const authUrl = buildGoogleAuthUrl();
-        console.log("Auth URL:", authUrl);
+        if (CONFIG.isDevelopment) {
+          console.log("Auth URL:", authUrl);
+        }
          
          // Show loading message
          showMessage("Opening authentication dialog...");
@@ -2931,7 +2941,9 @@ Office.onReady(async (info) => {
            requireHTTPS: true,
            displayInIframe: false // Ensure it opens in a proper dialog, not iframe
         }, function (result) {
-           console.log("Dialog creation result:", result);
+          if (CONFIG.isDevelopment) {
+            console.log("Dialog creation result:", result);
+          }
           if (result.status === Office.AsyncResultStatus.Succeeded) {
             const dialog = result.value;
             
@@ -2956,7 +2968,9 @@ Office.onReady(async (info) => {
             // Handle dialog closed by user
             dialog.addEventHandler(Office.EventType.DialogEventReceived, function (arg) {
               if (arg.error === 12006) { // Dialog closed by user
-                console.log("Authentication canceled by user");
+                if (CONFIG.isDevelopment) {
+                  console.log("Authentication canceled by user");
+                }
               } else {
                 console.error("Dialog error:", arg.error);
                 showError("Authentication failed. Please try again.");
@@ -2964,7 +2978,9 @@ Office.onReady(async (info) => {
             });
           } else {
             console.error("Failed to open authentication dialog:", result.error);
-            console.error("Result details:", result);
+            if (CONFIG.isDevelopment) {
+              console.error("Result details:", result);
+            }
             // Fallback to external window for development
             handleGoogleSignInFallback();
           }
