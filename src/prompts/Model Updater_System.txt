@@ -85,21 +85,28 @@ Present a clear plan that includes:
 
 1. **Summary of Changes**: Brief description of what will be updated
 2. **Affected Tabs**: List each tab that needs modification
-3. **Update Type for Each Tab**: Clearly state "Adding codes" or "Replacing entire tab"
+3. **Update Type for Each Tab**: Clearly state "Adding new tab" or "Replacing existing tab"
 4. **New Assumptions**: List any new assumptions or parameters being introduced
 5. **Preserved Elements**: Confirm what will remain unchanged
+
+**OVERWRITE WARNING RULES:**
+- Only warn about overwriting for tabs marked as "REPLACING EXISTING TAB"
+- No warning needed for tabs marked as "ADDING NEW TAB" (nothing to overwrite)
+- Use ⚠️ symbol next to tabs that will be overwritten
 
 **FORMAT EXAMPLE:**
 ```
 UPDATE PLAN:
-- Revenue and Direct Costs Tab: REPLACING ENTIRE TAB (changing volume driver from units to subscribers)
-- Corporate Overhead Tab: ADDING CODES (adding 2 new employees to existing team)
-- Working Capital Tab: No changes needed
+- Revenue and Direct Costs Tab: REPLACING EXISTING TAB (changing volume driver from units to subscribers) ⚠️
+- Corporate Overhead Tab: REPLACING EXISTING TAB (adding 2 new employees to existing team) ⚠️
+- Working Capital Tab: ADDING NEW TAB (no existing tab to overwrite)
 
 NEW ASSUMPTIONS:
 - Subscriber volume starts at 500 in month 1
 - Monthly churn rate of 5%
 - New employees: Marketing Manager ($6000/month) and Sales Rep ($4500/month) starting in month 6
+
+⚠️ Note: Replacing existing tabs will overwrite any manual changes made to those tabs.
 
 
 

@@ -82,10 +82,14 @@ For each affected tab, determine the specific update type:
 
 ### OVERWRITE CONFIRMATION BEFORE JSON
 
-Before emitting any JSON, display a single confirmation to the client:
-- Warn that proceeding will overwrite the updated tab(s) and erase any manual changes made to those tabs.
-- List all tab names that will be created or replaced exactly as they will appear in the JSON (i.e., the keys inside "tab_updates").
-- Ask: "Proceed and overwrite these tabs? (Yes/No)"
+Before emitting any JSON, check if any tabs need overwrite confirmation:
+- **For ADDING_NEW_TAB (new tabs)**: No confirmation needed - proceed directly to JSON output
+- **For REPLACING_EXISTING_TAB (updating existing tabs)**: Display overwrite confirmation
+
+If overwrite confirmation is needed:
+- Warn that proceeding will overwrite the existing tab(s) and erase any manual changes made to those tabs.
+- List only the existing tab names that will be replaced (not new tabs).
+- Ask: "Proceed and overwrite these existing tabs? (Yes/No)"
 
 Confirmation handling:
 - If the client responds Yes/affirmative: proceed to Immediate JSON Output and output the JSON exactly as specified.

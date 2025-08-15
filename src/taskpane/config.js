@@ -80,81 +80,12 @@ export const CONFIG = {
     }
   },
 
-  // Microsoft Authentication Configuration
   // Subscription API Configuration
   get subscription() {
     return {
       // Your backend API endpoint for checking subscription status (automatically derived from backend.baseUrl)
-      apiUrl: `${this.backend.baseUrl}/subscription`,
-      
-      // Enable mock mode for development (returns fake subscription data)
-      mockMode: false, // Disabled - use real backend
-      
-      // Mock response for development/testing
-      mockResponse: {
-        status: 'none',
-        plan: 'Free',
-        hasActiveSubscription: false,
-        credits: 15,
-        expires: null
-      }
+      apiUrl: `${this.backend.baseUrl}/subscription`
     };
-  },
-
-  authentication: {
-    // To set up Microsoft authentication:
-    // 1. Go to Azure Active Directory > App registrations > New registration
-    // 2. Set name (e.g., "Projectify Add-in") and select "Accounts in any organizational directory and personal Microsoft accounts"
-    // 3. Set redirect URI to your add-in URL (e.g., https://yourdomain.com/src/taskpane/taskpane.html)
-    // 4. Copy the Application (client) ID below
-    // 5. In Authentication settings, enable "Access tokens" and "ID tokens"
-    // 6. In API permissions, ensure "User.Read" is granted
-    
-    msalConfig: {
-      auth: {
-        // IMPORTANT: Replace this with your actual Azure App Registration Client ID
-        // Get this from: Azure Portal > Azure Active Directory > App registrations > Your App > Overview
-        clientId: process.env.NODE_ENV === 'development' 
-          ? "your-azure-app-client-id-here" // For development - replace this
-          : "your-production-client-id-here", // For production - replace this
-        
-        authority: "https://login.microsoftonline.com/common", // For multi-tenant apps (personal + work accounts)
-        
-        // Redirect URI must match exactly what's configured in Azure
-        redirectUri: (() => {
-          if (process.env.NODE_ENV === 'development') {
-            return "https://localhost:3002/src/taskpane/taskpane.html";
-          }
-          // For production, use actual domain
-          return window.location.origin + "/src/taskpane/taskpane.html";
-        })()
-      },
-      cache: {
-        cacheLocation: "sessionStorage", // Use sessionStorage for better security in Office Add-ins
-        storeAuthStateInCookie: false // Set to true if you have IE11 support requirements
-      }
-    },
-    
-    // Login Request Configuration
-    loginRequest: {
-      scopes: ["User.Read", "profile", "openid", "email"] // Permissions we need
-    },
-    
-    // Token Request Configuration  
-    tokenRequest: {
-      scopes: ["User.Read"]
-    },
-    
-    // Graph API Configuration
-    graphConfig: {
-      graphMeUrl: "https://graph.microsoft.com/v1.0/me", // Get user profile
-      graphPhotoUrl: "https://graph.microsoft.com/v1.0/me/photo/$value" // Get user photo
-    },
-    
-    // Development helper
-    isDevelopmentPlaceholder() {
-      return this.msalConfig.auth.clientId.includes('your-azure-app-client-id-here');
-    }
   }
 };
 //dfd

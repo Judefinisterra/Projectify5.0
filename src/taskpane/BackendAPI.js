@@ -8,26 +8,21 @@ import { CONFIG } from './config.js';
 
 class BackendAPI {
   constructor() {
-    // Check if backend configuration exists
+    // Initialize with backend configuration
     if (!CONFIG.backend) {
-      console.warn('⚠️ Backend configuration not found in CONFIG. Using mock mode.');
-      this.mockMode = true;
-    } else {
-      this.baseUrl = CONFIG.backend.baseUrl || 'https://your-backend-api.com';
-      this.endpoints = CONFIG.backend.endpoints || {};
-      this.timeout = CONFIG.backend.timeout || 10000;
-      
-      // Only use mock mode if backend URL is a placeholder
-      if (this.baseUrl.includes('your-backend-api.com') || this.baseUrl.includes('your-dev-backend-api.com')) {
-        console.warn('⚠️ Backend URL appears to be a placeholder. Enabling mock mode.');
-        this.mockMode = true;
-      } else {
-        console.log('✅ Using real backend at:', this.baseUrl);
-        this.mockMode = false;
-      }
+      throw new Error('Backend configuration not found in CONFIG. Please configure CONFIG.backend.');
     }
     
-    console.log('🔧 BackendAPI initialized:', this.mockMode ? 'Mock Mode' : `Real API at ${this.baseUrl}`);
+    this.baseUrl = CONFIG.backend.baseUrl;
+    this.endpoints = CONFIG.backend.endpoints || {};
+    this.timeout = CONFIG.backend.timeout || 10000;
+    
+    // Validate backend URL is configured
+    if (!this.baseUrl || this.baseUrl.includes('your-backend-api.com') || this.baseUrl.includes('your-dev-backend-api.com')) {
+      throw new Error('Backend URL not properly configured. Please set CONFIG.backend.baseUrl to your actual backend URL.');
+    }
+    
+    console.log('✅ BackendAPI initialized with backend at:', this.baseUrl);
   }
 
   // ============================================================================
@@ -96,10 +91,6 @@ class BackendAPI {
                     !!sessionStorage.getItem('access_token') ||
                     !!localStorage.getItem('access_token');
     
-    // In mock mode, also consider authenticated if Google auth was successful
-    if (this.mockMode) {
-      return hasToken || !!window.googleUser;
-    }
     return hasToken;
   }
   
@@ -213,27 +204,6 @@ class BackendAPI {
   async signInWithGoogle(googleIdToken) {
     console.log('🔐 Signing in with Google via backend...');
     
-    // Return mock authentication in mock mode
-    if (this.mockMode) {
-      console.log('🔧 Mock mode: Returning mock authentication');
-      const mockAuthData = {
-        access_token: 'mock-access-token-123',
-        refresh_token: 'mock-refresh-token-123',
-        user: {
-          id: 'mock-user-123',
-          name: 'Development User',
-          email: 'dev@example.com'
-        },
-        session: {
-          refresh_token: 'mock-refresh-token-123'
-        }
-      };
-      
-      // Store mock tokens
-      this.storeTokens(mockAuthData.access_token, mockAuthData.refresh_token);
-      console.log('✅ Mock backend authentication successful');
-      return mockAuthData;
-    }
     
     // For authentication, make direct fetch call without auth headers
     const url = `${this.baseUrl}${this.endpoints.auth.google}`;
@@ -358,22 +328,6 @@ class BackendAPI {
   async getUserProfile() {
     console.log('👤 Fetching user profile...');
     
-    // Return mock data in mock mode
-    if (this.mockMode) {
-      console.log('🔧 Mock mode: Returning mock user profile');
-      const mockUser = {
-        id: 'mock-user-123',
-        name: 'Development User',
-        email: 'dev@example.com',
-        credits: 15,
-        subscription: {
-          status: 'none',
-          hasActiveSubscription: false
-        }
-      };
-      console.log('✅ Mock user profile loaded:', mockUser.name, `(${mockUser.credits} credits)`);
-      return mockUser;
-    }
     
     const response = await this.makeAPICall(this.endpoints.user.profile);
     const user = await response.json();
@@ -479,18 +433,6 @@ class BackendAPI {
   async getSubscriptionStatus() {
     console.log('📋 Fetching subscription status...');
     
-    // Return mock data in mock mode
-    if (this.mockMode) {
-      console.log('🔧 Mock mode: Returning mock subscription status');
-      const mockSubscription = {
-        status: 'none',
-        hasActiveSubscription: false,
-        planType: 'free',
-        creditsRemaining: 15
-      };
-      console.log('✅ Mock subscription status loaded:', mockSubscription.status);
-      return mockSubscription;
-    }
     
     const response = await this.makeAPICall(this.endpoints.subscription.status);
     const subscription = await response.json();
