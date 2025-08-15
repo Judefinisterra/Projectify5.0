@@ -3523,6 +3523,20 @@ Office.onReady(async (info) => {
       };
       sendClientButton.onclick = wrappedSendHandler;
     }
+
+    // >>> ADDED: Enter key handler for client input
+    const userInputClient = document.getElementById('user-input-client');
+    if (userInputClient) {
+      userInputClient.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault(); // Prevent line break
+          const sendButton = document.getElementById('send-client');
+          if (sendButton && !sendButton.disabled) {
+            sendButton.click(); // Trigger send
+          }
+        }
+      });
+    }
     
     // >>> ADDED: Voice Recording Setup for Client Mode
     initializeVoiceRecordingClient();
