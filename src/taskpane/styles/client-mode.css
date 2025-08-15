@@ -404,35 +404,78 @@
   max-width: var(--max-content-width);
   margin: 0 auto;
   display: flex;
-  align-items: center; /* Center for single-line, will adjust with content */
+  flex-direction: row; /* Default: horizontal layout */
+  align-items: center;
   gap: 0;
   padding: 0;
   background-color: var(--color-input-bg);
   border-radius: var(--border-radius-full);
   border: 1px solid var(--color-input-border);
   overflow: hidden;
-  min-height: 48px; /* Minimum height for single row */
-  height: auto; /* Auto height to expand with content */
-  transition: height 0.2s ease; /* Smooth height transition */
+  min-height: 48px;
+  height: auto;
+  transition: all 0.2s ease;
 }
 
+/* Multiline state: stack vertically */
+.chatgpt-input-bar.multiline {
+  flex-direction: column;
+  align-items: stretch;
+  /* Keep same border-radius as single-line state */
+}
+
+/* Default state: inline layout */
 .input-mode {
   display: flex;
-  align-items: center; /* Center alignment for single-line state */
+  align-items: center;
   width: 100%;
-  height: auto; /* Auto height to expand with content */
-  min-height: 48px; /* Minimum height for single row */
+  height: auto;
+  min-height: 48px;
   gap: 0;
-  transition: height 0.2s ease; /* Smooth height transition */
+  transition: all 0.2s ease;
 }
 
-/* Controls */
+/* Multiline state: switch to CSS Grid layout */
+.chatgpt-input-bar.multiline .input-mode {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  grid-template-rows: auto auto;
+  grid-template-areas: 
+    "textarea textarea textarea"
+    "left-controls . right-controls";
+  gap: 8px;
+  padding: 8px;
+  align-items: start;
+}
+
+/* Grid area assignments for multiline layout */
+.chatgpt-input-bar.multiline #user-input-client {
+  grid-area: textarea;
+  width: 100%;
+}
+
+.chatgpt-input-bar.multiline .left-controls {
+  grid-area: left-controls;
+  justify-self: start;
+}
+
+.chatgpt-input-bar.multiline .right-controls {
+  grid-area: right-controls;
+  justify-self: end;
+}
+
+/* Controls - Default inline state */
 .left-controls,
 .right-controls {
   display: flex;
-  align-items: center; /* Center alignment to match input-mode */
+  align-items: center;
   padding: 0 var(--spacing-sm);
-  /* Remove bottom padding for centered alignment */
+}
+
+/* In multiline state, controls become part of actions row */
+.chatgpt-input-bar.multiline .left-controls,
+.chatgpt-input-bar.multiline .right-controls {
+  padding: 0;
 }
 
 /* Attachment Button */
@@ -455,25 +498,32 @@
   opacity: 1;
 }
 
-/* Text Input */
+/* Text Input - Default inline state */
 #user-input-client {
   flex: 1;
-  padding: 10px 12px; /* Vertical padding for centering */
+  padding: 10px 12px;
   border: none;
   outline: none;
   font-size: var(--font-size-base);
-  line-height: 24px; /* Fixed line height for consistent centering */
+  line-height: 24px;
   background: transparent;
   color: var(--color-black);
   font-family: var(--font-family);
-  resize: none; /* Disable manual resize */
-  overflow-y: hidden; /* Hide scrollbar initially */
+  resize: none;
+  overflow-y: hidden;
   box-sizing: border-box;
-  min-height: 44px; /* Single line height with padding (24px + 20px padding) */
-  max-height: 116px; /* Maximum height for ~4 rows (24px * 4 + 20px padding) */
-  transition: height 0.1s ease; /* Smooth height transition */
-  vertical-align: middle; /* Ensure proper vertical alignment */
-  /* Remove white-space and text-overflow for multi-line support */
+  min-height: 44px;
+  max-height: 116px;
+  transition: all 0.2s ease;
+  vertical-align: middle;
+}
+
+/* Text Input - Multiline state */
+.chatgpt-input-bar.multiline #user-input-client {
+  width: 100%;
+  flex: none; /* Remove flex to allow full width */
+  margin: 0; /* Remove any margins */
+  min-height: 60px; /* Taller minimum for multiline */
 }
 
 #user-input-client::placeholder {

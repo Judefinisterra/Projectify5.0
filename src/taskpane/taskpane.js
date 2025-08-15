@@ -8,6 +8,8 @@ import userProfileManager, { initializeUserData, refreshUserData, canUseFeatures
 import { enforceFeatureAccess, useCreditForBuild, useCreditForUpdate, startSubscription } from './CreditSystem.js';
 // Import chat layout debugger
 import ChatLayoutDebugger from './ChatDebugger.js';
+// Import multiline input handler
+import { multilineInputHandler } from './multiline-input.js';
 
 // Ensure userProfileManager is available globally
 if (typeof window !== 'undefined') {
@@ -2026,10 +2028,10 @@ Office.onReady(async (info) => {
         productionLog('initializeVoiceInput called');
       }
       
-      // Initialize textarea auto-resize functionality
-      if (typeof initializeTextareaAutoResize === 'function') {
-        initializeTextareaAutoResize();
-        productionLog('initializeTextareaAutoResize called');
+      // Initialize multiline input handler (replaces old auto-resize)
+      if (multilineInputHandler && typeof multilineInputHandler.init === 'function') {
+        multilineInputHandler.init();
+        productionLog('MultilineInputHandler initialized');
       }
       
       // Sidebar navigation removed - no longer needed
