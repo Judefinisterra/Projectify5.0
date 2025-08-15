@@ -3103,9 +3103,7 @@ Office.onReady(async (info) => {
     }
 
     // --- SETUP FOR CLIENT MODE UI ---
-    // Assign event handlers from AIModelPlanner.js to client mode buttons
-    const sendClientButton = document.getElementById('send-client');
-    if (sendClientButton) sendClientButton.onclick = plannerHandleSend;
+    // Note: send-client button handler is set in taskpane.js with credit enforcement wrapper
 
     const resetClientChatButton = document.getElementById('reset-chat-client');
     if (resetClientChatButton) resetClientChatButton.onclick = plannerHandleReset;

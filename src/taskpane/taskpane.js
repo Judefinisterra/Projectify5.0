@@ -68,7 +68,7 @@ import { handleFollowUpConversation, handleInitialConversation, handleConversati
 // >>> ADDED: Import CONFIG for URL management
 import { CONFIG } from './config.js';
 // >>> ADDED: Import file attachment and voice input functionality from AIModelPlanner
-import { initializeFileAttachment, initializeFileAttachmentDev, initializeVoiceInput, initializeVoiceInputDev, initializeTextareaAutoResize, initializeTextareaAutoResizeDev, setAIModelPlannerOpenApiKey, currentAttachedFilesDev, formatFileDataForAIDev, removeAllAttachmentsDev, resetAIModelPlannerConversation } from './AIModelPlanner.js';
+import { initializeFileAttachment, initializeFileAttachmentDev, initializeVoiceInput, initializeVoiceInputDev, initializeTextareaAutoResize, initializeTextareaAutoResizeDev, setAIModelPlannerOpenApiKey, currentAttachedFilesDev, formatFileDataForAIDev, removeAllAttachmentsDev, resetAIModelPlannerConversation, plannerHandleSend } from './AIModelPlanner.js';
 // >>> ADDED: Import cost tracking functionality
 import { trackAPICallCost, estimateTokens } from './CostTracker.js';
 // Add the codeStrings variable with the specified content
@@ -3504,22 +3504,24 @@ Office.onReady(async (info) => {
     // }
 
     // >>> ADDED: Setup for Client Mode Chat Buttons
-    // Don't override the send button handler - it's already set by AIcalls.js to use plannerHandleSend
-    // which properly includes attachments. Just ensure credit enforcement wraps around it.
+    // Set up credit enforcement wrapper that will work regardless of when AIcalls.js loads
     const sendClientButton = document.getElementById('send-client');
     if (sendClientButton) {
-      const originalHandler = sendClientButton.onclick;
-      if (originalHandler) {
-        sendClientButton.onclick = async () => {
-          // Check credits before allowing AI conversation
-          await enforceFeatureAccess('update', async () => {
-            // Use credit for update/conversation
-            await useCreditForUpdate();
-            // Call the original handler (plannerHandleSend)
-            await originalHandler();
-          });
-        };
-      }
+      // Store reference to plannerHandleSend for credit wrapper
+      const wrappedSendHandler = async () => {
+        // Check credits before allowing AI conversation
+        await enforceFeatureAccess('update', async () => {
+          // Use credit for update/conversation
+          await useCreditForUpdate();
+          // Call plannerHandleSend directly
+          if (typeof plannerHandleSend === 'function') {
+            await plannerHandleSend();
+          } else {
+            console.error('plannerHandleSend function not found');
+          }
+        });
+      };
+      sendClientButton.onclick = wrappedSendHandler;
     }
     
     // >>> ADDED: Voice Recording Setup for Client Mode
