@@ -94,15 +94,28 @@ class MultilineInputHandler {
         // Determine if we need multiline layout
         const hasWrappedText = scrollHeight > singleLineHeight;
         const hasNewlines = this.textarea.value.includes('\n');
-        const needsMultiline = hasWrappedText || hasNewlines;
-        
-        // Only toggle if state actually changes (prevent flicker)
+        const hasContent = this.textarea.value.trim().length > 0;
         const currentlyMultiline = this.inputBar.classList.contains('multiline');
         
+        let needsMultiline;
+        
+        if (!currentlyMultiline) {
+            // Not in multiline yet: switch if content wraps or has newlines
+            needsMultiline = hasContent && (hasWrappedText || hasNewlines);
+        } else {
+            // Already in multiline: only exit if NO content at all
+            needsMultiline = hasContent;
+        }
+        
+        // Only toggle if state actually changes (prevent flicker)
         if (needsMultiline && !currentlyMultiline) {
             this.inputBar.classList.add('multiline');
         } else if (!needsMultiline && currentlyMultiline) {
             this.inputBar.classList.remove('multiline');
+            this.inputBar.classList.remove('expanded');
+            // Reset textarea to original startup state
+            this.resetToStartupState();
+            return; // Skip the expanded class logic below since we're resetting
         }
         
         // Also handle the "expanded" class for compatibility with existing CSS
@@ -179,12 +192,33 @@ class MultilineInputHandler {
     }
 
     /**
+     * Reset textarea to exact startup state
+     */
+    resetToStartupState() {
+        if (!this.textarea) return;
+        
+        // Reset height to original single-line height
+        this.textarea.style.height = '44px'; // Match CSS min-height
+        
+        // Remove any dynamic classes
+        this.textarea.classList.remove('scrollable');
+        
+        // Reset overflow
+        this.textarea.style.overflowY = 'hidden';
+        
+        // Reset any other properties that might have been modified
+        this.textarea.style.minHeight = '';
+    }
+
+    /**
      * Reset to single-line state
      */
     reset() {
         if (this.inputBar) {
             this.inputBar.classList.remove('multiline');
+            this.inputBar.classList.remove('expanded');
         }
+        this.resetToStartupState();
     }
 
     /**
