@@ -77,7 +77,7 @@ import { trackAPICallCost, estimateTokens } from './CostTracker.js';
 
 
 //Debugging Toggle
-const DEBUG = CONFIG.isDevelopment;
+const DEBUG = false;
 
 // Variable to store loaded code strings
 let loadedCodeStrings = "";
@@ -139,11 +139,6 @@ let isFirstMessageInSession = true;
 
 // Function to conditionally show developer mode menu based on environment
 function initializeDeveloperModeVisibility() {
-    console.log("🔍 Initializing developer mode visibility...");
-    console.log("🔍 IS_DEVELOPMENT value:", process.env.IS_DEVELOPMENT);
-    console.log("🔍 IS_DEVELOPMENT type:", typeof process.env.IS_DEVELOPMENT);
-    console.log("🔍 NODE_ENV value:", process.env.NODE_ENV);
-    
     // Try multiple selectors to find the developer menu item
     const selectors = [
         '[data-action="developer"]',
@@ -154,71 +149,24 @@ function initializeDeveloperModeVisibility() {
     let developerMenuItem = null;
     for (const selector of selectors) {
         developerMenuItem = document.querySelector(selector);
-        console.log(`🔍 Trying selector "${selector}":`, !!developerMenuItem);
         if (developerMenuItem) break;
     }
     
-    // Also try to find all menu items for debugging
-    const allMenuItems = document.querySelectorAll('.menu-item');
-    console.log("🔍 Total menu items found:", allMenuItems.length);
-    allMenuItems.forEach((item, index) => {
-        console.log(`🔍 Menu item ${index}:`, item.getAttribute('data-action'), item.textContent.trim());
-    });
-    
     if (developerMenuItem) {
-        console.log("🔍 Developer menu item current style display:", developerMenuItem.style.display);
-        console.log("🔍 Developer menu item computed display:", window.getComputedStyle(developerMenuItem).display);
-        
         // Only show developer mode in development builds
         // Use window.location to detect localhost (most reliable method)
         const isLocalhost = window.location.hostname === 'localhost' || 
                            window.location.hostname === '127.0.0.1' ||
                            window.location.href.includes('localhost');
         
-        console.log("🔍 Environment detection:");
-        console.log("  window.location.hostname:", window.location.hostname);
-        console.log("  window.location.href:", window.location.href);
-        console.log("  isLocalhost:", isLocalhost);
-        
         if (isLocalhost) {
-            console.log("✅ Development mode detected - showing developer mode menu");
-            
-            // Apply multiple aggressive styles to ensure visibility
-            developerMenuItem.style.display = 'flex !important';
-            developerMenuItem.style.visibility = 'visible !important';
-            developerMenuItem.style.opacity = '1 !important';
-            developerMenuItem.style.height = 'auto !important';
-            developerMenuItem.style.width = '100% !important';
-            developerMenuItem.style.position = 'relative !important';
-            developerMenuItem.style.border = '2px solid red'; // Temporary debug border
-            developerMenuItem.classList.remove('hidden');
-            developerMenuItem.removeAttribute('hidden');
-            
-            console.log("✅ Applied aggressive styling for visibility");
-            
-            // Double-check after a short delay
-            setTimeout(() => {
-                const computedStyle = window.getComputedStyle(developerMenuItem);
-                console.log("🔍 Final computed styles:");
-                console.log("  display:", computedStyle.display);
-                console.log("  visibility:", computedStyle.visibility);
-                console.log("  opacity:", computedStyle.opacity);
-                console.log("  height:", computedStyle.height);
-                console.log("  position:", computedStyle.position);
-                console.log("🔍 Element bounds:", developerMenuItem.getBoundingClientRect());
-                
-                // Force reflow
-                developerMenuItem.offsetHeight;
-            }, 100);
-            
+            // Override inline styles and add class to make it visible
+            developerMenuItem.style.display = 'flex';
+            developerMenuItem.style.visibility = 'visible';
+            developerMenuItem.classList.add('dev-mode-visible');
         } else {
-            console.log("❌ Production mode detected - hiding developer mode menu");
             developerMenuItem.remove(); // Completely remove from DOM in production
         }
-    } else {
-        console.log("⚠️ Developer menu item not found in DOM");
-        console.log("⚠️ Available elements with data-action:", 
-            Array.from(document.querySelectorAll('[data-action]')).map(el => el.getAttribute('data-action')));
     }
 }
 
@@ -3034,35 +2982,37 @@ Office.onReady(async (info) => {
           if (result.status === Office.AsyncResultStatus.Succeeded) {
             const dialog = result.value;
             
-            // Listen for messages from the dialog
-            dialog.addEventHandler(Office.EventType.DialogMessageReceived, function (arg) {
-              try {
-                const authResult = JSON.parse(arg.message);
-                dialog.close();
-                
-                if (authResult.success) {
-                  handleGoogleAuthSuccess(authResult);
-                } else {
-                  handleGoogleAuthError(authResult.error);
+            // Listen for messages from the dialog (with error handling to prevent debug popup)
+            try {
+              dialog.addEventHandler(Office.EventType.DialogMessageReceived, function (arg) {
+                try {
+                  const authResult = JSON.parse(arg.message);
+                  dialog.close();
+                  
+                  if (authResult.success) {
+                    handleGoogleAuthSuccess(authResult);
+                  } else {
+                    handleGoogleAuthError(authResult.error);
+                  }
+                } catch (error) {
+                  console.error("Error parsing auth result:", error);
+                  dialog.close();
+                  showError("Authentication failed. Please try again.");
                 }
-              } catch (error) {
-                console.error("Error parsing auth result:", error);
-                dialog.close();
-                showError("Authentication failed. Please try again.");
-              }
-            });
-            
-            // Handle dialog closed by user
-            dialog.addEventHandler(Office.EventType.DialogEventReceived, function (arg) {
-              if (arg.error === 12006) { // Dialog closed by user
-                if (CONFIG.isDevelopment) {
+              });
+              
+              // Handle dialog closed by user (with error handling to prevent debug popup)
+              dialog.addEventHandler(Office.EventType.DialogEventReceived, function (arg) {
+                if (arg.error === 12006) { // Dialog closed by user
                   console.log("Authentication canceled by user");
+                } else {
+                  console.error("Dialog error:", arg.error);
+                  showError("Authentication failed. Please try again.");
                 }
-              } else {
-                console.error("Dialog error:", arg.error);
-                showError("Authentication failed. Please try again.");
-              }
-            });
+              });
+            } catch (eventHandlerError) {
+              console.warn("Could not register dialog event handlers:", eventHandlerError);
+            }
           } else {
             console.error("Failed to open authentication dialog:", result.error);
             if (CONFIG.isDevelopment) {

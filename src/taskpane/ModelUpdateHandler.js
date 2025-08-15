@@ -4,7 +4,7 @@
 // Import cleanup function for tab replacement
 import { cleanupFinancialsReferences } from './CodeCollection.js';
 
-const DEBUG_UPDATE_HANDLER = true;
+const DEBUG_UPDATE_HANDLER = false;
 
 /**
  * Utility function to strip code block markers from JSON strings

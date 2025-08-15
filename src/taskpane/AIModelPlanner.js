@@ -26,7 +26,7 @@ let currentAttachedFiles = []; // To store multiple attached files data
 
 import { processModelCodesForPlanner } from './taskpane.js'; // <<< UPDATED IMPORT
 
-const DEBUG_PLANNER = CONFIG.isDevelopment; // For planner-specific debugging
+const DEBUG_PLANNER = false; // For planner-specific debugging
 
 // Helper function to get API keys (placeholder, adapt as needed based on your structure)
 // This might need to be coordinated with how API keys are managed in your main taskpane.js

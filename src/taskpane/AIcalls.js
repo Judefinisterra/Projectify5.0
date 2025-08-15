@@ -45,7 +45,7 @@ const fs = {
 const startTime = performance.now();
 
 //Debugging Toggle
-const DEBUG = CONFIG.isDevelopment;
+const DEBUG = false;
 
 // Variable to store loaded code strings
 let loadedCodeStrings = "";
@@ -3250,35 +3250,37 @@ Office.onReady(async (info) => {
           if (result.status === Office.AsyncResultStatus.Succeeded) {
             const dialog = result.value;
             
-            // Listen for messages from the dialog
-            dialog.addEventHandler(Office.EventType.DialogMessageReceived, function (arg) {
-              try {
-                const authResult = JSON.parse(arg.message);
-                dialog.close();
-                
-                if (authResult.success) {
-                  handleGoogleAuthSuccessView(authResult);
-                } else {
-                  handleGoogleAuthErrorView(authResult.error);
+            // Listen for messages from the dialog (with error handling to prevent debug popup)
+            try {
+              dialog.addEventHandler(Office.EventType.DialogMessageReceived, function (arg) {
+                try {
+                  const authResult = JSON.parse(arg.message);
+                  dialog.close();
+                  
+                  if (authResult.success) {
+                    handleGoogleAuthSuccessView(authResult);
+                  } else {
+                    handleGoogleAuthErrorView(authResult.error);
+                  }
+                } catch (error) {
+                  console.error("Error parsing auth result:", error);
+                  dialog.close();
+                  showError("Authentication failed. Please try again.");
                 }
-              } catch (error) {
-                console.error("Error parsing auth result:", error);
-                dialog.close();
-                showError("Authentication failed. Please try again.");
-              }
-            });
-            
-            // Handle dialog closed by user
-            dialog.addEventHandler(Office.EventType.DialogEventReceived, function (arg) {
-              if (arg.error === 12006) { // Dialog closed by user
-                if (DEBUG) {
+              });
+              
+              // Handle dialog closed by user (with error handling to prevent debug popup)  
+              dialog.addEventHandler(Office.EventType.DialogEventReceived, function (arg) {
+                if (arg.error === 12006) { // Dialog closed by user
                   console.log("Authentication canceled by user");
+                } else {
+                  console.error("Dialog error:", arg.error);
+                  showError("Authentication failed. Please try again.");
                 }
-              } else {
-                console.error("Dialog error:", arg.error);
-                showError("Authentication failed. Please try again.");
-              }
-            });
+              });
+            } catch (eventHandlerError) {
+              console.warn("Could not register dialog event handlers:", eventHandlerError);
+            }
           } else {
             console.error("Failed to open authentication dialog:", result.error);
             // Fallback to external window for development
