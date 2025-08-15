@@ -3978,6 +3978,12 @@ export function initializeVoiceInputDev() {
 function autoResizeTextarea(textarea) {
     if (!textarea) return;
     
+    // For empty content, use CSS min-height instead of auto-resize
+    if (!textarea.value.trim()) {
+        textarea.style.height = ''; // Remove inline height to use CSS min-height
+        return;
+    }
+    
     // Reset height to auto to get the correct scrollHeight
     textarea.style.height = 'auto';
     

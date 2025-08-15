@@ -478,6 +478,9 @@
 
 #user-input-client::placeholder {
   color: var(--color-text-placeholder);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* No scrolling needed for single-line input */
