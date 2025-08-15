@@ -31,14 +31,6 @@ import { trackAPICallCost, estimateTokens } from './CostTracker.js';
 
 
 
-// Mock fs module for browser environment (if needed within AIcalls)
-const fs = {
-    writeFileSync: (path, content) => {
-        // console.log(`Mock writeFileSync called with path: ${path}`);
-        // // In browser, we'll just log the content instead of writing to file
-        // console.log(`Content would be written to ${path}:`, content.substring(0, 100) + '...');
-    }
-};
 
 //*********Setup*********
 // Start the timer
@@ -2910,12 +2902,7 @@ export async function validationCorrection(clientprompt, initialResponse, valida
             useClaudeAPI: true
         });
 
-        // Save the output using the mock fs (as per original logic)
-        const correctionOutputPath = "C:\\Users\\joeor\\Dropbox\\B - Freelance\\C_Projectify\\VanPC\\Training Data\\Main Script Training and Context Data\\validation_correction_output.txt";
-        const correctedResponseString = Array.isArray(correctedResponseArray) ? correctedResponseArray.join("\n") : correctedResponseArray;
-        fs.writeFileSync(correctionOutputPath, correctedResponseString);
-
-        if (DEBUG) console.log(`Validation correction output saved via mock fs to ${correctionOutputPath}`);
+        if (DEBUG) console.log("Validation correction completed successfully");
         if (DEBUG) console.log("Corrected Response:", correctedResponseArray);
 
         // >>> ADDED: Compare before and after codestrings for Validation Correction
