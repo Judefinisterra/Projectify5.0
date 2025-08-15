@@ -122,7 +122,7 @@ export function resetValidationPassCounter() {
  * 
  * 3. Claude API (Anthropic): /v1/messages
  *    - Uses message arrays with separate system prompt and user messages
- *    - Supports Claude models (claude-sonnet-4-20250514, etc.)
+ *    - Supports Claude models (claude-opus-4-1-20250805, etc.)
  *    - Function: callClaudeAPI()
  *
  * 4. Unified Interface: callOpenAI()
@@ -379,7 +379,7 @@ export async function testClaudeAPI(input, options = {}) {
   ];
   
   const testOptions = {
-    model: "claude-sonnet-4-20250514",
+    model: "claude-opus-4-1-20250805",
     temperature: 1,
     stream: false,
     caller: "testClaudeAPI",
@@ -888,7 +888,7 @@ export async function* callOpenAIResponses(input, options = {}) {
 
 // Direct Claude API call function (for Anthropic models)
 export async function* callClaudeAPI(messages, options = {}) {
-  const { model = "claude-sonnet-4-20250514", temperature = 1, stream = false, caller = "Unknown" } = options;
+  const { model = "claude-opus-4-1-20250805", temperature = 1, stream = false, caller = "Unknown" } = options;
 
   // >>> ADDED: Cost tracking variables
   const startTime = Date.now();
@@ -1410,7 +1410,7 @@ export async function structureDatabasequeries(clientprompt, progressCallback = 
               const queryStrings = await processPrompt({
             userInput: clientprompt,
             systemPrompt: systemStructurePrompt,
-            model: "claude-sonnet-4-20250514",
+            model: "claude-opus-4-1-20250805",
             temperature: 1,
             history: [], // Explicitly empty
             promptFiles: { system: 'Structure_System' },
@@ -2566,7 +2566,7 @@ export async function handleFollowUpConversation(clientprompt, currentHistory) {
         ];
 
         const claudeCallOptions = { 
-            model: "claude-sonnet-4-20250514", 
+            model: "claude-opus-4-1-20250805", 
             temperature: 1, 
             stream: false,
             useClaudeAPI: true,
@@ -2663,7 +2663,7 @@ export async function handleInitialConversation(clientprompt) {
         encoderModel = GPT_O3;
         apiType = "Responses API";
     } else if (ENCODER_API_TYPE === ENCODER_API_TYPES.CLAUDE) {
-        encoderModel = "claude-sonnet-4-20250514";
+        encoderModel = "claude-opus-4-1-20250805";
         apiType = "Claude API";
     }
     
@@ -2895,7 +2895,7 @@ export async function validationCorrection(clientprompt, initialResponse, valida
         const correctedResponseArray = await processPrompt({
             userInput: correctionPrompt,
             systemPrompt: validationSystemPrompt,
-            model: "claude-sonnet-4-20250514",
+            model: "claude-opus-4-1-20250805",
             temperature: 0.7, // Lower temperature for correction
             history: [],
             promptFiles: { system: `Validation_System|PASS_${validationPassCounter}|ERRORS:${validationResultsString}` },
@@ -3659,7 +3659,7 @@ export async function checkCodeStringsWithLogicCorrector(responseArray, logicErr
         const correctedResponseArray = await processPrompt({
             userInput: logicCorrectorInput,
             systemPrompt: logicCorrectorSystemPrompt,
-            model: "claude-sonnet-4-20250514", // Using Claude model
+            model: "claude-opus-4-1-20250805", // Using Claude model
             temperature: 0.3, // Lower temperature for logic correction consistency
             history: [], // No history needed for logic correction
             promptFiles: { system: 'LogicCorrectorGPT' },
@@ -3804,7 +3804,7 @@ export async function checkCodeStringsWithLogicChecker(responseArray) {
         const checkedResponseArray = await processPrompt({
             userInput: logicCheckerInput,
             systemPrompt: logicCheckerSystemPrompt,
-            model: "claude-sonnet-4-20250514", // Using Claude model
+            model: "claude-opus-4-1-20250805", // Using Claude model
             temperature: 0.3, // Lower temperature for logic checking consistency
             history: [], // No history needed for logic checking
             promptFiles: { system: 'LogicCheckerGPT' },
@@ -3932,7 +3932,7 @@ export async function formatCodeStringsWithGPT(responseArray) {
         const formattedResponseArray = await processPrompt({
             userInput: formatInput,
             systemPrompt: formatSystemPrompt,
-            model: "claude-sonnet-4-20250514", // Using Claude model
+            model: "claude-opus-4-1-20250805", // Using Claude model
             temperature: 0.3, // Lower temperature for formatting consistency
             history: [], // No history needed for formatting
             promptFiles: { system: 'FormatGPT' },
@@ -4006,7 +4006,7 @@ export async function checkLabelsWithGPT(responseArray) {
         const checkedResponseArray = await processPrompt({
             userInput: labelCheckerInput,
             systemPrompt: labelCheckerSystemPrompt,
-            model: "claude-sonnet-4-20250514", // Using Claude model
+            model: "claude-opus-4-1-20250805", // Using Claude model
             temperature: 0.3, // Lower temperature for label checking consistency
             history: [], // No history needed for label checking
             promptFiles: { system: 'LabelCheckerGPT' },
@@ -4063,7 +4063,7 @@ export async function determinePromptModules(clientRequest) {
         const moduleResponse = await processPrompt({
             userInput: clientRequest,
             systemPrompt: promptModulesSystemPrompt,
-            model: "claude-sonnet-4-20250514", // Using Claude model
+            model: "claude-opus-4-1-20250805", // Using Claude model
             temperature: 0.3, // Lower temperature for more consistent module selection
             history: [],
             promptFiles: { system: 'PromptModulesGPT' },
@@ -4508,7 +4508,7 @@ export async function getAICallsProcessedResponse(userInputString, progressCallb
             encoderModel = GPT_O3;
             apiType = "Responses API";
         } else if (ENCODER_API_TYPE === ENCODER_API_TYPES.CLAUDE) {
-            encoderModel = "claude-sonnet-4-20250514";
+            encoderModel = "claude-opus-4-1-20250805";
             apiType = "Claude API";
         }
         

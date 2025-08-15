@@ -610,7 +610,7 @@ ${financialItems.length > 0 ? financialItems.map((item, index) => `${index + 1}.
         // Call Claude API
         let claudeResponse = "";
         for await (const contentPart of callClaudeAPI(messages, {
-            model: "claude-sonnet-4-20250514",
+            model: "claude-opus-4-1-20250805",
             temperature: 0.3,
             stream: false,
             caller: "processActualsWithClaude"
@@ -1089,7 +1089,7 @@ async function handleSendClient() {
 
         // Call Claude API with streaming
         // Using Claude 4 via callOpenAI (configured in AIcalls.js)
-        const stream = await callOpenAI(messages, { stream: true, model: "claude-sonnet-4-20250514", useClaudeAPI: true });
+        const stream = await callOpenAI(messages, { stream: true, model: "claude-opus-4-1-20250805", useClaudeAPI: true });
 
         for await (const chunk of stream) {
             const content = chunk.choices && chunk.choices[0]?.delta?.content;

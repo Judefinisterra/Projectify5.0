@@ -34,7 +34,7 @@ const API_PRICING = {
     'claude-4-opus': { input: 15.00, output: 75.00 },
     'claude-4.1-opus': { input: 15.00, output: 75.00 },
     'claude-4-sonnet': { input: 3.00, output: 15.00 },
-    'claude-sonnet-4-20250514': { input: 3.00, output: 15.00 }, // Current model used in your codebase
+    'claude-opus-4-1-20250805': { input: 3.00, output: 15.00 }, // Current model used in your codebase
     'claude-3.7-sonnet': { input: 3.00, output: 15.00 },
     'claude-3.5-sonnet': { input: 3.00, output: 15.00 },
     'claude-3.5-haiku': { input: 0.80, output: 4.00 },
