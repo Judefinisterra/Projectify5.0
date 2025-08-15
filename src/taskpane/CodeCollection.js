@@ -1680,7 +1680,17 @@ export async function parseFormulaSCustomFormula(formulaString, targetRow, works
         return `(EOMONTH(${driver},0)>EOMONTH(U$2,0))`;
     });
     
-    // Process RAISE function: RAISE(driver1,driver2) -> (1 + (driver1)) ^ (U$3 - max(year(driver2), $U3))
+    // Process RAISE function (single parameter): RAISE(driver1) -> (1 + (driver1)) ^ (YEAR(U$2) - YEAR($U$2))
+    // This handles the single-parameter version: RAISE(rd{V3})
+    // Creates annual growth from the first year (U$2) to current year
+    result = result.replace(/RAISE\(([^,)]+)\)(?!.*,)/gi, (match, driver1) => {
+        // Trim whitespace from driver
+        driver1 = driver1.trim();
+        // console.log(`    Converting RAISE(${driver1}) to (1 + (${driver1})) ^ (YEAR(U$2) - YEAR($U$2))`);
+        return `(1 + (${driver1})) ^ (YEAR(U$2) - YEAR($U$2))`;
+    });
+    
+    // Process RAISE function (two parameters): RAISE(driver1,driver2) -> (1 + (driver1)) ^ (U$3 - max(year(driver2), $U3))
     result = result.replace(/RAISE\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
         // Trim whitespace from drivers
         driver1 = driver1.trim();
@@ -5810,7 +5820,17 @@ async function processFormulaSRows(worksheet, startRow, lastRow) {
                 return `(EOMONTH(${driver},0)>EOMONTH(U$2,0))`;
             });
             
-            // Process RAISE function: RAISE(driver1,driver2) -> (1 + (driver1)) ^ (U$3 - max(year(driver2), $U3))
+            // Process RAISE function (single parameter): RAISE(driver1) -> (1 + (driver1)) ^ (YEAR(U$2) - YEAR($U$2))
+            // This handles the single-parameter version: RAISE(rd{V3})
+            // Creates annual growth from the first year (U$2) to current year
+            formula = formula.replace(/RAISE\(([^,)]+)\)(?!.*,)/gi, (match, driver1) => {
+                // Trim whitespace from driver
+                driver1 = driver1.trim();
+                // console.log(`    Converting RAISE(${driver1}) to (1 + (${driver1})) ^ (YEAR(U$2) - YEAR($U$2))`);
+                return `(1 + (${driver1})) ^ (YEAR(U$2) - YEAR($U$2))`;
+            });
+            
+            // Process RAISE function (two parameters): RAISE(driver1,driver2) -> (1 + (driver1)) ^ (U$3 - max(year(driver2), $U3))
             formula = formula.replace(/RAISE\(([^,]+),([^)]+)\)/gi, (match, driver1, driver2) => {
                 // Trim whitespace from drivers
                 driver1 = driver1.trim();
