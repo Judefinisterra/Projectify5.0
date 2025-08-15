@@ -47,7 +47,9 @@ function determineInitialView() {
     // Check if user is authenticated
     const isAuthenticated = checkAuthentication();
     if (isAuthenticated) {
-        return 'client-mode';
+        // Check if user has given data sharing consent
+        const hasConsent = checkDataSharingConsent();
+        return hasConsent ? 'client-mode' : 'consent';
     }
     
     // Default to authentication for non-authenticated users
@@ -62,8 +64,32 @@ function checkAuthentication() {
     // Check for stored auth tokens
     const googleToken = localStorage.getItem('google_access_token');
     const msalToken = localStorage.getItem('msal_access_token');
+    const apiKey = localStorage.getItem('user_api_key');
     
-    return !!(googleToken || msalToken);
+    return !!(googleToken || msalToken || apiKey);
+}
+
+/**
+ * Check if user has given valid data sharing consent
+ * @returns {boolean}
+ */
+function checkDataSharingConsent() {
+    const storedConsent = localStorage.getItem('data_sharing_consent');
+    
+    if (!storedConsent) return false;
+    
+    try {
+        const consentData = JSON.parse(storedConsent);
+        
+        // Check if consent is still valid (within last 365 days)
+        const consentDate = new Date(consentData.timestamp);
+        const daysSinceConsent = (new Date() - consentDate) / (1000 * 60 * 60 * 24);
+        
+        return consentData.version === '1.0' && daysSinceConsent <= 365;
+    } catch (error) {
+        console.error('Error parsing consent data:', error);
+        return false;
+    }
 }
 
 /**

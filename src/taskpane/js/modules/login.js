@@ -36,7 +36,7 @@ function setupGoogleSignIn() {
                     `&scope=${encodeURIComponent(scope)}`;
                 
                 // Store return URL
-                localStorage.setItem('auth_return_view', 'client-mode');
+                localStorage.setItem('auth_return_view', 'consent');
                 
                 // Redirect to Google auth
                 window.location.href = authUrl;
@@ -87,7 +87,7 @@ function setupMicrosoftSignIn() {
                     handleMicrosoftAuthSuccess(response);
                 } catch (popupError) {
                     console.log('Popup blocked, using redirect');
-                    localStorage.setItem('auth_return_view', 'client-mode');
+                    localStorage.setItem('auth_return_view', 'consent');
                     msalInstance.loginRedirect(loginRequest);
                 }
                 
@@ -192,7 +192,7 @@ async function handleApiKeySignIn(apiKey) {
         // Show success and redirect
         showSuccess();
         setTimeout(() => {
-            window.app.loadView('client-mode');
+            window.app.loadView('consent');
         }, 1500);
         
     } catch (error) {
@@ -225,7 +225,7 @@ function handleMicrosoftAuthSuccess(response) {
         // Show success and redirect
         showSuccess();
         setTimeout(() => {
-            window.app.loadView('client-mode');
+            window.app.loadView('consent');
         }, 1500);
         
     } catch (error) {
@@ -284,7 +284,7 @@ async function handleGoogleAuthSuccess(accessToken) {
         // Show success and redirect
         showSuccess();
         setTimeout(() => {
-            const returnView = localStorage.getItem('auth_return_view') || 'client-mode';
+            const returnView = localStorage.getItem('auth_return_view') || 'consent';
             localStorage.removeItem('auth_return_view');
             window.app.loadView(returnView);
         }, 1500);

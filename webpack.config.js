@@ -166,6 +166,14 @@ module.exports = async (env, options) => {
             from: "./src/auth/google/callback.html",
             to: "auth/google/callback.html"
           },
+          {
+            from: "./src/taskpane/views/*",
+            to: "views/[name][ext]"
+          },
+          {
+            from: "./src/taskpane/styles/views/*",
+            to: "styles/[name][ext]"
+          },
 
         ],
       }),

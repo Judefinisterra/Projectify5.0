@@ -15,7 +15,7 @@ class ViewLoader {
     async loadView(viewName) {
         try {
             // Check authentication for protected views
-            if (viewName === 'client-mode' && !this.isAuthenticated()) {
+            if ((viewName === 'client-mode' || viewName === 'consent') && !this.isAuthenticated()) {
                 console.log('User not authenticated, redirecting to login');
                 viewName = 'login';
             }
