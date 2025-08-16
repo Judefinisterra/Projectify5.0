@@ -359,17 +359,94 @@
                     <div class="training-data-form">
                         <div class="training-field">
                             <label for="training-user-input">Client Message:</label>
-                            <textarea id="training-user-input" rows="4" placeholder="Enter the client's original message... (Ctrl+V or right-click to paste)"></textarea>
+                            <div class="training-input-container">
+                                <textarea id="training-user-input" rows="4" placeholder="Enter the client's original message... (Ctrl+V or right-click to paste)"></textarea>
+                                <button id="voice-input-training-user" class="ms-Button ms-Button--icon voice-button training-voice-button" title="Voice input for client message">
+                                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="microphone-icon">
+                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill="currentColor"/>
+                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                        <path d="M12 19v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                            </div>
                             <small style="color: #666; font-size: 12px; margin-top: 5px; display: block;">
-                                Tip: You can paste text using Ctrl+V (Windows) or Cmd+V (Mac), or right-click and select Paste
+                                Tip: You can paste text using Ctrl+V (Windows) or Cmd+V (Mac), or right-click and select Paste. Use the microphone for voice input.
                             </small>
+                            
+                            <!-- Voice Recording Mode for Client Message -->
+                            <div id="voice-recording-mode-training-user" class="training-voice-mode" style="display: none;">
+                                <div class="voice-waveform-container">
+                                    <canvas id="voice-waveform-training-user" class="voice-waveform"></canvas>
+                                    <div id="voice-recording-timer-training-user" class="voice-recording-timer">00:00</div>
+                                </div>
+                                <div class="voice-recording-controls">
+                                    <button id="cancel-voice-recording-training-user" class="ms-Button ms-Button--icon voice-control-button" title="Cancel recording">
+                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="cancel-icon">
+                                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </button>
+                                    <button id="accept-voice-recording-training-user" class="ms-Button ms-Button--icon voice-control-button" title="Send for transcription">
+                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="check-icon">
+                                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Transcription Loading Mode for Client Message -->
+                            <div id="transcription-loading-mode-training-user" class="training-voice-mode" style="display: none;">
+                                <div class="transcription-loading-content">
+                                    <div class="transcription-spinner"></div>
+                                    <span class="transcription-loading-text">Transcribing...</span>
+                                </div>
+                            </div>
                         </div>
+                        
                         <div class="training-field">
                             <label for="training-ai-response">AI Response:</label>
-                            <textarea id="training-ai-response" rows="8" placeholder="Enter the AI's response... (Ctrl+V or right-click to paste)"></textarea>
+                            <div class="training-input-container">
+                                <textarea id="training-ai-response" rows="8" placeholder="Enter the AI's response... (Ctrl+V or right-click to paste)"></textarea>
+                                <button id="voice-input-training-ai" class="ms-Button ms-Button--icon voice-button training-voice-button" title="Voice input for AI response">
+                                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="microphone-icon">
+                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill="currentColor"/>
+                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                        <path d="M12 19v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                            </div>
                             <small style="color: #666; font-size: 12px; margin-top: 5px; display: block;">
-                                Tip: You can paste text using Ctrl+V (Windows) or Cmd+V (Mac), or right-click and select Paste
+                                Tip: You can paste text using Ctrl+V (Windows) or Cmd+V (Mac), or right-click and select Paste. Use the microphone for voice input.
                             </small>
+                            
+                            <!-- Voice Recording Mode for AI Response -->
+                            <div id="voice-recording-mode-training-ai" class="training-voice-mode" style="display: none;">
+                                <div class="voice-waveform-container">
+                                    <canvas id="voice-waveform-training-ai" class="voice-waveform"></canvas>
+                                    <div id="voice-recording-timer-training-ai" class="voice-recording-timer">00:00</div>
+                                </div>
+                                <div class="voice-recording-controls">
+                                    <button id="cancel-voice-recording-training-ai" class="ms-Button ms-Button--icon voice-control-button" title="Cancel recording">
+                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="cancel-icon">
+                                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </button>
+                                    <button id="accept-voice-recording-training-ai" class="ms-Button ms-Button--icon voice-control-button" title="Send for transcription">
+                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="check-icon">
+                                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Transcription Loading Mode for AI Response -->
+                            <div id="transcription-loading-mode-training-ai" class="training-voice-mode" style="display: none;">
+                                <div class="transcription-loading-content">
+                                    <div class="transcription-spinner"></div>
+                                    <span class="transcription-loading-text">Transcribing...</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="modal-actions">

@@ -1249,6 +1249,34 @@ Example:
 <SUMLIST-S; driver1="V1"; indent="1"; bold="true"; topborder="true"; row1="V7(D)|Building A Rent(L)|is: revenue(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|"> <BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
 ```
 
+### Alternating drivers and calc rows
+
+- **Purpose**: Common layout for long lists where each assumption/volume row is immediately followed by a calculation row that uses it.
+- **Use when**: You have repeated pairs of input assumption → derived calculation.
+- **Formatting**:
+  - **Assumption/volume rows**: `indent="2"` and italicized (use `~` on label/value or `italic` parameter per house style).
+  - **Calculation rows**: `indent="1"`, `bold="true"`, `topborder="true"`. For expenses, set `negative="true"`.
+  - **Totals across many calc rows**: Use `FORMULA-S` with `customformula` that explicitly sums the calc rows (e.g., `rd{V3}+rd{V5}+...`). Do NOT use `SUMLIST-S` here because it will sum the assumption/volume rows too.
+
+Example:
+```
+<LABELH1; row1="(D)|~Operating Expenses:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; indent="2"; bold="false"; row1="V1(D)|~Number of Units(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~10(Y1)|~10(Y2)|~10(Y3)|~10(Y4)|~10(Y5)|~10(Y6)|">
+<BR; row1="(D)|BR(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<LABELH3; row1="(D)|Per Unit Expenses:(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|(Y1)|(Y2)|(Y3)|(Y4)|(Y5)|(Y6)|">
+<CONST-E; indent="2"; bold="false"; italic="2"; row1="V2(D)|~Insurance Cost per Unit per Month(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~$1000(Y1)|~$1000(Y2)|~$1000(Y3)|~$1000(Y4)|~$1000(Y5)|~$1000(Y6)|">
+<MULT2-S; indent="1"; bold="true"; topborder="true"; italic="1"; negative="true"; driver1="V1"; driver2="V2"; row1="V3(D)|Insurance Expense(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+<CONST-E; indent="2"; bold="false"; italic="2"; row1="V4(D)|~Water/Sewer Cost per Unit per Month(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~$900(Y1)|~$900(Y2)|~$900(Y3)|~$900(Y4)|~$900(Y5)|~$900(Y6)|">
+<MULT2-S; indent="1"; bold="true"; topborder="true"; italic="1"; negative="true"; driver1="V1"; driver2="V4"; row1="V5(D)|Water/Sewer Expense(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+<CONST-E; indent="2"; bold="false"; italic="2"; row1="V6(D)|~Repairs & Maint Cost per Unit per Month(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~$750(Y1)|~$750(Y2)|~$750(Y3)|~$750(Y4)|~$750(Y5)|~$750(Y6)|">
+<MULT2-S; indent="1"; bold="true"; topborder="true"; italic="1"; negative="true"; driver1="V1"; driver2="V6"; row1="V7(D)|Repairs & Maintenance Expense(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+<CONST-E; indent="2"; bold="false"; italic="2"; row1="V8(D)|~Super Cost per Unit per Month(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~$600(Y1)|~$600(Y2)|~$600(Y3)|~$600(Y4)|~$600(Y5)|~$600(Y6)|">
+<MULT2-S; indent="1"; bold="true"; topborder="true"; italic="1"; negative="true"; driver1="V1"; driver2="V8"; row1="V9(D)|Super Expense(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+<!-- Optional explicit total across calc rows using FORMULA-S to avoid summing assumptions -->
+<FORMULA-S; indent="1"; bold="true"; topborder="true"; customformula="rd{V3}+rd{V5}+rd{V7}+rd{V9}"; row1="V10(D)|Total Per Unit Expenses(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|$F(Y1)|$F(Y2)|$F(Y3)|$F(Y4)|$F(Y5)|$F(Y6)|">
+```
+
+
 ---
 
 ## SOURCE CODE TEMPLATES

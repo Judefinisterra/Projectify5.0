@@ -1423,6 +1423,352 @@ async function loadCodeEditorSystemPrompt() {
 }
 // <<< END ADDED
 
+// >>> ADDED: Training Data Voice Recording functionality
+let mediaRecorderTraining = null;
+let audioChunksTraining = [];
+let audioContextTraining = null;
+let analyserTraining = null;
+let waveformAnimationIdTraining = null;
+let recordingStartTimeTraining = null;
+let recordingTimerIntervalTraining = null;
+let currentTrainingTarget = null; // 'user' or 'ai'
+
+// Initialize training data voice recording event handlers
+function initializeTrainingVoiceRecording() {
+    // Voice buttons
+    const voiceInputTrainingUser = document.getElementById('voice-input-training-user');
+    const voiceInputTrainingAI = document.getElementById('voice-input-training-ai');
+    
+    // Cancel and accept buttons for user input
+    const cancelVoiceRecordingTrainingUser = document.getElementById('cancel-voice-recording-training-user');
+    const acceptVoiceRecordingTrainingUser = document.getElementById('accept-voice-recording-training-user');
+    
+    // Cancel and accept buttons for AI response
+    const cancelVoiceRecordingTrainingAI = document.getElementById('cancel-voice-recording-training-ai');
+    const acceptVoiceRecordingTrainingAI = document.getElementById('accept-voice-recording-training-ai');
+    
+    if (voiceInputTrainingUser) {
+        voiceInputTrainingUser.onclick = () => {
+            currentTrainingTarget = 'user';
+            startVoiceRecordingTraining();
+        };
+    }
+    
+    if (voiceInputTrainingAI) {
+        voiceInputTrainingAI.onclick = () => {
+            currentTrainingTarget = 'ai';
+            startVoiceRecordingTraining();
+        };
+    }
+    
+    if (cancelVoiceRecordingTrainingUser) {
+        cancelVoiceRecordingTrainingUser.onclick = () => {
+            currentTrainingTarget = 'user';
+            stopVoiceRecordingTraining();
+        };
+    }
+    
+    if (acceptVoiceRecordingTrainingUser) {
+        acceptVoiceRecordingTrainingUser.onclick = () => {
+            currentTrainingTarget = 'user';
+            if (mediaRecorderTraining && mediaRecorderTraining.state === 'recording') {
+                mediaRecorderTraining.stop();
+            }
+        };
+    }
+    
+    if (cancelVoiceRecordingTrainingAI) {
+        cancelVoiceRecordingTrainingAI.onclick = () => {
+            currentTrainingTarget = 'ai';
+            stopVoiceRecordingTraining();
+        };
+    }
+    
+    if (acceptVoiceRecordingTrainingAI) {
+        acceptVoiceRecordingTrainingAI.onclick = () => {
+            currentTrainingTarget = 'ai';
+            if (mediaRecorderTraining && mediaRecorderTraining.state === 'recording') {
+                mediaRecorderTraining.stop();
+            }
+        };
+    }
+}
+
+async function startVoiceRecordingTraining() {
+    try {
+        console.log('[Voice-Training] Requesting microphone access...');
+        
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                sampleRate: 44100
+            } 
+        });
+        
+        console.log('[Voice-Training] Microphone access granted');
+        
+        // Switch to recording mode
+        switchToRecordingModeTraining();
+        
+        // Setup audio context for waveform visualization
+        audioContextTraining = new (window.AudioContext || window.webkitAudioContext)();
+        analyserTraining = audioContextTraining.createAnalyser();
+        const source = audioContextTraining.createMediaStreamSource(stream);
+        source.connect(analyserTraining);
+        
+        // Configure analyser
+        analyserTraining.fftSize = 1024;
+        analyserTraining.smoothingTimeConstant = 0.3;
+        analyserTraining.minDecibels = -90;
+        analyserTraining.maxDecibels = -10;
+        
+        // Start waveform animation
+        drawWaveformTraining();
+        
+        // Create MediaRecorder
+        const options = { mimeType: 'audio/webm;codecs=opus' };
+        if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options.mimeType = 'audio/webm';
+            if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                options.mimeType = 'audio/mp4';
+            }
+        }
+        
+        mediaRecorderTraining = new MediaRecorder(stream, options);
+        audioChunksTraining = [];
+        
+        mediaRecorderTraining.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                audioChunksTraining.push(event.data);
+            }
+        };
+        
+        mediaRecorderTraining.onstop = async () => {
+            console.log('[Voice-Training] Recording stopped');
+            
+            // Stop all tracks
+            stream.getTracks().forEach(track => track.stop());
+            
+            // Create audio blob
+            const audioBlob = new Blob(audioChunksTraining, { type: 'audio/webm' });
+            console.log('[Voice-Training] Audio blob created, size:', audioBlob.size);
+            
+            // Show loading state
+            switchToLoadingModeTraining();
+            
+            // Transcribe audio
+            await transcribeAudioTraining(audioBlob);
+        };
+        
+        // Start recording
+        mediaRecorderTraining.start();
+        recordingStartTimeTraining = Date.now();
+        
+        // Start timer
+        updateRecordingTimerTraining();
+        recordingTimerIntervalTraining = setInterval(updateRecordingTimerTraining, 100);
+        
+        console.log('[Voice-Training] Recording started');
+        
+    } catch (error) {
+        console.error('[Voice-Training] Error starting recording:', error);
+        showError('Failed to access microphone. Please check your permissions.');
+        switchToNormalModeTraining();
+    }
+}
+
+function stopVoiceRecordingTraining() {
+    console.log('[Voice-Training] Stopping recording...');
+    
+    // Stop waveform animation
+    if (waveformAnimationIdTraining) {
+        cancelAnimationFrame(waveformAnimationIdTraining);
+        waveformAnimationIdTraining = null;
+    }
+    
+    // Stop timer
+    if (recordingTimerIntervalTraining) {
+        clearInterval(recordingTimerIntervalTraining);
+        recordingTimerIntervalTraining = null;
+    }
+    
+    // Stop recording
+    if (mediaRecorderTraining && mediaRecorderTraining.state === 'recording') {
+        mediaRecorderTraining.stop();
+    }
+    
+    // Close audio context
+    if (audioContextTraining) {
+        audioContextTraining.close();
+        audioContextTraining = null;
+    }
+    
+    // Switch back to normal mode
+    switchToNormalModeTraining();
+    
+    // Reset variables
+    recordingStartTimeTraining = null;
+}
+
+function switchToRecordingModeTraining() {
+    const voiceRecordingMode = document.getElementById(`voice-recording-mode-training-${currentTrainingTarget}`);
+    if (voiceRecordingMode) {
+        voiceRecordingMode.style.display = 'block';
+    }
+}
+
+function switchToLoadingModeTraining() {
+    // Hide recording mode
+    const voiceRecordingMode = document.getElementById(`voice-recording-mode-training-${currentTrainingTarget}`);
+    if (voiceRecordingMode) {
+        voiceRecordingMode.style.display = 'none';
+    }
+    
+    // Show loading mode
+    const transcriptionLoadingMode = document.getElementById(`transcription-loading-mode-training-${currentTrainingTarget}`);
+    if (transcriptionLoadingMode) {
+        transcriptionLoadingMode.style.display = 'block';
+    }
+}
+
+function switchToNormalModeTraining() {
+    // Hide all modes
+    const voiceRecordingMode = document.getElementById(`voice-recording-mode-training-${currentTrainingTarget}`);
+    const transcriptionLoadingMode = document.getElementById(`transcription-loading-mode-training-${currentTrainingTarget}`);
+    
+    if (voiceRecordingMode) {
+        voiceRecordingMode.style.display = 'none';
+    }
+    if (transcriptionLoadingMode) {
+        transcriptionLoadingMode.style.display = 'none';
+    }
+}
+
+function updateRecordingTimerTraining() {
+    if (!recordingStartTimeTraining) return;
+    
+    const elapsed = Math.floor((Date.now() - recordingStartTimeTraining) / 1000);
+    const minutes = Math.floor(elapsed / 60);
+    const seconds = elapsed % 60;
+    const timeString = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    const timer = document.getElementById(`voice-recording-timer-training-${currentTrainingTarget}`);
+    if (timer) {
+        timer.textContent = timeString;
+    }
+}
+
+function drawWaveformTraining() {
+    if (!analyserTraining) return;
+    
+    const canvas = document.getElementById(`voice-waveform-training-${currentTrainingTarget}`);
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const bufferLength = analyserTraining.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    
+    const draw = () => {
+        if (!mediaRecorderTraining || mediaRecorderTraining.state !== 'recording') {
+            return;
+        }
+        
+        waveformAnimationIdTraining = requestAnimationFrame(draw);
+        
+        analyserTraining.getByteFrequencyData(dataArray);
+        
+        ctx.fillStyle = '#333333';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        const barWidth = (canvas.width / bufferLength) * 2.5;
+        let barHeight;
+        let x = 0;
+        
+        for (let i = 0; i < bufferLength; i++) {
+            barHeight = (dataArray[i] / 255) * canvas.height * 0.8;
+            
+            const r = barHeight + 25 * (i / bufferLength);
+            const g = 250 * (i / bufferLength);
+            const b = 50;
+            
+            ctx.fillStyle = `rgb(${r},${g},${b})`;
+            ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+            
+            x += barWidth + 1;
+        }
+    };
+    
+    draw();
+}
+
+async function transcribeAudioTraining(audioBlob) {
+    try {
+        console.log('[Voice-Training] Starting transcription...');
+        
+        // Get API key from AIcalls.js
+        const { initializeAPIKeys } = await import('./AIcalls.js');
+        const apiKeys = await initializeAPIKeys();
+        const apiKey = apiKeys.OPENAI_API_KEY;
+        
+        if (!apiKey) {
+            throw new Error('No API key available for transcription');
+        }
+        
+        // Create form data
+        const formData = new FormData();
+        formData.append('file', audioBlob, 'recording.webm');
+        formData.append('model', 'whisper-1');
+        
+        // Make API request
+        const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: formData
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Transcription failed: ${response.status}`);
+        }
+        
+        const result = await response.json();
+        console.log('[Voice-Training] Transcription result:', result);
+        
+        if (result.text) {
+            // Insert transcribed text into the appropriate textarea
+            insertTranscribedTextTraining(result.text);
+        }
+        
+    } catch (error) {
+        console.error('[Voice-Training] Transcription error:', error);
+        showError('Failed to transcribe audio. Please try again.');
+    } finally {
+        switchToNormalModeTraining();
+    }
+}
+
+function insertTranscribedTextTraining(text) {
+    const targetTextarea = document.getElementById(`training-${currentTrainingTarget === 'user' ? 'user-input' : 'ai-response'}`);
+    if (targetTextarea) {
+        const currentValue = targetTextarea.value;
+        const cursorPosition = targetTextarea.selectionStart;
+        
+        // Insert text at cursor position
+        const newValue = currentValue.slice(0, cursorPosition) + text + currentValue.slice(cursorPosition);
+        targetTextarea.value = newValue;
+        
+        // Move cursor to end of inserted text
+        const newCursorPosition = cursorPosition + text.length;
+        targetTextarea.setSelectionRange(newCursorPosition, newCursorPosition);
+        targetTextarea.focus();
+        
+        console.log('[Voice-Training] Transcribed text inserted into textarea');
+    }
+}
+// <<< END ADDED
+
 // NEW FUNCTION SPECIFICALLY FOR AI MODEL PLANNER OUTPUT (ALWAYS FIRST PASS)
 export async function processModelCodesForPlanner(modelCodesString) {
     console.log(`[processModelCodesForPlanner] Called with ModelCodes.`);
@@ -4257,6 +4603,9 @@ Office.onReady(async (info) => {
       
       // >>> ADDED: Initialize system prompt dropdown
       initializeSystemPromptDropdown();
+      
+      // >>> ADDED: Initialize training data voice recording
+      initializeTrainingVoiceRecording();
       
       // >>> ADDED: Clear conversation history on startup to ensure fresh start
       console.log("Clearing conversation history on startup...");
