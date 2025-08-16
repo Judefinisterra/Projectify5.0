@@ -11,6 +11,124 @@ import ChatLayoutDebugger from './ChatDebugger.js';
 // Import multiline input handler
 import { multilineInputHandler } from './multiline-input.js';
 
+// ===== SYNTAX HIGHLIGHTING FUNCTIONS =====
+function setupSyntaxHighlighting(textarea) {
+    // Convert textarea to contenteditable div for syntax highlighting
+    const parent = textarea.parentNode;
+    const div = document.createElement('div');
+    
+    // Copy textarea attributes and styles
+    div.setAttribute('contenteditable', 'true');
+    div.className = 'syntax-highlighted';
+    div.style.width = textarea.style.width || '100%';
+    div.style.height = textarea.style.height || '300px';
+    div.style.minHeight = '300px';
+    div.style.fontFamily = '"Courier New", monospace';
+    div.style.fontSize = '14px';
+    div.style.lineHeight = '1.6';
+    
+    // Set initial content
+    if (textarea.value) {
+        div.innerHTML = highlightQuotedText(textarea.value);
+    } else {
+        div.innerHTML = '<span style="color: #999;">Code strings will appear here after generation or can be pasted...</span>';
+    }
+    
+    // Replace textarea with div
+    parent.replaceChild(div, textarea);
+    
+    // Update the global reference
+    const newTextarea = div;
+    newTextarea.id = 'codes-textarea';
+    
+    function highlightQuotedText(text) {
+        if (!text) return '<span style="color: #999;">Code strings will appear here after generation or can be pasted...</span>';
+        
+        // Escape HTML entities first
+        const escaped = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+        
+        // Highlight text within double quotes with purple color
+        return escaped.replace(/"([^"]*)"/g, '<span class="syntax-quote">"$1"</span>');
+    }
+    
+    function updateHighlight() {
+        const text = newTextarea.textContent || '';
+        const highlighted = highlightQuotedText(text);
+        
+        // Save cursor position
+        const selection = window.getSelection();
+        const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+        const cursorPos = range ? range.startOffset : 0;
+        
+        // Update content
+        newTextarea.innerHTML = highlighted;
+        
+        // Restore cursor position
+        try {
+            if (newTextarea.firstChild) {
+                const newRange = document.createRange();
+                const walker = document.createTreeWalker(
+                    newTextarea,
+                    NodeFilter.SHOW_TEXT,
+                    null,
+                    false
+                );
+                
+                let currentPos = 0;
+                let textNode = walker.nextNode();
+                
+                while (textNode && currentPos + textNode.textContent.length < cursorPos) {
+                    currentPos += textNode.textContent.length;
+                    textNode = walker.nextNode();
+                }
+                
+                if (textNode) {
+                    const offset = Math.min(cursorPos - currentPos, textNode.textContent.length);
+                    newRange.setStart(textNode, offset);
+                    newRange.collapse(true);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                }
+            }
+        } catch (e) {
+            // Ignore cursor restoration errors
+        }
+    }
+    
+    // Add event listeners
+    newTextarea.addEventListener('input', updateHighlight);
+    newTextarea.addEventListener('paste', () => setTimeout(updateHighlight, 10));
+    
+    // Handle focus/blur for placeholder
+    newTextarea.addEventListener('focus', function() {
+        if (this.textContent.trim() === '' || this.innerHTML.includes('Code strings will appear here')) {
+            this.innerHTML = '';
+        }
+    });
+    
+    newTextarea.addEventListener('blur', function() {
+        if (this.textContent.trim() === '') {
+            this.innerHTML = '<span style="color: #999;">Code strings will appear here after generation or can be pasted...</span>';
+        }
+    });
+    
+    // Add value property to maintain compatibility
+    Object.defineProperty(newTextarea, 'value', {
+        get: function() {
+            return this.textContent || '';
+        },
+        set: function(val) {
+            this.innerHTML = highlightQuotedText(val);
+        }
+    });
+    
+    console.log('[Syntax] Syntax highlighting setup complete');
+    return newTextarea;
+}
+
 // Ensure userProfileManager is available globally
 if (typeof window !== 'undefined') {
   window.userProfileManager = userProfileManager;
@@ -4968,6 +5086,14 @@ Office.onReady(async (info) => {
           codesTextarea.addEventListener('focus', updateCursorPosition);   // Update when focus is gained
           // codesTextarea.addEventListener('blur', updateCursorPosition); // Maybe don't update on blur?
           console.log("[Office.onReady] Added event listeners to codesTextarea for cursor tracking."); // <<< DEBUG LOG
+          
+          // Setup syntax highlighting
+          const highlightedTextarea = setupSyntaxHighlighting(codesTextarea);
+          // Update reference to the new element
+          if (highlightedTextarea && highlightedTextarea.id === 'codes-textarea') {
+              // Update any other references if needed
+              console.log("[Office.onReady] Textarea converted to syntax-highlighted div");
+          }
       }
 
       // Setup Insert to Editor button

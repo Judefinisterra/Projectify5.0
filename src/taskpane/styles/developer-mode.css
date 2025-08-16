@@ -676,6 +676,31 @@
 .hljs-class { color: #267f99; }
 .hljs-variable { color: #001080; }
 
+/* ===== CODE EDITOR SYNTAX HIGHLIGHTING ===== */
+#codes-textarea {
+    font-family: 'Courier New', monospace;
+    color: #333333;
+}
+
+.syntax-highlighted {
+    font-family: 'Courier New', monospace;
+    line-height: 1.6;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: #ffffff;
+    color: #333333;
+    min-height: 300px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.syntax-quote {
+    color: #9966ff !important;
+    font-weight: normal;
+}
+
 /* ===== SCROLLBAR ===== */
 .chat-log::-webkit-scrollbar,
 #user-input-dev::-webkit-scrollbar {
