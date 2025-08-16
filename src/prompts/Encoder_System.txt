@@ -307,6 +307,21 @@ All three insert rows with 6 annual columns (Y1-Y6) + 72 monthly columns. All sp
 - **SPREAD-E:** Should almost never specify time period. Labels apply to both monthly and annual columns
 - **ENDPOINT-E:** Same labeling rules as CONST-E
 
+#### Assumption placement for SPREAD-E and CONST-E (CRITICAL)
+
+- **Rule:** Do not hardcode assumption values in columns C1–C6 for `SPREAD-E` or `CONST-E`. Place assumption values only in Y1–Y6.
+- **Why:** These seed codes define annual (Y1–Y6) assumptions that the engine propagates to the monthly time series. Using C1–C6 for values creates ambiguity and inconsistent processing.
+
+Wrong:
+```
+<CONST-E; indent="2"; bold="false"; row1="V5(D)|Occupancy Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|~80%(C6)|~80%(Y1)|~80%(Y2)|~80%(Y3)|~80%(Y4)|~80%(Y5)|~80%(Y6)|"> 
+```
+
+Correct:
+```
+<CONST-E; indent="2"; bold="false"; row1="V5(D)|Occupancy Rate(L)|(F)|(C1)|(C2)|(C3)|(C4)|(C5)|(C6)|~80%(Y1)|~80%(Y2)|~80%(Y3)|~80%(Y4)|~80%(Y5)|~80%(Y6)|"> 
+```
+
 ### INTERPRETING ASSUMPTIONS
 When client says "per month", generally use CONST-E to take monthly assumption for each year and spread to each month. Ex: "We spend $10/month in 2025" → Jan 2025, Feb 2025, etc. all use $10 assumption.
 

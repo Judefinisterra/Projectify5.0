@@ -4392,7 +4392,7 @@ Office.onReady(async (info) => {
             }
         };
 
-        codesTextarea.onkeydown = (event) => {
+        codesTextarea.addEventListener('keydown', (event) => {
             if (!dynamicSuggestionsContainer || dynamicSuggestionsContainer.style.display !== 'block' || currentSuggestions.length === 0) {
                 return;
             }
@@ -4434,7 +4434,7 @@ Office.onReady(async (info) => {
                     }
                     break;
             }
-        };
+        });
 
          codesTextarea.addEventListener('blur', () => {
              if (!dynamicSuggestionsContainer) return;
