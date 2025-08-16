@@ -465,7 +465,45 @@
                         <p>Describe the changes you want to make to the code. The AI will analyze the current code content and apply your requested modifications.</p>
                         <div class="ai-editor-input">
                             <label for="ai-editor-instructions">What changes would you like to make?</label>
-                            <textarea id="ai-editor-instructions" rows="4" placeholder="Example: change all CONST-E codes to SPREAD-E, or add validation to all formulas, etc."></textarea>
+                            <div class="ai-editor-input-container">
+                                <textarea id="ai-editor-instructions" rows="4" placeholder="Example: change all CONST-E codes to SPREAD-E, or add validation to all formulas, etc."></textarea>
+                                <button id="voice-input-ai-editor" class="ms-Button ms-Button--icon voice-button ai-editor-voice-button" title="Voice input for instructions">
+                                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="microphone-icon">
+                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" fill="currentColor"/>
+                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                                        <path d="M12 19v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        <path d="M8 23h8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <!-- Voice Recording Mode for AI Editor -->
+                            <div id="voice-recording-mode-ai-editor" class="ai-editor-voice-mode" style="display: none;">
+                                <div class="voice-waveform-container">
+                                    <canvas id="voice-waveform-ai-editor" class="voice-waveform"></canvas>
+                                    <div id="voice-recording-timer-ai-editor" class="voice-recording-timer">00:00</div>
+                                </div>
+                                <div class="voice-recording-controls">
+                                    <button id="cancel-voice-recording-ai-editor" class="ms-Button ms-Button--icon voice-control-button" title="Cancel recording">
+                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="cancel-icon">
+                                            <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                        </svg>
+                                    </button>
+                                    <button id="accept-voice-recording-ai-editor" class="ms-Button ms-Button--icon voice-control-button" title="Send for transcription">
+                                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" class="check-icon">
+                                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" fill="currentColor"/>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Transcription Loading Mode for AI Editor -->
+                            <div id="transcription-loading-mode-ai-editor" class="ai-editor-voice-mode" style="display: none;">
+                                <div class="transcription-loading-content">
+                                    <div class="transcription-spinner"></div>
+                                    <span class="transcription-loading-text">Transcribing...</span>
+                                </div>
+                            </div>
                         </div>
                         <div class="ai-editor-options">
                             <label>
