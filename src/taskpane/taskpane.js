@@ -11,6 +11,31 @@ import ChatLayoutDebugger from './ChatDebugger.js';
 // Import multiline input handler
 import { multilineInputHandler } from './multiline-input.js';
 
+// ===== CODE FORMATTING FUNCTIONS =====
+function formatCodeBlocks(text) {
+    if (!text || typeof text !== 'string') return text;
+    
+    // Add line breaks before each < bracket to put each code block on its own line
+    let formatted = text
+        // Add line break before < that's not at the start of a line
+        .replace(/([^>\n])\s*</g, '$1\n<')
+        // Clean up multiple spaces between > and <
+        .replace(/>\s+</g, '>\n<')
+        // Trim whitespace from start and end
+        .replace(/^\s+|\s+$/g, '')
+        // Remove multiple consecutive line breaks
+        .replace(/\n\s*\n/g, '\n')
+        // Ensure there's a line break at the end if text ends with >
+        .replace(/>$/, '>\n');
+    
+    // Remove trailing newline if it was just added and text didn't originally end with >
+    if (!text.endsWith('>') && formatted.endsWith('\n')) {
+        formatted = formatted.slice(0, -1);
+    }
+    
+    return formatted;
+}
+
 // ===== SYNTAX HIGHLIGHTING FUNCTIONS =====
 function setupSyntaxHighlighting(textarea) {
     // Convert textarea to contenteditable div for syntax highlighting
@@ -44,8 +69,11 @@ function setupSyntaxHighlighting(textarea) {
     function highlightQuotedText(text) {
         if (!text) return '<span style="color: #999;">Code strings will appear here after generation or can be pasted...</span>';
         
-        // Escape HTML entities first
-        const escaped = text
+        // First format the code blocks to add line breaks
+        const formatted = formatCodeBlocks(text);
+        
+        // Escape HTML entities
+        const escaped = formatted
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
@@ -100,7 +128,32 @@ function setupSyntaxHighlighting(textarea) {
     
     // Add event listeners
     newTextarea.addEventListener('input', updateHighlight);
-    newTextarea.addEventListener('paste', () => setTimeout(updateHighlight, 10));
+    
+    // Enhanced paste handler to auto-format code blocks
+    newTextarea.addEventListener('paste', (e) => {
+        e.preventDefault();
+        
+        // Get pasted text
+        const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+        
+        // Format the pasted text
+        const formatted = formatCodeBlocks(pastedText);
+        
+        // Insert the formatted text
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(document.createTextNode(formatted));
+            range.collapse(false);
+        } else {
+            // If no selection, append to the end
+            newTextarea.textContent += formatted;
+        }
+        
+        // Update highlighting
+        setTimeout(updateHighlight, 10);
+    });
     
     // Handle focus/blur for placeholder
     newTextarea.addEventListener('focus', function() {
@@ -121,7 +174,9 @@ function setupSyntaxHighlighting(textarea) {
             return this.textContent || '';
         },
         set: function(val) {
-            this.innerHTML = highlightQuotedText(val);
+            // Format and highlight the text
+            const formatted = formatCodeBlocks(val);
+            this.innerHTML = highlightQuotedText(formatted);
         }
     });
     
