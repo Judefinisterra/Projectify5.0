@@ -800,3 +800,69 @@
 .code-suggestions::-webkit-scrollbar-thumb:hover {
     background: #999999;
 }
+
+/* ===== AI EDITOR MODAL ===== */
+.ai-editor-content {
+    margin: 20px 0;
+}
+
+.ai-editor-content p {
+    color: #666666;
+    margin-bottom: 16px;
+    line-height: 1.5;
+}
+
+.ai-editor-input {
+    margin: 16px 0;
+}
+
+.ai-editor-input label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #333333;
+}
+
+#ai-editor-instructions {
+    width: 100%;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 12px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    font-size: 14px;
+    background-color: #ffffff;
+    color: #333333;
+    resize: vertical;
+    min-height: 100px;
+}
+
+#ai-editor-instructions:focus {
+    outline: none;
+    border-color: #007acc;
+    box-shadow: 0 0 0 3px rgba(0, 122, 204, 0.1);
+}
+
+#ai-editor-instructions::placeholder {
+    color: #999999;
+    font-style: italic;
+}
+
+.ai-editor-options {
+    margin: 16px 0;
+    padding: 12px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+}
+
+.ai-editor-options label {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    color: #333333;
+    cursor: pointer;
+}
+
+.ai-editor-options input[type="checkbox"] {
+    margin-right: 8px;
+}

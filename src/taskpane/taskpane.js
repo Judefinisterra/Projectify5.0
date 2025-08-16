@@ -1252,7 +1252,176 @@ function getMaxDriverNumbers(text) {
     return maxNumbers;
 }
 
+// >>> ADDED: AI Editor functionality
+let currentBackup = null; // Store the current backup
 
+async function executeAIEditor() {
+    try {
+        const codesTextarea = document.getElementById('codes-textarea');
+        const aiEditorModal = document.getElementById('ai-editor-modal');
+        const aiEditorInstructions = document.getElementById('ai-editor-instructions');
+        const aiEditorBackupOption = document.getElementById('ai-editor-backup-option');
+        const restoreBackupButton = document.getElementById('restore-backup-button');
+        
+        const currentContent = codesTextarea.value;
+        const userInstructions = aiEditorInstructions.value.trim();
+        
+        if (!userInstructions) {
+            showError('Please enter instructions for what changes you want to make.');
+            aiEditorInstructions.focus();
+            return;
+        }
+
+        // Show loading state
+        const aiEditorExecuteButton = document.getElementById('ai-editor-execute-button');
+        aiEditorExecuteButton.innerHTML = '<span class="ms-Button-label">🔄 Processing...</span>';
+        aiEditorExecuteButton.disabled = true;
+
+        // Keep backup if option is checked
+        if (aiEditorBackupOption.checked) {
+            currentBackup = currentContent;
+            console.log('[AI Editor] Original content backed up');
+        }
+
+        // Load code editor system prompt
+        const codeEditorSystemPrompt = await loadCodeEditorSystemPrompt();
+        
+        // Prepare messages for Claude API with both content and instructions
+        const userMessage = `CURRENT CODE CONTENT:
+${currentContent}
+
+USER INSTRUCTIONS:
+${userInstructions}
+
+Please apply the requested changes to the code content and return the modified version.`;
+
+        const messages = [
+            {
+                role: "system",
+                content: codeEditorSystemPrompt
+            },
+            {
+                role: "user", 
+                content: userMessage
+            }
+        ];
+
+        console.log('[AI Editor] Sending request to Claude API...');
+        
+        // Call Claude API using existing callClaudeAPI function
+        const { callClaudeAPI } = await import('./AIcalls.js');
+        
+        let response = '';
+        for await (const contentPart of callClaudeAPI(messages, {
+            model: "claude-opus-4-1-20250805",
+            temperature: 0.3,
+            stream: false,
+            caller: "executeAIEditor"
+        })) {
+            response += contentPart;
+        }
+
+        if (response.trim()) {
+            // Replace content in code editor
+            codesTextarea.value = response.trim();
+            
+            // Show restore button if backup was created
+            if (currentBackup && restoreBackupButton) {
+                restoreBackupButton.style.display = 'inline-flex';
+            }
+            
+            console.log('[AI Editor] Code content successfully modified');
+            aiEditorModal.style.display = 'none';
+            
+            // Show success message
+            showMessage('AI Editor successfully applied your changes!');
+        } else {
+            throw new Error('Empty response from Claude API');
+        }
+
+    } catch (error) {
+        console.error('[AI Editor] Error:', error);
+        showError('Failed to apply AI edits: ' + error.message);
+    } finally {
+        // Reset button state
+        const aiEditorExecuteButton = document.getElementById('ai-editor-execute-button');
+        if (aiEditorExecuteButton) {
+            aiEditorExecuteButton.innerHTML = '<span class="ms-Button-label">🤖 Apply Changes</span>';
+            aiEditorExecuteButton.disabled = false;
+        }
+    }
+}
+
+function restoreFromBackup() {
+    if (!currentBackup) {
+        showError('No backup available to restore.');
+        return;
+    }
+
+    const codesTextarea = document.getElementById('codes-textarea');
+    const restoreBackupButton = document.getElementById('restore-backup-button');
+    
+    if (codesTextarea) {
+        codesTextarea.value = currentBackup;
+        currentBackup = null; // Clear backup after restore
+        
+        if (restoreBackupButton) {
+            restoreBackupButton.style.display = 'none';
+        }
+        
+        showMessage('Content restored from backup successfully!');
+        console.log('[AI Editor] Content restored from backup');
+    }
+}
+
+async function loadCodeEditorSystemPrompt() {
+    try {
+        console.log('[AI Editor] Attempting to load code editor system prompt...');
+        
+        // Use CONFIG.getAssetUrl like other parts of the codebase
+        const { CONFIG } = await import('./config.js');
+        
+        // Try the standard CONFIG path first, then fallbacks
+        const possiblePaths = [
+            'prompts/CodeEditor_System.txt', // Webpack copies to dist/prompts/
+            CONFIG.getAssetUrl('src/prompts/CodeEditor_System.txt'),
+            '../prompts/CodeEditor_System.txt',
+            './prompts/CodeEditor_System.txt'
+        ];
+        
+        let response = null;
+        let successfulPath = null;
+        
+        for (const path of possiblePaths) {
+            try {
+                console.log(`[AI Editor] Trying path: ${path}`);
+                response = await fetch(path);
+                if (response.ok) {
+                    successfulPath = path;
+                    break;
+                }
+            } catch (err) {
+                console.log(`[AI Editor] Failed to fetch from ${path}:`, err.message);
+            }
+        }
+        
+        if (!response || !response.ok) {
+            throw new Error('Failed to load code editor system prompt from any path');
+        }
+        
+        const content = await response.text();
+        console.log(`[AI Editor] Successfully loaded system prompt from: ${successfulPath}`);
+        console.log(`[AI Editor] System prompt length: ${content.length} characters`);
+        
+        return content;
+    } catch (error) {
+        console.error('[AI Editor] Failed to load system prompt:', error);
+        // Fallback to a basic prompt if file loading fails
+        console.warn('[AI Editor] Using fallback system prompt');
+        return "You are a financial model code editor. Apply the user's requested changes to the provided code content and return the modified version.";
+    }
+}
+// <<< END ADDED
 
 // NEW FUNCTION SPECIFICALLY FOR AI MODEL PLANNER OUTPUT (ALWAYS FIRST PASS)
 export async function processModelCodesForPlanner(modelCodesString) {
@@ -3581,6 +3750,58 @@ Office.onReady(async (info) => {
         generateTabStringButton.onclick = generateTabString; // Assign the imported function
     } else {
         console.error("Could not find button with id='generate-tab-string-button'");
+    }
+    // <<< END ADDED CODE
+
+    // >>> ADDED: AI Editor functionality
+    const aiEditorButton = document.getElementById('ai-editor-button');
+    const aiEditorModal = document.getElementById('ai-editor-modal');
+    const aiEditorInstructions = document.getElementById('ai-editor-instructions');
+    const aiEditorExecuteButton = document.getElementById('ai-editor-execute-button');
+    const aiEditorCancelButton = document.getElementById('ai-editor-cancel-button');
+    const aiEditorBackupOption = document.getElementById('ai-editor-backup-option');
+    const restoreBackupButton = document.getElementById('restore-backup-button');
+
+    if (aiEditorButton && aiEditorModal) {
+        aiEditorButton.onclick = () => {
+            const currentContent = codesTextarea.value;
+            if (!currentContent.trim()) {
+                showError('Code editor is empty. Please add some content before using AI Editor.');
+                return;
+            }
+            aiEditorInstructions.value = '';
+            aiEditorInstructions.focus();
+            aiEditorModal.style.display = 'block';
+        };
+
+        aiEditorCancelButton.onclick = () => {
+            aiEditorModal.style.display = 'none';
+        };
+
+        aiEditorExecuteButton.onclick = async () => {
+            await executeAIEditor();
+        };
+
+        // Close modal when clicking outside or on X
+        const aiEditorCloseButton = aiEditorModal.querySelector('.close-button');
+        aiEditorCloseButton.onclick = () => {
+            aiEditorModal.style.display = 'none';
+        };
+
+        window.addEventListener('click', (event) => {
+            if (event.target === aiEditorModal) {
+                aiEditorModal.style.display = 'none';
+            }
+        });
+    } else {
+        console.error("Could not find AI Editor button or modal elements");
+    }
+
+    // Restore backup functionality
+    if (restoreBackupButton) {
+        restoreBackupButton.onclick = () => {
+            restoreFromBackup();
+        };
     }
     // <<< END ADDED CODE
 
